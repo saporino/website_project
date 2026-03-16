@@ -514,7 +514,7 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
                     onClick={() => handleAddToCart(product)}
                     disabled={product.stock <= 0 || !product.is_active}
                     className={`w-full py-4 px-6 rounded-full font-semibold transition-all duration-300 flex items-center justify-center space-x-2 ${product.stock <= 0 || !product.is_active
-                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                      ? 'bg-white border-2 border-[#a4240e] text-[#a4240e] cursor-not-allowed'
                       : addedProducts.has(product.id)
                         ? 'bg-green-600 text-white shadow-lg'
                         : 'bg-[#a4240e] text-white hover:bg-[#8a1f0c] transform hover:scale-105 shadow-lg'
