@@ -9,6 +9,8 @@ export interface Product {
   weight_grams?: number;
   stock: number;
   featured: boolean;
+  is_active: boolean;
+  display_order?: number;
 }
 
 export interface CartItem extends Product {

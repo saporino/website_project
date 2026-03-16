@@ -113,7 +113,6 @@ function AppContent() {
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .eq('is_active', true)
         .order('display_order', { ascending: true });
       if (error) throw error;
       setProducts((data || []).sort((a, b) => {
@@ -513,15 +512,15 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
 
                   <button
                     onClick={() => handleAddToCart(product)}
-                    disabled={product.stock <= 0}
-                    className={`w-full py-4 px-6 rounded-full font-semibold transition-all duration-300 flex items-center justify-center space-x-2 ${product.stock <= 0
+                    disabled={product.stock <= 0 || !product.is_active}
+                    className={`w-full py-4 px-6 rounded-full font-semibold transition-all duration-300 flex items-center justify-center space-x-2 ${product.stock <= 0 || !product.is_active
                       ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                       : addedProducts.has(product.id)
                         ? 'bg-green-600 text-white shadow-lg'
                         : 'bg-[#a4240e] text-white hover:bg-[#8a1f0c] transform hover:scale-105 shadow-lg'
                       }`}
                   >
-                    {product.stock <= 0 ? (
+                    {product.stock <= 0 || !product.is_active ? (
                       <span>Esgotado</span>
                     ) : addedProducts.has(product.id) ? (
                       <>
