@@ -24,6 +24,21 @@ if (MERCADO_PAGO_PUBLIC_KEY) {
 }
 
 function App() {
+  // Keep-alive: pings Supabase every 4 days to prevent the free plan from pausing
+  useEffect(() => {
+    const keepAlive = async () => {
+      try {
+        await supabase.from('products').select('id').limit(1);
+      } catch (_) {
+        // silently ignore errors
+      }
+    };
+    // Run once on load, then every 4 days
+    keepAlive();
+    const interval = setInterval(keepAlive, 4 * 24 * 60 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <AuthProvider>
       <CartProvider>
@@ -921,10 +936,12 @@ const Contact = ({ contactForm, setContactForm, contactSubmitted, setContactSubm
                   </div>
                 </div>
 
-                {/* Espaço para a história (será adicionado depois) */}
                 <div className="pt-6 border-t border-gray-200">
                   <p className="text-gray-600 leading-relaxed text-lg">
-                    {/* História da Solo Cerrado será adicionada aqui */}
+                    A <strong className="text-gray-900">Solo Cerrado</strong> é a fazenda parceira da Saporino, localizada no coração do Cerrado Mineiro em Patrocínio/MG. Com altitude elevada, clima favorável e um solo rico em nutrientes, a região produz grãos de alta qualidade, reconhecidos internacionalmente por sua doçura natural e corpo encorpado.
+                  </p>
+                  <p className="text-gray-600 leading-relaxed text-lg mt-4">
+                    Cada lote é criteriosamente selecionado, garantindo que apenas os melhores grãos vermelhos cereja sigam para a próxima etapa — a torrefação artesanal em Patrocínio.
                   </p>
                 </div>
               </div>
@@ -958,10 +975,12 @@ const Contact = ({ contactForm, setContactForm, contactSubmitted, setContactSubm
                   </div>
                 </div>
 
-                {/* Espaço para a história (será adicionado depois) */}
                 <div className="pt-6 border-t border-gray-200">
                   <p className="text-gray-600 leading-relaxed text-lg">
-                    {/* História da torrefação será adicionada aqui */}
+                    A <strong className="text-gray-900">Café Original de Patrocínio</strong> é a torrefadora parceira da Saporino, com décadas de tradição no processamento artesanal do café mineiro. Situada às margens da cidade de Patrocínio, é onde os grãos selecionados passam pelo processo de torra controlada, desenvolvendo os aromas e sabores únicos que caracterizam cada blend Saporino.
+                  </p>
+                  <p className="text-gray-600 leading-relaxed text-lg mt-4">
+                    O processo artesanal respeita o tempo de cada grão. A torra é feita em pequenos lotes, preservando as notas características do Cerrado Mineiro — caramelo, nozes e um leve toque de chocolate amargo — que fazem do Café Saporino uma experiência única.
                   </p>
                 </div>
               </div>
