@@ -63,7 +63,7 @@ Deno.serve(async (req: Request) => {
             throw new Error('Failed to fetch store settings');
         }
 
-        const accessToken = settings?.mercado_pago_access_token || Deno.env.get('VITE_MERCADO_PAGO_ACCESS_TOKEN');
+        const accessToken = settings?.mercado_pago_access_token || Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN');
 
         if (!accessToken) {
             throw new Error('Mercado Pago Access Token not configured');
