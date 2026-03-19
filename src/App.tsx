@@ -1,6 +1,6 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
-import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Mail, Phone, MapPin, Send, User, ChevronDown, LogOut, CreditCard, Facebook, Linkedin, Lock } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Mail, Phone, MapPin, Send, User, ChevronDown, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CartProvider, useCart } from './contexts/CartContext';
 import { AuthModal } from './components/AuthModal';
@@ -11,6 +11,7 @@ import { UserProfile } from './pages/UserProfile';
 import { supabase } from './lib/supabase';
 import { Product, CartItem } from './types';
 import { createPreference, MERCADO_PAGO_PUBLIC_KEY } from './lib/mercadopago';
+import { getCarrierQuotes, lookupCEP, formatCEP, calculateCartWeight, CarrierQuote } from './lib/shipping';
 import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
 import { PrivacyPolicy, ShippingPolicy, RefundPolicy, TermsOfService, SubscriptionPolicy, BusinessPage } from './pages/PolicyPages';
 import { PaymentSuccess, PaymentFailure, PaymentPending } from './pages/PaymentPages';
@@ -553,6 +554,53 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', address: '' });
 
+  // Shipping address state
+  const [isGift, setIsGift] = useState(false);
+  const [recipientName, setRecipientName] = useState('');
+  const [cep, setCep] = useState('');
+  const [cepLoading, setCepLoading] = useState(false);
+  const [street, setStreet] = useState('');
+  const [number, setNumber] = useState('');
+  const [complement, setComplement] = useState('');
+  const [neighborhood, setNeighborhood] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+
+  // Carriers
+  const [carriers, setCarriers] = useState<CarrierQuote[]>([]);
+  const [selectedCarrierId, setSelectedCarrierId] = useState<string | null>(null);
+  const [carriersLoading, setCarriersLoading] = useState(false);
+
+  const fetchCarriers = useCallback(async () => {
+    if (cart.length === 0) return;
+    setCarriersLoading(true);
+    const weight = calculateCartWeight(cart);
+    const quotes = await getCarrierQuotes(cep, weight);
+    setCarriers(quotes);
+    if (quotes.length > 0 && !selectedCarrierId) setSelectedCarrierId(quotes[0].id);
+    setCarriersLoading(false);
+  }, [cart, cep]);
+
+  const handleCepChange = async (value: string) => {
+    const formatted = formatCEP(value);
+    setCep(formatted);
+    if (formatted.replace(/\D/g, '').length === 8) {
+      setCepLoading(true);
+      const address = await lookupCEP(formatted);
+      if (address) {
+        setStreet(address.street);
+        setNeighborhood(address.neighborhood);
+        setCity(address.city);
+        setState(address.state);
+      }
+      setCepLoading(false);
+      await fetchCarriers();
+    }
+  };
+
+  const getFullAddress = () =>
+    `${street}, ${number}${complement ? `, ${complement}` : ''} — ${neighborhood}, ${city}/${state} — CEP ${cep}`;
+
   const handleCheckout = () => {
     if (!user) {
       onAuthOpen('login');
@@ -569,6 +617,11 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
     setIsSubmitting(true);
 
     try {
+      const selectedCarrier = carriers.find(c => c.id === selectedCarrierId);
+      const shippingAddress = getFullAddress();
+      const shippingCost = selectedCarrier?.price || 0;
+      const shippingRecipient = isGift ? recipientName : formData.name;
+
       // Create order in database
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
@@ -577,8 +630,13 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
           customer_name: formData.name,
           customer_email: formData.email,
           customer_phone: formData.phone,
-          shipping_address: formData.address,
-          total_amount: getCartTotal(),
+          shipping_address: shippingAddress,
+          shipping_recipient: shippingRecipient,
+          is_gift: isGift,
+          shipping_carrier_id: selectedCarrierId,
+          shipping_carrier_name: selectedCarrier?.name || null,
+          shipping_cost: shippingCost,
+          total_amount: getCartTotal() + shippingCost,
           status: 'pending',
           order_type: 'single',
         })
@@ -705,18 +763,138 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                 />
               </div>
 
+              {/* Para mim / Presente */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Endereço de Entrega *</label>
-                <textarea
-                  required
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent transition-all"
-                />
+                <label className="block text-sm font-semibold text-gray-700 mb-3">Este pedido é para:</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button type="button" onClick={() => setIsGift(false)}
+                    className={`flex items-center justify-center space-x-2 py-3 px-4 rounded-xl border-2 font-semibold transition-all ${
+                      !isGift ? 'border-[#a4240e] bg-[#a4240e]/5 text-[#a4240e]' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}>
+                    <span>👤</span><span>Para mim</span>
+                  </button>
+                  <button type="button" onClick={() => setIsGift(true)}
+                    className={`flex items-center justify-center space-x-2 py-3 px-4 rounded-xl border-2 font-semibold transition-all ${
+                      isGift ? 'border-[#a4240e] bg-[#a4240e]/5 text-[#a4240e]' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                    }`}>
+                    <span>🎁</span><span>Presente</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="bg-stone-50 rounded-2xl p-6 space-y-3">
+              {/* Recipient name (gift only) */}
+              {isGift && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Nome do Presenteado *</label>
+                  <input type="text" required={isGift} value={recipientName}
+                    onChange={(e) => setRecipientName(e.target.value)}
+                    placeholder="Nome de quem vai receber"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent transition-all" />
+                </div>
+              )}
+
+              {/* Address */}
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-gray-700">Endereço de Entrega *</label>
+
+                {/* CEP */}
+                <div className="relative">
+                  <input type="text" value={cep} onChange={(e) => handleCepChange(e.target.value)}
+                    placeholder="CEP: 00000-000" maxLength={9}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent transition-all" />
+                  {cepLoading && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#a4240e]"></div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Street + Number */}
+                <div className="grid grid-cols-2 gap-3">
+                  <input type="text" value={street} onChange={(e) => setStreet(e.target.value)}
+                    placeholder="Rua / Av. *" required
+                    className="col-span-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent" />
+                  <input type="text" value={number} onChange={(e) => setNumber(e.target.value)}
+                    placeholder="Nº *" required
+                    className="col-span-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent" />
+                </div>
+
+                <input type="text" value={complement} onChange={(e) => setComplement(e.target.value)}
+                  placeholder="Complemento (apto, bloco...)"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent" />
+
+                <div className="grid grid-cols-2 gap-3">
+                  <input type="text" value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)}
+                    placeholder="Bairro *" required
+                    className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent" />
+                  <input type="text" value={city} onChange={(e) => setCity(e.target.value)}
+                    placeholder="Cidade *" required
+                    className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent" />
+                </div>
+
+                <input type="text" value={state} onChange={(e) => setState(e.target.value)}
+                  placeholder="Estado (UF) *" maxLength={2} required
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent" />
+              </div>
+
+              {/* Carrier Selection */}
+              {(carriers.length > 0 || carriersLoading) && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">Escolha a Transportadora *</label>
+                  {carriersLoading ? (
+                    <div className="flex items-center justify-center py-6">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#a4240e]"></div>
+                      <span className="ml-2 text-sm text-gray-500">Consultando fretes...</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {carriers.map((carrier) => (
+                        <button key={carrier.id} type="button"
+                          onClick={() => setSelectedCarrierId(carrier.id)}
+                          className={`w-full flex items-center space-x-3 p-4 rounded-xl border-2 transition-all text-left ${
+                            selectedCarrierId === carrier.id
+                              ? 'border-[#a4240e] bg-[#a4240e]/5'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}>
+                          {/* Logo */}
+                          <div className="w-12 h-12 rounded-lg bg-white border border-gray-100 flex items-center justify-center flex-shrink-0 overflow-hidden p-1">
+                            {carrier.logo_url ? (
+                              <img src={carrier.logo_url} alt={carrier.name} className="w-full h-full object-contain"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            ) : (
+                              <Truck className="w-5 h-5 text-gray-400" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <p className="font-semibold text-gray-900">{carrier.name}</p>
+                            <p className="text-xs text-gray-500">{carrier.delivery_time_days} dias úteis</p>
+                          </div>
+                          <div className="text-right">
+                            {carrier.price > 0 ? (
+                              <p className="font-bold text-gray-900">R$ {carrier.price.toFixed(2)}</p>
+                            ) : (
+                              <p className="text-xs text-blue-600 font-semibold">Verificar<br/>no checkout</p>
+                            )}
+                          </div>
+                          <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
+                            selectedCarrierId === carrier.id ? 'border-[#a4240e] bg-[#a4240e]' : 'border-gray-300'
+                          }`} />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Manual load button if CEP was skipped */}
+              {carriers.length === 0 && !carriersLoading && cep.replace(/\D/g, '').length === 8 && (
+                <button type="button" onClick={fetchCarriers}
+                  className="w-full py-2 text-[#a4240e] border border-[#a4240e] rounded-xl text-sm font-semibold hover:bg-[#a4240e]/5 transition-colors">
+                  🔄 Buscar transportadoras disponíveis
+                </button>
+              )}
+
+              <div className="bg-stone-50 rounded-2xl p-5 space-y-3">
                 <h3 className="font-bold text-gray-900 text-lg">Resumo do Pedido</h3>
                 {cart.map((item: CartItem) => (
                   <div key={item.id} className="flex justify-between text-sm">
@@ -724,9 +902,15 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                     <span className="font-semibold">R$ {(item.price * item.quantity).toFixed(2)}</span>
                   </div>
                 ))}
+                {selectedCarrierId && carriers.find(c => c.id === selectedCarrierId)?.price ? (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Frete ({carriers.find(c => c.id === selectedCarrierId)?.name})</span>
+                    <span className="font-semibold">R$ {(carriers.find(c => c.id === selectedCarrierId)?.price || 0).toFixed(2)}</span>
+                  </div>
+                ) : null}
                 <div className="border-t border-gray-200 pt-3 mt-3 flex justify-between font-bold text-xl">
                   <span>Total</span>
-                  <span className="text-[#a4240e]">R$ {getCartTotal().toFixed(2)}</span>
+                  <span className="text-[#a4240e]">R$ {(getCartTotal() + (selectedCarrierId ? (carriers.find(c => c.id === selectedCarrierId)?.price || 0) : 0)).toFixed(2)}</span>
                 </div>
               </div>
             </div>
