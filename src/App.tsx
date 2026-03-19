@@ -15,6 +15,8 @@ import { getCarrierQuotes, lookupCEP, formatCEP, calculateCartWeight, CarrierQuo
 import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
 import { PrivacyPolicy, ShippingPolicy, RefundPolicy, TermsOfService, SubscriptionPolicy, BusinessPage } from './pages/PolicyPages';
 import { PaymentSuccess, PaymentFailure, PaymentPending } from './pages/PaymentPages';
+import { TrackingPage } from './pages/TrackingPage';
+import { OrderDetailPage } from './pages/OrderDetailPage';
 
 const logoImage = '/SAPORINO LOGO transparente big-PNG.png';
 const cafeLogoImage = '/cafe-logo-saporino copy.png';
@@ -88,6 +90,16 @@ function AppRouter() {
   if (currentPath === '/payment/success') return <PaymentSuccess />;
   if (currentPath === '/payment/failure') return <PaymentFailure />;
   if (currentPath === '/payment/pending') return <PaymentPending />;
+
+  // Tracking & order detail routes
+  if (currentPath === '/rastrear') {
+    return <TrackingPage />;
+  }
+
+  if (currentPath.startsWith('/meu-pedido/')) {
+    const orderId = currentPath.replace('/meu-pedido/', '');
+    return <OrderDetailPage orderId={orderId} />;
+  }
 
   return <AppContent />;
 }
