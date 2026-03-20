@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { getTrackingUrl } from '../../lib/tracking';
-import {
-  Printer, Tag, Package, Search, Calendar, Filter,
+import { Printer, Tag, Package, Search, Filter,
   ChevronDown, ChevronUp, FileText, Truck, CheckCircle,
-  Clock, AlertCircle, Upload, ExternalLink, Save, X
-} from 'lucide-react';
+  Clock, AlertCircle, Upload, ExternalLink, Save, X, Building2, UserCircle } from 'lucide-react';
 
 interface Invoice {
   id: string;
@@ -67,6 +65,7 @@ interface Order {
   }>;
   invoices?: Invoice[];
   shipments?: Shipment[];
+  account_type?: string; // from user_profiles join
 }
 
 const ORDER_STATUSES = [
@@ -103,6 +102,7 @@ export function OrdersManagement() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [customerFilter, setCustomerFilter] = useState<'all' | 'PF' | 'PJ'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<Record<string, string>>({});
@@ -113,10 +113,15 @@ export function OrdersManagement() {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select(`*, order_items(quantity, unit_price, product_id, products(name, weight_grams)), invoices(*), shipments(*)`)
+        .select(`*, order_items(quantity, unit_price, product_id, products(name, weight_grams)), invoices(*), shipments(*), user_profiles!orders_user_id_fkey(account_type)`)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      setOrders(data || []);
+      // Flatten account_type from nested user_profiles
+      const enriched = (data || []).map((o: any) => ({
+        ...o,
+        account_type: o.user_profiles?.account_type || 'PF',
+      }));
+      setOrders(enriched);
     } catch (error) {
       console.error('Error loading orders:', error);
     } finally {
@@ -138,11 +143,12 @@ export function OrdersManagement() {
   const filteredOrders = orders.filter(order => {
     const status = getOrderStatus(order);
     const matchesFilter = filter === 'all' || status === filter;
+    const matchesCustomer = customerFilter === 'all' || (order.account_type || 'PF') === customerFilter;
     const matchesSearch =
       order.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customer_email?.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesFilter && matchesSearch;
+    return matchesFilter && matchesCustomer && matchesSearch;
   });
 
   if (loading) return (
@@ -153,9 +159,22 @@ export function OrdersManagement() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-6">Gerenciamento de Pedidos</h2>
+        <div className="mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <h2 className="text-3xl font-bold text-gray-900">Gerenciamento de Pedidos</h2>
+          {/* PF/PJ Toggle */}
+          <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden text-sm font-semibold">
+            {(['all', 'PF', 'PJ'] as const).map(type => (
+              <button key={type} onClick={() => setCustomerFilter(type)}
+                className={`flex items-center gap-1.5 px-4 py-2.5 border-r border-gray-200 last:border-0 transition-all ${
+                  customerFilter === type ? 'bg-[#a4240e] text-white' : 'text-gray-600 hover:bg-gray-50'
+                }`}>
+                {type === 'PJ' ? <Building2 className="w-3.5 h-3.5" /> : type === 'PF' ? <UserCircle className="w-3.5 h-3.5" /> : null}
+                {type === 'all' ? 'Todos' : type}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -206,7 +225,18 @@ function OrderCard({ order, expanded, section, onToggle, onSetSection, onRefresh
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div className="flex items-start gap-4">
             <div>
-              <h3 className="text-lg font-bold text-gray-900">Pedido {order.order_number}</h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-lg font-bold text-gray-900">Pedido {order.order_number}</h3>
+                {order.account_type === 'PJ' ? (
+                  <span className="flex items-center gap-1 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-bold rounded-full">
+                    <Building2 className="w-3 h-3" />PJ
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
+                    <UserCircle className="w-3 h-3" />PF
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-gray-600">{order.customer_name} • {new Date(order.created_at).toLocaleDateString('pt-BR')}</p>
             </div>
           </div>
