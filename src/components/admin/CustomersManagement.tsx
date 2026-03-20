@@ -1443,35 +1443,22 @@ export const CustomersManagement = () => {
               />
             </div>
 
-            <div className="flex gap-2">
-              <button
-                onClick={() => setFilterType('all')}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${filterType === 'all'
-                  ? 'bg-[#a4240e] text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+
+            <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden text-sm font-semibold">
+              {(['all', 'PF', 'PJ'] as const).map(type => (
+                <button
+                  key={type}
+                  onClick={() => setFilterType(type)}
+                  className={`flex items-center gap-1.5 px-4 py-2.5 border-r border-gray-200 last:border-0 transition-all ${
+                    filterType === type ? 'bg-[#a4240e] text-white' : 'text-gray-600 hover:bg-gray-50'
                   }`}
-              >
-                Todos
-              </button>
-              <button
-                onClick={() => setFilterType('PF')}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${filterType === 'PF'
-                  ? 'bg-[#a4240e] text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-              >
-                Pessoa Física
-              </button>
-              <button
-                onClick={() => setFilterType('PJ')}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${filterType === 'PJ'
-                  ? 'bg-[#a4240e] text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-              >
-                Pessoa Jurídica
-              </button>
+                >
+                  {type === 'PJ' ? <Building2 className="w-3.5 h-3.5" /> : type === 'PF' ? <User className="w-3.5 h-3.5" /> : null}
+                  {type === 'all' ? 'Todos' : type}
+                </button>
+              ))}
             </div>
+
           </div>
         </div>
 
