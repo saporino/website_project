@@ -173,12 +173,14 @@ export function Dashboard() {
           </div>
 
           {/* PF/PJ Filter */}
-          <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden text-sm font-semibold">
-            {(['all', 'PF', 'PJ'] as CustomerType[]).map(type => (
+          <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-semibold">
+            {(['all', 'PF', 'PJ'] as CustomerType[]).map((type, idx) => (
               <button
                 key={type}
                 onClick={() => setCustomerFilter(type)}
                 className={`px-4 py-2.5 transition-all border-r border-gray-200 last:border-0 ${
+                  idx === 0 ? 'rounded-l-xl' : idx === 2 ? 'rounded-r-xl' : ''
+                } ${
                   customerFilter === type
                     ? 'bg-[#a4240e] text-white'
                     : 'text-gray-600 hover:bg-gray-50'

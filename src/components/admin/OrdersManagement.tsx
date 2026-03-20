@@ -163,10 +163,12 @@ export function OrdersManagement() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <h2 className="text-3xl font-bold text-gray-900">Gerenciamento de Pedidos</h2>
           {/* PF/PJ Toggle */}
-          <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden text-sm font-semibold">
-            {(['all', 'PF', 'PJ'] as const).map(type => (
+          <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-semibold">
+            {(['all', 'PF', 'PJ'] as const).map((type, idx) => (
               <button key={type} onClick={() => setCustomerFilter(type)}
                 className={`flex items-center gap-1.5 px-4 py-2.5 border-r border-gray-200 last:border-0 transition-all ${
+                  idx === 0 ? 'rounded-l-xl' : idx === 2 ? 'rounded-r-xl' : ''
+                } ${
                   customerFilter === type ? 'bg-[#a4240e] text-white' : 'text-gray-600 hover:bg-gray-50'
                 }`}>
                 {type === 'PJ' ? <Building2 className="w-3.5 h-3.5" /> : type === 'PF' ? <UserCircle className="w-3.5 h-3.5" /> : null}

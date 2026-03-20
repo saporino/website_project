@@ -1444,12 +1444,14 @@ export const CustomersManagement = () => {
             </div>
 
 
-            <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden text-sm font-semibold">
-              {(['all', 'PF', 'PJ'] as const).map(type => (
+            <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-semibold">
+              {(['all', 'PF', 'PJ'] as const).map((type, idx) => (
                 <button
                   key={type}
                   onClick={() => setFilterType(type)}
                   className={`flex items-center gap-1.5 px-4 py-2.5 border-r border-gray-200 last:border-0 transition-all ${
+                    idx === 0 ? 'rounded-l-xl' : idx === 2 ? 'rounded-r-xl' : ''
+                  } ${
                     filterType === type ? 'bg-[#a4240e] text-white' : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
