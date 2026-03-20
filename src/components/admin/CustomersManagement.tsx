@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Users, Search, Filter, Mail, Phone, Calendar, Building2, User, FileText, Edit, Save, X, ShoppingBag, TrendingUp, Package, Gift, Send, MessageCircle, Trash2 } from 'lucide-react';
+import { Users, Search, Filter, Mail, Phone, Calendar, Building2, User, UserCircle, FileText, Edit, Save, X, ShoppingBag, TrendingUp, Package, Gift, Send, MessageCircle, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 
@@ -1453,7 +1453,7 @@ export const CustomersManagement = () => {
                     filterType === type ? 'bg-[#a4240e] text-white' : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  {type === 'PJ' ? <Building2 className="w-3.5 h-3.5" /> : type === 'PF' ? <User className="w-3.5 h-3.5" /> : null}
+                  {type === 'PJ' ? <Building2 className="w-3.5 h-3.5" /> : type === 'PF' ? <UserCircle className="w-3.5 h-3.5" /> : null}
                   {type === 'all' ? 'Todos' : type}
                 </button>
               ))}
