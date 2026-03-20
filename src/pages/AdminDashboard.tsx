@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Package, Settings, Truck, LogOut, ShoppingBag, Printer, Tag, Users, BarChart3 } from 'lucide-react';
+import { Package, Settings, Truck, LogOut, ShoppingBag, Users, BarChart3 } from 'lucide-react';
 import { OrdersManagement } from '../components/admin/OrdersManagement';
 import { ProductsManagement } from '../components/admin/ProductsManagement';
 import { ShippingManagement } from '../components/admin/ShippingManagement';
 import { StoreSettings } from '../components/admin/StoreSettings';
 import { CustomersManagement } from '../components/admin/CustomersManagement';
 import { Dashboard } from '../components/admin/Dashboard';
-import { LabelFormatsManagement } from '../components/admin/LabelFormatsManagement';
 
-type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 'labels' | 'settings';
+
+type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 'settings';
 
 export function AdminDashboard() {
   const { user, profile, signOut } = useAuth();
@@ -35,7 +35,6 @@ export function AdminDashboard() {
     { id: 'products' as TabType, label: 'Produtos', icon: Package },
     { id: 'customers' as TabType, label: 'Clientes', icon: Users },
     { id: 'shipping' as TabType, label: 'Transportadoras', icon: Truck },
-    { id: 'labels' as TabType, label: 'Etiquetas', icon: Tag },
     { id: 'settings' as TabType, label: 'Configurações', icon: Settings },
   ];
 
@@ -108,7 +107,7 @@ export function AdminDashboard() {
             {activeTab === 'products' && <ProductsManagement />}
             {activeTab === 'customers' && <CustomersManagement />}
             {activeTab === 'shipping' && <ShippingManagement />}
-            {activeTab === 'labels' && <LabelFormatsManagement />}
+
             {activeTab === 'settings' && <StoreSettings />}
           </div>
         </div>
