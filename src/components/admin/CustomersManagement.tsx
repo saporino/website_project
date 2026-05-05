@@ -1421,46 +1421,44 @@ export const CustomersManagement = () => {
       )}
 
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        {/* Header row — title left, toggle right (same layout as Pedidos) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Clientes</h2>
             <p className="text-gray-600 mt-1">
               Total: {customers.length} clientes ({pfCount} PF, {pjCount} PJ)
             </p>
           </div>
+          {/* PF/PJ Toggle — same component as Pedidos */}
+          <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-semibold">
+            {(['all', 'PF', 'PJ'] as const).map((type, idx) => (
+              <button
+                key={type}
+                onClick={() => setFilterType(type)}
+                className={`flex items-center gap-1.5 px-4 py-2.5 border-r border-gray-200 last:border-0 transition-all ${
+                  idx === 0 ? 'rounded-l-xl' : idx === 2 ? 'rounded-r-xl' : ''
+                } ${
+                  filterType === type ? 'bg-[#a4240e] text-white' : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {type === 'PJ' ? <Building2 className="w-3.5 h-3.5" /> : type === 'PF' ? <UserCircle className="w-3.5 h-3.5" /> : null}
+                {type === 'all' ? 'Todos' : type}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar por nome, email, telefone, CPF ou CNPJ..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a4240e] focus:border-transparent"
-              />
-            </div>
-
-
-            <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-semibold">
-              {(['all', 'PF', 'PJ'] as const).map((type, idx) => (
-                <button
-                  key={type}
-                  onClick={() => setFilterType(type)}
-                  className={`flex items-center gap-1.5 px-4 py-2.5 border-r border-gray-200 last:border-0 transition-all ${
-                    idx === 0 ? 'rounded-l-xl' : idx === 2 ? 'rounded-r-xl' : ''
-                  } ${
-                    filterType === type ? 'bg-[#a4240e] text-white' : 'text-gray-600 hover:bg-gray-50'
-                  }`}
-                >
-                  {type === 'PJ' ? <Building2 className="w-3.5 h-3.5" /> : type === 'PF' ? <UserCircle className="w-3.5 h-3.5" /> : null}
-                  {type === 'all' ? 'Todos' : type}
-                </button>
-              ))}
-            </div>
-
+        {/* Search bar — standalone, no toggle inside */}
+        <div className="bg-white border border-gray-200 rounded-xl p-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar por nome, email, telefone, CPF ou CNPJ..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a4240e] focus:border-transparent"
+            />
           </div>
         </div>
 
