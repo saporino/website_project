@@ -51,6 +51,7 @@ type AdminTab = 'list' | 'detail';
 
 export function RepCoManagement() {
   const [adminTab, setAdminTab] = useState<AdminTab>('list');
+  const [adminView, setAdminView] = useState<'list' | 'map'>('list');
   const [detailTab, setDetailTab] = useState<'pedidos' | 'comissoes' | 'precos' | 'rotas'>('pedidos');
   const [reps, setReps] = useState<Representative[]>([]);
   const [selectedRep, setSelectedRep] = useState<Representative | null>(null);
@@ -434,16 +435,29 @@ export function RepCoManagement() {
             <p className="text-sm text-amber-600 mt-1 font-medium">⚠ {pendingCount} aguardando aprovação</p>
           )}
         </div>
-        {/* Status filter */}
-        <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-semibold">
-          {(['all','pending','active','blocked'] as const).map((s, idx) => (
-            <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-4 py-2.5 border-r border-gray-200 last:border-0 transition-all ${idx === 0 ? 'rounded-l-xl' : idx === 3 ? 'rounded-r-xl' : ''} ${statusFilter === s ? 'bg-[#a4240e] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-              {s === 'all' ? 'Todos' : s === 'pending' ? 'Pendentes' : s === 'active' ? 'Ativos' : 'Bloqueados'}
-            </button>
-          ))}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setAdminView(v => v === 'map' ? 'list' : 'map')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              adminView === 'map' ? 'bg-amber-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            <Map className="w-4 h-4" />
+            {adminView === 'map' ? 'Ver lista' : 'Mapa ao vivo'}
+          </button>
+          {/* Status filter */}
+          <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-semibold">
+            {(['all','pending','active','blocked'] as const).map((s, idx) => (
+              <button key={s} onClick={() => setStatusFilter(s)}
+                className={`px-4 py-2.5 border-r border-gray-200 last:border-0 transition-all ${idx === 0 ? 'rounded-l-xl' : idx === 3 ? 'rounded-r-xl' : ''} ${statusFilter === s ? 'bg-[#a4240e] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+                {s === 'all' ? 'Todos' : s === 'pending' ? 'Pendentes' : s === 'active' ? 'Ativos' : 'Bloqueados'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+
+      {adminView === 'map' && <RepCoLiveMap />}
 
       {loading ? (
         <div className="flex justify-center py-20">

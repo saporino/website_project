@@ -9,6 +9,8 @@ import { RepCoPerformance } from '../components/repco/RepCoPerformance';
 import RepCoNewOrder from '../components/repco/RepCoNewOrder';
 import RepCoRoutes from '../components/repco/RepCoRoutes';
 import RepCoHome from '../components/repco/RepCoHome';
+import { usePresence } from '../hooks/usePresence';
+import { useGeolocation } from '../hooks/useGeolocation';
 import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Map, Home } from 'lucide-react';
 
 interface Representative {
@@ -31,6 +33,17 @@ export function RepCoDashboard() {
   const [showRegForm, setShowRegForm] = useState(false);
   const [regForm, setRegForm] = useState({ full_name: profile?.full_name || '', cpf: '', phone: '', cnpj: '' });
   const [submitting, setSubmitting] = useState(false);
+
+  const { coords } = useGeolocation({
+    enabled: !!rep && rep.status === 'active',
+  });
+
+  usePresence({
+    representativeId: rep?.id ?? '',
+    currentTab: activeTab,
+    coords: coords ?? null,
+    enabled: !!rep && rep.status === 'active',
+  });
 
   useEffect(() => { if (user) fetchRep(); }, [user]);
 
