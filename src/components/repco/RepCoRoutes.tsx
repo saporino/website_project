@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import { supabase } from '../../lib/supabase';
 import { CLIENT_SEGMENTS, SEGMENT_LABEL } from '../../constants/segments';
 import type { ClientSegment } from '../../constants/segments';
+import { googleCalendarLink, outlookCalendarLink, downloadICS } from '../../utils/calendarLinks';
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -33,7 +34,8 @@ interface Stop {
   id: string; stop_order: number; company_name: string;
   address: string | null; city: string | null; phone: string | null; segment: string | null;
   lat: number; lng: number; visit_status: VisitStatus;
-  visit_notes: string | null; visited_at: string | null; representative_client_id: string | null;
+  visit_notes: string | null; visited_at: string | null;
+  representative_client_id: string | null; scheduled_at: string | null;
 }
 
 interface Route { id: string; name: string; status: string; created_at: string; }
@@ -63,6 +65,10 @@ export default function RepCoRoutes({ representativeId, onNavigateToOrder }: Pro
   const [savingClient, setSavingClient] = useState(false);
   const [convertError, setConvertError] = useState('');
   const [convertSuccess, setConvertSuccess] = useState('');
+  const [calendarStop, setCalendarStop] = useState<Stop | null>(null);
+  const [schedulingStop, setSchedulingStop] = useState<string | null>(null);
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('09:00');
 
   useEffect(() => { fetchRoutes(); }, [representativeId]);
 
@@ -128,6 +134,15 @@ export default function RepCoRoutes({ representativeId, onNavigateToOrder }: Pro
     setStops(prev => prev.map(s => s.id === stop.id ? { ...s, representative_client_id: newClient.id, visit_status: 'completed' } : s));
     setConvertSuccess('Cliente cadastrado com sucesso!'); setSavingClient(false); setConvertingStop(null);
     if (onNavigateToOrder) setTimeout(() => onNavigateToOrder(newClient.id), 1500);
+  }
+
+  async function saveScheduledAt(stop: Stop) {
+    if (!scheduleDate) return;
+    const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}:00`).toISOString();
+    await supabase.from('route_stops').update({ scheduled_at: scheduledAt }).eq('id', stop.id);
+    setStops(prev => prev.map(s => s.id === stop.id ? { ...s, scheduled_at: scheduledAt } : s));
+    setSchedulingStop(null); setScheduleDate('');
+    setCalendarStop({ ...stop, scheduled_at: scheduledAt });
   }
 
   const fmt = (v: string) => v.replace(/\D/g,'').slice(0,14).replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5');
@@ -249,6 +264,49 @@ export default function RepCoRoutes({ representativeId, onNavigateToOrder }: Pro
                         </div>
 
                         <input type="text" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Adicionar observação..." className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-[#a4240e] outline-none"/>
+
+                        {/* Agendar visita + Calendário */}
+                        <div className="border-t border-gray-100 pt-3 space-y-2">
+                          {stop.scheduled_at ? (
+                            <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                              <div>
+                                <p className="text-xs font-medium text-amber-800">Visita agendada</p>
+                                <p className="text-xs text-amber-600">{new Date(stop.scheduled_at).toLocaleString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
+                              </div>
+                              <button onClick={() => setCalendarStop(stop)} className="text-xs bg-amber-600 text-white px-2.5 py-1.5 rounded-lg hover:bg-amber-700">+ Calendário</button>
+                            </div>
+                          ) : (
+                            schedulingStop === stop.id ? (
+                              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+                                <p className="text-xs font-medium text-gray-700">Agendar visita</p>
+                                <div className="flex gap-2">
+                                  <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#a4240e] outline-none"/>
+                                  <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} className="w-24 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#a4240e] outline-none"/>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button onClick={() => saveScheduledAt(stop)} disabled={!scheduleDate} className="flex-1 bg-amber-600 text-white py-1.5 rounded-lg text-xs font-medium hover:bg-amber-700 disabled:opacity-40">Confirmar</button>
+                                  <button onClick={() => setSchedulingStop(null)} className="text-xs text-gray-400 px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">Cancelar</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button onClick={() => setSchedulingStop(stop.id)} className="w-full flex items-center justify-center gap-2 bg-gray-50 border border-gray-200 text-gray-600 py-2 rounded-lg text-xs font-medium hover:bg-gray-100">
+                                🗓 Agendar visita
+                              </button>
+                            )
+                          )}
+
+                          {/* Modal de calendário inline */}
+                          {calendarStop?.id === stop.id && calendarStop.scheduled_at && (
+                            <div className="bg-white border border-amber-200 rounded-xl p-4 space-y-2">
+                              <p className="text-xs font-semibold text-gray-700">Adicionar ao calendário</p>
+                              {[{ href: googleCalendarLink({ title: `Visita — ${stop.company_name}`, location: [stop.address,stop.city].filter(Boolean).join(', '), startDate: new Date(calendarStop.scheduled_at), durationMinutes: 30 }), emoji: '📅', label: 'Google Calendar' },
+                                { href: outlookCalendarLink({ title: `Visita — ${stop.company_name}`, location: [stop.address,stop.city].filter(Boolean).join(', '), startDate: new Date(calendarStop.scheduled_at), durationMinutes: 30 }), emoji: '📆', label: 'Outlook' }]
+                                .map(cal => <a key={cal.label} href={cal.href} target="_blank" rel="noreferrer" className="flex items-center gap-2 w-full bg-gray-50 border border-gray-100 rounded-lg p-2.5 hover:bg-gray-100 text-xs text-gray-700">{cal.emoji} {cal.label}</a>)}
+                              <button onClick={() => { downloadICS({ title: `Visita — ${stop.company_name}`, location: [stop.address,stop.city].filter(Boolean).join(', '), startDate: new Date(calendarStop.scheduled_at!), durationMinutes: 30 }); setCalendarStop(null); }} className="flex items-center gap-2 w-full bg-gray-50 border border-gray-100 rounded-lg p-2.5 hover:bg-gray-100 text-xs text-gray-700">📱 Calendário do celular (.ics)</button>
+                              <button onClick={() => setCalendarStop(null)} className="w-full text-xs text-gray-400 py-1.5">Fechar</button>
+                            </div>
+                          )}
+                        </div>
 
                         {/* Convert to client / Make order */}
                         {!alreadyClient && (

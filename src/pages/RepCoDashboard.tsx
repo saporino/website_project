@@ -8,7 +8,8 @@ import { RepCoCommissions } from '../components/repco/RepCoCommissions';
 import { RepCoPerformance } from '../components/repco/RepCoPerformance';
 import RepCoNewOrder from '../components/repco/RepCoNewOrder';
 import RepCoRoutes from '../components/repco/RepCoRoutes';
-import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Map } from 'lucide-react';
+import RepCoHome from '../components/repco/RepCoHome';
+import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Map, Home } from 'lucide-react';
 
 interface Representative {
   id: string;
@@ -19,13 +20,13 @@ interface Representative {
   has_personal_delivery: boolean;
 }
 
-type RepCoTab = 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido' | 'rotas';
+type RepCoTab = 'inicio' | 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido' | 'rotas';
 
 export function RepCoDashboard() {
   const { user, profile, signOut } = useAuth();
   const [rep, setRep] = useState<Representative | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<RepCoTab>('profile');
+  const [activeTab, setActiveTab] = useState<RepCoTab>('inicio');
   const [preSelectedClientId, setPreSelectedClientId] = useState<string | null>(null);
   const [showRegForm, setShowRegForm] = useState(false);
   const [regForm, setRegForm] = useState({ full_name: profile?.full_name || '', cpf: '', phone: '', cnpj: '' });
@@ -173,8 +174,9 @@ export function RepCoDashboard() {
   }
 
   const tabs: { id: RepCoTab; label: string; icon: React.ElementType }[] = [
+    { id: 'inicio', label: 'Início', icon: Home },
     { id: 'profile', label: 'Perfil', icon: User },
-    { id: 'clients', label: 'Meus Clientes', icon: Users },
+    { id: 'clients', label: 'Clientes', icon: Users },
     { id: 'novo_pedido', label: 'Novo Pedido', icon: ShoppingCart },
     { id: 'orders', label: 'Pedidos', icon: ShoppingBag },
     { id: 'rotas', label: 'Rotas', icon: Map },
@@ -225,6 +227,13 @@ export function RepCoDashboard() {
             })}
           </nav>
           <div className="p-8">
+            {activeTab === 'inicio' && (
+              <RepCoHome
+                representativeId={rep!.id}
+                onNavigateToRoute={() => setActiveTab('rotas')}
+                onNavigateToClient={(clientId) => { setPreSelectedClientId(clientId); setActiveTab('novo_pedido'); }}
+              />
+            )}
             {activeTab === 'profile' && <RepCoProfile rep={rep!} onUpdate={fetchRep} />}
             {activeTab === 'clients' && <RepCoClients repId={rep!.id} />}
             {activeTab === 'novo_pedido' && (
