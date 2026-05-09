@@ -6,8 +6,8 @@ import { RepCoClients } from '../components/repco/RepCoClients';
 import { RepCoOrders } from '../components/repco/RepCoOrders';
 import { RepCoCommissions } from '../components/repco/RepCoCommissions';
 import { RepCoPerformance } from '../components/repco/RepCoPerformance';
-import { RepCoNewOrder } from '../components/repco/RepCoNewOrder';
-import { RepCoRoutes } from '../components/repco/RepCoRoutes';
+import RepCoNewOrder from '../components/repco/RepCoNewOrder';
+import RepCoRoutes from '../components/repco/RepCoRoutes';
 import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Map } from 'lucide-react';
 
 interface Representative {
@@ -26,6 +26,7 @@ export function RepCoDashboard() {
   const [rep, setRep] = useState<Representative | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<RepCoTab>('profile');
+  const [preSelectedClientId, setPreSelectedClientId] = useState<string | null>(null);
   const [showRegForm, setShowRegForm] = useState(false);
   const [regForm, setRegForm] = useState({ full_name: profile?.full_name || '', cpf: '', phone: '', cnpj: '' });
   const [submitting, setSubmitting] = useState(false);
@@ -226,9 +227,20 @@ export function RepCoDashboard() {
           <div className="p-8">
             {activeTab === 'profile' && <RepCoProfile rep={rep!} onUpdate={fetchRep} />}
             {activeTab === 'clients' && <RepCoClients repId={rep!.id} />}
-            {activeTab === 'novo_pedido' && <RepCoNewOrder repId={rep!.id} onOrderCreated={() => setActiveTab('orders')} />}
+            {activeTab === 'novo_pedido' && (
+              <RepCoNewOrder
+                representativeId={rep!.id}
+                preSelectedClientId={preSelectedClientId}
+                onOrderCreated={() => { setPreSelectedClientId(null); setActiveTab('orders'); }}
+              />
+            )}
             {activeTab === 'orders' && <RepCoOrders repId={rep!.id} />}
-            {activeTab === 'rotas' && <RepCoRoutes repId={rep!.id} />}
+            {activeTab === 'rotas' && (
+              <RepCoRoutes
+                representativeId={rep!.id}
+                onNavigateToOrder={(clientId) => { setPreSelectedClientId(clientId); setActiveTab('novo_pedido'); }}
+              />
+            )}
             {activeTab === 'commissions' && <RepCoCommissions repId={rep!.id} />}
             {activeTab === 'performance' && <RepCoPerformance repId={rep!.id} />}
           </div>
