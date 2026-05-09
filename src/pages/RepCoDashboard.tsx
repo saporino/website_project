@@ -7,7 +7,8 @@ import { RepCoOrders } from '../components/repco/RepCoOrders';
 import { RepCoCommissions } from '../components/repco/RepCoCommissions';
 import { RepCoPerformance } from '../components/repco/RepCoPerformance';
 import { RepCoNewOrder } from '../components/repco/RepCoNewOrder';
-import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart } from 'lucide-react';
+import { RepCoRoutes } from '../components/repco/RepCoRoutes';
+import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Map } from 'lucide-react';
 
 interface Representative {
   id: string;
@@ -18,7 +19,7 @@ interface Representative {
   has_personal_delivery: boolean;
 }
 
-type RepCoTab = 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido';
+type RepCoTab = 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido' | 'rotas';
 
 export function RepCoDashboard() {
   const { user, profile, signOut } = useAuth();
@@ -175,6 +176,7 @@ export function RepCoDashboard() {
     { id: 'clients', label: 'Meus Clientes', icon: Users },
     { id: 'novo_pedido', label: 'Novo Pedido', icon: ShoppingCart },
     { id: 'orders', label: 'Pedidos', icon: ShoppingBag },
+    { id: 'rotas', label: 'Rotas', icon: Map },
     { id: 'commissions', label: 'Comissões', icon: DollarSign },
     { id: 'performance', label: 'Performance', icon: TrendingUp },
   ];
@@ -226,6 +228,7 @@ export function RepCoDashboard() {
             {activeTab === 'clients' && <RepCoClients repId={rep!.id} />}
             {activeTab === 'novo_pedido' && <RepCoNewOrder repId={rep!.id} onOrderCreated={() => setActiveTab('orders')} />}
             {activeTab === 'orders' && <RepCoOrders repId={rep!.id} />}
+            {activeTab === 'rotas' && <RepCoRoutes repId={rep!.id} />}
             {activeTab === 'commissions' && <RepCoCommissions repId={rep!.id} />}
             {activeTab === 'performance' && <RepCoPerformance repId={rep!.id} />}
           </div>

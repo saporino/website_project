@@ -3,6 +3,7 @@ import { Users, CheckCircle, XCircle, Eye, Plus, DollarSign, Upload, Download, P
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import PriceListManager from './PriceListManager';
+import RouteManager from './RouteManager';
 
 interface Representative {
   id: string;
@@ -50,7 +51,7 @@ type AdminTab = 'list' | 'detail';
 
 export function RepCoManagement() {
   const [adminTab, setAdminTab] = useState<AdminTab>('list');
-  const [detailTab, setDetailTab] = useState<'pedidos' | 'comissoes' | 'precos'>('pedidos');
+  const [detailTab, setDetailTab] = useState<'pedidos' | 'comissoes' | 'precos' | 'rotas'>('pedidos');
   const [reps, setReps] = useState<Representative[]>([]);
   const [selectedRep, setSelectedRep] = useState<Representative | null>(null);
   const [orders, setOrders] = useState<RepOrder[]>([]);
@@ -260,7 +261,7 @@ export function RepCoManagement() {
         {/* Inner tabs */}
         <div className="border-b border-gray-200 mb-4">
           <div className="flex gap-1">
-            {([{key:'pedidos',label:'Pedidos'},{key:'comissoes',label:'Comissões'},{key:'precos',label:'Tabela de Preços'}] as const).map(tab=>(
+            {([{key:'pedidos',label:'Pedidos'},{key:'comissoes',label:'Comissões'},{key:'precos',label:'Tabela de Preços'},{key:'rotas',label:'Rotas de Visita'}] as const).map(tab=>(
               <button key={tab.key} onClick={()=>setDetailTab(tab.key)}
                 className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${detailTab===tab.key?'border-[#a4240e] text-[#a4240e]':'border-transparent text-gray-500 hover:text-gray-700'}`}>
                 {tab.label}
@@ -270,6 +271,7 @@ export function RepCoManagement() {
         </div>
 
         {detailTab === 'precos' && <PriceListManager />}
+        {detailTab === 'rotas' && <RouteManager />}
 
         {detailTab === 'pedidos' && (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
