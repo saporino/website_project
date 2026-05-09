@@ -13,10 +13,10 @@ L.Icon.Default.mergeOptions({
 });
 
 const STATUS_CONFIG = {
-  pending:     { label: 'Não visitado', color: '#ef4444', bg: 'bg-red-100',    text: 'text-red-700',    border: 'border-red-200' },
-  in_progress: { label: 'Em andamento', color: '#3b82f6', bg: 'bg-blue-100',   text: 'text-blue-700',   border: 'border-blue-200' },
-  visited:     { label: 'Visitado',     color: '#eab308', bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-200' },
-  closed:      { label: 'Fechado',      color: '#22c55e', bg: 'bg-green-100',  text: 'text-green-700',  border: 'border-green-200' },
+  pending:      { label: 'Pendente',     color: '#ef4444', bg: 'bg-red-100',    text: 'text-red-700',    border: 'border-red-300'    },
+  in_progress:  { label: 'Em Andamento', color: '#3b82f6', bg: 'bg-blue-100',   text: 'text-blue-700',   border: 'border-blue-300'   },
+  completed:    { label: 'Concluído',    color: '#22c55e', bg: 'bg-green-100',  text: 'text-green-700',  border: 'border-green-300'  },
+  not_attended: { label: 'Não Atendido', color: '#f97316', bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300' },
 } as const;
 
 type VisitStatus = keyof typeof STATUS_CONFIG;
