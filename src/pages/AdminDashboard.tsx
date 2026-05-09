@@ -1,15 +1,16 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Package, Settings, Truck, LogOut, ShoppingBag, Users, BarChart3 } from 'lucide-react';
+import { Package, Settings, Truck, LogOut, ShoppingBag, Users, BarChart3, Briefcase } from 'lucide-react';
 import { OrdersManagement } from '../components/admin/OrdersManagement';
 import { ProductsManagement } from '../components/admin/ProductsManagement';
 import { ShippingManagement } from '../components/admin/ShippingManagement';
 import { StoreSettings } from '../components/admin/StoreSettings';
 import { CustomersManagement } from '../components/admin/CustomersManagement';
 import { Dashboard } from '../components/admin/Dashboard';
+import { RepCoManagement } from '../components/admin/RepCoManagement';
+import { AdminNotificationBell } from '../components/admin/AdminNotificationBell';
 
-
-type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 'settings';
+type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 'settings' | 'repco';
 
 export function AdminDashboard() {
   const { user, profile, signOut } = useAuth();
@@ -35,6 +36,7 @@ export function AdminDashboard() {
     { id: 'products' as TabType, label: 'Produtos', icon: Package },
     { id: 'customers' as TabType, label: 'Clientes', icon: Users },
     { id: 'shipping' as TabType, label: 'Transportadoras', icon: Truck },
+    { id: 'repco' as TabType, label: 'RepCo', icon: Briefcase },
     { id: 'settings' as TabType, label: 'Configurações', icon: Settings },
   ];
 
@@ -47,7 +49,8 @@ export function AdminDashboard() {
               <h1 className="text-2xl font-bold text-gray-900">Painel Administrativo</h1>
               <p className="text-sm text-gray-500">Café Saporino</p>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
+              <AdminNotificationBell onNavigate={(tab) => setActiveTab(tab as TabType)} />
               <button
                 onClick={() => {
                   window.history.pushState({}, '', '/');
@@ -107,7 +110,7 @@ export function AdminDashboard() {
             {activeTab === 'products' && <ProductsManagement />}
             {activeTab === 'customers' && <CustomersManagement />}
             {activeTab === 'shipping' && <ShippingManagement />}
-
+            {activeTab === 'repco' && <RepCoManagement />}
             {activeTab === 'settings' && <StoreSettings />}
           </div>
         </div>
