@@ -6,7 +6,8 @@ import { RepCoClients } from '../components/repco/RepCoClients';
 import { RepCoOrders } from '../components/repco/RepCoOrders';
 import { RepCoCommissions } from '../components/repco/RepCoCommissions';
 import { RepCoPerformance } from '../components/repco/RepCoPerformance';
-import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut } from 'lucide-react';
+import { RepCoNewOrder } from '../components/repco/RepCoNewOrder';
+import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart } from 'lucide-react';
 
 interface Representative {
   id: string;
@@ -17,7 +18,7 @@ interface Representative {
   has_personal_delivery: boolean;
 }
 
-type RepCoTab = 'profile' | 'clients' | 'orders' | 'commissions' | 'performance';
+type RepCoTab = 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido';
 
 export function RepCoDashboard() {
   const { user, profile, signOut } = useAuth();
@@ -172,6 +173,7 @@ export function RepCoDashboard() {
   const tabs: { id: RepCoTab; label: string; icon: React.ElementType }[] = [
     { id: 'profile', label: 'Perfil', icon: User },
     { id: 'clients', label: 'Meus Clientes', icon: Users },
+    { id: 'novo_pedido', label: 'Novo Pedido', icon: ShoppingCart },
     { id: 'orders', label: 'Pedidos', icon: ShoppingBag },
     { id: 'commissions', label: 'Comissões', icon: DollarSign },
     { id: 'performance', label: 'Performance', icon: TrendingUp },
@@ -222,6 +224,7 @@ export function RepCoDashboard() {
           <div className="p-8">
             {activeTab === 'profile' && <RepCoProfile rep={rep!} onUpdate={fetchRep} />}
             {activeTab === 'clients' && <RepCoClients repId={rep!.id} />}
+            {activeTab === 'novo_pedido' && <RepCoNewOrder repId={rep!.id} onOrderCreated={() => setActiveTab('orders')} />}
             {activeTab === 'orders' && <RepCoOrders repId={rep!.id} />}
             {activeTab === 'commissions' && <RepCoCommissions repId={rep!.id} />}
             {activeTab === 'performance' && <RepCoPerformance repId={rep!.id} />}
