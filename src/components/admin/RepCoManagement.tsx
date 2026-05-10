@@ -4,6 +4,8 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import PriceListManager from './PriceListManager';
 import RouteManager from './RouteManager';
+import RepCoOrdersManager from './RepCoOrdersManager';
+import RepCoCommissionsManager from './RepCoCommissionsManager';
 
 const RepCoLiveMap = lazy(() => import('./RepCoLiveMap'));
 
@@ -62,6 +64,7 @@ export function RepCoManagement() {
   const [loading, setLoading] = useState(true);
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [canalFilter, setCanalFilter] = useState<'todos'|'site'|'repco'|'marketplaces'>('todos');
 
   // New order form
   const [orderForm, setOrderForm] = useState({
@@ -389,39 +392,12 @@ export function RepCoManagement() {
         </div>
         )}
 
+        {detailTab === 'pedidos' && (
+          <RepCoOrdersManager representativeId={selectedRep?.id} />
+        )}
+
         {detailTab === 'comissoes' && (
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h3 className="font-bold text-gray-900">Comissões</h3>
-          </div>
-          {commissions.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 text-sm">Nenhuma comissão ainda</div>
-          ) : (
-            <div className="divide-y divide-gray-100">
-              {commissions.map(c => (
-                <div key={c.id} className="px-6 py-3 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{c.representative_orders?.order_number}</p>
-                    <p className="text-xs text-gray-500">Base R$ {c.order_amount.toFixed(2)} × {c.total_rate}%</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold text-gray-900">R$ {c.commission_amount.toFixed(2)}</span>
-                    {c.status === 'pending' ? (
-                      <button onClick={() => handleMarkCommissionPaid(c)}
-                        className="text-xs px-3 py-1.5 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center gap-1">
-                        <DollarSign className="w-3.5 h-3.5" /> Pagar
-                      </button>
-                    ) : (
-                      <span className="text-xs text-green-600 font-medium flex items-center gap-1">
-                        <CheckCircle className="w-3.5 h-3.5" /> Pago em {new Date(c.paid_at!).toLocaleDateString('pt-BR')}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+          <RepCoCommissionsManager representativeId={selectedRep?.id} />
         )}
       </div>
     );
@@ -436,6 +412,17 @@ export function RepCoManagement() {
           {pendingCount > 0 && (
             <p className="text-sm text-amber-600 mt-1 font-medium">⚠ {pendingCount} aguardando aprovação</p>
           )}
+          {/* Filtro de canal */}
+          <div className="flex gap-2 mt-3">
+            {(['todos','site','repco','marketplaces'] as const).map(canal => (
+              <button key={canal} onClick={() => setCanalFilter(canal)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  canalFilter === canal ? 'bg-amber-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}>
+                {canal === 'todos' ? 'Todos' : canal === 'site' ? 'Site' : canal === 'repco' ? 'RepCo' : 'Marketplaces'}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <button

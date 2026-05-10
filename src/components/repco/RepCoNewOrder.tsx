@@ -28,6 +28,11 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [clientOrderNumber, setClientOrderNumber] = useState('');
+  const [hasClientOrderNumber, setHasClientOrderNumber] = useState(true);
+  const [paymentTerm, setPaymentTerm] = useState(0);
+  const [discountPercentage, setDiscountPercentage] = useState(0);
+  const [paymentTerms, setPaymentTerms] = useState<number[]>([0,7,14,21,28,30]);
 
   useEffect(() => { fetchClients(); }, [representativeId]);
   useEffect(() => {
@@ -44,12 +49,14 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
 
   async function fetchProductsAndPrices(segment: string) {
     setLoading(true);
-    const [{ data: prods }, { data: priceData }] = await Promise.all([
+    const [{ data: prods }, { data: priceData }, { data: termsData }] = await Promise.all([
       supabase.from('products').select('id,name,image_url,stock,in_stock').eq('is_active', true).order('name'),
       supabase.from('price_lists').select('product_id,segment,price,volume_discount,volume_min_qty').eq('segment', segment).eq('is_active', true),
+      supabase.from('segment_payment_terms').select('payment_terms').eq('segment', segment).single(),
     ]);
     if (prods) setProducts(prods);
     if (priceData) setPrices(priceData);
+    if ((termsData as any)?.payment_terms) setPaymentTerms((termsData as any).payment_terms);
     setLoading(false);
   }
 
@@ -83,11 +90,25 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
     if (items.length === 0) { setError('Adicione pelo menos um produto.'); return; }
     if (!selectedClient) return;
     setSubmitting(true); setError('');
+    const originalAmount = calcTotal();
+    const finalAmount = originalAmount * (1 - discountPercentage / 100);
+    const description = items.map(i => `${i.product.name} x${i.quantity} (R$ ${effectivePrice(i.price, i.quantity).toFixed(2)})`).join(', ');
     const { error: err } = await supabase.from('representative_orders').insert({
-      representative_id: representativeId, representative_client_id: selectedClient.id,
-      description: items.map(i => `${i.product.name} x${i.quantity} (R$ ${effectivePrice(i.price, i.quantity).toFixed(2)})`).join(', '),
-      total_amount: calcTotal(), payment_method: paymentMethod,
-      is_personal_delivery: isPersonalDelivery, status: 'new', notes: notes || null,
+      representative_id: representativeId,
+      representative_client_id: selectedClient.id,
+      description,
+      total_amount: finalAmount,
+      original_amount: originalAmount,
+      discount_percentage: discountPercentage,
+      payment_method: paymentTerm === 0 ? 'pix' : 'boleto',
+      payment_term: paymentTerm,
+      is_personal_delivery: isPersonalDelivery,
+      client_order_number: hasClientOrderNumber ? (clientOrderNumber || null) : null,
+      has_client_order_number: hasClientOrderNumber,
+      pix_bonus_eligible: paymentTerm === 0,
+      channel: 'repco',
+      status: 'new',
+      notes: notes || null,
     });
     if (err) { setError('Erro: ' + err.message); setSubmitting(false); return; }
     setSuccess(true); setSubmitting(false); onOrderCreated?.();
@@ -214,10 +235,54 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
             <div className="flex justify-between border-t border-gray-200 pt-2 font-bold"><span>Total</span><span className="text-[#a4240e]">R$ {calcTotal().toFixed(2)}</span></div>
           </div>
           <div className="space-y-3">
-            <div><label className="block text-xs font-medium text-gray-600 mb-1">Forma de Pagamento</label>
-              <select value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none">
-                <option value="pix">PIX</option><option value="boleto">Boleto</option><option value="a_vista">À Vista</option>
-              </select></div>
+            {/* Número do pedido do cliente */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="has_order_number" checked={hasClientOrderNumber}
+                  onChange={e=>{setHasClientOrderNumber(e.target.checked);if(!e.target.checked)setClientOrderNumber('');}}
+                  className="w-4 h-4 accent-amber-600"/>
+                <label htmlFor="has_order_number" className="text-sm text-gray-700 cursor-pointer">Cliente tem número de pedido</label>
+              </div>
+              {hasClientOrderNumber&&(
+                <input type="text" value={clientOrderNumber} onChange={e=>setClientOrderNumber(e.target.value)}
+                  placeholder="Nº do pedido do cliente"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"/>
+              )}
+              {!hasClientOrderNumber&&(
+                <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">Pedido será encaminhado ao fiscal sem número do cliente</p>
+              )}
+            </div>
+            {/* Prazo de pagamento */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Prazo de pagamento</label>
+              <select value={paymentTerm} onChange={e=>{const t=parseInt(e.target.value);setPaymentTerm(t);if(t===0)setPaymentMethod('pix');}}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                {paymentTerms.map(term=>(
+                  <option key={term} value={term}>{term===0?'À vista / PIX (0 dias)':`${term} dias`}</option>
+                ))}
+              </select>
+            </div>
+            {/* Desconto */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">
+                Desconto ao cliente (%) <span className="text-gray-400 font-normal">— comissão calculada sobre preço com desconto</span>
+              </label>
+              <div className="flex gap-2 items-center">
+                <input type="number" value={discountPercentage}
+                  onChange={e=>setDiscountPercentage(Math.min(15,Math.max(0,parseFloat(e.target.value)||0)))}
+                  min="0" max="15" step="0.5"
+                  className="w-24 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"/>
+                <span className="text-sm text-gray-500">%</span>
+                {discountPercentage>0&&(
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-gray-400 line-through">R$ {calcTotal().toFixed(2)}</span>
+                    <span className="text-green-600 font-medium">R$ {(calcTotal()*(1-discountPercentage/100)).toFixed(2)}</span>
+                    {paymentTerm===0&&<span className="text-amber-600">PIX: +0.5% bônus</span>}
+                  </div>
+                )}
+              </div>
+            </div>
+            {/* Entrega pessoal */}
             <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
               <input type="checkbox" id="pd" checked={isPersonalDelivery} onChange={e=>setIsPersonalDelivery(e.target.checked)} className="w-4 h-4 accent-[#a4240e]"/>
               <label htmlFor="pd" className="text-sm text-amber-800 cursor-pointer">Entrega pessoal (+2,5% bônus na comissão)</label>
@@ -225,7 +290,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
             <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2} placeholder="Observações..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none resize-none"/>
           </div>
           <button onClick={handleSubmit} disabled={submitting} className="w-full bg-[#a4240e] text-white py-3 rounded-xl font-bold text-sm hover:bg-[#8a1f0c] disabled:opacity-50">
-            {submitting?'Enviando...': `Confirmar Pedido — R$ ${calcTotal().toFixed(2)}`}
+            {submitting?'Enviando...':`Confirmar Pedido — R$ ${(calcTotal()*(1-discountPercentage/100)).toFixed(2)}`}
           </button>
         </div>
       )}
