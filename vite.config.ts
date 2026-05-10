@@ -7,20 +7,21 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icons/icon.svg'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icons/icon.svg', 'icons/pwa-192x192.png', 'icons/pwa-512x512.png'],
       manifest: {
         name: 'Saporino RepCo',
         short_name: 'RepCo',
         description: 'Portal do Representante Comercial Saporino',
         theme_color: '#8B2214',
-        background_color: '#f5f3ee',
+        background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
         start_url: '/repco',
         icons: [
-          { src: '/icons/icon.svg', sizes: 'any', type: 'image/svg+xml' },
-          { src: '/icons/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' },
+          { src: '/icons/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icons/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/icons/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
         ],
       },
       workbox: {
