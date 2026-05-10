@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Users, CheckCircle, XCircle, Eye, Plus, DollarSign, Upload, Download, Phone, Mail } from 'lucide-react';
+import { useState, useEffect, Suspense, lazy } from 'react';
+import { Users, CheckCircle, XCircle, Eye, Plus, DollarSign, Upload, Download, Phone, Mail, Map } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import PriceListManager from './PriceListManager';
 import RouteManager from './RouteManager';
+
+const RepCoLiveMap = lazy(() => import('./RepCoLiveMap'));
 
 interface Representative {
   id: string;
@@ -457,7 +459,11 @@ export function RepCoManagement() {
         </div>
       </div>
 
-      {adminView === 'map' && <RepCoLiveMap />}
+      {adminView === 'map' && (
+        <Suspense fallback={<div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-600"/></div>}>
+          <RepCoLiveMap />
+        </Suspense>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-20">

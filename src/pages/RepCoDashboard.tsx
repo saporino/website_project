@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { RepCoProfile } from '../components/repco/RepCoProfile';
@@ -7,11 +7,12 @@ import { RepCoOrders } from '../components/repco/RepCoOrders';
 import { RepCoCommissions } from '../components/repco/RepCoCommissions';
 import { RepCoPerformance } from '../components/repco/RepCoPerformance';
 import RepCoNewOrder from '../components/repco/RepCoNewOrder';
-import RepCoRoutes from '../components/repco/RepCoRoutes';
 import RepCoHome from '../components/repco/RepCoHome';
 import { usePresence } from '../hooks/usePresence';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Map, Home } from 'lucide-react';
+
+const RepCoRoutes = lazy(() => import('../components/repco/RepCoRoutes'));
 
 interface Representative {
   id: string;
@@ -258,10 +259,12 @@ export function RepCoDashboard() {
             )}
             {activeTab === 'orders' && <RepCoOrders repId={rep!.id} />}
             {activeTab === 'rotas' && (
-              <RepCoRoutes
-                representativeId={rep!.id}
-                onNavigateToOrder={(clientId) => { setPreSelectedClientId(clientId); setActiveTab('novo_pedido'); }}
-              />
+              <Suspense fallback={<div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#a4240e]"/></div>}>
+                <RepCoRoutes
+                  representativeId={rep!.id}
+                  onNavigateToOrder={(clientId) => { setPreSelectedClientId(clientId); setActiveTab('novo_pedido'); }}
+                />
+              </Suspense>
             )}
             {activeTab === 'commissions' && <RepCoCommissions repId={rep!.id} />}
             {activeTab === 'performance' && <RepCoPerformance repId={rep!.id} />}
