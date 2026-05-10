@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json"
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "save": "git add -A && git commit -m \"chore: session save\" && git push origin main"
   },
   "dependencies": {
     "@mercadopago/sdk-react": "^1.0.6",
