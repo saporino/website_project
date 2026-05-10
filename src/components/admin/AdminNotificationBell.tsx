@@ -68,12 +68,11 @@ export function AdminNotificationBell({ onNavigate }: AdminNotificationBellProps
         });
       }
 
-      // 3. E-commerce orders pending
+      // 3. E-commerce orders pending (status column is the single source of truth)
       const { count: ecomPending } = await supabase
         .from('orders')
         .select('*', { count: 'exact', head: true })
-        .in('payment_status', ['pending', 'created'])
-        .eq('order_status', 'created');
+        .in('status', ['pending', 'created']);
 
       if (ecomPending && ecomPending > 0) {
         items.push({
