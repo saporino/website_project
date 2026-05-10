@@ -19,9 +19,8 @@ export default defineConfig({
         scope: '/',
         start_url: '/repco',
         icons: [
-          { src: '/icons/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icons/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          { src: '/icons/icon.svg', sizes: 'any', type: 'image/svg+xml' },
+          { src: '/icons/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' },
         ],
       },
       workbox: {
@@ -41,7 +40,13 @@ export default defineConfig({
       },
     }),
   ],
-  optimizeDeps: { exclude: ['lucide-react'] },
+  optimizeDeps: {
+    include: ['leaflet'],
+    exclude: ['lucide-react'],
+  },
+  resolve: {
+    dedupe: ['leaflet'],
+  },
   server: { watch: { usePolling: false } },
   base: '/',
   build: { outDir: 'dist', assetsDir: 'assets', sourcemap: false },

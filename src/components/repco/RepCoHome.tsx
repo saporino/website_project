@@ -52,14 +52,14 @@ export default function RepCoHome({ representativeId, onNavigateToRoute, onNavig
     const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
     const [{ data: orders }, { data: commissions }, { count: clientCount }] = await Promise.all([
       supabase.from('representative_orders').select('total_amount,status').eq('representative_id', representativeId).gte('created_at', firstDay),
-      supabase.from('representative_commissions').select('amount,status').eq('representative_id', representativeId).eq('status', 'pending'),
+      supabase.from('representative_commissions').select('commission_amount,status').eq('representative_id', representativeId).eq('status', 'pending'),
       supabase.from('representative_clients').select('id', { count: 'exact', head: true }).eq('representative_id', representativeId).eq('status', 'active'),
     ]);
     setStats(prev => ({
       ...prev,
       ordersThisMonth: orders?.length ?? 0,
       revenueThisMonth: orders?.reduce((s, o) => s + (o.total_amount || 0), 0) ?? 0,
-      pendingCommission: commissions?.reduce((s, c) => s + (c.amount || 0), 0) ?? 0,
+      pendingCommission: commissions?.reduce((s, c) => s + (c.commission_amount || 0), 0) ?? 0,
       activeClients: clientCount ?? 0,
     }));
   }
