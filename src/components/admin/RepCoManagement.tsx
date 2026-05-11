@@ -58,7 +58,7 @@ export function RepCoManagement() {
   const { profile } = useAuth();
   const isAdmin = profile?.is_admin === true;
   const [adminTab, setAdminTab] = useState<AdminTab>('list');
-  const [adminView, setAdminView] = useState<'list' | 'map'>('list');
+  const [adminView, setAdminView] = useState<'list' | 'map' | 'price-list'>('list');
   const [detailTab, setDetailTab] = useState<'pedidos' | 'comissoes' | 'precos' | 'rotas'>('pedidos');
   const [reps, setReps] = useState<Representative[]>([]);
   const [selectedRep, setSelectedRep] = useState<Representative | null>(null);
@@ -68,7 +68,7 @@ export function RepCoManagement() {
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [canalFilter, setCanalFilter] = useState<'todos'|'site'|'repco'|'marketplaces'>('todos');
-  const [showPriceModal, setShowPriceModal] = useState(false);
+
 
   // New order form
   const [orderForm, setOrderForm] = useState({
@@ -407,6 +407,27 @@ export function RepCoManagement() {
     );
   }
 
+  // ── PRICE LIST VIEW ──
+  if (adminView === 'price-list') {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <button onClick={() => setAdminView('list')}
+            className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors">
+            ← Voltar aos Representantes
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Tabela de Preços Global</h2>
+            <p className="text-sm text-gray-500">Preços B2B por segmento — válidos para todos os representantes</p>
+          </div>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <PriceListManager />
+        </div>
+      </div>
+    );
+  }
+
   // ── LIST VIEW ──
   return (
     <div className="space-y-6">
@@ -426,7 +447,7 @@ export function RepCoManagement() {
                 {canal === 'todos' ? 'Todos' : canal === 'site' ? 'Site' : canal === 'repco' ? 'RepCo' : 'Marketplaces'}
               </button>
             ))}
-            <button onClick={() => setShowPriceModal(true)}
+            <button onClick={() => setAdminView('price-list')}
               className="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
               📋 Tabela de Preços
             </button>
@@ -461,27 +482,6 @@ export function RepCoManagement() {
           </div>
         </div>
       </div>
-
-      {/* Price list modal */}
-      {showPriceModal && (
-        <div className="fixed inset-0 z-50 overflow-hidden">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPriceModal(false)} />
-          <div className="absolute right-0 top-0 h-full w-full max-w-3xl bg-white shadow-2xl flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Tabela de Preços Global</h2>
-                <p className="text-sm text-gray-500">Preços por segmento — válidos para todos os representantes</p>
-              </div>
-              <button onClick={() => setShowPriceModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6">
-              <PriceListManager />
-            </div>
-          </div>
-        </div>
-      )}
 
       {adminView === 'map' && (
         <Suspense fallback={<div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-600"/></div>}>
