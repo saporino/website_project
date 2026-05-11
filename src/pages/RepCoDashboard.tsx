@@ -274,6 +274,8 @@ export function RepCoDashboard() {
               <Suspense fallback={<div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#a4240e]"/></div>}>
                 <RepCoRoutes
                   representativeId={rep!.id}
+                  currentLat={coords?.lat}
+                  currentLng={coords?.lng}
                   onNavigateToOrder={(clientId) => { setPreSelectedClientId(clientId); setActiveTab('novo_pedido'); }}
                 />
               </Suspense>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { parseRouteCSV, geocodeAddress, optimizeRoute } from '../../utils/routeOptimizer';
 import type { StopWithCoords } from '../../utils/routeOptimizer';
+import { CLIENT_SEGMENTS } from '../../constants/segments';
 
 interface Representative { id: string; full_name: string; status: string; }
 interface Route {
@@ -25,6 +26,10 @@ export default function RouteManager() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [routeType, setRouteType] = useState('visit');
+  const [region, setRegion] = useState('');
+  const [segmentFilter, setSegmentFilter] = useState('');
+  const [maxWeightKg, setMaxWeightKg] = useState(800);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { fetchData(); }, []);
@@ -72,7 +77,11 @@ export default function RouteManager() {
   }
 
   function handleOptimize() {
-    setCsvStops(optimizeRoute(csvStops));
+    setCsvStops(optimizeRoute(csvStops, {
+      filterSegment: segmentFilter || undefined,
+      filterRegion: region || undefined,
+      maxWeightKg,
+    }));
     setOptimized(true);
   }
 
@@ -82,7 +91,7 @@ export default function RouteManager() {
     if (csvStops.length === 0) { setError('Adicione pontos via CSV.'); return; }
     setSaving(true); setError('');
     const { data: route, error: routeErr } = await supabase
-      .from('representative_routes').insert({ name: routeName, representative_id: selectedRep, status: 'active' }).select().single();
+      .from('representative_routes').insert({ name: routeName, representative_id: selectedRep, status: 'active', route_type: routeType, region: region || null, segment_filter: segmentFilter || null, max_weight_kg: maxWeightKg }).select().single();
     if (routeErr || !route) { setError('Erro ao criar rota.'); setSaving(false); return; }
     const { error: stopsErr } = await supabase.from('route_stops').insert(
       csvStops.map((s, i) => ({ route_id: route.id, stop_order: i + 1, company_name: s.company_name, address: s.address, city: s.city, phone: s.phone, segment: s.segment, lat: s.lat, lng: s.lng, visit_status: 'pending' }))
@@ -147,6 +156,30 @@ export default function RouteManager() {
                 <option value="">Selecione...</option>
                 {representatives.map(r => <option key={r.id} value={r.id}>{r.full_name}</option>)}
               </select></div>
+
+            {/* Tipo de rota */}
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">Tipo de rota</label>
+              <select value={routeType} onChange={e => setRouteType(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none">
+                <option value="visit">Visita</option>
+                <option value="delivery">Entrega</option>
+                <option value="prospection">Prospecção</option>
+              </select></div>
+
+            {/* Região */}
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">Região / Cidade</label>
+              <input type="text" value={region} onChange={e => setRegion(e.target.value)} placeholder="Ex: Zona Sul SP, Osasco" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none" /></div>
+
+            {/* Filtro de segmento */}
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">Filtrar por segmento (opcional)</label>
+              <select value={segmentFilter} onChange={e => setSegmentFilter(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none">
+                <option value="">Todos os segmentos</option>
+                {CLIENT_SEGMENTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select></div>
+
+            {/* Capacidade máxima */}
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">Capacidade máxima (kg)</label>
+              <input type="number" value={maxWeightKg} onChange={e => setMaxWeightKg(parseFloat(e.target.value) || 800)} min={100} max={2000} step={50} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none" />
+              <p className="text-xs text-gray-400 mt-1">Kangoo: ~800kg recomendado</p></div>
           </div>
 
           <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">

@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { supabase } from '../../lib/supabase';
-import { CLIENT_SEGMENTS, SEGMENT_LABEL } from '../../constants/segments';
-import type { ClientSegment } from '../../constants/segments';
+import { SEGMENT_LABEL } from '../../constants/segments';
 import { googleCalendarLink, outlookCalendarLink, downloadICS } from '../../utils/calendarLinks';
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -14,21 +13,15 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-const STATUS_CONFIG = {
-  pending:      { label: 'Pendente',     color: '#ef4444', bg: 'bg-red-100',    text: 'text-red-700',    border: 'border-red-300'    },
-  in_progress:  { label: 'Em Andamento', color: '#3b82f6', bg: 'bg-blue-100',   text: 'text-blue-700',   border: 'border-blue-300'   },
-  completed:    { label: 'Concluído',    color: '#22c55e', bg: 'bg-green-100',  text: 'text-green-700',  border: 'border-green-300'  },
-  not_attended: { label: 'Não Atendido', color: '#f97316', bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300' },
+const STATUS_CFG = {
+  pending:      { label: 'Pendente',     color: '#ef4444', bg: '#ffebee', tc: '#c62828' },
+  in_progress:  { label: 'Em Andamento', color: '#3b82f6', bg: '#e3f2fd', tc: '#1565c0' },
+  completed:    { label: 'Concluído',    color: '#22c55e', bg: '#e8f5e9', tc: '#2e7d32' },
+  not_attended: { label: 'Não Atendido', color: '#f97316', bg: '#fff3e0', tc: '#e65100' },
 } as const;
+type VisitStatus = keyof typeof STATUS_CFG;
 
-type VisitStatus = keyof typeof STATUS_CONFIG;
-
-function makeIcon(color: string, order: number) {
-  return L.divIcon({
-    html: `<div style="background:${color};color:#fff;width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,0.3);font-size:11px;font-weight:700;"><span style="transform:rotate(45deg)">${order}</span></div>`,
-    iconSize: [28, 28], iconAnchor: [14, 28], className: '',
-  });
-}
+const ROUTE_TYPE_LABELS: Record<string, string> = { visit: 'Visita', delivery: 'Entrega', prospection: 'Prospecção' };
 
 interface Stop {
   id: string; stop_order: number; company_name: string;
@@ -36,331 +29,312 @@ interface Stop {
   lat: number; lng: number; visit_status: VisitStatus;
   visit_notes: string | null; visited_at: string | null;
   representative_client_id: string | null; scheduled_at: string | null;
+  arrival_at?: string | null; departure_at?: string | null;
+  proof_photo_url?: string | null; proof_photo_lat?: number | null;
+  proof_photo_lng?: number | null; proof_photo_at?: string | null;
+  geofence_triggered?: boolean; weight_kg?: number; stop_type?: string;
 }
 
-interface Route { id: string; name: string; status: string; created_at: string; }
-
-interface ConvertForm {
-  cnpj: string; razao_social: string; nome_fantasia: string; endereco_completo: string;
-  whatsapp_comprador: string; segment: ClientSegment | ''; forma_pagamento: string;
+interface Route {
+  id: string; name: string; status: string; created_at: string;
+  route_type?: string; max_weight_kg?: number; total_weight_kg?: number;
+  region?: string; finalized_at?: string; learned_order?: Record<string, number>;
 }
 
-const emptyForm: ConvertForm = { cnpj: '', razao_social: '', nome_fantasia: '', endereco_completo: '', whatsapp_comprador: '', segment: '', forma_pagamento: '' };
+interface Props {
+  representativeId: string;
+  currentLat?: number; currentLng?: number;
+  onNavigateToOrder?: (clientId: string) => void;
+}
 
-interface Props { representativeId: string; onNavigateToOrder?: (clientId: string) => void; }
+function hav(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371, dLat = (lat2-lat1)*Math.PI/180, dLng = (lng2-lng1)*Math.PI/180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
 
-export default function RepCoRoutes({ representativeId, onNavigateToOrder }: Props) {
+export default function RepCoRoutes({ representativeId, currentLat, currentLng, onNavigateToOrder }: Props) {
   const [routes, setRoutes] = useState<Route[]>([]);
-  const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
+  const [sel, setSel] = useState<Route | null>(null);
   const [stops, setStops] = useState<Stop[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingStops, setLoadingStops] = useState(false);
-  const [selectedStop, setSelectedStop] = useState<Stop | null>(null);
-  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
-  const [notes, setNotes] = useState('');
-  const [viewMode, setViewMode] = useState<'map'|'list'>('list');
-  const [convertingStop, setConvertingStop] = useState<string | null>(null);
-  const [convertForm, setConvertForm] = useState<ConvertForm>(emptyForm);
-  const [searchingCNPJ, setSearchingCNPJ] = useState(false);
-  const [savingClient, setSavingClient] = useState(false);
-  const [convertError, setConvertError] = useState('');
-  const [convertSuccess, setConvertSuccess] = useState('');
-  const [calendarStop, setCalendarStop] = useState<Stop | null>(null);
-  const [schedulingStop, setSchedulingStop] = useState<string | null>(null);
-  const [scheduleDate, setScheduleDate] = useState('');
-  const [scheduleTime, setScheduleTime] = useState('09:00');
+  const [viewMode, setViewMode] = useState<'list'|'map'>('list');
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [updating, setUpdating] = useState<string | null>(null);
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [finalizing, setFinalizing] = useState(false);
+  const [showFinalize, setShowFinalize] = useState(false);
+  const photoRef = useRef<HTMLInputElement>(null);
+  const pendingStop = useRef<string | null>(null);
 
   useEffect(() => { fetchRoutes(); }, [representativeId]);
+  useEffect(() => { if (currentLat && currentLng && stops.length) checkGeo(currentLat, currentLng); }, [currentLat, currentLng, stops]);
 
   async function fetchRoutes() {
     setLoading(true);
-    const { data } = await supabase.from('representative_routes').select('id,name,status,created_at').eq('representative_id', representativeId).eq('status','active').order('created_at', { ascending: false });
-    setRoutes(data || []);
+    const { data } = await supabase.from('representative_routes').select('*').eq('representative_id', representativeId).order('created_at', { ascending: false });
+    if (data) setRoutes(data as Route[]);
     setLoading(false);
   }
 
   async function fetchStops(routeId: string) {
     setLoadingStops(true);
     const { data } = await supabase.from('route_stops').select('*').eq('route_id', routeId).order('stop_order');
-    setStops((data as Stop[]) || []);
+    if (data) setStops(data as Stop[]);
     setLoadingStops(false);
   }
 
-  function selectRoute(route: Route) { setSelectedRoute(route); fetchStops(route.id); setSelectedStop(null); setConvertingStop(null); }
+  async function updateStatus(stopId: string, status: VisitStatus, notes?: string) {
+    setUpdating(stopId);
+    const updates: any = { visit_status: status, visit_notes: notes };
+    if (status === 'in_progress' && !stops.find(s => s.id === stopId)?.arrival_at) updates.arrival_at = new Date().toISOString();
+    if (status === 'completed' || status === 'not_attended') { updates.visited_at = new Date().toISOString(); updates.departure_at = new Date().toISOString(); }
+    await supabase.from('route_stops').update(updates).eq('id', stopId);
+    setStops(prev => prev.map(s => s.id === stopId ? { ...s, ...updates } : s));
+    setUpdating(null);
+    if (status === 'completed') { pendingStop.current = stopId; photoRef.current?.click(); }
+  }
 
-  async function updateStatus(stop: Stop, newStatus: VisitStatus) {
-    setUpdatingStatus(stop.id);
-    const { error } = await supabase.from('route_stops').update({ visit_status: newStatus, visit_notes: notes || stop.visit_notes, visited_at: newStatus !== 'pending' ? new Date().toISOString() : null }).eq('id', stop.id);
+  async function uploadPhoto(stopId: string, file: File) {
+    setUploading(stopId);
+    const path = `visits/${representativeId}/${stopId}/${Date.now()}.jpg`;
+    const { error } = await supabase.storage.from('visit-photos').upload(path, file, { upsert: true });
     if (!error) {
-      setStops(prev => prev.map(s => s.id === stop.id ? { ...s, visit_status: newStatus, visit_notes: notes || s.visit_notes } : s));
-      setSelectedStop(prev => prev?.id === stop.id ? { ...prev, visit_status: newStatus } : prev);
+      const { data: urlData } = supabase.storage.from('visit-photos').getPublicUrl(path);
+      const now = new Date().toISOString();
+      await supabase.from('route_stops').update({ proof_photo_url: urlData.publicUrl, proof_photo_lat: currentLat, proof_photo_lng: currentLng, proof_photo_at: now }).eq('id', stopId);
+      setStops(prev => prev.map(s => s.id === stopId ? { ...s, proof_photo_url: urlData.publicUrl, proof_photo_at: now } : s));
     }
-    setUpdatingStatus(null); setNotes('');
+    setUploading(null);
   }
 
-  function openConvertForm(stop: Stop) {
-    setConvertingStop(stop.id); setConvertError(''); setConvertSuccess('');
-    setConvertForm({ ...emptyForm, nome_fantasia: stop.company_name, endereco_completo: [stop.address, stop.city].filter(Boolean).join(', '), segment: (stop.segment as ClientSegment) || '', whatsapp_comprador: stop.phone || '' });
-  }
-
-  async function searchCNPJ() {
-    const cnpj = convertForm.cnpj.replace(/\D/g, '');
-    if (cnpj.length !== 14) { setConvertError('CNPJ deve ter 14 dígitos.'); return; }
-    setSearchingCNPJ(true); setConvertError('');
-    try {
-      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      setConvertForm(prev => ({ ...prev, razao_social: data.razao_social || '', nome_fantasia: data.nome_fantasia || prev.nome_fantasia, endereco_completo: [data.logradouro, data.numero, data.complemento, data.bairro, data.municipio, data.uf].filter(Boolean).join(', ') }));
-    } catch { setConvertError('CNPJ não encontrado. Preencha manualmente.'); }
-    setSearchingCNPJ(false);
-  }
-
-  async function saveAsClient(stop: Stop) {
-    if (!convertForm.segment) { setConvertError('Selecione o segmento.'); return; }
-    if (!convertForm.razao_social && !convertForm.nome_fantasia) { setConvertError('Informe o nome da empresa.'); return; }
-    setSavingClient(true); setConvertError('');
-    const cnpj = convertForm.cnpj.replace(/\D/g,'') || '00000000000000';
-    const { data: newClient, error } = await supabase.from('representative_clients').insert({
-      representative_id: representativeId, cnpj,
-      razao_social: convertForm.razao_social || convertForm.nome_fantasia,
-      nome_fantasia: convertForm.nome_fantasia, endereco_completo: convertForm.endereco_completo,
-      whatsapp_comprador: convertForm.whatsapp_comprador || null,
-      forma_pagamento: convertForm.forma_pagamento || null,
-      segment: convertForm.segment, status: 'active',
-    }).select().single();
-    if (error) { setConvertError('Erro: ' + error.message); setSavingClient(false); return; }
-    await supabase.from('route_stops').update({ representative_client_id: newClient.id, visit_status: 'completed' }).eq('id', stop.id);
-    setStops(prev => prev.map(s => s.id === stop.id ? { ...s, representative_client_id: newClient.id, visit_status: 'completed' } : s));
-    setConvertSuccess('Cliente cadastrado com sucesso!'); setSavingClient(false); setConvertingStop(null);
-    if (onNavigateToOrder) setTimeout(() => onNavigateToOrder(newClient.id), 1500);
-  }
-
-  async function saveScheduledAt(stop: Stop) {
-    if (!scheduleDate) return;
-    const scheduledAt = new Date(`${scheduleDate}T${scheduleTime}:00`).toISOString();
-    await supabase.from('route_stops').update({ scheduled_at: scheduledAt }).eq('id', stop.id);
-    setStops(prev => prev.map(s => s.id === stop.id ? { ...s, scheduled_at: scheduledAt } : s));
-    setSchedulingStop(null); setScheduleDate('');
-    setCalendarStop({ ...stop, scheduled_at: scheduledAt });
-  }
-
-  const fmt = (v: string) => v.replace(/\D/g,'').slice(0,14).replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5');
-  const stopsWithCoords = stops.filter(s => s.lat && s.lng);
-  const polylinePoints = stopsWithCoords.map(s => [s.lat, s.lng] as [number, number]);
-  const center: [number,number] = stopsWithCoords.length > 0 ? [stopsWithCoords[0].lat, stopsWithCoords[0].lng] : [-23.55052, -46.633308];
-  const statusCounts = { pending: 0, in_progress: 0, completed: 0, not_attended: 0 };
-  stops.forEach(s => { if (s.visit_status in statusCounts) statusCounts[s.visit_status]++; });
-
-  if (loading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#a4240e]"/></div>;
-
-  if (!selectedRoute) return (
-    <div className="space-y-3">
-      <div><h3 className="text-lg font-semibold text-gray-800">Minhas Rotas</h3><p className="text-sm text-gray-500">{routes.length} rota{routes.length!==1?'s':''} ativa{routes.length!==1?'s':''}</p></div>
-      {routes.length === 0
-        ? <div className="text-center py-12 text-gray-400"><p className="text-4xl mb-3">🗺️</p><p className="font-medium">Nenhuma rota atribuída ainda</p><p className="text-sm mt-1">O administrador criará rotas para você</p></div>
-        : routes.map(route => (
-          <div key={route.id} onClick={() => selectRoute(route)} className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-[#a4240e]/40 hover:shadow-sm transition-all">
-            <div className="flex items-center justify-between"><div><p className="font-semibold text-gray-900">{route.name}</p><p className="text-xs text-gray-400 mt-0.5">Criada em {new Date(route.created_at).toLocaleDateString('pt-BR')}</p></div><span className="text-[#a4240e] text-lg">›</span></div>
-          </div>
-        ))
+  function checkGeo(lat: number, lng: number) {
+    stops.forEach(async stop => {
+      if (!stop.lat || !stop.lng || (stop.visit_status !== 'pending' && stop.visit_status !== 'in_progress')) return;
+      const d = hav(lat, lng, stop.lat, stop.lng);
+      if (d <= 0.5 && stop.visit_status === 'pending' && !stop.geofence_triggered) {
+        await supabase.from('route_stops').update({ visit_status: 'in_progress', geofence_triggered: true, arrival_at: new Date().toISOString() }).eq('id', stop.id);
+        setStops(prev => prev.map(s => s.id === stop.id ? { ...s, visit_status: 'in_progress' as VisitStatus, geofence_triggered: true } : s));
       }
+    });
+  }
+
+  function openNav(stop: Stop) {
+    if (!stop.lat || !stop.lng) return;
+    const waze = `https://waze.com/ul?ll=${stop.lat},${stop.lng}&navigate=yes`;
+    const maps = `https://maps.google.com/?daddr=${stop.lat},${stop.lng}`;
+    window.open(window.confirm('Abrir no Waze? (Cancelar = Google Maps)') ? waze : maps, '_blank');
+  }
+
+  async function finalizeDay() {
+    if (!sel) return;
+    setFinalizing(true);
+    const completed = stops.filter(s => s.visit_status === 'completed').length;
+    const notAtt = stops.filter(s => s.visit_status === 'not_attended').length;
+    const pend = stops.filter(s => s.visit_status === 'pending' || s.visit_status === 'in_progress').length;
+    const visitedOrder = stops.filter(s => s.visited_at).sort((a, b) => new Date(a.visited_at!).getTime() - new Date(b.visited_at!).getTime()).map(s => s.company_name);
+    const plannedOrder = [...stops].sort((a, b) => a.stop_order - b.stop_order).map(s => s.company_name);
+    const learned: Record<string, number> = {};
+    visitedOrder.forEach((name, i) => { if (plannedOrder.indexOf(name) !== i) learned[name] = i; });
+    await supabase.from('representative_routes').update({ status: 'completed', finalized_at: new Date().toISOString(), learned_order: { ...(sel.learned_order || {}), ...learned } }).eq('id', sel.id);
+    setSel(prev => prev ? { ...prev, status: 'completed', finalized_at: new Date().toISOString() } : null);
+    setFinalizing(false); setShowFinalize(false);
+    alert(`Dia finalizado!\n✅ ${completed} concluídos\n❌ ${notAtt} não atendidos\n⏳ ${pend} pendentes`);
+    fetchRoutes();
+  }
+
+  async function convertToClient(stop: Stop) {
+    const cnpj = prompt('CNPJ do cliente (somente números):');
+    if (!cnpj) return;
+    const { error } = await supabase.from('representative_clients').insert({ representative_id: representativeId, cnpj: cnpj.replace(/\D/g, ''), razao_social: stop.company_name, endereco_completo: stop.address, whatsapp_comprador: stop.phone || null, segment: stop.segment || null, status: 'active', is_active_client: true });
+    if (!error) { alert(`${stop.company_name} convertido!`); onNavigateToOrder?.('new'); }
+  }
+
+  const pendingC = stops.filter(s => s.visit_status === 'pending').length;
+  const inProgC = stops.filter(s => s.visit_status === 'in_progress').length;
+  const compC = stops.filter(s => s.visit_status === 'completed').length;
+  const notAttC = stops.filter(s => s.visit_status === 'not_attended').length;
+  const totalW = stops.reduce((s, st) => s + (st.weight_kg || 0), 0);
+  const maxW = sel?.max_weight_kg || 800;
+  const wPct = Math.min(100, (totalW / maxW) * 100);
+
+  if (loading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600"/></div>;
+
+  // ROUTE LIST
+  if (!sel) return (
+    <div className="space-y-3">
+      <h3 className="text-lg font-semibold text-gray-800">Minhas Rotas</h3>
+      {routes.length === 0 ? (
+        <div className="text-center py-12 text-gray-400"><p className="text-4xl mb-3">🗺️</p><p className="font-medium">Nenhuma rota atribuída</p><p className="text-sm mt-1">Aguarde o admin enviar uma rota</p></div>
+      ) : routes.map(r => (
+        <div key={r.id} onClick={() => { setSel(r); fetchStops(r.id); }} className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-amber-300 hover:shadow-sm transition-all">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-medium text-gray-800">{r.name}</span>
+                {r.route_type && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{ROUTE_TYPE_LABELS[r.route_type] || r.route_type}</span>}
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${r.status === 'completed' ? 'bg-green-100 text-green-700' : r.status === 'active' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>
+                  {r.status === 'completed' ? 'Concluída' : r.status === 'active' ? 'Ativa' : r.status}
+                </span>
+              </div>
+              {r.region && <p className="text-xs text-gray-500 mt-0.5">📍 {r.region}</p>}
+              <p className="text-xs text-gray-400 mt-0.5">{new Date(r.created_at).toLocaleDateString('pt-BR')}{r.finalized_at && ` · Finalizada ${new Date(r.finalized_at).toLocaleDateString('pt-BR')}`}</p>
+            </div>
+            <span className="text-amber-600 text-lg ml-2">›</span>
+          </div>
+        </div>
+      ))}
     </div>
   );
 
+  // ROUTE DETAIL
   return (
     <div className="space-y-3">
-      {/* Header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => setSelectedRoute(null)} className="text-sm text-gray-400 hover:text-gray-600">‹</button>
-        <div className="flex-1"><p className="font-semibold text-gray-900 text-sm">{selectedRoute.name}</p><p className="text-xs text-gray-400">{stops.length} pontos</p></div>
-        <div className="flex gap-1">
-          {(['list','map'] as const).map(m => (
-            <button key={m} onClick={() => setViewMode(m)} className={`px-3 py-1 rounded-lg text-xs font-medium ${viewMode===m?'bg-[#a4240e] text-white':'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{m==='list'?'Lista':'Mapa'}</button>
-          ))}
+        <button onClick={() => { setSel(null); setStops([]); setViewMode('list'); }} className="text-sm text-gray-400 hover:text-gray-600">‹ Voltar</button>
+        <div className="flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-base font-semibold text-gray-800">{sel.name}</h3>
+            {sel.route_type && <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{ROUTE_TYPE_LABELS[sel.route_type]}</span>}
+          </div>
+          {sel.region && <p className="text-xs text-gray-500">📍 {sel.region}</p>}
+        </div>
+        <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
+          <button onClick={() => setViewMode('list')} className={`px-3 py-1 rounded-md text-xs font-medium ${viewMode === 'list' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500'}`}>Lista</button>
+          <button onClick={() => setViewMode('map')} className={`px-3 py-1 rounded-md text-xs font-medium ${viewMode === 'map' ? 'bg-white text-amber-700 shadow-sm' : 'text-gray-500'}`}>Mapa</button>
         </div>
       </div>
 
       {/* Status counters */}
-      <div className="grid grid-cols-4 gap-1.5">
-        {(Object.keys(STATUS_CONFIG) as VisitStatus[]).map(s => (
-          <div key={s} className={`rounded-lg p-2 text-center ${STATUS_CONFIG[s].bg}`}>
-            <p className={`text-xl font-bold ${STATUS_CONFIG[s].text}`}>{statusCounts[s]}</p>
-            <p className={`${STATUS_CONFIG[s].text} leading-tight`} style={{fontSize:'9px'}}>{STATUS_CONFIG[s].label}</p>
+      <div className="grid grid-cols-4 gap-2">
+        {[{ c: pendingC, l: 'Pendente', ...STATUS_CFG.pending }, { c: inProgC, l: 'Andamento', ...STATUS_CFG.in_progress }, { c: compC, l: 'Concluído', ...STATUS_CFG.completed }, { c: notAttC, l: 'Não atend.', ...STATUS_CFG.not_attended }].map(({ c, l, bg, tc }) => (
+          <div key={l} style={{ background: bg }} className="rounded-lg p-2 text-center">
+            <p style={{ color: tc }} className="text-xl font-semibold">{c}</p>
+            <p style={{ color: tc }} className="text-xs">{l}</p>
           </div>
         ))}
       </div>
 
-      {convertSuccess && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">{convertSuccess}</div>}
+      {/* Weight bar */}
+      {totalW > 0 && (
+        <div className="bg-white border border-gray-200 rounded-xl p-3">
+          <div className="flex justify-between text-xs text-gray-600 mb-1"><span>Carga total</span><span className={wPct > 90 ? 'text-red-600 font-medium' : ''}>{totalW.toFixed(1)}kg / {maxW}kg</span></div>
+          <div className="bg-gray-100 rounded-full h-2"><div className={`h-2 rounded-full transition-all ${wPct > 90 ? 'bg-red-500' : wPct > 70 ? 'bg-amber-500' : 'bg-green-500'}`} style={{ width: `${wPct}%` }}/></div>
+          {wPct > 90 && <p className="text-xs text-red-600 mt-1">⚠️ Próximo do limite máximo</p>}
+        </div>
+      )}
 
-      {loadingStops ? <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#a4240e]"/></div> : (
-        <>
-          {/* MAP */}
-          {viewMode === 'map' && stopsWithCoords.length > 0 && (
-            <div className="rounded-xl overflow-hidden border border-gray-200" style={{height:'320px'}}>
-              <MapContainer center={center} zoom={12} style={{height:'100%',width:'100%'}}>
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap contributors'/>
-                <Polyline positions={polylinePoints} color="#a4240e" weight={2} dashArray="6,4" opacity={0.6}/>
-                {stopsWithCoords.map(stop => (
-                  <Marker key={stop.id} position={[stop.lat, stop.lng]} icon={makeIcon(STATUS_CONFIG[stop.visit_status]?.color??'#888', stop.stop_order)} eventHandlers={{click:()=>setSelectedStop(stop)}}>
-                    <Popup>
-                      <div style={{minWidth:'160px',fontFamily:'system-ui'}}>
-                        <p style={{fontWeight:600,marginBottom:'4px'}}>{stop.company_name}</p>
-                        <p style={{fontSize:'12px',color:'#666',marginBottom:'6px'}}>{stop.address}</p>
-                        <div style={{display:'flex',flexWrap:'wrap',gap:'4px'}}>
-                          {(Object.keys(STATUS_CONFIG) as VisitStatus[]).map(s => (
-                            <button key={s} onClick={()=>updateStatus(stop,s)} style={{background:STATUS_CONFIG[s].color,color:'#fff',border:'none',borderRadius:'4px',padding:'3px 7px',fontSize:'11px',cursor:'pointer',fontWeight:stop.visit_status===s?700:400,opacity:stop.visit_status===s?1:0.7}}>{STATUS_CONFIG[s].label}</button>
-                          ))}
-                        </div>
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))}
-              </MapContainer>
-            </div>
-          )}
-          {viewMode === 'map' && stopsWithCoords.length === 0 && <div className="text-center py-8 text-gray-400 text-sm">Nenhum ponto com coordenadas</div>}
-
-          {/* LIST */}
-          {viewMode === 'list' && (
-            <div className="space-y-2">
-              {stops.map(stop => {
-                const cfg = STATUS_CONFIG[stop.visit_status] ?? STATUS_CONFIG.pending;
-                const isSelected = selectedStop?.id === stop.id;
-                const isConverting = convertingStop === stop.id;
-                const alreadyClient = !!stop.representative_client_id;
-                return (
-                  <div key={stop.id} className={`bg-white border rounded-xl overflow-hidden transition-all ${isSelected?'border-[#a4240e]/40':'border-gray-200'}`}>
-                    <div className="p-3 cursor-pointer flex items-center gap-3" onClick={() => { setSelectedStop(isSelected?null:stop); if(isSelected) setConvertingStop(null); }}>
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{background:cfg.color}}>{stop.stop_order}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold text-gray-900 truncate">{stop.company_name}</p>
-                          {alreadyClient && <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium flex-shrink-0">Cliente ✓</span>}
-                        </div>
-                        <p className="text-xs text-gray-400 truncate">{stop.address}{stop.city?`, ${stop.city}`:''}</p>
-                      </div>
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.bg} ${cfg.text} flex-shrink-0`}>{cfg.label}</span>
+      {loadingStops ? <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-amber-600"/></div> : viewMode === 'list' ? (
+        <div className="space-y-2">
+          {stops.map(stop => {
+            const cfg = STATUS_CFG[stop.visit_status];
+            const isOpen = openId === stop.id;
+            return (
+              <div key={stop.id} className={`bg-white border rounded-xl overflow-hidden transition-all ${isOpen ? 'border-amber-400' : 'border-gray-200'}`}>
+                <div className="p-3 cursor-pointer flex items-center gap-3" onClick={() => setOpenId(isOpen ? null : stop.id)}>
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-medium flex-shrink-0" style={{ background: cfg.color }}>{stop.stop_order}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-800 truncate">{stop.company_name}</p>
+                    <p className="text-xs text-gray-500 truncate">{stop.address}{stop.city ? `, ${stop.city}` : ''}</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {stop.proof_photo_url && <span className="text-xs text-green-600">📷</span>}
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: cfg.bg, color: cfg.tc }}>{cfg.label}</span>
+                  </div>
+                </div>
+                {isOpen && (
+                  <div className="border-t border-gray-100 p-3 bg-gray-50 space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      {stop.phone && <a href={`tel:${stop.phone}`} className="flex items-center gap-1.5 text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg">📞 {stop.phone}</a>}
+                      {stop.lat && stop.lng && <button onClick={() => openNav(stop)} className="flex items-center gap-1.5 text-xs bg-blue-50 border border-blue-200 text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-100">🧭 Navegar</button>}
+                      {stop.phone && <a href={`https://wa.me/55${stop.phone.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-lg">💬 WhatsApp</a>}
                     </div>
-
-                    {isSelected && (
-                      <div className="border-t border-gray-100 p-3 bg-gray-50 space-y-3">
-                        {stop.phone && <a href={`tel:${stop.phone}`} className="flex items-center gap-2 text-xs text-blue-600">📞 {stop.phone}</a>}
-                        {stop.address && (
-                          <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${stop.address||''} ${stop.city||''}`)}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-xs text-blue-600">🧭 Abrir no Google Maps</a>
-                        )}
-
-                        {/* Status buttons */}
-                        <div>
-                          <p className="text-xs text-gray-500 mb-1.5 font-medium">Atualizar status:</p>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {(Object.keys(STATUS_CONFIG) as VisitStatus[]).map(s => (
-                              <button key={s} onClick={()=>updateStatus(stop,s)} disabled={updatingStatus===stop.id}
-                                className={`text-xs py-1.5 px-2 rounded-lg font-medium border transition-all ${stop.visit_status===s?`${STATUS_CONFIG[s].bg} ${STATUS_CONFIG[s].text} ${STATUS_CONFIG[s].border} border`:'bg-white border-gray-200 text-gray-600 hover:bg-gray-100'}`}>
-                                {updatingStatus===stop.id?'...':STATUS_CONFIG[s].label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        <input type="text" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Adicionar observação..." className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-xs focus:ring-1 focus:ring-[#a4240e] outline-none"/>
-
-                        {/* Agendar visita + Calendário */}
-                        <div className="border-t border-gray-100 pt-3 space-y-2">
-                          {stop.scheduled_at ? (
-                            <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                              <div>
-                                <p className="text-xs font-medium text-amber-800">Visita agendada</p>
-                                <p className="text-xs text-amber-600">{new Date(stop.scheduled_at).toLocaleString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
-                              </div>
-                              <button onClick={() => setCalendarStop(stop)} className="text-xs bg-amber-600 text-white px-2.5 py-1.5 rounded-lg hover:bg-amber-700">+ Calendário</button>
-                            </div>
-                          ) : (
-                            schedulingStop === stop.id ? (
-                              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
-                                <p className="text-xs font-medium text-gray-700">Agendar visita</p>
-                                <div className="flex gap-2">
-                                  <input type="date" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#a4240e] outline-none"/>
-                                  <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} className="w-24 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#a4240e] outline-none"/>
-                                </div>
-                                <div className="flex gap-2">
-                                  <button onClick={() => saveScheduledAt(stop)} disabled={!scheduleDate} className="flex-1 bg-amber-600 text-white py-1.5 rounded-lg text-xs font-medium hover:bg-amber-700 disabled:opacity-40">Confirmar</button>
-                                  <button onClick={() => setSchedulingStop(null)} className="text-xs text-gray-400 px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50">Cancelar</button>
-                                </div>
-                              </div>
-                            ) : (
-                              <button onClick={() => setSchedulingStop(stop.id)} className="w-full flex items-center justify-center gap-2 bg-gray-50 border border-gray-200 text-gray-600 py-2 rounded-lg text-xs font-medium hover:bg-gray-100">
-                                🗓 Agendar visita
-                              </button>
-                            )
-                          )}
-
-                          {/* Modal de calendário inline */}
-                          {calendarStop?.id === stop.id && calendarStop.scheduled_at && (
-                            <div className="bg-white border border-amber-200 rounded-xl p-4 space-y-2">
-                              <p className="text-xs font-semibold text-gray-700">Adicionar ao calendário</p>
-                              {[{ href: googleCalendarLink({ title: `Visita — ${stop.company_name}`, location: [stop.address,stop.city].filter(Boolean).join(', '), startDate: new Date(calendarStop.scheduled_at), durationMinutes: 30 }), emoji: '📅', label: 'Google Calendar' },
-                                { href: outlookCalendarLink({ title: `Visita — ${stop.company_name}`, location: [stop.address,stop.city].filter(Boolean).join(', '), startDate: new Date(calendarStop.scheduled_at), durationMinutes: 30 }), emoji: '📆', label: 'Outlook' }]
-                                .map(cal => <a key={cal.label} href={cal.href} target="_blank" rel="noreferrer" className="flex items-center gap-2 w-full bg-gray-50 border border-gray-100 rounded-lg p-2.5 hover:bg-gray-100 text-xs text-gray-700">{cal.emoji} {cal.label}</a>)}
-                              <button onClick={() => { downloadICS({ title: `Visita — ${stop.company_name}`, location: [stop.address,stop.city].filter(Boolean).join(', '), startDate: new Date(calendarStop.scheduled_at!), durationMinutes: 30 }); setCalendarStop(null); }} className="flex items-center gap-2 w-full bg-gray-50 border border-gray-100 rounded-lg p-2.5 hover:bg-gray-100 text-xs text-gray-700">📱 Calendário do celular (.ics)</button>
-                              <button onClick={() => setCalendarStop(null)} className="w-full text-xs text-gray-400 py-1.5">Fechar</button>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Convert to client / Make order */}
-                        {!alreadyClient && (
-                          <button onClick={()=>isConverting?setConvertingStop(null):openConvertForm(stop)}
-                            className="w-full flex items-center justify-center gap-2 bg-[#a4240e] text-white py-2 rounded-lg text-xs font-semibold hover:bg-[#8a1f0c]">
-                            {isConverting?'✕ Cancelar':'🔄 Converter em cliente'}
+                    <div>
+                      <p className="text-xs text-gray-500 font-medium mb-2">Atualizar status:</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(Object.entries(STATUS_CFG) as [VisitStatus, typeof STATUS_CFG.pending][]).map(([key, c]) => (
+                          <button key={key} onClick={() => updateStatus(stop.id, key)} disabled={updating === stop.id}
+                            className="text-xs py-2 px-3 rounded-lg border font-medium transition-colors disabled:opacity-50"
+                            style={{ background: stop.visit_status === key ? c.color : c.bg, color: stop.visit_status === key ? '#fff' : c.tc, borderColor: c.color }}>
+                            {c.label}
                           </button>
-                        )}
-                        {alreadyClient && onNavigateToOrder && (
-                          <button onClick={()=>onNavigateToOrder(stop.representative_client_id!)}
-                            className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-2 rounded-lg text-xs font-semibold hover:bg-green-700">
-                            🛒 Fazer pedido para este cliente
-                          </button>
-                        )}
-
-                        {/* Conversion form */}
-                        {isConverting && (
-                          <div className="bg-white border border-amber-200 rounded-xl p-3 space-y-3">
-                            <p className="text-xs font-semibold text-gray-700">Cadastrar como cliente</p>
-                            {convertError && <p className="text-xs text-red-600 bg-red-50 px-2 py-1.5 rounded">{convertError}</p>}
-                            <div>
-                              <label className="block text-xs text-gray-500 mb-1">CNPJ (busca automática)</label>
-                              <div className="flex gap-2">
-                                <input type="text" value={fmt(convertForm.cnpj)} onChange={e=>setConvertForm(p=>({...p,cnpj:e.target.value.replace(/\D/g,'')}))} placeholder="00.000.000/0000-00" className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#a4240e] outline-none"/>
-                                <button onClick={searchCNPJ} disabled={searchingCNPJ||convertForm.cnpj.replace(/\D/g,'').length!==14} className="bg-gray-700 text-white px-3 py-1.5 rounded-lg text-xs hover:bg-gray-800 disabled:opacity-40">{searchingCNPJ?'...':'Buscar'}</button>
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-2">
-                              <div><label className="block text-xs text-gray-500 mb-1">Nome / Razão Social *</label><input type="text" value={convertForm.razao_social||convertForm.nome_fantasia} onChange={e=>setConvertForm(p=>({...p,razao_social:e.target.value}))} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#a4240e] outline-none"/></div>
-                              <div><label className="block text-xs text-gray-500 mb-1">Segmento *</label>
-                                <select value={convertForm.segment} onChange={e=>setConvertForm(p=>({...p,segment:e.target.value as ClientSegment}))} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#a4240e] outline-none">
-                                  <option value="">Selecione...</option>
-                                  {CLIENT_SEGMENTS.map(seg=><option key={seg.value} value={seg.value}>{seg.label}</option>)}
-                                </select></div>
-                              <div><label className="block text-xs text-gray-500 mb-1">WhatsApp</label><input type="text" value={convertForm.whatsapp_comprador} onChange={e=>setConvertForm(p=>({...p,whatsapp_comprador:e.target.value}))} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#a4240e] outline-none"/></div>
-                              <div><label className="block text-xs text-gray-500 mb-1">Forma de pagamento</label>
-                                <select value={convertForm.forma_pagamento} onChange={e=>setConvertForm(p=>({...p,forma_pagamento:e.target.value}))} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:ring-1 focus:ring-[#a4240e] outline-none">
-                                  <option value="">Selecione...</option><option value="pix">PIX</option><option value="boleto">Boleto</option><option value="a_vista">À Vista</option>
-                                </select></div>
-                            </div>
-                            <button onClick={()=>saveAsClient(stop)} disabled={savingClient} className="w-full bg-[#a4240e] text-white py-2 rounded-lg text-xs font-semibold hover:bg-[#8a1f0c] disabled:opacity-50">
-                              {savingClient?'Cadastrando...':'✅ Confirmar cadastro como cliente'}
-                            </button>
+                        ))}
+                      </div>
+                    </div>
+                    {stop.visit_status === 'completed' && (
+                      <div>
+                        {stop.proof_photo_url ? (
+                          <div className="space-y-2">
+                            <p className="text-xs text-green-600 font-medium">✅ Comprovante de entrega</p>
+                            <img src={stop.proof_photo_url} alt="Comprovante" className="w-full rounded-lg border border-gray-200 max-h-32 object-cover" />
+                            {stop.proof_photo_at && <p className="text-xs text-gray-400">📍 {new Date(stop.proof_photo_at).toLocaleString('pt-BR')}</p>}
                           </div>
+                        ) : (
+                          <button onClick={() => { pendingStop.current = stop.id; photoRef.current?.click(); }} disabled={uploading === stop.id}
+                            className="w-full flex items-center justify-center gap-2 text-xs bg-amber-50 border border-amber-200 text-amber-700 px-3 py-2.5 rounded-lg hover:bg-amber-100 disabled:opacity-50">
+                            {uploading === stop.id ? 'Enviando...' : '📷 Tirar foto de comprovante'}
+                          </button>
                         )}
                       </div>
                     )}
+                    {(stop.visit_status === 'completed' || stop.visit_status === 'in_progress') && !stop.representative_client_id && (
+                      <button onClick={() => convertToClient(stop)} className="w-full text-xs bg-amber-600 text-white py-2 rounded-lg hover:bg-amber-700">🔄 Converter em cliente</button>
+                    )}
+                    {stop.segment && <p className="text-xs text-gray-400">Segmento: {SEGMENT_LABEL[stop.segment] ?? stop.segment}</p>}
                   </div>
-                );
-              })}
+                )}
+              </div>
+            );
+          })}
+
+          {/* Finalizar dia */}
+          {stops.length > 0 && !sel.finalized_at && (
+            <div className="pt-2">
+              {showFinalize ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+                  <p className="text-sm font-medium text-amber-800">Confirmar finalização?</p>
+                  <div className="text-xs text-amber-700 space-y-1">
+                    <p>✅ {compC} concluídos</p><p>❌ {notAttC} não atendidos</p>
+                    {pendingC > 0 && <p>⏳ {pendingC} pendentes → próximo dia</p>}
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowFinalize(false)} className="flex-1 text-xs border border-gray-300 text-gray-600 py-2 rounded-lg">Cancelar</button>
+                    <button onClick={finalizeDay} disabled={finalizing} className="flex-1 text-xs bg-amber-600 text-white py-2 rounded-lg disabled:opacity-50">{finalizing ? 'Finalizando...' : '🏁 Confirmar'}</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={() => setShowFinalize(true)} className="w-full bg-gray-800 text-white py-3 rounded-xl text-sm font-medium hover:bg-gray-900">🏁 Finalizar dia</button>
+              )}
             </div>
           )}
-        </>
+          {sel.finalized_at && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
+              <p className="text-sm font-medium text-green-700">✅ Rota finalizada</p>
+              <p className="text-xs text-green-600 mt-0.5">{new Date(sel.finalized_at).toLocaleString('pt-BR')}</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-xl overflow-hidden border border-gray-200" style={{ height: 360 }}>
+          {stops.some(s => s.lat && s.lng) ? (
+            <MapContainer center={[stops.find(s => s.lat)?.lat || -23.5, stops.find(s => s.lng)?.lng || -46.6]} zoom={13} style={{ height: '100%', width: '100%' }}>
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+              {currentLat && currentLng && (
+                <Marker position={[currentLat, currentLng]} icon={L.divIcon({ className: '', html: '<div style="width:14px;height:14px;border-radius:50%;background:#22c55e;border:2px solid white;box-shadow:0 0 0 4px rgba(34,197,94,0.3)"></div>', iconSize: [14, 14] })}><Popup>Você está aqui</Popup></Marker>
+              )}
+              {stops.filter(s => s.lat && s.lng).map(stop => {
+                const c = STATUS_CFG[stop.visit_status];
+                return <Marker key={stop.id} position={[stop.lat!, stop.lng!]} icon={L.divIcon({ className: '', html: `<div style="width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:${c.color};border:2px solid white;display:flex;align-items:center;justify-content:center"><span style="transform:rotate(45deg);color:white;font-size:10px;font-weight:bold">${stop.stop_order}</span></div>`, iconSize: [28, 28] })}><Popup><strong>{stop.company_name}</strong><br/>{stop.address}<br/><span style={{ color: c.tc }}>{c.label}</span></Popup></Marker>;
+              })}
+              {stops.filter(s => s.lat && s.lng).length > 1 && <Polyline positions={stops.filter(s => s.lat && s.lng).sort((a,b) => a.stop_order - b.stop_order).map(s => [s.lat!, s.lng!])} color="#8B2214" weight={2} dashArray="6,4" opacity={0.6} />}
+            </MapContainer>
+          ) : <div className="h-full flex items-center justify-center bg-gray-50 text-gray-400"><p className="text-sm">Sem coordenadas</p></div>}
+        </div>
       )}
+
+      <input ref={photoRef} type="file" accept="image/*" capture="environment" className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f && pendingStop.current) uploadPhoto(pendingStop.current, f); e.target.value = ''; }} />
     </div>
   );
 }
