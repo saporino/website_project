@@ -214,7 +214,11 @@ export function RepCoDashboard() {
           <div className="flex items-center gap-3">
             {profile?.is_admin && (
               <button
-                onClick={() => { window.history.pushState({}, '', '/admin'); window.dispatchEvent(new PopStateEvent('popstate')); }}
+                onClick={() => {
+                  localStorage.setItem('admin-initial-tab', 'repco');
+                  window.history.pushState({}, '', '/admin');
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                }}
                 className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
               >
                 ⚙️ Voltar ao Admin

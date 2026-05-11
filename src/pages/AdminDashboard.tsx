@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Package, Settings, Truck, LogOut, ShoppingBag, Users, BarChart3, Briefcase } from 'lucide-react';
 import { OrdersManagement } from '../components/admin/OrdersManagement';
@@ -15,6 +15,15 @@ type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 
 export function AdminDashboard() {
   const { user, profile, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+
+  // Deep-link: if another page stored a target tab in localStorage, activate it
+  useEffect(() => {
+    const target = localStorage.getItem('admin-initial-tab') as TabType | null;
+    if (target) {
+      setActiveTab(target);
+      localStorage.removeItem('admin-initial-tab');
+    }
+  }, []);
 
   if (!user || !profile?.is_admin) {
     return (
