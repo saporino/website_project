@@ -1,6 +1,7 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
 import { Users, CheckCircle, XCircle, Eye, Plus, DollarSign, Upload, Download, Phone, Mail, Map } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 import PriceListManager from './PriceListManager';
 import RouteManager from './RouteManager';
@@ -54,6 +55,8 @@ interface RepCommission {
 type AdminTab = 'list' | 'detail';
 
 export function RepCoManagement() {
+  const { profile } = useAuth();
+  const isAdmin = profile?.is_admin === true;
   const [adminTab, setAdminTab] = useState<AdminTab>('list');
   const [adminView, setAdminView] = useState<'list' | 'map'>('list');
   const [detailTab, setDetailTab] = useState<'pedidos' | 'comissoes' | 'precos' | 'rotas'>('pedidos');
@@ -425,6 +428,14 @@ export function RepCoManagement() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {isAdmin && (
+            <button
+              onClick={() => window.location.href = '/repco'}
+              className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors"
+            >
+              🚀 Abrir Portal RepCo
+            </button>
+          )}
           <button
             onClick={() => setAdminView(v => v === 'map' ? 'list' : 'map')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${

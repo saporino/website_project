@@ -212,6 +212,14 @@ export function RepCoDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {profile?.is_admin && (
+              <button
+                onClick={() => { window.history.pushState({}, '', '/admin'); window.dispatchEvent(new PopStateEvent('popstate')); }}
+                className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
+              >
+                ⚙️ Voltar ao Admin
+              </button>
+            )}
             <button onClick={() => { window.history.pushState({}, '', '/'); window.dispatchEvent(new PopStateEvent('popstate')); }}
               className="text-sm text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors">
               Voltar ao site
