@@ -1,5 +1,5 @@
-import { useState, useEffect, Suspense, lazy } from 'react';
-import { Users, CheckCircle, XCircle, Eye, Plus, DollarSign, Upload, Download, Phone, Mail, Map } from 'lucide-react';
+import { useState, useEffect, Suspense, lazy, useMemo } from 'react';
+import { Users, CheckCircle, XCircle, Eye, Plus, DollarSign, Upload, Download, Phone, Mail, Map, Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -81,6 +81,55 @@ export function RepCoManagement() {
   const [nfFile, setNfFile] = useState<File | null>(null);
   const [clients, setClients] = useState<{ id: string; razao_social: string; cnpj: string }[]>([]);
 
+  // Product selector for order form
+  interface OrderProduct { id: string; name: string; price: number; image_url: string | null; stock: number; in_stock: boolean; }
+  const [orderProducts, setOrderProducts] = useState<OrderProduct[]>([]);
+  const [orderCart, setOrderCart] = useState<Record<string, number>>({});
+  const [orderProductSearch, setOrderProductSearch] = useState('');
+  const [manualDeliveryBonus, setManualDeliveryBonus] = useState(false);
+  const [manualPixBonus, setManualPixBonus] = useState(false);
+  const [payCommission, setPayCommission] = useState(true);
+
+  const fetchOrderProducts = async () => {
+    const { data } = await supabase.from('products').select('id, name, price, image_url, stock, in_stock').eq('is_active', true).order('name');
+    if (data) setOrderProducts(data);
+  };
+
+  const filteredOrderProducts = useMemo(() => {
+    if (!orderProductSearch.trim()) return orderProducts;
+    const q = orderProductSearch.toLowerCase();
+    return orderProducts.filter(p => p.name.toLowerCase().includes(q));
+  }, [orderProducts, orderProductSearch]);
+
+  const orderCartTotal = useMemo(() => {
+    return Object.entries(orderCart).reduce((sum, [pid, qty]) => {
+      const p = orderProducts.find(pr => pr.id === pid);
+      return sum + (p ? p.price * qty : 0);
+    }, 0);
+  }, [orderCart, orderProducts]);
+
+  const orderCartDescription = useMemo(() => {
+    return Object.entries(orderCart)
+      .filter(([, qty]) => qty > 0)
+      .map(([pid, qty]) => {
+        const p = orderProducts.find(pr => pr.id === pid);
+        return p ? `${p.name} x${qty} (R$ ${p.price.toFixed(2)})` : '';
+      })
+      .filter(Boolean)
+      .join(', ');
+  }, [orderCart, orderProducts]);
+
+  function updateOrderCart(productId: string, delta: number) {
+    setOrderCart(prev => {
+      const product = orderProducts.find(p => p.id === productId);
+      if (!product) return prev;
+      const current = prev[productId] || 0;
+      const next = Math.max(0, Math.min(current + delta, product.stock));
+      if (next <= 0) { const { [productId]: _, ...rest } = prev; return rest; }
+      return { ...prev, [productId]: next };
+    });
+  }
+
   useEffect(() => { fetchReps(); fetchSnoozedClients(); }, []);
 
   const [snoozedClients, setSnoozedClients] = useState<any[]>([]);
@@ -151,27 +200,43 @@ export function RepCoManagement() {
   };
 
   const handleCreateOrder = async () => {
-    if (!selectedRep || !orderForm.description || !orderForm.total_amount) {
-      toast.error('Preencha descrição e valor');
+    const cartItems = Object.entries(orderCart).filter(([, qty]) => qty > 0);
+    if (!selectedRep || cartItems.length === 0) {
+      toast.error('Selecione pelo menos um produto');
       return;
     }
+    const description = orderCartDescription;
+    const total = orderCartTotal;
+
     const { data: order, error } = await supabase.from('representative_orders').insert({
       representative_id: selectedRep.id,
       representative_client_id: orderForm.representative_client_id || null,
-      description: orderForm.description,
-      total_amount: parseFloat(orderForm.total_amount),
-      payment_method: orderForm.payment_method,
-      is_personal_delivery: orderForm.is_personal_delivery,
+      description,
+      total_amount: total,
+      original_amount: total,
+      payment_method: manualPixBonus ? 'pix' : orderForm.payment_method,
+      is_personal_delivery: manualDeliveryBonus || orderForm.is_personal_delivery,
+      pix_bonus_eligible: manualPixBonus,
+      channel: 'repco',
       status: 'new',
     }).select().single();
 
     if (error || !order) { toast.error('Erro ao criar pedido'); return; }
+
+    // If pay_commission is false, we mark a note (the trigger will still create but admin can cancel)
+    if (!payCommission) {
+      await supabase.from('representative_orders').update({ notes: 'SEM COMISSÃO - admin marcou como não-comissionável' }).eq('id', order.id);
+    }
 
     if (nfFile) await uploadNF(order.id, nfFile);
 
     toast.success('Pedido criado!');
     setShowNewOrder(false);
     setOrderForm({ description: '', total_amount: '', payment_method: 'a_vista', is_personal_delivery: false, representative_client_id: '' });
+    setOrderCart({});
+    setManualDeliveryBonus(false);
+    setManualPixBonus(false);
+    setPayCommission(true);
     setNfFile(null);
     fetchRepDetail(selectedRep);
   };
@@ -307,8 +372,9 @@ export function RepCoManagement() {
           {showNewOrder && (
             <div className="p-6 bg-amber-50 border-b border-amber-200">
               <h4 className="font-semibold text-gray-900 mb-4">Novo Pedido RepCo</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
+              <div className="space-y-4">
+                {/* Cliente */}
+                <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Cliente</label>
                   <select value={orderForm.representative_client_id} onChange={e => setOrderForm(f => ({ ...f, representative_client_id: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a4240e] focus:border-transparent">
@@ -316,40 +382,116 @@ export function RepCoManagement() {
                     {clients.map(c => <option key={c.id} value={c.id}>{c.razao_social} ({c.cnpj})</option>)}
                   </select>
                 </div>
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Descrição *</label>
-                  <input value={orderForm.description} onChange={e => setOrderForm(f => ({ ...f, description: e.target.value }))}
-                    placeholder="Ex: Pedido café especial 10kg" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a4240e] focus:border-transparent" />
-                </div>
+
+                {/* Product selector */}
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Valor Total (R$) *</label>
-                  <input type="number" value={orderForm.total_amount} onChange={e => setOrderForm(f => ({ ...f, total_amount: e.target.value }))}
-                    placeholder="0.00" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a4240e] focus:border-transparent" />
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Produtos *</label>
+                  <div className="relative mb-2">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      value={orderProductSearch}
+                      onChange={e => setOrderProductSearch(e.target.value)}
+                      onFocus={() => { if (orderProducts.length === 0) fetchOrderProducts(); }}
+                      placeholder="Buscar produto..."
+                      className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a4240e] focus:border-transparent"
+                    />
+                  </div>
+                  <div className="max-h-56 overflow-y-auto space-y-1 border border-gray-200 rounded-lg bg-white p-2">
+                    {orderProducts.length === 0 ? (
+                      <p className="text-xs text-gray-400 text-center py-4">Clique para carregar produtos...</p>
+                    ) : filteredOrderProducts.length === 0 ? (
+                      <p className="text-xs text-gray-400 text-center py-4">Nenhum produto encontrado</p>
+                    ) : filteredOrderProducts.map(product => {
+                      const qty = orderCart[product.id] || 0;
+                      const isOut = !product.in_stock || product.stock === 0;
+                      return (
+                        <div key={product.id} className={`flex items-center gap-3 p-2 rounded-lg transition-all ${isOut ? 'opacity-50' : qty > 0 ? 'bg-amber-50 border border-amber-200' : 'hover:bg-gray-50'}`}>
+                          <div className="w-8 h-8 rounded-md overflow-hidden bg-gray-100 flex-shrink-0">
+                            {product.image_url ? <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">☕</div>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
+                            <p className="text-xs text-[#a4240e] font-medium">R$ {product.price.toFixed(2)}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {qty > 0 ? (<>
+                              <button onClick={() => updateOrderCart(product.id, -1)} className="w-6 h-6 rounded-full border border-gray-300 text-gray-600 flex items-center justify-center hover:bg-gray-100 text-xs">−</button>
+                              <span className="w-5 text-center text-sm font-bold">{qty}</span>
+                              <button onClick={() => updateOrderCart(product.id, 1)} disabled={qty >= product.stock} className="w-6 h-6 rounded-full bg-[#a4240e] text-white flex items-center justify-center hover:bg-[#8a1f0c] disabled:opacity-30 text-xs">+</button>
+                            </>) : (
+                              <button onClick={() => !isOut && updateOrderCart(product.id, 1)} disabled={isOut}
+                                className="px-2 py-1 bg-[#a4240e] text-white rounded-md text-xs font-semibold hover:bg-[#8a1f0c] disabled:opacity-30 disabled:cursor-not-allowed">
+                                {isOut ? 'Esgotado' : 'Adicionar'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {Object.keys(orderCart).length > 0 && (
+                    <div className="mt-2 bg-white border border-[#a4240e]/20 rounded-lg p-3">
+                      <p className="text-xs font-medium text-gray-500 mb-1">Itens selecionados:</p>
+                      {Object.entries(orderCart).filter(([,q]) => q > 0).map(([pid, qty]) => {
+                        const p = orderProducts.find(pr => pr.id === pid);
+                        if (!p) return null;
+                        return <div key={pid} className="flex justify-between text-sm"><span className="text-gray-700">{p.name} × {qty}</span><span className="font-medium">R$ {(p.price * qty).toFixed(2)}</span></div>;
+                      })}
+                      <div className="flex justify-between border-t border-gray-200 pt-2 mt-2 font-bold text-sm">
+                        <span>Total</span><span className="text-[#a4240e]">R$ {orderCartTotal.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Forma de Pagamento</label>
-                  <select value={orderForm.payment_method} onChange={e => setOrderForm(f => ({ ...f, payment_method: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a4240e] focus:border-transparent">
-                    <option value="a_vista">À Vista</option>
-                    <option value="boleto">Boleto</option>
-                    <option value="pix">PIX (+0,5% comissão)</option>
-                  </select>
+
+                {/* Forma de pagamento + NF */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Forma de Pagamento</label>
+                    <select value={orderForm.payment_method} onChange={e => setOrderForm(f => ({ ...f, payment_method: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a4240e] focus:border-transparent">
+                      <option value="a_vista">À Vista</option>
+                      <option value="boleto">Boleto</option>
+                      <option value="pix">PIX</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Nota Fiscal (PDF/XML)</label>
+                    <input type="file" accept=".pdf,.xml" onChange={e => setNfFile(e.target.files?.[0] || null)}
+                      className="w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#a4240e] file:text-white hover:file:bg-[#8a1f0c] cursor-pointer" />
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" id="personal_delivery" checked={orderForm.is_personal_delivery}
-                    onChange={e => setOrderForm(f => ({ ...f, is_personal_delivery: e.target.checked }))}
-                    className="w-4 h-4 accent-[#a4240e]" />
-                  <label htmlFor="personal_delivery" className="text-sm text-gray-700">Entrega pessoal (+2,5% se &gt; 90 dias)</label>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Nota Fiscal (PDF/XML)</label>
-                  <input type="file" accept=".pdf,.xml" onChange={e => setNfFile(e.target.files?.[0] || null)}
-                    className="w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-[#a4240e] file:text-white hover:file:bg-[#8a1f0c] cursor-pointer" />
+
+                {/* Comissão manual */}
+                <div className="space-y-2 border-t border-amber-200 pt-3 mt-1">
+                  <p className="text-xs font-medium text-gray-600">Comissão do representante:</p>
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" id="manual_delivery" checked={manualDeliveryBonus}
+                      onChange={e => setManualDeliveryBonus(e.target.checked)}
+                      className="w-4 h-4 accent-[#a4240e]" />
+                    <label htmlFor="manual_delivery" className="text-sm text-gray-700">Entrega pessoal (+2,5%)</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" id="manual_pix" checked={manualPixBonus}
+                      onChange={e => setManualPixBonus(e.target.checked)}
+                      className="w-4 h-4 accent-[#a4240e]" />
+                    <label htmlFor="manual_pix" className="text-sm text-gray-700">Pagamento PIX (+0,5%)</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" id="pay_commission" checked={payCommission}
+                      onChange={e => setPayCommission(e.target.checked)}
+                      className="w-4 h-4 accent-[#a4240e]" />
+                    <label htmlFor="pay_commission" className="text-sm text-gray-700">Pagar comissão ao representante por este pedido</label>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-3 mt-4">
-                <button onClick={handleCreateOrder} className="px-5 py-2 bg-[#a4240e] text-white text-sm font-semibold rounded-lg hover:bg-[#8a1f0c] transition-colors">Criar Pedido</button>
-                <button onClick={() => setShowNewOrder(false)} className="px-5 py-2 bg-white border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors">Cancelar</button>
+                <button onClick={handleCreateOrder} disabled={Object.keys(orderCart).length === 0}
+                  className="px-5 py-2 bg-[#a4240e] text-white text-sm font-semibold rounded-lg hover:bg-[#8a1f0c] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                  Criar Pedido{orderCartTotal > 0 ? ` — R$ ${orderCartTotal.toFixed(2)}` : ''}
+                </button>
+                <button onClick={() => { setShowNewOrder(false); setOrderCart({}); setOrderProductSearch(''); }} className="px-5 py-2 bg-white border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors">Cancelar</button>
               </div>
             </div>
           )}
