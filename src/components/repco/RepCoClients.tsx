@@ -9,8 +9,9 @@ interface RepCoClient {
   email_comprador: string | null; email_xml: string | null; nome_comprador: string | null;
   whatsapp_comprador: string | null; prazo_pagamento: string | null; forma_pagamento: string | null;
   limite_credito: number; status: string; segment: ClientSegment | null; created_at: string;
+  inscricao_estadual: string | null;
 }
-const emptyForm = { cnpj:'',razao_social:'',nome_fantasia:'',situacao_receita:'',endereco_completo:'',email_comprador:'',email_xml:'',nome_comprador:'',whatsapp_comprador:'',prazo_pagamento:'',forma_pagamento:'',limite_credito:0,segment:'' as ClientSegment|'' };
+const emptyForm = { cnpj:'',razao_social:'',nome_fantasia:'',situacao_receita:'',endereco_completo:'',email_comprador:'',email_xml:'',nome_comprador:'',whatsapp_comprador:'',prazo_pagamento:'',forma_pagamento:'',limite_credito:0,segment:'' as ClientSegment|'',inscricao_estadual:'' };
 
 export function RepCoClients({ repId }: { repId: string }) {
   const [clients,setClients]=useState<RepCoClient[]>([]);
@@ -48,7 +49,7 @@ export function RepCoClients({ repId }: { repId: string }) {
     if(!form.cnpj||!form.razao_social){setError('CNPJ e Razão Social são obrigatórios.');return;}
     if(!form.segment){setError('Selecione o segmento do cliente.');return;}
     setSaving(true);setError('');
-    const{error:err}=await supabase.from('representative_clients').insert({representative_id:repId,cnpj:form.cnpj.replace(/\D/g,''),razao_social:form.razao_social,nome_fantasia:form.nome_fantasia,situacao_receita:form.situacao_receita,endereco_completo:form.endereco_completo,email_comprador:form.email_comprador||null,email_xml:form.email_xml||null,nome_comprador:form.nome_comprador||null,whatsapp_comprador:form.whatsapp_comprador||null,prazo_pagamento:form.prazo_pagamento||null,forma_pagamento:form.forma_pagamento||null,limite_credito:form.limite_credito||0,segment:form.segment||null,status:'active'});
+    const{error:err}=await supabase.from('representative_clients').insert({representative_id:repId,cnpj:form.cnpj.replace(/\D/g,''),razao_social:form.razao_social,nome_fantasia:form.nome_fantasia,situacao_receita:form.situacao_receita,endereco_completo:form.endereco_completo,email_comprador:form.email_comprador||null,email_xml:form.email_xml||null,nome_comprador:form.nome_comprador||null,whatsapp_comprador:form.whatsapp_comprador||null,prazo_pagamento:form.prazo_pagamento||null,forma_pagamento:form.forma_pagamento||null,limite_credito:form.limite_credito||0,segment:form.segment||null,inscricao_estadual:form.inscricao_estadual||null,status:'active'});
     if(err)setError('Erro: '+err.message);
     else{setSuccess('Cliente cadastrado!');setForm(emptyForm);setShowForm(false);fetchClients();setTimeout(()=>setSuccess(''),3000);}
     setSaving(false);
@@ -77,6 +78,10 @@ export function RepCoClients({ repId }: { repId: string }) {
             {[{k:'razao_social',l:'Razão Social *'},{k:'nome_comprador',l:'Nome do Comprador'},{k:'whatsapp_comprador',l:'WhatsApp'},{k:'email_comprador',l:'Email Comprador'},{k:'email_xml',l:'Email XML (NF-e)'}].map(({k,l})=>(
               <div key={k}><label className="block text-xs font-medium text-gray-600 mb-1">{l}</label><input type="text" value={(form as any)[k]} onChange={e=>setForm(p=>({...p,[k]:e.target.value}))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] focus:border-transparent outline-none"/></div>
             ))}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Inscrição Estadual</label>
+              <input type="text" value={form.inscricao_estadual} onChange={e=>setForm(p=>({...p,inscricao_estadual:e.target.value}))} placeholder="000.000.000.000" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] focus:border-transparent outline-none"/>
+            </div>
             <div><label className="block text-xs font-medium text-gray-600 mb-1">Segmento *</label>
               <select value={form.segment} onChange={e=>setForm(p=>({...p,segment:e.target.value as ClientSegment}))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] focus:border-transparent outline-none">
                 <option value="">Selecione...</option>{CLIENT_SEGMENTS.map(s=><option key={s.value} value={s.value}>{s.label}</option>)}
@@ -105,7 +110,7 @@ export function RepCoClients({ repId }: { repId: string }) {
                 <div className="flex-1"><div className="flex items-center gap-2 flex-wrap"><span className="font-semibold text-gray-900 text-sm">{c.nome_fantasia||c.razao_social||'Sem nome'}</span>{c.segment&&<span className="px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">{SEGMENT_LABEL[c.segment]??c.segment}</span>}</div><p className="text-xs text-gray-500 mt-0.5">{fmt(c.cnpj)}{c.nome_comprador&&` • ${c.nome_comprador}`}</p></div>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${c.status==='active'?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>{c.status==='active'?'Ativo':'Inativo'}</span>
               </div>
-              {expandedId===c.id&&<div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 gap-2 text-xs text-gray-600">{c.whatsapp_comprador&&<div><span className="font-medium">WhatsApp:</span> {c.whatsapp_comprador}</div>}{c.email_comprador&&<div><span className="font-medium">Email:</span> {c.email_comprador}</div>}{c.forma_pagamento&&<div><span className="font-medium">Pagamento:</span> {c.forma_pagamento}</div>}{c.prazo_pagamento&&<div><span className="font-medium">Prazo:</span> {c.prazo_pagamento}</div>}{c.limite_credito>0&&<div><span className="font-medium">Limite:</span> R$ {c.limite_credito.toFixed(2)}</div>}{c.endereco_completo&&<div className="col-span-2"><span className="font-medium">Endereço:</span> {c.endereco_completo}</div>}</div>}
+              {expandedId===c.id&&<div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 gap-2 text-xs text-gray-600">{c.whatsapp_comprador&&<div><span className="font-medium">WhatsApp:</span> {c.whatsapp_comprador}</div>}{c.email_comprador&&<div><span className="font-medium">Email:</span> {c.email_comprador}</div>}{c.inscricao_estadual&&<div><span className="font-medium">Insc. Estadual:</span> {c.inscricao_estadual}</div>}{c.forma_pagamento&&<div><span className="font-medium">Pagamento:</span> {c.forma_pagamento}</div>}{c.prazo_pagamento&&<div><span className="font-medium">Prazo:</span> {c.prazo_pagamento}</div>}{c.limite_credito>0&&<div><span className="font-medium">Limite:</span> R$ {c.limite_credito.toFixed(2)}</div>}{c.endereco_completo&&<div className="col-span-2"><span className="font-medium">Endereço:</span> {c.endereco_completo}</div>}</div>}
             </div>
           ))}
         </div>
