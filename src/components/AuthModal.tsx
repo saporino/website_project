@@ -1,7 +1,8 @@
 import { useState, FormEvent } from 'react';
-import { X, Mail, Lock, User, Phone } from 'lucide-react';
+import { X, Mail, Lock, User, Phone, Building2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { CLIENT_SEGMENTS } from '../constants/segments';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -22,6 +23,8 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }: AuthModalP
     password: '',
     fullName: '',
     phone: '',
+    accountType: 'pf' as 'pf' | 'pj',
+    segment: '',
   });
 
   const { signIn, signUp, resetPassword } = useAuth();
@@ -141,7 +144,7 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }: AuthModalP
       setTimeout(() => {
         setMode('login');
         setSuccessMessage('');
-        setRegisterData({ email: '', password: '', fullName: '', phone: '' });
+        setRegisterData({ email: '', password: '', fullName: '', phone: '', accountType: 'pf', segment: '' });
       }, 2000);
       setLoading(false);
     }
@@ -270,6 +273,20 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }: AuthModalP
             </form>
           ) : mode === 'register' ? (
             <form onSubmit={handleRegisterSubmit} className="space-y-6">
+              {/* PF / PJ toggle */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de conta</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {([{v:'pf',l:'Pessoa Física (PF)',icon:<User className="w-4 h-4" />},{v:'pj',l:'Empresa (PJ)',icon:<Building2 className="w-4 h-4" />}] as const).map(opt => (
+                    <button key={opt.v} type="button" onClick={() => setRegisterData(p => ({...p, accountType: opt.v, segment: ''}))}
+                      className={`flex items-center gap-2 justify-center py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
+                        registerData.accountType === opt.v ? 'border-[#a4240e] bg-[#a4240e]/5 text-[#a4240e]' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      }`}>
+                      {opt.icon}{opt.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Nome Completo *
@@ -339,6 +356,22 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }: AuthModalP
                 </div>
                 <p className="mt-2 text-sm text-gray-500">Mínimo de 6 caracteres</p>
               </div>
+
+              {/* Segmento — only for PJ */}
+              {registerData.accountType === 'pj' && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Mercado de atuação *</label>
+                  <div className="relative">
+                    <Building2 className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <select required value={registerData.segment} onChange={e => setRegisterData(p => ({...p, segment: e.target.value}))}
+                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent transition-all appearance-none bg-white">
+                      <option value="">Selecione o segmento...</option>
+                      {CLIENT_SEGMENTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                    </select>
+                  </div>
+                  <p className="mt-1.5 text-xs text-gray-500">Usado para aplicar a tabela de preços correta para o seu negócio.</p>
+                </div>
+              )}
 
               <button
                 type="submit"

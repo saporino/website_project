@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { CLIENT_SEGMENTS, SEGMENT_LABEL } from '../../constants/segments';
+import { CLIENT_SEGMENTS, MARKETPLACE_SEGMENTS, SEGMENT_LABEL } from '../../constants/segments';
 
 interface Product { id: string; name: string; image_url: string | null; price: number; is_active: boolean; }
 interface PriceListEntry { id: string; product_id: string; segment: string; price: number; volume_discount: number; volume_min_qty: number; is_active: boolean; }
+interface Props { fixedSegment?: string; }
 
-export default function PriceListManager() {
+export default function PriceListManager({ fixedSegment }: Props) {
   const [products, setProducts] = useState<Product[]>([]);
   const [priceLists, setPriceLists] = useState<PriceListEntry[]>([]);
-  const [selectedSegment, setSelectedSegment] = useState(CLIENT_SEGMENTS[0].value);
+  const [selectedSegment, setSelectedSegment] = useState(fixedSegment ?? CLIENT_SEGMENTS[0].value);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Record<string, { price: string; volume_discount: string; volume_min_qty: string }>>({});
   const [saved, setSaved] = useState<string | null>(null);
 
+  // If fixedSegment changes from parent, sync it
+  useEffect(() => { if (fixedSegment) setSelectedSegment(fixedSegment); }, [fixedSegment]);
   useEffect(() => { fetchData(); }, []);
 
   async function fetchData() {
@@ -59,20 +62,43 @@ export default function PriceListManager() {
 
   return (
     <div className="space-y-5">
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-        <p className="text-sm font-medium text-amber-800 mb-3">Selecione o segmento:</p>
-        <div className="flex flex-wrap gap-2">
-          {CLIENT_SEGMENTS.map(seg => (
-            <button key={seg.value} onClick={() => setSelectedSegment(seg.value)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedSegment === seg.value ? 'bg-[#a4240e] text-white' : 'bg-white border border-amber-200 text-amber-700 hover:bg-amber-100'}`}>
-              {seg.label}
-            </button>
-          ))}
+      {/* Segment selector — hidden when fixedSegment is provided */}
+      {!fixedSegment && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+          <div>
+            <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-2">Representantes B2B</p>
+            <div className="flex flex-wrap gap-2">
+              {CLIENT_SEGMENTS.map(seg => (
+                <button key={seg.value} onClick={() => setSelectedSegment(seg.value)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedSegment === seg.value ? 'bg-[#a4240e] text-white' : 'bg-white border border-amber-200 text-amber-700 hover:bg-amber-100'}`}>
+                  {seg.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="border-t border-amber-200 pt-3">
+            <p className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-2">Marketplaces</p>
+            <div className="flex flex-wrap gap-2">
+              {MARKETPLACE_SEGMENTS.map(seg => (
+                <button key={seg.value} onClick={() => setSelectedSegment(seg.value)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedSegment === seg.value ? 'bg-purple-700 text-white' : 'bg-white border border-purple-200 text-purple-700 hover:bg-purple-50'}`}>
+                  {seg.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {fixedSegment && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 flex items-center gap-2">
+          <span className="text-xs text-amber-700 font-medium">Segmento fixo:</span>
+          <span className="text-sm font-semibold text-amber-900">{SEGMENT_LABEL[fixedSegment] ?? fixedSegment}</span>
+        </div>
+      )}
 
       <div className="flex items-center justify-between">
-        <h4 className="font-semibold text-gray-800">Tabela de Preços — {SEGMENT_LABEL[selectedSegment]}</h4>
+        <h4 className="font-semibold text-gray-800">Tabela de Preços — {SEGMENT_LABEL[selectedSegment] ?? selectedSegment}</h4>
         <span className="text-xs text-gray-500">{products.length} produtos</span>
       </div>
 
