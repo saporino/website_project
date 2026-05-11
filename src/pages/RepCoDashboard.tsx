@@ -2,7 +2,7 @@ import { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { RepCoProfile } from '../components/repco/RepCoProfile';
-import { RepCoClients } from '../components/repco/RepCoClients';
+import RepCoClients from '../components/repco/RepCoClients';
 import { RepCoOrders } from '../components/repco/RepCoOrders';
 import { RepCoCommissions } from '../components/repco/RepCoCommissions';
 import { RepCoPerformance } from '../components/repco/RepCoPerformance';
@@ -261,7 +261,7 @@ export function RepCoDashboard() {
               />
             )}
             {activeTab === 'profile' && <RepCoProfile rep={rep!} onUpdate={fetchRep} />}
-            {activeTab === 'clients' && <RepCoClients repId={rep!.id} />}
+            {activeTab === 'clients' && <RepCoClients representativeId={rep!.id} />}
             {activeTab === 'novo_pedido' && (
               <RepCoNewOrder
                 representativeId={rep!.id}

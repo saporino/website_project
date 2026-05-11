@@ -81,7 +81,17 @@ export function RepCoManagement() {
   const [nfFile, setNfFile] = useState<File | null>(null);
   const [clients, setClients] = useState<{ id: string; razao_social: string; cnpj: string }[]>([]);
 
-  useEffect(() => { fetchReps(); }, []);
+  useEffect(() => { fetchReps(); fetchSnoozedClients(); }, []);
+
+  const [snoozedClients, setSnoozedClients] = useState<any[]>([]);
+  async function fetchSnoozedClients() {
+    const { data } = await supabase
+      .from('representative_clients')
+      .select('id, nome_fantasia, razao_social, snooze_count')
+      .eq('snooze_admin_alert', true)
+      .eq('is_active_client', true);
+    if (data) setSnoozedClients(data);
+  }
 
   const fetchReps = async () => {
     setLoading(true);
@@ -482,6 +492,33 @@ export function RepCoManagement() {
           </div>
         </div>
       </div>
+
+      {snoozedClients.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <p className="text-sm font-semibold text-red-700 mb-2">
+            ⚠️ {snoozedClients.length} cliente(s) adiados 2+ vezes sem comprar
+          </p>
+          <p className="text-xs text-red-600 mb-3">Considere transferir para outro representante ou contatar diretamente.</p>
+          {snoozedClients.slice(0, 3).map((c: any) => (
+            <div key={c.id} className="flex items-center justify-between py-1 border-b border-red-100 last:border-0">
+              <div>
+                <span className="text-sm text-gray-700">{c.nome_fantasia || c.razao_social}</span>
+                <span className="text-xs text-gray-400 ml-2">({c.snooze_count}x adiado)</span>
+              </div>
+              <button
+                onClick={async () => {
+                  await supabase.from('representative_clients')
+                    .update({ is_active_client: false, deactivated_at: new Date().toISOString() })
+                    .eq('id', c.id);
+                  fetchSnoozedClients();
+                }}
+                className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200">
+                Desativar
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {adminView === 'map' && (
         <Suspense fallback={<div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-600"/></div>}>
