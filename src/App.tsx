@@ -196,6 +196,21 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
   const { getCartCount } = useCart();
   const { user, profile, signOut } = useAuth();
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
+  const [isRepresentative, setIsRepresentative] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from('representatives')
+        .select('id, status')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .single()
+        .then(({ data }) => setIsRepresentative(!!data));
+    } else {
+      setIsRepresentative(false);
+    }
+  }, [user]);
 
   return (
     <>
@@ -298,7 +313,7 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
                         <User className="w-5 h-5 text-[#a4240e]" />
                         <span>Meu Perfil</span>
                       </button>
-                      {profile.is_admin && (
+                      {(profile.is_admin || isRepresentative) && (
                         <button
                           onClick={() => {
                             window.history.pushState({}, '', '/repco');
@@ -315,13 +330,14 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
                       )}
                       <button
                         onClick={() => {
-                          onCartOpen();
+                          window.history.pushState({}, '', '/rastrear');
+                          window.dispatchEvent(new PopStateEvent('popstate'));
                           setAccountDropdownOpen(false);
                         }}
                         className="w-full text-left px-4 py-3 text-gray-700 hover:bg-stone-50 transition-colors flex items-center space-x-3"
                       >
-                        <ShoppingBag className="w-5 h-5 text-[#a4240e]" />
-                        <span>Meus Pedidos</span>
+                        <Truck className="w-5 h-5 text-[#a4240e]" />
+                        <span>Rastrear Pedido</span>
                       </button>
                       <button
                         onClick={() => {
