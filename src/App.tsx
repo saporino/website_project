@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent, useCallback } from 'react';
+﻿import { useState, useEffect, FormEvent, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
 import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Mail, Phone, MapPin, Send, User, ChevronDown, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -509,7 +509,7 @@ const Products = ({ products, loading, addedProducts, setAddedProducts, selected
 
   if (loading) {
     return (
-      <section id="products" className="py-10 bg-[#f8f7f5]">
+      <section id="products" className="py-10 bg-white">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#8B2214] mx-auto"></div>
         </div>
@@ -519,7 +519,7 @@ const Products = ({ products, loading, addedProducts, setAddedProducts, selected
 
 
   return (
-    <section id="products" className="py-10 bg-[#f8f7f5]">
+    <section id="products" className="py-10 bg-white">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="text-center mb-10">
           <h2 className="text-3xl font-bold text-gray-900 mb-3">Nossos Cafés</h2>
@@ -529,7 +529,7 @@ const Products = ({ products, loading, addedProducts, setAddedProducts, selected
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-px bg-gray-200">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {products.map((product: Product) => (
             <div
               key={product.id}
@@ -794,7 +794,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#8B2214] focus:border-transparent transition-all"
                 />
               </div>
 
@@ -805,7 +805,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                   required
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#8B2214] focus:border-transparent transition-all"
                 />
               </div>
 
@@ -817,7 +817,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="+55 (11) 91771-9798"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#8B2214] focus:border-transparent transition-all"
                 />
               </div>
 
@@ -827,13 +827,13 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                 <div className="grid grid-cols-2 gap-3">
                   <button type="button" onClick={() => setIsGift(false)}
                     className={`flex items-center justify-center space-x-2 py-3 px-4 rounded-xl border-2 font-semibold transition-all ${
-                      !isGift ? 'border-[#a4240e] bg-[#8B2214]/5 text-[#8B2214]' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      !isGift ? 'border-[#8B2214] bg-[#8B2214]/5 text-[#8B2214]' : 'border-gray-200 text-gray-600 hover:border-gray-300'
                     }`}>
                     <span>👤</span><span>Para mim</span>
                   </button>
                   <button type="button" onClick={() => setIsGift(true)}
                     className={`flex items-center justify-center space-x-2 py-3 px-4 rounded-xl border-2 font-semibold transition-all ${
-                      isGift ? 'border-[#a4240e] bg-[#8B2214]/5 text-[#8B2214]' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      isGift ? 'border-[#8B2214] bg-[#8B2214]/5 text-[#8B2214]' : 'border-gray-200 text-gray-600 hover:border-gray-300'
                     }`}>
                     <span>🎁</span><span>Presente</span>
                   </button>
@@ -847,7 +847,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                   <input type="text" required={isGift} value={recipientName}
                     onChange={(e) => setRecipientName(e.target.value)}
                     placeholder="Nome de quem vai receber"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent transition-all" />
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#8B2214] focus:border-transparent transition-all" />
                 </div>
               )}
 
@@ -859,10 +859,10 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                 <div className="relative">
                   <input type="text" value={cep} onChange={(e) => handleCepChange(e.target.value)}
                     placeholder="CEP: 00000-000" maxLength={9}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent transition-all" />
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#8B2214] focus:border-transparent transition-all" />
                   {cepLoading && (
                     <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#a4240e]"></div>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#8B2214]"></div>
                     </div>
                   )}
                 </div>
@@ -871,28 +871,28 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                 <div className="grid grid-cols-2 gap-3">
                   <input type="text" value={street} onChange={(e) => setStreet(e.target.value)}
                     placeholder="Rua / Av. *" required
-                    className="col-span-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent" />
+                    className="col-span-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#8B2214] focus:border-transparent" />
                   <input type="text" value={number} onChange={(e) => setNumber(e.target.value)}
                     placeholder="Nº *" required
-                    className="col-span-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent" />
+                    className="col-span-1 px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#8B2214] focus:border-transparent" />
                 </div>
 
                 <input type="text" value={complement} onChange={(e) => setComplement(e.target.value)}
                   placeholder="Complemento (apto, bloco...)"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent" />
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#8B2214] focus:border-transparent" />
 
                 <div className="grid grid-cols-2 gap-3">
                   <input type="text" value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)}
                     placeholder="Bairro *" required
-                    className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent" />
+                    className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#8B2214] focus:border-transparent" />
                   <input type="text" value={city} onChange={(e) => setCity(e.target.value)}
                     placeholder="Cidade *" required
-                    className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent" />
+                    className="px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#8B2214] focus:border-transparent" />
                 </div>
 
                 <input type="text" value={state} onChange={(e) => setState(e.target.value)}
                   placeholder="Estado (UF) *" maxLength={2} required
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent" />
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#8B2214] focus:border-transparent" />
               </div>
 
               {/* Carrier Selection */}
@@ -901,7 +901,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                   <label className="block text-sm font-semibold text-gray-700 mb-3">Escolha a Transportadora *</label>
                   {carriersLoading ? (
                     <div className="flex items-center justify-center py-6">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#a4240e]"></div>
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#8B2214]"></div>
                       <span className="ml-2 text-sm text-gray-500">Consultando fretes...</span>
                     </div>
                   ) : (
@@ -911,7 +911,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                           onClick={() => setSelectedCarrierId(carrier.id)}
                           className={`w-full flex items-center space-x-3 p-4 rounded-xl border-2 transition-all text-left ${
                             selectedCarrierId === carrier.id
-                              ? 'border-[#a4240e] bg-[#8B2214]/5'
+                              ? 'border-[#8B2214] bg-[#8B2214]/5'
                               : 'border-gray-200 hover:border-gray-300'
                           }`}>
                           {/* Logo */}
@@ -935,7 +935,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                             )}
                           </div>
                           <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
-                            selectedCarrierId === carrier.id ? 'border-[#a4240e] bg-[#8B2214]' : 'border-gray-300'
+                            selectedCarrierId === carrier.id ? 'border-[#8B2214] bg-[#8B2214]' : 'border-gray-300'
                           }`} />
                         </button>
                       ))}
@@ -947,7 +947,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
               {/* Manual load button if CEP was skipped */}
               {carriers.length === 0 && !carriersLoading && cep.replace(/\D/g, '').length === 8 && (
                 <button type="button" onClick={fetchCarriers}
-                  className="w-full py-2 text-[#8B2214] border border-[#a4240e] rounded-xl text-sm font-semibold hover:bg-[#8B2214]/5 transition-colors">
+                  className="w-full py-2 text-[#8B2214] border border-[#8B2214] rounded-xl text-sm font-semibold hover:bg-[#8B2214]/5 transition-colors">
                   🔄 Buscar transportadoras disponíveis
                 </button>
               )}
@@ -1026,7 +1026,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
             <div className="flex-1 overflow-y-auto p-8 space-y-4">
               {cart.map((item: CartItem) => (
                 <div key={item.id} className="flex space-x-4 bg-stone-50 rounded-2xl p-5">
-                  <div className="w-20 h-20 bg-gradient-to-br from-stone-200 to-stone-100 rounded-xl flex items-center justify-center text-3xl flex-shrink-0">
+                  <div className="w-20 h-20 bg-gradient-to-br from-white to-white rounded-xl flex items-center justify-center text-3xl flex-shrink-0">
                     ☕
                   </div>
                   <div className="flex-1">
@@ -1451,7 +1451,7 @@ const Footer = ({ scrollToSection }: any) => {
                     required
                     value={contactFormData.name}
                     onChange={(e) => setContactFormData({ ...contactFormData, name: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#8B2214] focus:border-transparent transition-all"
                     placeholder="Seu nome completo"
                   />
                 </div>
@@ -1463,7 +1463,7 @@ const Footer = ({ scrollToSection }: any) => {
                     required
                     value={contactFormData.subject}
                     onChange={(e) => setContactFormData({ ...contactFormData, subject: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#8B2214] focus:border-transparent transition-all"
                     placeholder="Assunto da sua mensagem"
                   />
                 </div>
@@ -1475,7 +1475,7 @@ const Footer = ({ scrollToSection }: any) => {
                     value={contactFormData.message}
                     onChange={(e) => setContactFormData({ ...contactFormData, message: e.target.value })}
                     rows={6}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent transition-all resize-none"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#8B2214] focus:border-transparent transition-all resize-none"
                     placeholder="Escreva suas dúvidas aqui..."
                   />
                 </div>
