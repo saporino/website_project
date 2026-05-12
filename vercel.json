@@ -1,20 +1,16 @@
 {
   "routes": [
     {
+      "src": "/(.*\\.(png|jpg|jpeg|webp|svg|gif|ico|woff|woff2|ttf|eot|js|css|map))",
+      "dest": "/$1"
+    },
+    {
       "src": "/assets/(.*)",
       "dest": "/assets/$1"
     },
     {
       "src": "/icons/(.*)",
       "dest": "/icons/$1"
-    },
-    {
-      "src": "/favicon.ico",
-      "dest": "/favicon.ico"
-    },
-    {
-      "src": "/(.*\\.(png|jpg|jpeg|webp|svg|gif|ico|woff|woff2|ttf|eot))",
-      "dest": "/$1"
     },
     {
       "src": "/(.*)",
