@@ -93,6 +93,11 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
     const originalAmount = calcTotal();
     const finalAmount = originalAmount * (1 - discountPercentage / 100);
     const description = items.map(i => `${i.product.name} x${i.quantity} (R$ ${effectivePrice(i.price, i.quantity).toFixed(2)})`).join(', ');
+
+    // Optimistic update — mostra sucesso imediatamente
+    setSuccess(true); setSubmitting(false); onOrderCreated?.();
+
+    // Insert em background
     const { error: err } = await supabase.from('representative_orders').insert({
       representative_id: representativeId,
       representative_client_id: selectedClient.id,
@@ -110,8 +115,11 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
       status: 'new',
       notes: notes || null,
     });
-    if (err) { setError('Erro: ' + err.message); setSubmitting(false); return; }
-    setSuccess(true); setSubmitting(false); onOrderCreated?.();
+    if (err) {
+      // Se falhou, volta para revisão com erro
+      setSuccess(false); setStep('review');
+      setError('Erro ao enviar pedido. Tente novamente.');
+    }
   }
 
   if (success) return (
