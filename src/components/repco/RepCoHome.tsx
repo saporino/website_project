@@ -151,7 +151,7 @@ export default function RepCoHome({ representativeId, onNavigateToRoute, onNavig
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-gray-700">Próximas visitas (48h)</p>
           {!geoEnabled
-            ? <button onClick={enableGPS} className="flex items-center gap-1.5 text-xs bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg font-medium hover:bg-amber-100">📍 Ativar GPS</button>
+            ? <button onClick={enableGPS} className="flex items-center gap-1.5 text-xs bg-[#f5f0ef] border border-[#ddd0cc] text-[#8B2214] px-3 py-1.5 rounded-lg font-medium hover:bg-[#ede5e3]">📍 Ativar GPS</button>
             : <span className="flex items-center gap-1.5 text-xs text-green-600 font-medium"><span className="w-2 h-2 rounded-full bg-green-500"/>GPS ativo{coords && <span className="text-gray-400 ml-1">±{Math.round(coords.accuracy)}m</span>}</span>
           }
         </div>
@@ -159,14 +159,14 @@ export default function RepCoHome({ representativeId, onNavigateToRoute, onNavig
         {upcomingStops.length === 0
           ? <p className="text-xs text-gray-400 text-center py-3">Nenhuma visita agendada nas próximas 48h.{onNavigateToRoute && <> <button onClick={onNavigateToRoute} className="text-[#a4240e] underline">Ver rotas</button></>}</p>
           : upcomingStops.map(stop => (
-            <div key={stop.id} className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3">
+            <div key={stop.id} className="flex items-center gap-3 bg-[#f8f7f5] border border-gray-200 rounded-xl p-3">
               <div className="w-10 h-10 rounded-full bg-[#a4240e] flex items-center justify-center text-white text-lg flex-shrink-0">🗓</div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-800 truncate">{stop.company_name}</p>
                 <p className="text-xs text-gray-500">{new Date(stop.scheduled_at).toLocaleString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</p>
                 {stop.address && <p className="text-xs text-gray-400 truncate">{stop.address}</p>}
               </div>
-              <button onClick={() => setCalendarModal(stop)} className="flex-shrink-0 text-xs bg-white border border-amber-300 text-amber-700 px-2 py-1.5 rounded-lg hover:bg-amber-100">+ Cal</button>
+              <button onClick={() => setCalendarModal(stop)} className="flex-shrink-0 text-xs bg-white border border-gray-200 text-[#8B2214] px-2 py-1.5 rounded-lg hover:bg-[#f5f0ef]">+ Cal</button>
             </div>
           ))
         }

@@ -279,7 +279,7 @@ export default function RepCoRoutes({ representativeId, currentLat, currentLng, 
                       </div>
                     )}
                     {(stop.visit_status === 'completed' || stop.visit_status === 'in_progress') && !stop.representative_client_id && (
-                      <button onClick={() => convertToClient(stop)} className="w-full text-xs bg-amber-600 text-white py-2 rounded-lg hover:bg-amber-700">🔄 Converter em cliente</button>
+                      <button onClick={() => convertToClient(stop)} className="w-full text-xs bg-[#8B2214] text-white py-2 rounded-lg hover:bg-[#6d1a10]">🔄 Converter em cliente</button>
                     )}
                     {stop.segment && <p className="text-xs text-gray-400">Segmento: {SEGMENT_LABEL[stop.segment] ?? stop.segment}</p>}
                   </div>
@@ -300,7 +300,7 @@ export default function RepCoRoutes({ representativeId, currentLat, currentLng, 
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => setShowFinalize(false)} className="flex-1 text-xs border border-gray-300 text-gray-600 py-2 rounded-lg">Cancelar</button>
-                    <button onClick={finalizeDay} disabled={finalizing} className="flex-1 text-xs bg-amber-600 text-white py-2 rounded-lg disabled:opacity-50">{finalizing ? 'Finalizando...' : '🏁 Confirmar'}</button>
+                    <button onClick={finalizeDay} disabled={finalizing} className="flex-1 text-xs bg-[#8B2214] text-white py-2 rounded-lg disabled:opacity-50">{finalizing ? 'Finalizando...' : '🏁 Confirmar'}</button>
                   </div>
                 </div>
               ) : (

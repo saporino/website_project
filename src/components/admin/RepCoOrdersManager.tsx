@@ -185,7 +185,7 @@ export default function RepCoOrdersManager({ representativeId }: { representativ
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {order.status==='new'&&order.invoice_pdf_url&&(
-                        <button onClick={()=>markCompleted(order.id)} className="text-xs bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700">Marcar como concluído</button>
+                        <button onClick={()=>markCompleted(order.id)} className="text-xs bg-[#8B2214] text-white px-3 py-1.5 rounded-lg hover:bg-[#6d1a10]">Marcar como concluído</button>
                       )}
                       {order.status==='completed'&&(
                         <button onClick={()=>proofRef.current?.click()} disabled={uploadingProof===order.id}

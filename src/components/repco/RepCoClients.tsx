@@ -193,7 +193,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
       </div>
       <div className="flex gap-2">
         <button onClick={()=>setView('list')} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100">Cancelar</button>
-        <button onClick={handleSave} disabled={saving} className="flex-1 px-6 py-2 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50">
+        <button onClick={handleSave} disabled={saving} className="flex-1 px-6 py-2 text-sm bg-[#8B2214] text-white rounded-lg hover:bg-[#6d1a10] disabled:opacity-50">
           {saving?'Salvando...':view==='edit'?'Salvar alterações':'Cadastrar cliente'}
         </button>
       </div>
@@ -211,7 +211,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
             <h3 className="text-lg font-semibold text-gray-800">{sel.nome_fantasia||sel.razao_social||sel.nome_completo}</h3>
             {sel.segment&&<span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{SEGMENT_LABEL[sel.segment]}</span>}
           </div>
-          <button onClick={()=>openEdit(sel)} className="text-sm bg-amber-600 text-white px-3 py-1.5 rounded-lg hover:bg-amber-700">✏️ Editar</button>
+          <button onClick={()=>openEdit(sel)} className="text-sm bg-[#8B2214] text-white px-3 py-1.5 rounded-lg hover:bg-[#6d1a10]">✏️ Editar</button>
         </div>
         {d>=7&&<div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-3">
           <span className="text-xl">⚠️</span>
@@ -281,7 +281,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
           <h3 className="text-lg font-semibold text-gray-800">Meus Clientes</h3>
           <p className="text-sm text-gray-500">{clients.filter(c=>c.is_active_client).length} ativos · {clients.filter(c=>!c.is_active_client).length} inativos</p>
         </div>
-        <button onClick={openNew} className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-700">+ Novo Cliente</button>
+        <button onClick={openNew} className="flex items-center gap-2 bg-[#8B2214] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#6d1a10]">+ Novo Cliente</button>
       </div>
       <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar por nome, CNPJ ou comprador..."
         className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"/>

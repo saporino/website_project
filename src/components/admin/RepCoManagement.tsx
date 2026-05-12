@@ -277,7 +277,7 @@ export function RepCoManagement() {
 
   const statusBadge = (status: string) => {
     const map: Record<string, string> = {
-      pending: 'bg-amber-100 text-amber-700',
+      pending: 'bg-[#f5f0ef] text-[#8B2214]',
       active: 'bg-green-100 text-green-700',
       blocked: 'bg-red-100 text-red-700',
       new: 'bg-blue-100 text-blue-700',
@@ -381,7 +381,7 @@ export function RepCoManagement() {
 
           {/* New order form */}
           {showNewOrder && (
-            <div className="p-6 bg-amber-50 border-b border-amber-200">
+            <div className="p-6 bg-[#f8f7f5] border-b border-gray-200">
               <h4 className="font-semibold text-gray-900 mb-4">Novo Pedido RepCo</h4>
               <div className="space-y-4">
                 {/* Cliente */}
@@ -609,13 +609,13 @@ export function RepCoManagement() {
           </button>
           {isAdmin && (
             <button onClick={() => window.location.href = '/repco'}
-              className="h-9 px-4 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-700 transition-colors flex items-center gap-1.5">
+              className="h-9 px-4 rounded-lg text-sm font-medium bg-[#8B2214] text-white hover:bg-[#6d1a10] transition-colors flex items-center gap-1.5">
               🚀 Abrir Portal RepCo
             </button>
           )}
           <button onClick={() => setAdminView(v => v === 'map' ? 'list' : 'map')}
             className={`h-9 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
-              adminView === 'map' ? 'bg-amber-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+              adminView === 'map' ? 'bg-[#8B2214] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
             }`}>
             <Map className="w-4 h-4" />
             {adminView === 'map' ? 'Ver lista' : 'Mapa ao vivo'}
@@ -628,7 +628,7 @@ export function RepCoManagement() {
         <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-semibold">
           {(['todos','site','repco','marketplaces'] as const).map((canal, idx) => (
             <button key={canal} onClick={() => setCanalFilter(canal)}
-              className={`h-9 px-4 border-r border-gray-200 last:border-0 transition-all ${idx === 0 ? 'rounded-l-xl' : idx === 3 ? 'rounded-r-xl' : ''} ${canalFilter === canal ? 'bg-amber-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+              className={`h-9 px-4 border-r border-gray-200 last:border-0 transition-all ${idx === 0 ? 'rounded-l-xl' : idx === 3 ? 'rounded-r-xl' : ''} ${canalFilter === canal ? 'bg-[#8B2214] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
               {canal === 'todos' ? 'Todos' : canal === 'site' ? 'Site' : canal === 'repco' ? 'RepCo' : 'Marketplaces'}
             </button>
           ))}

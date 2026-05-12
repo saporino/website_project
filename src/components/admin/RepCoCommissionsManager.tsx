@@ -150,7 +150,7 @@ export default function RepCoCommissionsManager({ representativeId }: { represen
                     {comm.status==='pending'&&(
                       <button onClick={()=>{setSelectedId(comm.id);fileRef.current?.click();}}
                         disabled={uploading===comm.id}
-                        className="w-full text-xs bg-amber-600 text-white py-2 rounded-lg hover:bg-amber-700 disabled:opacity-50">
+                        className="w-full text-xs bg-[#8B2214] text-white py-2 rounded-lg hover:bg-[#6d1a10] disabled:opacity-50">
                         {uploading===comm.id?'Enviando...':'+ Upload comprovante de pagamento'}
                       </button>
                     )}

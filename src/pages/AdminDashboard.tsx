@@ -29,7 +29,7 @@ export function AdminDashboard() {
   // Sem isso, F5 mostra "Acesso Negado" porque user=null enquanto carrega
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8f7f5] flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-[#a4240e]" />
       </div>
     );
@@ -37,7 +37,7 @@ export function AdminDashboard() {
 
   if (!user || !profile?.is_admin) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8f7f5] flex items-center justify-center">
         <div className="bg-white p-8 rounded-2xl shadow-lg text-center max-w-md">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Package className="w-8 h-8 text-red-600" />

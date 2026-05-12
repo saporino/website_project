@@ -35,14 +35,14 @@ export function RepCoCommissions({ repId }: Props) {
 
       {/* Summary */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+        <div className="bg-white border border-gray-200 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-1">
             <Clock className="w-4 h-4 text-amber-600" />
             <span className="text-sm font-medium text-amber-700">Pendentes</span>
           </div>
           <p className="text-2xl font-bold text-amber-700">R$ {totalPending.toFixed(2)}</p>
         </div>
-        <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+        <div className="bg-white border border-gray-200 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-1">
             <CheckCircle className="w-4 h-4 text-green-600" />
             <span className="text-sm font-medium text-green-700">Recebidas</span>
