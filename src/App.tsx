@@ -174,6 +174,8 @@ function AppContent() {
         loading={loading}
         addedProducts={addedProducts}
         setAddedProducts={setAddedProducts}
+        selectedProduct={selectedProduct}
+        setSelectedProduct={setSelectedProduct}
       />
       <About />
       <Contact
@@ -485,7 +487,7 @@ const Hero = ({ scrollToSection }: any) => (
   </section>
 );
 
-const Products = ({ products, loading, addedProducts, setAddedProducts }: any) => {
+const Products = ({ products, loading, addedProducts, setAddedProducts, selectedProduct, setSelectedProduct }: any) => {
   const { addToCart } = useCart();
 
   const handleAddToCart = (product: Product) => {
