@@ -292,12 +292,16 @@ export function RepCoManagement() {
   };
 
   const filteredReps = reps.filter(r => {
-    // Status filter
-    if (statusFilter !== 'all' && r.status !== statusFilter) return false;
-    // Canal filter
-    if (canalFilter === 'repco') return r.status === 'active' || r.status === 'pending';
-    // 'todos', 'site', 'marketplaces' show all reps for now
-    return true;
+    const matchesCanal =
+      canalFilter === 'todos' ? true :
+      canalFilter === 'repco' ? true :
+      canalFilter === 'site' ? false :
+      canalFilter === 'marketplaces' ? false :
+      true;
+    const matchesStatus =
+      statusFilter === 'all' ? true :
+      r.status === statusFilter;
+    return matchesCanal && matchesStatus;
   });
   const pendingCount = reps.filter(r => r.status === 'pending').length;
   const totalPending = commissions.filter(c => c.status === 'pending').reduce((s, c) => s + c.commission_amount, 0);
@@ -678,8 +682,14 @@ export function RepCoManagement() {
         </div>
       ) : filteredReps.length === 0 ? (
         <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
-          <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 font-medium">Nenhum representante encontrado</p>
+          <p className="text-4xl mb-3">
+            {canalFilter === 'site' ? '🛒' : canalFilter === 'marketplaces' ? '🏦' : '👥'}
+          </p>
+          <p className="text-gray-500 font-medium">
+            {canalFilter === 'site' ? 'Nenhum cliente do site ainda' :
+             canalFilter === 'marketplaces' ? 'Nenhum cliente de marketplace cadastrado ainda — disponível após integração com ML, Amazon, Shopee e TikTok' :
+             'Nenhum representante encontrado'}
+          </p>
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
