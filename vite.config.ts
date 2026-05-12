@@ -7,6 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: null,
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icons/icon.svg', 'icons/pwa-192x192.png', 'icons/pwa-512x512.png'],
       manifest: {
         name: 'Saporino RepCo',
