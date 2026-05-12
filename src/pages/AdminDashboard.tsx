@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Package, Settings, Truck, LogOut, ShoppingBag, Users, BarChart3, Briefcase } from 'lucide-react';
+import { Package, Settings, Truck, LogOut, ShoppingBag, Users, BarChart3, Briefcase, Archive } from 'lucide-react';
 import { OrdersManagement } from '../components/admin/OrdersManagement';
 import { ProductsManagement } from '../components/admin/ProductsManagement';
 import { ShippingManagement } from '../components/admin/ShippingManagement';
@@ -10,7 +10,7 @@ import { Dashboard } from '../components/admin/Dashboard';
 import { RepCoManagement } from '../components/admin/RepCoManagement';
 import { AdminNotificationBell } from '../components/admin/AdminNotificationBell';
 
-type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 'settings' | 'repco';
+type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 'settings' | 'repco' | 'inventory';
 
 export function AdminDashboard() {
   const { user, profile, signOut } = useAuth();
@@ -46,6 +46,7 @@ export function AdminDashboard() {
     { id: 'customers' as TabType, label: 'Clientes', icon: Users },
     { id: 'shipping' as TabType, label: 'Transportadoras', icon: Truck },
     { id: 'repco' as TabType, label: 'RepCo', icon: Briefcase },
+    { id: 'inventory' as TabType, label: 'Inventário', icon: Archive },
     { id: 'settings' as TabType, label: 'Configurações', icon: Settings },
   ];
 
@@ -120,6 +121,13 @@ export function AdminDashboard() {
             {activeTab === 'customers' && <CustomersManagement />}
             {activeTab === 'shipping' && <ShippingManagement />}
             {activeTab === 'repco' && <RepCoManagement />}
+            {activeTab === 'inventory' && (
+              <div className="text-center py-16 text-gray-400">
+                <p className="text-5xl mb-4">📦</p>
+                <p className="text-lg font-medium text-gray-600">Módulo de Inventário</p>
+                <p className="text-sm mt-2">Em desenvolvimento — disponível em breve</p>
+              </div>
+            )}
             {activeTab === 'settings' && <StoreSettings />}
           </div>
         </div>
