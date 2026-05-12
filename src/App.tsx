@@ -502,7 +502,7 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
     return (
       <section id="products" className="py-10 bg-[#f8f7f5]">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#a4240e] mx-auto"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#8B2214] mx-auto"></div>
         </div>
       </section>
     );
@@ -532,7 +532,6 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
                   alt={product.name}
                   onError={(e) => {
                     e.currentTarget.src = '/saporino-logo.png';
-                    e.currentTarget.classList.remove('object-contain');
                   }}
                   className="relative z-10 w-4/5 h-4/5 object-contain transition-transform duration-500 group-hover:scale-105"
                 />
@@ -544,30 +543,30 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
               </div>
 
               <div className="p-3 flex-1 flex flex-col">
-                <div className="mb-3">
+                <div className="mb-1">
                   <span className="inline-block bg-[#8B2214] text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
                     {product.category}
                   </span>
                 </div>
-                <h3 className="text-sm font-bold text-gray-900 mb-1">{product.name}</h3>
+                <h3 className="text-sm font-bold text-gray-900 mb-1 leading-snug">{product.name}</h3>
                 {product.description && (
-                  <p className="text-gray-600 mb-4 leading-relaxed text-sm">{product.description}</p>
+                  <p className="text-gray-400 mb-1 text-[10px] line-clamp-2 hidden sm:block">{product.description}</p>
                 )}
 
                 <div className="mt-auto">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-500 font-medium">{product.weight_grams}g</span>
-                    <span className="text-base font-bold text-[#8B2214]">R$ {product.price.toFixed(2)}</span>
+                    <span className="text-xs text-gray-400">{product.weight_grams}g</span>
+                    <span className="text-sm font-bold text-[#8B2214]">R$ {product.price.toFixed(2)}</span>
                   </div>
 
                   <button
                     onClick={() => handleAddToCart(product)}
                     disabled={product.stock <= 0 || !product.is_active}
-                    className={`w-full py-2 px-3 rounded-full text-xs font-semibold transition-all duration-300 flex items-center justify-center space-x-2 ${product.stock <= 0 || !product.is_active
-                      ? 'bg-white border-2 border-[#8B2214] text-[#8B2214] cursor-not-allowed'
+                    className={`w-full py-2 px-3 rounded-full text-xs font-semibold transition-all duration-300 flex items-center justify-center gap-1 ${product.stock <= 0 || !product.is_active
+                      ? 'bg-white border border-[#8B2214] text-[#8B2214] cursor-not-allowed'
                       : addedProducts.has(product.id)
-                        ? 'bg-green-600 text-white shadow-lg'
-                        : 'bg-[#8B2214] text-white hover:bg-[#8a1f0c] transform hover:scale-105 shadow-lg'
+                        ? 'bg-green-600 text-white'
+                        : 'bg-[#8B2214] text-white hover:bg-[#6d1a10]'
                       }`}
                   >
                     {product.stock <= 0 || !product.is_active ? (
