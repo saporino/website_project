@@ -1,4 +1,4 @@
-export interface Product {
+﻿export interface Product {
   id: string;
   name: string;
   description: string;
@@ -14,6 +14,7 @@ export interface Product {
   is_active: boolean;
   roast_type?: string | null;
   flavor_notes?: string | null;
+  full_details?: string | null;
   display_order?: number;
 }
 

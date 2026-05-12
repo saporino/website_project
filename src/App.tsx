@@ -18,6 +18,7 @@ import { PaymentSuccess, PaymentFailure, PaymentPending } from './pages/PaymentP
 import { TrackingPage } from './pages/TrackingPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
 import { RepCoDashboard } from './pages/RepCoDashboard';
+import ProductDetail from './components/ProductDetail';
 
 const logoImage = '/saporino-logo.png';
 const cafeLogoImage = '/cafe-logo-saporino2.png';
@@ -117,6 +118,7 @@ function AppContent() {
   const [loading, setLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [addedProducts, setAddedProducts] = useState<Set<string>>(new Set());
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [contactSubmitted, setContactSubmitted] = useState(false);
   const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' });
 
@@ -499,6 +501,9 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
   };
 
   if (loading) {
+  if (selectedProduct) {
+    return <ProductDetail product={selectedProduct} onBack={() => setSelectedProduct(null)} onAddToCart={handleAddToCart} isAdded={addedProducts.has(selectedProduct.id)} />;
+  }
     return (
       <section id="products" className="py-10 bg-[#f8f7f5]">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
@@ -523,7 +528,7 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
           {products.map((product: Product) => (
             <div
               key={product.id}
-              className="bg-white overflow-hidden transition-all duration-300 group flex flex-col cursor-pointer"
+              onClick={() => setSelectedProduct(product)} className="bg-white overflow-hidden transition-all duration-300 group flex flex-col cursor-pointer"
             >
               <div className="relative aspect-square bg-white overflow-hidden flex items-center justify-center">
                 <div className="absolute inset-0 bg-gradient-to-br from-amber-50 via-stone-100 to-amber-100 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />

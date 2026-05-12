@@ -39,6 +39,7 @@ export function ProductsManagement() {
     featured: false,
     roast_type: '',
     flavor_notes: '',
+    full_details: null as string | null,
     display_order: 0,
   });
   const [imageMode, setImageMode] = useState<'upload' | 'url'>('url');
@@ -645,10 +646,52 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
         </label>
       </div>
 
+
+      {/* Tipo de Torra */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de Torra</label>
+        <select
+          value={formData.roast_type || ''}
+          onChange={e => setFormData({...formData, roast_type: e.target.value || null})}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
+        >
+          <option value="">Selecionar...</option>
+          <option>Clara</option>
+          <option>Média</option>
+          <option>Escura</option>
+          <option>Extra Escura</option>
+        </select>
+      </div>
+
+      {/* Notas de Sabor */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Notas de Sabor</label>
+        <input
+          type="text"
+          value={formData.flavor_notes || ''}
+          onChange={e => setFormData({...formData, flavor_notes: e.target.value || null})}
+          placeholder="Caramelo · Nozes · Chocolate"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214]"
+        />
+        <p className="text-xs text-gray-400 mt-1">Separe as notas com ·</p>
+      </div>
+
+      {/* Detalhes completos */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Detalhes do Produto</label>
+        <textarea
+          value={formData.full_details || ''}
+          onChange={e => setFormData({...formData, full_details: e.target.value || null})}
+          rows={5}
+          placeholder="Texto detalhado exibido na página do produto..."
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] resize-none"
+        />
+      </div>
+
       <div className="flex items-center space-x-3 pt-4">
         <button
           onClick={onSave}
-          className="flex items-center space-x-2 px-6 py-3 bg-[#a4240e] text-white rounded-lg hover:bg-[#8a1f0c] transition-colors"
+          className="flex items-center space-x-2 px-6 py-3 bg-[#8B2214] text-white rounded-lg hover:bg-[#6d1a10] transition-colors"
         >
           <Save className="w-5 h-5" />
           <span>Salvar</span>
