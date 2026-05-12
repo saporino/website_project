@@ -3,13 +3,17 @@ export interface Product {
   name: string;
   description: string;
   price: number;
+  promotional_price?: number | null;
+  discount_percentage?: number;
   image_url: string;
   category: string;
-  weight: string;
-  weight_grams?: number;
+  weight?: string;
+  weight_grams: number;
   stock: number;
   featured: boolean;
   is_active: boolean;
+  roast_type?: string | null;
+  flavor_notes?: string | null;
   display_order?: number;
 }
 
