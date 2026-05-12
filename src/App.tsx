@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, FormEvent, useCallback } from 'react';
+import { useState, useEffect, FormEvent, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
 import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Mail, Phone, MapPin, Send, User, ChevronDown, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -525,7 +525,7 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
               key={product.id}
               className="bg-white rounded-xl shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md group flex flex-col cursor-pointer"
             >
-              <div className="relative aspect-square bg-stone-100 overflow-hidden overflow-hidden flex items-center justify-center">
+              <div className="relative aspect-square bg-stone-100 overflow-hidden flex items-center justify-center">
                 <img
                   src={product.image_url && product.image_url.trim() !== '' ? product.image_url : '/saporino-logo.png'}
                   alt={product.name}
@@ -533,7 +533,7 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
                     e.currentTarget.src = '/saporino-logo.png';
                     e.currentTarget.classList.remove('object-contain');
                   }}
-                  className={`h-32 w-auto group-hover:scale-110 transition-transform duration-500 ${product.image_url ? 'object-contain' : ''}`}
+                  className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500`}
                 />
                 {product.featured && (
                   <div className="absolute top-6 right-6 bg-[#8B2214] text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
@@ -563,7 +563,7 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
                     onClick={() => handleAddToCart(product)}
                     disabled={product.stock <= 0 || !product.is_active}
                     className={`w-full py-4 px-6 rounded-full font-semibold transition-all duration-300 flex items-center justify-center space-x-2 ${product.stock <= 0 || !product.is_active
-                      ? 'bg-white border-2 border-[#a4240e] text-[#8B2214] cursor-not-allowed'
+                      ? 'bg-white border-2 border-[#8B2214] text-[#8B2214] cursor-not-allowed'
                       : addedProducts.has(product.id)
                         ? 'bg-green-600 text-white shadow-lg'
                         : 'bg-[#8B2214] text-white hover:bg-[#8a1f0c] transform hover:scale-105 shadow-lg'
