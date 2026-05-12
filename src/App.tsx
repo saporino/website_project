@@ -19,8 +19,8 @@ import { TrackingPage } from './pages/TrackingPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
 import { RepCoDashboard } from './pages/RepCoDashboard';
 
-const logoImage = '/SAPORINO LOGO transparente big-PNG.png';
-const cafeLogoImage = '/cafe-logo-saporino copy.png';
+const logoImage = '/saporino-logo.png';
+const cafeLogoImage = '/cafe-logo-saporino2.png';
 const coffeeFieldImage = '/coffee-field.webp';
 
 if (MERCADO_PAGO_PUBLIC_KEY) {
@@ -527,10 +527,10 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
             >
               <div className="relative h-72 bg-gradient-to-br from-stone-200 to-stone-100 overflow-hidden flex items-center justify-center">
                 <img
-                  src={product.image_url && product.image_url.trim() !== '' ? product.image_url : "/SAPORINO LOGO transparente big-PNG.png"}
+                  src={product.image_url && product.image_url.trim() !== '' ? product.image_url : '/saporino-logo.png'}
                   alt={product.name}
                   onError={(e) => {
-                    e.currentTarget.src = "/SAPORINO LOGO transparente big-PNG.png";
+                    e.currentTarget.src = '/saporino-logo.png';
                     e.currentTarget.classList.remove('object-contain');
                   }}
                   className={`h-32 w-auto group-hover:scale-110 transition-transform duration-500 ${product.image_url ? 'object-contain' : ''}`}
@@ -1411,7 +1411,7 @@ const Footer = ({ scrollToSection }: any) => {
           <div className="border-t border-white/20 pt-8 flex flex-col md:flex-row justify-between items-center">
             <p className="text-white/80 text-sm">© {currentYear} Café Saporino Ltda. CNPJ 61.109.694/0001-94 Todos os direitos reservados.</p>
             <div className="flex items-center space-x-2 mt-4 md:mt-0">
-              <img src="/SAPORINO LOGO transparente big-PNG.png" alt="Saporino" className="h-8 opacity-70 hover:opacity-100 transition-all" />
+              <img src="/saporino-logo.png" alt="Saporino" className="h-8 opacity-70 hover:opacity-100 transition-all" />
             </div>
           </div>
         </div>
