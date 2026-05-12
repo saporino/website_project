@@ -25,6 +25,10 @@ export default defineConfig({
         ],
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/assets\//, /^\/icons\//, /\.ico$/, /\.js$/, /\.css$/, /\.png$/, /\.svg$/, /\.woff2$/],
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
