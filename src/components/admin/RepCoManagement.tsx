@@ -291,7 +291,14 @@ export function RepCoManagement() {
     return <span className={`text-xs font-semibold px-2 py-1 rounded-full ${map[status] || 'bg-gray-100 text-gray-600'}`}>{labels[status] || status}</span>;
   };
 
-  const filteredReps = statusFilter === 'all' ? reps : reps.filter(r => r.status === statusFilter);
+  const filteredReps = reps.filter(r => {
+    // Status filter
+    if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+    // Canal filter
+    if (canalFilter === 'repco') return r.status === 'active' || r.status === 'pending';
+    // 'todos', 'site', 'marketplaces' show all reps for now
+    return true;
+  });
   const pendingCount = reps.filter(r => r.status === 'pending').length;
   const totalPending = commissions.filter(c => c.status === 'pending').reduce((s, c) => s + c.commission_amount, 0);
 
@@ -612,8 +619,16 @@ export function RepCoManagement() {
         </div>
       </div>
 
-      {/* Row 2: Status filter */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Row 2: Canal filter + Status filter */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-semibold">
+          {(['todos','site','repco','marketplaces'] as const).map((canal, idx) => (
+            <button key={canal} onClick={() => setCanalFilter(canal)}
+              className={`h-9 px-4 border-r border-gray-200 last:border-0 transition-all ${idx === 0 ? 'rounded-l-xl' : idx === 3 ? 'rounded-r-xl' : ''} ${canalFilter === canal ? 'bg-amber-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+              {canal === 'todos' ? 'Todos' : canal === 'site' ? 'Site' : canal === 'repco' ? 'RepCo' : 'Marketplaces'}
+            </button>
+          ))}
+        </div>
         <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-semibold">
           {(['all','pending','active','blocked'] as const).map((s, idx) => (
             <button key={s} onClick={() => setStatusFilter(s)}
