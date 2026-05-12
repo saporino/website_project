@@ -72,7 +72,7 @@ export function RepCoDashboard() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8f7f5] flex items-center justify-center">
         <div className="text-center bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
           <Briefcase className="w-12 h-12 text-[#a4240e] mx-auto mb-4" />
           <h2 className="text-xl font-bold text-gray-900 mb-2">Portal RepCo</h2>
@@ -84,7 +84,7 @@ export function RepCoDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8f7f5] flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-[#a4240e]" />
       </div>
     );
@@ -93,7 +93,7 @@ export function RepCoDashboard() {
   // No registration yet
   if (!rep && !showRegForm) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-[#f8f7f5] flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 max-w-md w-full text-center">
           <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Briefcase className="w-8 h-8 text-[#a4240e]" />
@@ -116,7 +116,7 @@ export function RepCoDashboard() {
   // Registration form
   if (!rep && showRegForm) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-[#f8f7f5] flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 max-w-md w-full">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Cadastro de Representante Comercial</h2>
           <div className="space-y-4">
@@ -162,7 +162,7 @@ export function RepCoDashboard() {
   // Pending approval
   if (rep?.status === 'pending') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-[#f8f7f5] flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 max-w-md w-full text-center">
           <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Clock className="w-8 h-8 text-amber-600" />
@@ -178,7 +178,7 @@ export function RepCoDashboard() {
   // Blocked
   if (rep?.status === 'blocked') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="min-h-screen bg-[#f8f7f5] flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 max-w-md w-full text-center">
           <h2 className="text-xl font-bold text-gray-900 mb-2">Acesso Bloqueado</h2>
           <p className="text-gray-500">Entre em contato com o administrador para mais informações.</p>
@@ -199,7 +199,7 @@ export function RepCoDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f8f7f5]">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-16">
           <div className="flex items-center gap-3">

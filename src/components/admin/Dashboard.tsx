@@ -210,107 +210,97 @@ export function Dashboard() {
         </div>
       ) : (
         <>
-          {/* Revenue Cards — split when "Todos" is selected */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+          {/* Revenue Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {customerFilter === 'all' ? (
               <>
                 {/* PF Revenue */}
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-5 shadow-sm">
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <UserCircle className="w-4 h-4 text-blue-600" />
-                      <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">Receita PF</span>
-                    </div>
-                    <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
-                      <DollarSign className="w-4 h-4 text-white" />
+                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Receita PF</span>
+                    <div className="w-9 h-9 rounded-lg bg-[#f5f0ef] flex items-center justify-center text-[#8B2214]">
+                      <UserCircle className="w-4 h-4" />
                     </div>
                   </div>
-                  <p className="text-2xl font-bold text-blue-900">R$ {monthStats.revenuePF.toFixed(2)}</p>
-                  <p className="text-xs text-blue-600 mt-1">{monthStats.ordersPF} pedidos · Ticket médio R$ {monthStats.avgTicketPF.toFixed(2)}</p>
+                  <div className="text-2xl font-semibold text-gray-900">R$ {monthStats.revenuePF.toFixed(2)}</div>
+                  <div className="text-xs text-gray-500 mt-1">{monthStats.ordersPF} pedidos · Ticket R$ {monthStats.avgTicketPF.toFixed(2)}</div>
                 </div>
                 {/* PJ Revenue */}
-                <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-xl p-5 shadow-sm">
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-purple-600" />
-                      <span className="text-xs font-bold text-purple-700 uppercase tracking-wide">Receita PJ</span>
-                    </div>
-                    <div className="w-9 h-9 bg-purple-600 rounded-lg flex items-center justify-center">
-                      <DollarSign className="w-4 h-4 text-white" />
+                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Receita PJ</span>
+                    <div className="w-9 h-9 rounded-lg bg-[#f5f0ef] flex items-center justify-center text-[#8B2214]">
+                      <Building2 className="w-4 h-4" />
                     </div>
                   </div>
-                  <p className="text-2xl font-bold text-purple-900">R$ {monthStats.revenuePJ.toFixed(2)}</p>
-                  <p className="text-xs text-purple-600 mt-1">{monthStats.ordersPJ} pedidos · Ticket médio R$ {monthStats.avgTicketPJ.toFixed(2)}</p>
+                  <div className="text-2xl font-semibold text-gray-900">R$ {monthStats.revenuePJ.toFixed(2)}</div>
+                  <div className="text-xs text-gray-500 mt-1">{monthStats.ordersPJ} pedidos · Ticket R$ {monthStats.avgTicketPJ.toFixed(2)}</div>
                 </div>
-                {/* Total Revenue */}
-                <div className="bg-gradient-to-br from-green-50 to-emerald-100 border border-green-200 rounded-xl p-5 shadow-sm">
+                {/* Total Geral — destaque com borda lateral */}
+                <div className="bg-white border border-gray-200 border-l-4 border-l-[#8B2214] rounded-xl p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-bold text-green-700 uppercase tracking-wide">Total Geral</span>
-                    <div className="w-9 h-9 bg-green-600 rounded-lg flex items-center justify-center">
-                      <TrendingUp className="w-4 h-4 text-white" />
+                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total Geral</span>
+                    <div className="w-9 h-9 rounded-lg bg-[#f5f0ef] flex items-center justify-center text-[#8B2214]">
+                      <TrendingUp className="w-4 h-4" />
                     </div>
                   </div>
-                  <p className="text-2xl font-bold text-green-900">R$ {(monthStats.revenuePF + monthStats.revenuePJ).toFixed(2)}</p>
-                  <p className="text-xs text-green-600 mt-1">{monthStats.ordersPF + monthStats.ordersPJ} pedidos no mês</p>
+                  <div className="text-2xl font-semibold text-gray-900">R$ {(monthStats.revenuePF + monthStats.revenuePJ).toFixed(2)}</div>
+                  <div className="text-xs text-gray-500 mt-1">{monthStats.ordersPF + monthStats.ordersPJ} pedidos no mês</div>
                 </div>
               </>
             ) : (
-              <div className={`col-span-1 md:col-span-2 lg:col-span-2 rounded-xl p-5 shadow-sm border ${
-                customerFilter === 'PF' ? 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200' : 'bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200'
-              }`}>
+              <div className="col-span-1 md:col-span-2 lg:col-span-2 bg-white border border-gray-200 border-l-4 border-l-[#8B2214] rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  {customerFilter === 'PF' ? <UserCircle className="w-5 h-5 text-blue-600" /> : <Building2 className="w-5 h-5 text-purple-600" />}
-                  <span className={`text-sm font-bold uppercase tracking-wide ${customerFilter === 'PF' ? 'text-blue-700' : 'text-purple-700'}`}>
+                  {customerFilter === 'PF' ? <UserCircle className="w-4 h-4 text-[#8B2214]" /> : <Building2 className="w-4 h-4 text-[#8B2214]" />}
+                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                     Receita {customerFilter} — {MONTH_NAMES[selectedMonth]}
                   </span>
                 </div>
-                <p className={`text-4xl font-bold ${customerFilter === 'PF' ? 'text-blue-900' : 'text-purple-900'}`}>R$ {revenue.toFixed(2)}</p>
-                <p className={`text-sm mt-2 ${customerFilter === 'PF' ? 'text-blue-600' : 'text-purple-600'}`}>
-                  {orders} pedidos · Ticket médio R$ {avgTicket.toFixed(2)}
-                </p>
+                <div className="text-4xl font-semibold text-gray-900">R$ {revenue.toFixed(2)}</div>
+                <div className="text-sm text-gray-500 mt-2">{orders} pedidos · Ticket médio R$ {avgTicket.toFixed(2)}</div>
               </div>
             )}
 
-            {/* Orders */}
-            <div className="bg-gradient-to-br from-orange-50 to-amber-100 border border-orange-200 rounded-xl p-5 shadow-sm">
+            {/* Pedidos */}
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-orange-700 uppercase tracking-wide">Pedidos</span>
-                <div className="w-9 h-9 bg-orange-500 rounded-lg flex items-center justify-center">
-                  <ShoppingBag className="w-4 h-4 text-white" />
+                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Pedidos</span>
+                <div className="w-9 h-9 rounded-lg bg-[#f5f0ef] flex items-center justify-center text-[#8B2214]">
+                  <ShoppingBag className="w-4 h-4" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-orange-900">{orders}</p>
-              <div className="mt-1 text-xs text-orange-600 space-y-0.5">
-                {customerFilter === 'all' && <><p>PF: {monthStats.ordersPF} · PJ: {monthStats.ordersPJ}</p></>}
+              <div className="text-2xl font-semibold text-gray-900">{orders}</div>
+              <div className="text-xs text-gray-500 mt-1">
+                {customerFilter === 'all' ? `PF: ${monthStats.ordersPF} · PJ: ${monthStats.ordersPJ}` : `Canal ${customerFilter}`}
               </div>
             </div>
 
-            {/* Customers */}
-            <div className="bg-gradient-to-br from-teal-50 to-cyan-100 border border-teal-200 rounded-xl p-5 shadow-sm">
+            {/* Clientes */}
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-teal-700 uppercase tracking-wide">Clientes</span>
-                <div className="w-9 h-9 bg-teal-600 rounded-lg flex items-center justify-center">
-                  <Users className="w-4 h-4 text-white" />
+                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Clientes</span>
+                <div className="w-9 h-9 rounded-lg bg-[#f5f0ef] flex items-center justify-center text-[#8B2214]">
+                  <Users className="w-4 h-4" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-teal-900">
+              <div className="text-2xl font-semibold text-gray-900">
                 {customerFilter === 'all' ? totalCustomersPF + totalCustomersPJ : customerFilter === 'PF' ? totalCustomersPF : totalCustomersPJ}
-              </p>
-              <div className="mt-1 text-xs text-teal-600">
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
                 {customerFilter === 'all' ? `PF: ${totalCustomersPF} · PJ: ${totalCustomersPJ}` : `Cadastros ${customerFilter}`}
               </div>
             </div>
 
-            {/* Products */}
-            <div className="bg-gradient-to-br from-rose-50 to-pink-100 border border-rose-200 rounded-xl p-5 shadow-sm">
+            {/* Produtos */}
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-rose-700 uppercase tracking-wide">Produtos</span>
-                <div className="w-9 h-9 bg-rose-600 rounded-lg flex items-center justify-center">
-                  <Package className="w-4 h-4 text-white" />
+                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Produtos</span>
+                <div className="w-9 h-9 rounded-lg bg-[#f5f0ef] flex items-center justify-center text-[#8B2214]">
+                  <Package className="w-4 h-4" />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-rose-900">{totalProducts}</p>
-              <p className="text-xs text-rose-600 mt-1">No catálogo</p>
+              <div className="text-2xl font-semibold text-gray-900">{totalProducts}</div>
+              <div className="text-xs text-gray-500 mt-1">No catálogo</div>
             </div>
           </div>
 
@@ -405,24 +395,24 @@ export function Dashboard() {
               </div>
 
               {/* Monthly Summary Box */}
-              <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-                <h3 className="font-bold text-gray-900 mb-4 text-sm uppercase tracking-wide text-gray-500">Resumo do Mês</h3>
+              <div className="bg-white border border-gray-200 rounded-xl p-5">
+                <h3 className="font-medium text-xs text-gray-500 mb-4 uppercase tracking-wide">Resumo do Mês</h3>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 bg-green-50 rounded-lg border border-green-100 text-center">
-                    <p className="text-xs text-green-600 font-medium mb-1">Receita</p>
-                    <p className="text-base font-bold text-green-900">R$ {revenue.toFixed(2)}</p>
+                  <div className="p-3 bg-[#f8f7f5] rounded-lg border border-gray-100 text-center">
+                    <p className="text-xs text-gray-500 font-medium mb-1">Receita</p>
+                    <p className="text-base font-semibold text-gray-900">R$ {revenue.toFixed(2)}</p>
                   </div>
-                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-100 text-center">
-                    <p className="text-xs text-blue-600 font-medium mb-1">Pedidos</p>
-                    <p className="text-base font-bold text-blue-900">{orders}</p>
+                  <div className="p-3 bg-[#f8f7f5] rounded-lg border border-gray-100 text-center">
+                    <p className="text-xs text-gray-500 font-medium mb-1">Pedidos</p>
+                    <p className="text-base font-semibold text-gray-900">{orders}</p>
                   </div>
-                  <div className="p-3 bg-purple-50 rounded-lg border border-purple-100 text-center">
-                    <p className="text-xs text-purple-600 font-medium mb-1">Ticket Médio</p>
-                    <p className="text-base font-bold text-purple-900">R$ {avgTicket.toFixed(2)}</p>
+                  <div className="p-3 bg-[#f8f7f5] rounded-lg border border-gray-100 text-center">
+                    <p className="text-xs text-gray-500 font-medium mb-1">Ticket Médio</p>
+                    <p className="text-base font-semibold text-gray-900">R$ {avgTicket.toFixed(2)}</p>
                   </div>
-                  <div className="p-3 bg-orange-50 rounded-lg border border-orange-100 text-center">
-                    <p className="text-xs text-orange-600 font-medium mb-1">Pendentes</p>
-                    <p className="text-base font-bold text-orange-900">{pendingOrders}</p>
+                  <div className="p-3 bg-[#f8f7f5] rounded-lg border border-gray-100 text-center">
+                    <p className="text-xs text-gray-500 font-medium mb-1">Pendentes</p>
+                    <p className="text-base font-semibold text-gray-900">{pendingOrders}</p>
                   </div>
                 </div>
               </div>
