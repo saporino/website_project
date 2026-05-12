@@ -519,13 +519,14 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-px bg-gray-200">
           {products.map((product: Product) => (
             <div
               key={product.id}
-              className="bg-white rounded-xl shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md group flex flex-col cursor-pointer"
+              className="bg-white overflow-hidden transition-all duration-300 group flex flex-col cursor-pointer"
             >
-              <div className="relative aspect-square bg-stone-100 overflow-hidden flex items-center justify-center">
+              <div className="relative aspect-square bg-white overflow-hidden flex items-center justify-center">
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-50 via-stone-100 to-amber-100 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <img
                   src={product.image_url && product.image_url.trim() !== '' ? product.image_url : '/saporino-logo.png'}
                   alt={product.name}
@@ -533,10 +534,10 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
                     e.currentTarget.src = '/saporino-logo.png';
                     e.currentTarget.classList.remove('object-contain');
                   }}
-                  className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500`}
+                  className="relative z-10 w-4/5 h-4/5 object-contain transition-transform duration-500 group-hover:scale-105"
                 />
                 {product.featured && (
-                  <div className="absolute top-6 right-6 bg-[#8B2214] text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
+                  <div className="absolute top-2 right-2 bg-[#8B2214] text-white px-2 py-0.5 rounded-full text-[10px] font-semibold shadow">
                     Destaque
                   </div>
                 )}
@@ -544,17 +545,17 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
 
               <div className="p-3 flex-1 flex flex-col">
                 <div className="mb-3">
-                  <span className="inline-block bg-[#8B2214] text-white text-xs font-semibold px-4 py-2 rounded-full">
+                  <span className="inline-block bg-[#8B2214] text-white text-[10px] font-semibold px-2 py-0.5 rounded-full">
                     {product.category}
                   </span>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">{product.name}</h3>
+                <h3 className="text-sm font-bold text-gray-900 mb-1">{product.name}</h3>
                 {product.description && (
                   <p className="text-gray-600 mb-4 leading-relaxed text-sm">{product.description}</p>
                 )}
 
                 <div className="mt-auto">
-                  <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center justify-between mb-2">
                     <span className="text-sm text-gray-500 font-medium">{product.weight_grams}g</span>
                     <span className="text-base font-bold text-[#8B2214]">R$ {product.price.toFixed(2)}</span>
                   </div>
@@ -562,7 +563,7 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
                   <button
                     onClick={() => handleAddToCart(product)}
                     disabled={product.stock <= 0 || !product.is_active}
-                    className={`w-full py-4 px-6 rounded-full font-semibold transition-all duration-300 flex items-center justify-center space-x-2 ${product.stock <= 0 || !product.is_active
+                    className={`w-full py-2 px-3 rounded-full text-xs font-semibold transition-all duration-300 flex items-center justify-center space-x-2 ${product.stock <= 0 || !product.is_active
                       ? 'bg-white border-2 border-[#8B2214] text-[#8B2214] cursor-not-allowed'
                       : addedProducts.has(product.id)
                         ? 'bg-green-600 text-white shadow-lg'
