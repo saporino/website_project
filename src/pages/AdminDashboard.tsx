@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Package, Settings, Truck, LogOut, ShoppingBag, Users, BarChart3, Briefcase, Archive } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { OrdersManagement } from '../components/admin/OrdersManagement';
 import { ProductsManagement } from '../components/admin/ProductsManagement';
 import { ShippingManagement } from '../components/admin/ShippingManagement';
@@ -40,14 +40,14 @@ export function AdminDashboard() {
   }
 
   const tabs = [
-    { id: 'dashboard' as TabType, label: 'Dashboard', icon: BarChart3 },
-    { id: 'orders' as TabType, label: 'Pedidos', icon: ShoppingBag },
-    { id: 'products' as TabType, label: 'Produtos', icon: Package },
-    { id: 'customers' as TabType, label: 'Clientes', icon: Users },
-    { id: 'shipping' as TabType, label: 'Transportadoras', icon: Truck },
-    { id: 'repco' as TabType, label: 'RepCo', icon: Briefcase },
-    { id: 'inventory' as TabType, label: 'Inventário', icon: Archive },
-    { id: 'settings' as TabType, label: 'Configurações', icon: Settings },
+    { id: 'dashboard' as TabType, label: 'Dashboard' },
+    { id: 'orders' as TabType, label: 'Pedidos' },
+    { id: 'products' as TabType, label: 'Produtos' },
+    { id: 'customers' as TabType, label: 'Clientes' },
+    { id: 'shipping' as TabType, label: 'Transportadoras' },
+    { id: 'repco' as TabType, label: 'RepCo' },
+    { id: 'inventory' as TabType, label: 'Inventário' },
+    { id: 'settings' as TabType, label: 'Configurações' },
   ];
 
   return (
@@ -93,24 +93,20 @@ export function AdminDashboard() {
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="border-b border-gray-200">
-            <nav className="flex space-x-1 p-2 overflow-x-auto">
-              {tabs.map((tab) => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all flex-shrink-0 ${
-                      activeTab === tab.id
-                        ? 'bg-[#a4240e] text-white shadow-md'
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
+            <nav className="flex p-1.5 gap-0.5">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-1 px-2 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap text-center ${
+                    activeTab === tab.id
+                      ? 'bg-[#a4240e] text-white shadow-md'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </nav>
           </div>
 
