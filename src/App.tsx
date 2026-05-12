@@ -500,10 +500,12 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
     }, 2000);
   };
 
-  if (loading) {
+
   if (selectedProduct) {
     return <ProductDetail product={selectedProduct} onBack={() => setSelectedProduct(null)} onAddToCart={handleAddToCart} isAdded={addedProducts.has(selectedProduct.id)} />;
   }
+
+  if (loading) {
     return (
       <section id="products" className="py-10 bg-[#f8f7f5]">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
@@ -512,6 +514,7 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
       </section>
     );
   }
+
 
   return (
     <section id="products" className="py-10 bg-[#f8f7f5]">
@@ -565,7 +568,7 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
                   </div>
 
                   <button
-                    onClick={() => handleAddToCart(product)}
+                    onClick={(e) => { e.stopPropagation(); handleAddToCart(product); }}
                     disabled={product.stock <= 0 || !product.is_active}
                     className={`w-full py-2 px-3 rounded-full text-xs font-semibold transition-all duration-300 flex items-center justify-center gap-1 ${product.stock <= 0 || !product.is_active
                       ? 'bg-white border border-[#8B2214] text-[#8B2214] cursor-not-allowed'
