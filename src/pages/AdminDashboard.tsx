@@ -93,14 +93,14 @@ export function AdminDashboard() {
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="border-b border-gray-200">
-            <nav className="flex space-x-1 p-2">
+            <nav className="flex space-x-1 p-2 overflow-x-auto">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all ${
+                    className={`flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all flex-shrink-0 ${
                       activeTab === tab.id
                         ? 'bg-[#a4240e] text-white shadow-md'
                         : 'text-gray-600 hover:bg-gray-100'

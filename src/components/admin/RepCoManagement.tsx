@@ -583,55 +583,44 @@ export function RepCoManagement() {
   // ── LIST VIEW ──
   return (
     <div className="space-y-6">
+      {/* Row 1: Title + Action buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold text-gray-900">Representantes Comerciais</h2>
           {pendingCount > 0 && (
             <p className="text-sm text-amber-600 mt-1 font-medium">⚠ {pendingCount} aguardando aprovação</p>
           )}
-          {/* Filtro de canal */}
-          <div className="flex gap-2 mt-3">
-            {(['todos','site','repco','marketplaces'] as const).map(canal => (
-              <button key={canal} onClick={() => setCanalFilter(canal)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  canalFilter === canal ? 'bg-amber-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-                }`}>
-                {canal === 'todos' ? 'Todos' : canal === 'site' ? 'Site' : canal === 'repco' ? 'RepCo' : 'Marketplaces'}
-              </button>
-            ))}
-            <button onClick={() => setAdminView('price-list')}
-              className="px-4 py-2 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
-              📋 Tabela de Preços
-            </button>
-          </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={() => setAdminView('price-list')}
+            className="h-9 px-4 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
+            📋 Tabela de Preços
+          </button>
           {isAdmin && (
-            <button
-              onClick={() => window.location.href = '/repco'}
-              className="flex items-center gap-2 bg-amber-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors"
-            >
+            <button onClick={() => window.location.href = '/repco'}
+              className="h-9 px-4 rounded-lg text-sm font-medium bg-amber-600 text-white hover:bg-amber-700 transition-colors flex items-center gap-1.5">
               🚀 Abrir Portal RepCo
             </button>
           )}
-          <button
-            onClick={() => setAdminView(v => v === 'map' ? 'list' : 'map')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+          <button onClick={() => setAdminView(v => v === 'map' ? 'list' : 'map')}
+            className={`h-9 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
               adminView === 'map' ? 'bg-amber-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
-            }`}
-          >
+            }`}>
             <Map className="w-4 h-4" />
             {adminView === 'map' ? 'Ver lista' : 'Mapa ao vivo'}
           </button>
-          {/* Status filter */}
-          <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-semibold">
-            {(['all','pending','active','blocked'] as const).map((s, idx) => (
-              <button key={s} onClick={() => setStatusFilter(s)}
-                className={`px-4 py-2.5 border-r border-gray-200 last:border-0 transition-all ${idx === 0 ? 'rounded-l-xl' : idx === 3 ? 'rounded-r-xl' : ''} ${statusFilter === s ? 'bg-[#a4240e] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-                {s === 'all' ? 'Todos' : s === 'pending' ? 'Pendentes' : s === 'active' ? 'Ativos' : 'Bloqueados'}
-              </button>
-            ))}
-          </div>
+        </div>
+      </div>
+
+      {/* Row 2: Status filter */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-semibold">
+          {(['all','pending','active','blocked'] as const).map((s, idx) => (
+            <button key={s} onClick={() => setStatusFilter(s)}
+              className={`h-9 px-4 border-r border-gray-200 last:border-0 transition-all ${idx === 0 ? 'rounded-l-xl' : idx === 3 ? 'rounded-r-xl' : ''} ${statusFilter === s ? 'bg-[#a4240e] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+              {s === 'all' ? 'Todos' : s === 'pending' ? 'Pendentes' : s === 'active' ? 'Ativos' : 'Bloqueados'}
+            </button>
+          ))}
         </div>
       </div>
 
