@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent, useCallback } from 'react';
+﻿import { useState, useEffect, FormEvent, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
 import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Mail, Phone, MapPin, Send, User, ChevronDown, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -231,7 +231,7 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
             <nav className="hidden lg:flex items-center space-x-1">
               <button
                 onClick={() => scrollToSection('products')}
-                className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#a4240e] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
+                className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#8B2214] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
               >
                 LOJA
               </button>
@@ -240,25 +240,25 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
                   window.history.pushState({}, '', '/assinatura');
                   window.dispatchEvent(new PopStateEvent('popstate'));
                 }}
-                className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#a4240e] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
+                className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#8B2214] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
               >
                 ASSINATURA
               </button>
               <button
                 onClick={() => scrollToSection('about')}
-                className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#a4240e] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
+                className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#8B2214] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
               >
                 SOBRE
               </button>
               <button
                 onClick={() => scrollToSection('journey')}
-                className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#a4240e] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
+                className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#8B2214] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
               >
                 JORNADA
               </button>
               <button
                 onClick={() => scrollToSection('contact')}
-                className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#a4240e] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
+                className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#8B2214] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
               >
                 CONTATO
               </button>
@@ -269,7 +269,7 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
                 <div className="relative">
                   <button
                     onClick={() => setAccountDropdownOpen(!accountDropdownOpen)}
-                    className="flex items-center space-x-2 text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#a4240e] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
+                    className="flex items-center space-x-2 text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#8B2214] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
                   >
                     <User className="w-5 h-5" />
                     <span>MINHA CONTA</span>
@@ -282,7 +282,7 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
                         <p className="font-semibold text-gray-900 truncate">{profile.full_name}</p>
                         <p className="text-sm text-gray-500 truncate">{user.email}</p>
                         {profile.is_admin && (
-                          <span className="inline-block mt-2 px-2 py-1 bg-[#a4240e] text-white text-xs font-semibold rounded">
+                          <span className="inline-block mt-2 px-2 py-1 bg-[#8B2214] text-white text-xs font-semibold rounded">
                             Administrador
                           </span>
                         )}
@@ -296,7 +296,7 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
                           }}
                           className="w-full text-left px-4 py-3 text-gray-700 hover:bg-stone-50 transition-colors flex items-center space-x-3 border-b border-gray-100"
                         >
-                          <svg className="w-5 h-5 text-[#a4240e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5 text-[#8B2214]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                           </svg>
                           <span className="font-semibold">Painel Admin</span>
@@ -310,7 +310,7 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
                         }}
                         className="w-full text-left px-4 py-3 text-gray-700 hover:bg-stone-50 transition-colors flex items-center space-x-3 border-b border-gray-100"
                       >
-                        <User className="w-5 h-5 text-[#a4240e]" />
+                        <User className="w-5 h-5 text-[#8B2214]" />
                         <span>Meu Perfil</span>
                       </button>
                       {(profile.is_admin || isRepresentative) && (
@@ -322,7 +322,7 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
                           }}
                           className="w-full text-left px-4 py-3 text-gray-700 hover:bg-stone-50 transition-colors flex items-center space-x-3 border-b border-gray-100"
                         >
-                          <svg className="w-5 h-5 text-[#a4240e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <svg className="w-5 h-5 text-[#8B2214]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                           </svg>
                           <span className="font-medium">Portal RepCo</span>
@@ -336,7 +336,7 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
                         }}
                         className="w-full text-left px-4 py-3 text-gray-700 hover:bg-stone-50 transition-colors flex items-center space-x-3"
                       >
-                        <Truck className="w-5 h-5 text-[#a4240e]" />
+                        <Truck className="w-5 h-5 text-[#8B2214]" />
                         <span>Rastrear Pedido</span>
                       </button>
                       <button
@@ -359,7 +359,7 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
                   onMouseLeave={() => setAccountDropdownOpen(false)}
                 >
                   <button
-                    className="flex items-center space-x-2 text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#a4240e] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
+                    className="flex items-center space-x-2 text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#8B2214] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
                   >
                     <span>ENTRAR</span>
                     <ChevronDown className="w-4 h-4" />
@@ -374,7 +374,7 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
                         }}
                         className="w-full text-left px-4 py-3 text-gray-700 hover:bg-stone-50 transition-colors flex items-center space-x-3 border-b border-gray-100"
                       >
-                        <User className="w-5 h-5 text-[#a4240e]" />
+                        <User className="w-5 h-5 text-[#8B2214]" />
                         <span>Cliente (PF)</span>
                       </button>
                       <button
@@ -384,7 +384,7 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
                         }}
                         className="w-full text-left px-4 py-3 text-gray-700 hover:bg-stone-50 transition-colors flex items-center space-x-3 border-b border-gray-100"
                       >
-                        <svg className="w-5 h-5 text-[#a4240e]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 text-[#8B2214]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                         </svg>
                         <span>Empresa (PJ)</span>
@@ -396,7 +396,7 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
                         }}
                         className="w-full text-left px-4 py-3 text-gray-700 hover:bg-stone-50 transition-colors flex items-center space-x-3"
                       >
-                        <Lock className="w-5 h-5 text-[#a4240e]" />
+                        <Lock className="w-5 h-5 text-[#8B2214]" />
                         <span>Administrador</span>
                       </button>
                     </div>
@@ -408,18 +408,18 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
                 href="https://www.instagram.com/cafesaporino"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-3 rounded-full transition-all duration-300 text-white hover:bg-white/10 hover:text-[#a4240e]"
+                className="p-3 rounded-full transition-all duration-300 text-white hover:bg-white/10 hover:text-[#8B2214]"
               >
                 <Instagram className="w-5 h-5" />
               </a>
 
               <button
                 onClick={onCartOpen}
-                className="relative p-3 rounded-full transition-all duration-300 text-white hover:bg-white/10 hover:text-[#a4240e] cursor-pointer"
+                className="relative p-3 rounded-full transition-all duration-300 text-white hover:bg-white/10 hover:text-[#8B2214] cursor-pointer"
               >
                 <ShoppingCart className="w-6 h-6" />
                 {getCartCount() > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-[#a4240e] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg">
+                  <span className="absolute -top-1 -right-1 bg-[#8B2214] text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-lg">
                     {getCartCount()}
                   </span>
                 )}
@@ -473,7 +473,7 @@ const Hero = ({ scrollToSection }: any) => (
 
       <button
         onClick={() => scrollToSection('products')}
-        className="bg-[#a4240e] hover:bg-[#8a1f0c] text-white px-10 py-4 rounded-full text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-2xl animate-fade-in-up animation-delay-400"
+        className="bg-[#8B2214] hover:bg-[#8a1f0c] text-white px-10 py-4 rounded-full text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-2xl animate-fade-in-up animation-delay-400"
       >
         Conheça Nossos Cafés
       </button>
@@ -500,7 +500,7 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
 
   if (loading) {
     return (
-      <section id="products" className="py-24 bg-gradient-to-b from-white to-stone-50">
+      <section id="products" className="py-10 bg-[#f8f7f5]">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#a4240e] mx-auto"></div>
         </div>
@@ -509,23 +509,23 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
   }
 
   return (
-    <section id="products" className="py-24 bg-gradient-to-b from-white to-stone-50">
+    <section id="products" className="py-10 bg-[#f8f7f5]">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="text-center mb-20">
-          <h2 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">Nossos Cafés</h2>
-          <div className="w-24 h-1.5 bg-[#a4240e] mx-auto mb-6 rounded-full"></div>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-bold text-gray-900 mb-3">Nossos Cafés</h2>
+          <div className="w-16 h-1 bg-[#8B2214] mx-auto mb-4 rounded-full"></div>
+          <p className="text-sm text-gray-500 max-w-xl mx-auto leading-relaxed">
             Seleção especial de cafés produzidos com os melhores grãos de Minas Gerais
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {products.map((product: Product) => (
             <div
               key={product.id}
-              className="bg-white rounded-3xl shadow-lg overflow-hidden transform transition-all duration-500 hover:scale-105 hover:shadow-2xl group flex flex-col"
+              className="bg-white rounded-xl shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md group flex flex-col cursor-pointer"
             >
-              <div className="relative h-72 bg-gradient-to-br from-stone-200 to-stone-100 overflow-hidden flex items-center justify-center">
+              <div className="relative aspect-square bg-stone-100 overflow-hidden overflow-hidden flex items-center justify-center">
                 <img
                   src={product.image_url && product.image_url.trim() !== '' ? product.image_url : '/saporino-logo.png'}
                   alt={product.name}
@@ -536,15 +536,15 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
                   className={`h-32 w-auto group-hover:scale-110 transition-transform duration-500 ${product.image_url ? 'object-contain' : ''}`}
                 />
                 {product.featured && (
-                  <div className="absolute top-6 right-6 bg-[#a4240e] text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
+                  <div className="absolute top-6 right-6 bg-[#8B2214] text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
                     Destaque
                   </div>
                 )}
               </div>
 
-              <div className="p-8 flex-1 flex flex-col">
+              <div className="p-3 flex-1 flex flex-col">
                 <div className="mb-3">
-                  <span className="inline-block bg-[#a4240e] text-white text-xs font-semibold px-4 py-2 rounded-full">
+                  <span className="inline-block bg-[#8B2214] text-white text-xs font-semibold px-4 py-2 rounded-full">
                     {product.category}
                   </span>
                 </div>
@@ -556,17 +556,17 @@ const Products = ({ products, loading, addedProducts, setAddedProducts }: any) =
                 <div className="mt-auto">
                   <div className="flex items-center justify-between mb-6">
                     <span className="text-sm text-gray-500 font-medium">{product.weight_grams}g</span>
-                    <span className="text-3xl font-bold text-[#a4240e]">R$ {product.price.toFixed(2)}</span>
+                    <span className="text-base font-bold text-[#8B2214]">R$ {product.price.toFixed(2)}</span>
                   </div>
 
                   <button
                     onClick={() => handleAddToCart(product)}
                     disabled={product.stock <= 0 || !product.is_active}
                     className={`w-full py-4 px-6 rounded-full font-semibold transition-all duration-300 flex items-center justify-center space-x-2 ${product.stock <= 0 || !product.is_active
-                      ? 'bg-white border-2 border-[#a4240e] text-[#a4240e] cursor-not-allowed'
+                      ? 'bg-white border-2 border-[#a4240e] text-[#8B2214] cursor-not-allowed'
                       : addedProducts.has(product.id)
                         ? 'bg-green-600 text-white shadow-lg'
-                        : 'bg-[#a4240e] text-white hover:bg-[#8a1f0c] transform hover:scale-105 shadow-lg'
+                        : 'bg-[#8B2214] text-white hover:bg-[#8a1f0c] transform hover:scale-105 shadow-lg'
                       }`}
                   >
                     {product.stock <= 0 || !product.is_active ? (
@@ -756,7 +756,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
       <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col overflow-hidden">
         <div className="flex items-center justify-between p-8 border-b border-gray-100 flex-shrink-0">
           <h2 className="text-3xl font-bold text-gray-900 flex items-center space-x-3">
-            <ShoppingBag className="w-7 h-7 text-[#a4240e]" />
+            <ShoppingBag className="w-7 h-7 text-[#8B2214]" />
             <span>{isCheckout ? 'Finalizar Pedido' : 'Sacola'}</span>
           </h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
@@ -817,13 +817,13 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                 <div className="grid grid-cols-2 gap-3">
                   <button type="button" onClick={() => setIsGift(false)}
                     className={`flex items-center justify-center space-x-2 py-3 px-4 rounded-xl border-2 font-semibold transition-all ${
-                      !isGift ? 'border-[#a4240e] bg-[#a4240e]/5 text-[#a4240e]' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      !isGift ? 'border-[#a4240e] bg-[#8B2214]/5 text-[#8B2214]' : 'border-gray-200 text-gray-600 hover:border-gray-300'
                     }`}>
                     <span>👤</span><span>Para mim</span>
                   </button>
                   <button type="button" onClick={() => setIsGift(true)}
                     className={`flex items-center justify-center space-x-2 py-3 px-4 rounded-xl border-2 font-semibold transition-all ${
-                      isGift ? 'border-[#a4240e] bg-[#a4240e]/5 text-[#a4240e]' : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                      isGift ? 'border-[#a4240e] bg-[#8B2214]/5 text-[#8B2214]' : 'border-gray-200 text-gray-600 hover:border-gray-300'
                     }`}>
                     <span>🎁</span><span>Presente</span>
                   </button>
@@ -901,7 +901,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                           onClick={() => setSelectedCarrierId(carrier.id)}
                           className={`w-full flex items-center space-x-3 p-4 rounded-xl border-2 transition-all text-left ${
                             selectedCarrierId === carrier.id
-                              ? 'border-[#a4240e] bg-[#a4240e]/5'
+                              ? 'border-[#a4240e] bg-[#8B2214]/5'
                               : 'border-gray-200 hover:border-gray-300'
                           }`}>
                           {/* Logo */}
@@ -925,7 +925,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                             )}
                           </div>
                           <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
-                            selectedCarrierId === carrier.id ? 'border-[#a4240e] bg-[#a4240e]' : 'border-gray-300'
+                            selectedCarrierId === carrier.id ? 'border-[#a4240e] bg-[#8B2214]' : 'border-gray-300'
                           }`} />
                         </button>
                       ))}
@@ -937,7 +937,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
               {/* Manual load button if CEP was skipped */}
               {carriers.length === 0 && !carriersLoading && cep.replace(/\D/g, '').length === 8 && (
                 <button type="button" onClick={fetchCarriers}
-                  className="w-full py-2 text-[#a4240e] border border-[#a4240e] rounded-xl text-sm font-semibold hover:bg-[#a4240e]/5 transition-colors">
+                  className="w-full py-2 text-[#8B2214] border border-[#a4240e] rounded-xl text-sm font-semibold hover:bg-[#8B2214]/5 transition-colors">
                   🔄 Buscar transportadoras disponíveis
                 </button>
               )}
@@ -958,7 +958,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                 ) : null}
                 <div className="border-t border-gray-200 pt-3 mt-3 flex justify-between font-bold text-xl">
                   <span>Total</span>
-                  <span className="text-[#a4240e]">R$ {(getCartTotal() + (selectedCarrierId ? (carriers.find(c => c.id === selectedCarrierId)?.price || 0) : 0)).toFixed(2)}</span>
+                  <span className="text-[#8B2214]">R$ {(getCartTotal() + (selectedCarrierId ? (carriers.find(c => c.id === selectedCarrierId)?.price || 0) : 0)).toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -988,7 +988,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full bg-[#a4240e] text-white py-4 rounded-full font-semibold hover:bg-[#8a1f0c] transition-all shadow-lg disabled:bg-gray-300 flex items-center justify-center space-x-2"
+                    className="w-full bg-[#8B2214] text-white py-4 rounded-full font-semibold hover:bg-[#8a1f0c] transition-all shadow-lg disabled:bg-gray-300 flex items-center justify-center space-x-2"
                   >
                     <CreditCard className="w-5 h-5" />
                     <span>{isSubmitting ? 'Processando...' : 'Continuar para Pagamento'}</span>
@@ -1022,7 +1022,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                   <div className="flex-1">
                     <h3 className="font-bold text-gray-900 mb-1">{item.name}</h3>
                     <p className="text-sm text-gray-500 mb-2">{item.weight}</p>
-                    <p className="text-[#a4240e] font-bold text-lg mb-3">R$ {item.price.toFixed(2)}</p>
+                    <p className="text-[#8B2214] font-bold text-lg mb-3">R$ {item.price.toFixed(2)}</p>
                     <div className="flex items-center space-x-3">
                       <button
                         onClick={() => updateQuantity(item.id, item.quantity - 1)}
@@ -1052,11 +1052,11 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
             <div className="border-t border-gray-100 p-8">
               <div className="flex justify-between items-center mb-6">
                 <span className="text-xl font-bold text-gray-900">Total</span>
-                <span className="text-3xl font-bold text-[#a4240e]">R$ {getCartTotal().toFixed(2)}</span>
+                <span className="text-base font-bold text-[#8B2214]">R$ {getCartTotal().toFixed(2)}</span>
               </div>
               <button
                 onClick={handleCheckout}
-                className="w-full bg-[#a4240e] text-white py-4 rounded-full font-semibold hover:bg-[#8a1f0c] transition-all shadow-lg mb-3"
+                className="w-full bg-[#8B2214] text-white py-4 rounded-full font-semibold hover:bg-[#8a1f0c] transition-all shadow-lg mb-3"
               >
                 {user ? 'Finalizar Pedido' : 'Fazer Login para Comprar'}
               </button>
@@ -1088,8 +1088,8 @@ const About = () => (
         </div>
 
         <div className="order-1 lg:order-2">
-          <h2 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">Nossa História</h2>
-          <div className="w-24 h-1.5 bg-[#a4240e] mb-8 rounded-full"></div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-3">Nossa História</h2>
+          <div className="w-24 h-1.5 bg-[#8B2214] mb-8 rounded-full"></div>
 
           <div className="space-y-6 text-lg text-gray-600 leading-relaxed">
             <p>
@@ -1110,7 +1110,7 @@ const About = () => (
             <p>
               Selecionamos cuidadosamente os melhores grãos do Cerrado Mineiro, mantendo o compromisso com a qualidade desde a lavoura até a torra. Cada pacote que chega às prateleiras carrega o percurso histórico que conecta Minas Gerais a São Paulo, da roça à cidade, do passado ao presente.
             </p>
-            <p className="text-[#a4240e] font-semibold text-xl italic">
+            <p className="text-[#8B2214] font-semibold text-xl italic">
               Quando você abre um Café Saporino, você não está apenas provando um café, você está vivendo uma jornada que começou há mais de 130 anos e que continua sendo escrita, xícara após xícara, por quem valoriza sabor, tradição e origem.
             </p>
           </div>
@@ -1133,10 +1133,10 @@ const Contact = ({ contactForm, setContactForm, contactSubmitted, setContactSubm
   return (
     <section id="journey" className="py-24 bg-gradient-to-b from-stone-50 to-white">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="text-center mb-20">
-          <h2 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">DO GRÃO À XÍCARA</h2>
-          <div className="w-24 h-1.5 bg-[#a4240e] mx-auto mb-6 rounded-full"></div>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-bold text-gray-900 mb-3">DO GRÃO À XÍCARA</h2>
+          <div className="w-16 h-1 bg-[#8B2214] mx-auto mb-4 rounded-full"></div>
+          <p className="text-sm text-gray-500 max-w-xl mx-auto leading-relaxed">
             Conheça a jornada do nosso café, desde a origem até sua xícara
           </p>
         </div>
@@ -1424,7 +1424,7 @@ const Footer = ({ scrollToSection }: any) => {
           <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col">
             <div className="flex items-center justify-between p-8 border-b border-gray-100">
               <h2 className="text-3xl font-bold text-gray-900 flex items-center space-x-3">
-                <Send className="w-7 h-7 text-[#a4240e]" />
+                <Send className="w-7 h-7 text-[#8B2214]" />
                 <span>Central de Relacionamento</span>
               </h2>
               <button onClick={() => setShowContactModal(false)} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
@@ -1475,7 +1475,7 @@ const Footer = ({ scrollToSection }: any) => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full bg-[#a4240e] text-white py-4 rounded-full font-semibold hover:bg-[#8a1f0c] transition-all shadow-lg disabled:bg-gray-300 flex items-center justify-center space-x-2"
+                  className="w-full bg-[#8B2214] text-white py-4 rounded-full font-semibold hover:bg-[#8a1f0c] transition-all shadow-lg disabled:bg-gray-300 flex items-center justify-center space-x-2"
                 >
                   <Send className="w-5 h-5" />
                   <span>{isSubmitting ? 'Enviando...' : 'Enviar Mensagem'}</span>
