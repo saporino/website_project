@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { LogOut } from 'lucide-react';
+import { LogOut, Package } from 'lucide-react';
 import { OrdersManagement } from '../components/admin/OrdersManagement';
 import { ProductsManagement } from '../components/admin/ProductsManagement';
 import { ShippingManagement } from '../components/admin/ShippingManagement';
@@ -13,7 +13,7 @@ import { AdminNotificationBell } from '../components/admin/AdminNotificationBell
 type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 'settings' | 'repco' | 'inventory';
 
 export function AdminDashboard() {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
 
   // Deep-link: if another page stored a target tab in localStorage, activate it
@@ -24,6 +24,16 @@ export function AdminDashboard() {
       localStorage.removeItem('admin-initial-tab');
     }
   }, []);
+
+  // Aguarda o Supabase restaurar a sessão antes de verificar permissões
+  // Sem isso, F5 mostra "Acesso Negado" porque user=null enquanto carrega
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-[#a4240e]" />
+      </div>
+    );
+  }
 
   if (!user || !profile?.is_admin) {
     return (
