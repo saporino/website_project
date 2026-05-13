@@ -6,6 +6,7 @@
   promotional_price?: number | null;
   discount_percentage?: number;
   image_url: string;
+  additional_images?: string[];
   category: string;
   weight?: string;
   weight_grams: number;
