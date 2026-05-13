@@ -648,6 +648,64 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
         </div>
 
         {/* Fotos Adicionais */}
+        <div className="col-span-2 mt-4 border-t border-gray-200 pt-4">
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Fotos Adicionais</label>
+          <p className="text-xs text-gray-400 mb-3">Fotos extras exibidas como miniaturas na pagina do produto</p>
+          <div className="grid grid-cols-2 gap-3">
+            {[0,1,2,3].map(idx => {
+              const imgUrl = (formData.additional_images || [])[idx] || '';
+              return (
+                <div key={idx} className="border border-gray-200 rounded-lg p-2">
+                  <p className="text-xs font-semibold text-gray-600 mb-1.5">Foto {idx + 2}</p>
+                  {imgUrl ? (
+                    <div className="relative">
+                      <img src={imgUrl} className="w-full h-20 object-contain rounded bg-gray-50"
+                        onError={(e) => { e.currentTarget.src = '/saporino-logo.png'; }}
+                        alt={oto } />
+                      <button type="button"
+                        onClick={() => {
+                          const imgs = [...(formData.additional_images || [])];
+                          imgs[idx] = '';
+                          setFormData({...formData, additional_images: imgs.filter(Boolean)});
+                        }}
+                        className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-700">
+                        x
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <input type="url" placeholder="URL da imagem..." value={imgUrl}
+                        onChange={e => {
+                          const imgs = [...(formData.additional_images || ['','','',''])];
+                          imgs[idx] = e.target.value;
+                          setFormData({...formData, additional_images: imgs});
+                        }}
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-[#8B2214]" />
+                      <label className="flex items-center justify-center gap-1 w-full py-1.5 bg-[#8B2214] text-white text-xs rounded cursor-pointer hover:bg-[#6d1a10]">
+                        Upload
+                        <input type="file" accept="image/*" className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0]; if (!file) return;
+                            const ext = file.name.split('.').pop();
+                            const path = `products/${Date.now()}-${idx + 2}.${ext}`;
+                            const { data, error } = await supabase.storage.from('product-images').upload(path, file, { upsert: true });
+                            if (!error && data) {
+                              const { data: pub } = supabase.storage.from('product-images').getPublicUrl(data.path);
+                              const imgs = [...(formData.additional_images || ['','','',''])];
+                              imgs[idx] = pub.publicUrl;
+                              setFormData({...formData, additional_images: imgs});
+                            }
+                          }} />
+                      </label>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Fotos Adicionais */}
         <div className="col-span-2">
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             Fotos Adicionais <span className="text-xs font-normal text-gray-400">(ate 4 URLs extras)</span>
