@@ -1,9 +1,9 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+﻿import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Product, CartItem } from '../types';
 
 interface CartContextType {
   cart: CartItem[];
-  addToCart: (product: Product) => void;
+  addToCart: (product: Product, options?: { is_subscription?: boolean; subscription_months?: number }) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
@@ -23,15 +23,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('saporino-cart', JSON.stringify(cart));
   }, [cart]);
 
-  const addToCart = (product: Product) => {
+  const addToCart = (product: Product, options?: { is_subscription?: boolean; subscription_months?: number }) => {
     setCart(prevCart => {
-      const existing = prevCart.find(item => item.id === product.id);
+      const existing = prevCart.find(item => item.id === product.id && (item.is_subscription ?? false) === (options?.is_subscription ?? false));
       if (existing) {
         return prevCart.map(item =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+          item.id === product.id && (item.is_subscription ?? false) === (options?.is_subscription ?? false) ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
-      return [...prevCart, { ...product, quantity: 1 }];
+      return [...prevCart, { ...product, quantity: 1, ...(options ?? {}) }];
     });
   };
 

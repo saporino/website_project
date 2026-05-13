@@ -15,11 +15,16 @@
   roast_type?: string | null;
   flavor_notes?: string | null;
   full_details?: string | null;
+  subscription_enabled?: boolean;
+  subscription_months?: number;
+  subscription_discount_pct?: number;
   display_order?: number;
 }
 
 export interface CartItem extends Product {
   quantity: number;
+  is_subscription?: boolean;
+  subscription_months?: number;
 }
 
 export interface UserProfile {

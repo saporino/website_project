@@ -40,6 +40,9 @@ export function ProductsManagement() {
     roast_type: '',
     flavor_notes: '',
     full_details: null as string | null,
+    subscription_enabled: false as boolean,
+    subscription_months: 6 as number,
+    subscription_discount_pct: 20 as number,
     display_order: 0,
   });
   const [imageMode, setImageMode] = useState<'upload' | 'url'>('url');
@@ -688,6 +691,24 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
         />
       </div>
 
+      {/* Assinatura */}
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Disponível para Assinatura</label>
+        <div className="flex items-center gap-3">
+          <input type="checkbox" checked={formData.subscription_enabled || false} onChange={e => setFormData({...formData, subscription_enabled: e.target.checked})} className="w-4 h-4 accent-[#8B2214]" />
+          <span className="text-sm text-gray-600">Ativar assinatura para este produto</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Meses de assinatura</label>
+          <input type="number" min="1" max="24" value={formData.subscription_months || 6} onChange={e => setFormData({...formData, subscription_months: parseInt(e.target.value)})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Desconto assinatura (%)</label>
+          <input type="number" min="0" max="100" value={formData.subscription_discount_pct || 20} onChange={e => setFormData({...formData, subscription_discount_pct: parseInt(e.target.value)})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+        </div>
+      </div>
       <div className="flex items-center space-x-3 pt-4">
         <button
           onClick={onSave}

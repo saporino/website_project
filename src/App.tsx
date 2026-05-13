@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, FormEvent, useCallback } from 'react';
+import { useState, useEffect, FormEvent, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
 import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Mail, Phone, MapPin, Send, User, ChevronDown, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -504,7 +504,7 @@ const Products = ({ products, loading, addedProducts, setAddedProducts, selected
 
 
   if (selectedProduct) {
-    return <ProductDetail product={selectedProduct} onBack={() => setSelectedProduct(null)} onAddToCart={handleAddToCart} isAdded={addedProducts.has(selectedProduct.id)} />;
+    return <ProductDetail product={selectedProduct} onBack={() => setSelectedProduct(null)} onAddToCart={handleAddToCart} isAdded={addedProducts.has(selectedProduct.id)} onOpenAuth={() => setIsAuthModalOpen(true)} />;
   }
 
   if (loading) {
@@ -1036,6 +1036,9 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                   </div>
                   <div className="flex-1">
                     <h3 className="font-bold text-gray-900 mb-1">{item.name}</h3>
+                    {item.is_subscription && (
+                      <p className="text-[10px] text-[#8B2214] font-semibold">Assinatura {item.subscription_months ?? 6} meses</p>
+                    )}
                     <p className="text-sm text-gray-500 mb-2">{item.weight}</p>
                     <p className="text-[#8B2214] font-bold text-lg mb-3">R$ {item.price.toFixed(2)}</p>
                     <div className="flex items-center space-x-3">

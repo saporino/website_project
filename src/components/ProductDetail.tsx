@@ -1,20 +1,62 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ShoppingCart, ChevronDown, ChevronUp, ArrowLeft } from "lucide-react";
 import { Product } from "../types";
+import { useAuth } from "../contexts/AuthContext";
+import { supabase } from "../lib/supabase";
 
 interface Props {
   product: Product;
   onBack: () => void;
-  onAddToCart: (product: Product) => void;
+  onAddToCart: (product: Product, options?: { is_subscription?: boolean; subscription_months?: number }) => void;
   isAdded: boolean;
+  onOpenAuth: () => void;
 }
 
-export default function ProductDetail({ product, onBack, onAddToCart, isAdded }: Props) {
+export default function ProductDetail({ product, onBack, onAddToCart, isAdded, onOpenAuth }: Props) {
+  const { user } = useAuth();
   const [open, setOpen] = useState<string | null>(null);
   const [purchase, setPurchase] = useState<"unica" | "assinatura">("unica");
   const [qty, setQty] = useState(1);
-  const price = purchase === "assinatura" ? product.price * 0.8 : product.price;
+  const [hasActiveSub, setHasActiveSub] = useState(false);
+
+  const months = product.subscription_months ?? 6;
+  const discountPct = product.subscription_discount_pct ?? 20;
+  const discountedPrice = product.price * (1 - discountPct / 100);
+  const price = purchase === "assinatura" ? discountedPrice : product.price;
+
+  useEffect(() => {
+    if (!user || purchase !== "assinatura") { setHasActiveSub(false); return; }
+    supabase
+      .from("subscriptions")
+      .select("id, selected_coffees, status")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .single()
+      .then(({ data }) => {
+        setHasActiveSub(!!(data && Array.isArray(data.selected_coffees) && data.selected_coffees.includes(product.id)));
+      });
+  }, [user, purchase, product.id]);
+
   const tog = (k: string) => setOpen(p => p === k ? null : k);
+
+  const handleAdd = () => {
+    for (let i = 0; i < qty; i++) {
+      onAddToCart(
+        product,
+        purchase === "assinatura" ? { is_subscription: true, subscription_months: months } : undefined
+      );
+    }
+  };
+
+  const getButton = () => {
+    if (purchase === "assinatura" && !user)
+      return { text: "Faça login para assinar", action: onOpenAuth, disabled: false, outline: true };
+    if (!product.is_active || product.stock <= 0)
+      return { text: "Esgotado", action: () => {}, disabled: true, outline: false };
+    return { text: isAdded ? "Adicionado!" : "Adicionar à sacola", action: handleAdd, disabled: false, outline: false };
+  };
+
+  const btn = getButton();
 
   return (
     <div className="bg-white min-h-screen">
@@ -120,18 +162,28 @@ export default function ProductDetail({ product, onBack, onAddToCart, isAdded }:
               <p className="text-xs font-bold text-gray-900">Compra única</p>
               <p className="text-xs text-gray-500 mt-0.5">R$ {product.price.toFixed(2).replace(".", ",")}</p>
             </div>
-            <div
-              onClick={() => setPurchase("assinatura")}
-              className={`border rounded-lg p-3 cursor-pointer transition-all ${purchase === "assinatura" ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-300"}`}
-            >
-              <p className="text-xs font-bold text-gray-900 flex items-center gap-2">
-                Assinar e economizar
-                <span className="bg-amber-100 text-amber-800 text-[9px] font-bold px-1.5 py-0.5 rounded">20% OFF</span>
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                R$ {(product.price * 0.8).toFixed(2).replace(".", ",")} por entrega
-              </p>
-            </div>
+
+            {(product.subscription_enabled ?? true) && (
+              <div
+                onClick={() => setPurchase("assinatura")}
+                className={`border rounded-lg p-3 cursor-pointer transition-all ${purchase === "assinatura" ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-300"}`}
+              >
+                <p className="text-xs font-bold text-gray-900 flex items-center gap-2">
+                  Assinar e economizar
+                  <span className="bg-amber-100 text-amber-800 text-[9px] font-bold px-1.5 py-0.5 rounded">
+                    {discountPct}% OFF
+                  </span>
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  R$ {discountedPrice.toFixed(2).replace(".", ",")} por entrega · {months} meses
+                </p>
+                {hasActiveSub && (
+                  <p className="text-[10px] text-[#8B2214] mt-1 font-semibold">
+                    Você já tem este café em assinatura ativa
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Quantidade + botão */}
@@ -148,18 +200,20 @@ export default function ProductDetail({ product, onBack, onAddToCart, isAdded }:
               >+</button>
             </div>
             <button
-              onClick={() => { for (let i = 0; i < qty; i++) onAddToCart(product); }}
-              disabled={!product.is_active || product.stock <= 0}
+              onClick={btn.action}
+              disabled={btn.disabled}
               className={`flex-1 py-2.5 rounded-full text-xs font-bold tracking-wide transition-all flex items-center justify-center gap-1.5 ${
-                isAdded
-                  ? "bg-green-600 text-white"
-                  : product.stock > 0 && product.is_active
-                    ? "bg-[#8B2214] hover:bg-[#6d1a10] text-white"
-                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                btn.disabled
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  : btn.outline
+                    ? "bg-white border-2 border-[#8B2214] text-[#8B2214] hover:bg-red-50"
+                    : isAdded
+                      ? "bg-green-600 text-white"
+                      : "bg-[#8B2214] hover:bg-[#6d1a10] text-white"
               }`}
             >
               <ShoppingCart className="w-3.5 h-3.5" />
-              {isAdded ? "Adicionado!" : product.stock > 0 ? "Adicionar à sacola" : "Esgotado"}
+              {btn.text}
             </button>
           </div>
 
