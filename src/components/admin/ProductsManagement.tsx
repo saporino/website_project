@@ -541,7 +541,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
-                🔗 URL
+                URL
               </button>
               <button
                 type="button"
@@ -551,7 +551,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
-                📤 Upload
+                Upload
               </button>
             </div>
 
@@ -608,7 +608,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
                   />
                 </label>
                 <p className="text-xs text-gray-500 mt-1">
-                  ⚠️ Requer bucket "product-images" configurado no Supabase
+                  Requer bucket "product-images" configurado no Supabase
                 </p>
               </div>
             )}
@@ -624,7 +624,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
                     className="max-w-full max-h-full object-contain"
                     onError={(e) => {
                       e.currentTarget.src = '';
-                      e.currentTarget.alt = '❌ Erro ao carregar';
+                      e.currentTarget.alt = 'Erro ao carregar';
                     }}
                   />
                 </div>
@@ -633,7 +633,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
                   onClick={() => setFormData({ ...formData, image_url: '' })}
                   className="mt-2 text-xs text-red-600 hover:text-red-800 font-medium"
                 >
-                  🗑️ Remover imagem
+                  Remover imagem
                 </button>
               </div>
             )}
