@@ -18,6 +18,7 @@ export default function ProductDetail({ product, onBack, onAddToCart, isAdded }:
 
   return (
     <div className="bg-white min-h-screen">
+      {/* Breadcrumb */}
       <div className="border-b border-gray-100 px-4 sm:px-6 py-3">
         <button onClick={onBack} className="flex items-center gap-1.5 text-xs text-[#8B2214] font-semibold hover:underline">
           <ArrowLeft className="w-3 h-3" /> Todos os produtos
@@ -133,7 +134,7 @@ export default function ProductDetail({ product, onBack, onAddToCart, isAdded }:
             </div>
           </div>
 
-          {/* Qty + botão */}
+          {/* Quantidade + botão */}
           <div className="flex gap-2 items-center">
             <div className="flex items-center border border-gray-200 rounded-full overflow-hidden">
               <button
