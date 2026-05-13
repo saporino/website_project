@@ -468,7 +468,7 @@ const Hero = ({ scrollToSection }: any) => (
       </div>
 
       <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight animate-fade-in-up whitespace-nowrap">
-        O Verdadeiro Sabor de Minas&#174;
+        O Verdadeiro Sabor de Minas
       </h1>
 
       <p className="text-lg md:text-xl mb-12 max-w-4xl mx-auto font-light leading-relaxed animate-fade-in-up animation-delay-200">
