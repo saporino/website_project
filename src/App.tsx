@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent, useCallback } from 'react';
+﻿import { useState, useEffect, FormEvent, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
 import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Mail, Phone, MapPin, Send, User, ChevronDown, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -1026,7 +1026,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
             <div className="flex-1 overflow-y-auto p-8 space-y-4">
               {cart.map((item: CartItem) => (
                 <div key={item.id} className="flex space-x-4 bg-stone-50 rounded-2xl p-5">
-                  <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 bg-stone-100 border border-gray-100">
+                  <div className="w-20 h-20 flex-shrink-0">
                     <img
                       src={item.image_url && item.image_url.trim() !== '' ? item.image_url : '/saporino-logo.png'}
                       alt={item.name}
