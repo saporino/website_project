@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Plus, Edit, Trash2, Save, X, Image as ImageIcon } from 'lucide-react';
 
@@ -455,6 +455,17 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
         </div>
       </div>
 
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Detalhes do Produto</label>
+        <textarea
+          value={formData.full_details || ''}
+          onChange={(e) => setFormData({ ...formData, full_details: e.target.value })}
+          rows={5}
+          placeholder="Texto detalhado exibido na página do produto..."
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent resize-none"
+        />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">Preço (R$) *</label>
@@ -526,7 +537,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
                 type="button"
                 onClick={() => setImageMode('url')}
                 className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all ${imageMode === 'url'
-                  ? 'bg-[#a4240e] text-white'
+                  ? 'bg-[#8B2214] text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
@@ -536,7 +547,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
                 type="button"
                 onClick={() => setImageMode('upload')}
                 className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all ${imageMode === 'upload'
-                  ? 'bg-[#a4240e] text-white'
+                  ? 'bg-[#8B2214] text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
               >
@@ -633,7 +644,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             type="checkbox"
             checked={formData.is_active || false}
             onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-            className="w-5 h-5 text-[#a4240e] border-gray-300 rounded focus:ring-[#8B2214]"
+            className="w-5 h-5 accent-[#8B2214] border-gray-300 rounded"
           />
           <span className="text-sm font-medium text-gray-700">Produto Ativo</span>
         </label>
@@ -643,52 +654,10 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             type="checkbox"
             checked={formData.featured || false}
             onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
-            className="w-5 h-5 text-[#a4240e] border-gray-300 rounded focus:ring-[#8B2214]"
+            className="w-5 h-5 accent-[#8B2214] border-gray-300 rounded"
           />
           <span className="text-sm font-medium text-gray-700">Produto em Destaque</span>
         </label>
-      </div>
-
-
-      {/* Tipo de Torra */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de Torra</label>
-        <select
-          value={formData.roast_type || ''}
-          onChange={e => setFormData({...formData, roast_type: e.target.value || null})}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
-        >
-          <option value="">Selecionar...</option>
-          <option>Clara</option>
-          <option>Média</option>
-          <option>Escura</option>
-          <option>Extra Escura</option>
-        </select>
-      </div>
-
-      {/* Notas de Sabor */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Notas de Sabor</label>
-        <input
-          type="text"
-          value={formData.flavor_notes || ''}
-          onChange={e => setFormData({...formData, flavor_notes: e.target.value || null})}
-          placeholder="Caramelo · Nozes · Chocolate"
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214]"
-        />
-        <p className="text-xs text-gray-400 mt-1">Separe as notas com ·</p>
-      </div>
-
-      {/* Detalhes completos */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Detalhes do Produto</label>
-        <textarea
-          value={formData.full_details || ''}
-          onChange={e => setFormData({...formData, full_details: e.target.value || null})}
-          rows={5}
-          placeholder="Texto detalhado exibido na página do produto..."
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] resize-none"
-        />
       </div>
 
       {/* Assinatura */}
