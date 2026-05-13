@@ -536,7 +536,7 @@ const Products = ({ products, loading, addedProducts, setAddedProducts, selected
               onClick={() => setSelectedProduct(product)} className="bg-white overflow-hidden transition-all duration-300 group flex flex-col cursor-pointer"
             >
               <div className="relative aspect-square bg-white overflow-hidden flex items-center justify-center">
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-50 via-stone-100 to-amber-100 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="absolute inset-0 opacity-0" />
                 <img
                   src={product.image_url && product.image_url.trim() !== '' ? product.image_url : '/saporino-logo.png'}
                   alt={product.name}
