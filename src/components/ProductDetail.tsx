@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { ShoppingCart, ChevronDown, ChevronUp, ArrowLeft } from "lucide-react";
 import { Product } from "../types";
 import { useAuth } from "../contexts/AuthContext";
