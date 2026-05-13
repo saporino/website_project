@@ -18,6 +18,13 @@ export default function ProductDetail({ product, onBack, onAddToCart, isAdded, o
   const [purchase, setPurchase] = useState<"unica" | "assinatura">("unica");
   const [qty, setQty] = useState(1);
   const [hasActiveSub, setHasActiveSub] = useState(false);
+  const [activeImg, setActiveImg] = useState(product.image_url || "/saporino-logo.png");
+
+  // Build gallery: main + additional (non-empty)
+  const gallery = [
+    product.image_url || "/saporino-logo.png",
+    ...((product.additional_images || []).filter(u => u && u.trim() !== "")),
+  ];
 
   const months = product.subscription_months ?? 6;
   const discountPct = product.subscription_discount_pct ?? 20;
@@ -68,23 +75,35 @@ export default function ProductDetail({ product, onBack, onAddToCart, isAdded, o
       </div>
 
       <div className="flex flex-col md:flex-row max-w-5xl mx-auto">
-        {/* Imagem */}
+        {/* Galeria */}
         <div className="md:w-1/2 border-r border-gray-50">
+          {/* Imagem ativa */}
           <div className="aspect-square flex items-center justify-center p-10 sm:p-16 bg-white">
             <img
-              src={product.image_url || "/saporino-logo.png"}
+              src={activeImg}
               alt={product.name}
-              className="w-full h-full object-contain"
+              onError={e => { e.currentTarget.src = "/saporino-logo.png"; }}
+              className="w-full h-full object-contain transition-opacity duration-200"
             />
           </div>
-          <div className="flex gap-2 px-4 pb-4 pt-3 border-t border-gray-50">
-            <div className="w-14 h-14 border-2 border-[#8B2214] rounded overflow-hidden p-1.5 bg-white flex-shrink-0">
-              <img
-                src={product.image_url || "/saporino-logo.png"}
-                className="w-full h-full object-contain"
-                alt="miniatura"
-              />
-            </div>
+          {/* Miniaturas */}
+          <div className="flex gap-2 px-4 pb-4 pt-3 border-t border-gray-50 overflow-x-auto">
+            {gallery.map((url, idx) => (
+              <button
+                key={idx}
+                onClick={() => setActiveImg(url)}
+                className={`w-14 h-14 flex-shrink-0 rounded overflow-hidden p-1 border-2 transition-all ${
+                  activeImg === url ? "border-[#8B2214]" : "border-gray-200 hover:border-gray-400"
+                }`}
+              >
+                <img
+                  src={url}
+                  onError={e => { e.currentTarget.src = "/saporino-logo.png"; }}
+                  className="w-full h-full object-contain"
+                  alt={`foto ${idx + 1}`}
+                />
+              </button>
+            ))}
           </div>
         </div>
 
