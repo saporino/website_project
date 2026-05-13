@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Plus, Edit, Trash2, Save, X, Image as ImageIcon } from 'lucide-react';
 
@@ -381,7 +381,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             required
             value={formData.name || ''}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a4240e] focus:border-transparent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
           />
         </div>
 
@@ -392,7 +392,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             min="0"
             value={formData.display_order || ''}
             onChange={(e) => setFormData({ ...formData, display_order: e.target.value ? parseInt(e.target.value) : 0 })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a4240e] focus:border-transparent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
             title="Dica: Coloque 1 para aparecer em primeiro, 2 para segundo..."
           />
         </div>
@@ -404,7 +404,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
           <select
             value={formData.category || ''}
             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a4240e] focus:border-transparent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
           >
             <option value="">Selecione...</option>
             <option value="Café em Grãos">Café em Grãos</option>
@@ -422,7 +422,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
           value={formData.description || ''}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           rows={3}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a4240e] focus:border-transparent"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
         />
       </div>
 
@@ -432,7 +432,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
           <select
             value={formData.roast_type || ''}
             onChange={(e) => setFormData({ ...formData, roast_type: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a4240e] focus:border-transparent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
           >
             <option value="">Selecione...</option>
             <option value="Torra clara">Torra clara</option>
@@ -450,7 +450,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             value={formData.flavor_notes || ''}
             onChange={(e) => setFormData({ ...formData, flavor_notes: e.target.value })}
             placeholder="Ex: Chocolate, Caramelo, Nozes"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a4240e] focus:border-transparent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
           />
         </div>
       </div>
@@ -465,7 +465,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             min="0"
             value={formData.price || ''}
             onChange={(e) => setFormData({ ...formData, price: e.target.value ? parseFloat(e.target.value) : 0 })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a4240e] focus:border-transparent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
           />
         </div>
 
@@ -484,7 +484,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
                 promotional_price: e.target.value ? parseFloat(e.target.value) : null,
               })
             }
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a4240e] focus:border-transparent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
           />
         </div>
 
@@ -496,7 +496,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             min="1"
             value={formData.weight_grams || ''}
             onChange={(e) => setFormData({ ...formData, weight_grams: e.target.value ? parseInt(e.target.value) : 0 })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a4240e] focus:border-transparent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
           />
         </div>
       </div>
@@ -510,7 +510,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             min="0"
             value={formData.stock || ''}
             onChange={(e) => setFormData({ ...formData, stock: e.target.value ? parseInt(e.target.value) : 0 })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a4240e] focus:border-transparent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
           />
         </div>
 
@@ -552,7 +552,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
                   value={formData.image_url || ''}
                   onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
                   placeholder="https://exemplo.com/imagem-produto.png"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a4240e] focus:border-transparent"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Cole a URL de uma imagem da internet (opcional)
@@ -567,7 +567,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     {uploading ? (
                       <>
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#a4240e] mb-2"></div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8B2214] mb-2"></div>
                         <p className="text-sm text-gray-600">Fazendo upload...</p>
                       </>
                     ) : (
@@ -633,7 +633,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             type="checkbox"
             checked={formData.is_active || false}
             onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-            className="w-5 h-5 text-[#a4240e] border-gray-300 rounded focus:ring-[#a4240e]"
+            className="w-5 h-5 text-[#a4240e] border-gray-300 rounded focus:ring-[#8B2214]"
           />
           <span className="text-sm font-medium text-gray-700">Produto Ativo</span>
         </label>
@@ -643,7 +643,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             type="checkbox"
             checked={formData.featured || false}
             onChange={(e) => setFormData({ ...formData, featured: e.target.checked })}
-            className="w-5 h-5 text-[#a4240e] border-gray-300 rounded focus:ring-[#a4240e]"
+            className="w-5 h-5 text-[#a4240e] border-gray-300 rounded focus:ring-[#8B2214]"
           />
           <span className="text-sm font-medium text-gray-700">Produto em Destaque</span>
         </label>
