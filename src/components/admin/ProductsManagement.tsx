@@ -674,8 +674,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
           <input
             type="checkbox"
             checked={formData.is_active || false}
-            onChange={(e) => setFormData({ ...formData,
-    additional_images: [] as string[], is_active: e.target.checked })}
+            onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
             className="w-5 h-5 accent-[#8B2214] border-gray-300 rounded"
           />
           <span className="text-sm font-medium text-gray-700">Produto Ativo</span>
