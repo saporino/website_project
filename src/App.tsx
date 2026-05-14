@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent, useCallback } from 'react';
+﻿import { useState, useEffect, FormEvent, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
 import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Mail, Phone, MapPin, Send, User, ChevronDown, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
