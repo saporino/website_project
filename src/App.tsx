@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, FormEvent, useCallback } from 'react';
+import { useState, useEffect, FormEvent, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
 import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Mail, Phone, MapPin, Send, User, ChevronDown, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -538,7 +538,7 @@ const Products = ({ products, loading, addedProducts, setAddedProducts, selected
               <div className="relative aspect-square bg-white overflow-hidden flex items-center justify-center">
                 <div className="absolute inset-0 opacity-0" />
                 <img
-                  src={product.image_url && product.image_url.trim() !== '' ? product.image_url : '/saporino-logo.png'}
+                  src={product.stock > 0 && product.is_active && product.image_url && product.image_url.trim() !== '' ? product.image_url : '/saporino-logo.png'}
                   alt={product.name}
                   onError={(e) => {
                     e.currentTarget.src = '/saporino-logo.png';
@@ -566,7 +566,9 @@ const Products = ({ products, loading, addedProducts, setAddedProducts, selected
                 <div className="mt-auto">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs text-gray-400">{product.weight_grams}g</span>
-                    <span className="text-sm font-bold text-[#8B2214]">R$ {product.price.toFixed(2)}</span>
+                    {product.stock > 0 && product.is_active && (
+                      <span className="text-sm font-bold text-[#8B2214]">R$ {product.price.toFixed(2)}</span>
+                    )}
                   </div>
 
                   <button
