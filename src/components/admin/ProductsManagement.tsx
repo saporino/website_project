@@ -661,7 +661,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
                     <div className="relative">
                       <img src={imgUrl} className="w-full h-20 object-contain rounded bg-gray-50"
                         onError={(e) => { e.currentTarget.src = '/saporino-logo.png'; }}
-                        alt={oto } />
+                        alt="foto adicional" />
                       <button type="button"
                         onClick={() => {
                           const imgs = [...(formData.additional_images || [])];
