@@ -234,13 +234,14 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
 
             <nav className="hidden lg:flex items-center space-x-1">
               <button
-                onClick={() => scrollToSection('products')}
+                onClick={() => { setSelectedProduct(null); scrollToSection('products'); }}
                 className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#8B2214] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
               >
                 LOJA
               </button>
               <button
                 onClick={() => {
+                  setSelectedProduct(null);
                   window.history.pushState({}, '', '/assinatura');
                   window.dispatchEvent(new PopStateEvent('popstate'));
                 }}
@@ -249,19 +250,19 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
                 ASSINATURA
               </button>
               <button
-                onClick={() => scrollToSection('about')}
+                onClick={() => { setSelectedProduct(null); scrollToSection('about'); }}
                 className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#8B2214] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
               >
                 SOBRE
               </button>
               <button
-                onClick={() => scrollToSection('journey')}
+                onClick={() => { setSelectedProduct(null); scrollToSection('journey'); }}
                 className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#8B2214] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
               >
                 JORNADA
               </button>
               <button
-                onClick={() => scrollToSection('contact')}
+                onClick={() => { setSelectedProduct(null); scrollToSection('contact'); }}
                 className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#8B2214] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
               >
                 CONTATO
