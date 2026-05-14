@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, FormEvent, useCallback } from 'react';
+import { useState, useEffect, FormEvent, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
 import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Mail, Phone, MapPin, Send, User, ChevronDown, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -234,14 +234,14 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
 
             <nav className="hidden lg:flex items-center space-x-1">
               <button
-                onClick={() => { setSelectedProduct(null); scrollToSection('products'); }}
+                onClick={() => scrollToSection('products')}
                 className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#8B2214] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
               >
                 LOJA
               </button>
               <button
                 onClick={() => {
-                  setSelectedProduct(null); window.history.pushState({}, '', '/assinatura');
+                  window.history.pushState({}, '', '/assinatura');
                   window.dispatchEvent(new PopStateEvent('popstate'));
                 }}
                 className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#8B2214] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
@@ -249,19 +249,19 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
                 ASSINATURA
               </button>
               <button
-                onClick={() => { setSelectedProduct(null); scrollToSection('about'); }}
+                onClick={() => scrollToSection('about')}
                 className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#8B2214] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
               >
                 SOBRE
               </button>
               <button
-                onClick={() => { setSelectedProduct(null); scrollToSection('journey'); }}
+                onClick={() => scrollToSection('journey')}
                 className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#8B2214] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
               >
                 JORNADA
               </button>
               <button
-                onClick={() => { setSelectedProduct(null); scrollToSection('contact'); }}
+                onClick={() => scrollToSection('contact')}
                 className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#8B2214] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
               >
                 CONTATO
@@ -476,7 +476,7 @@ const Hero = ({ scrollToSection }: any) => (
       </p>
 
       <button
-        onClick={() => { setSelectedProduct(null); scrollToSection('products'); }}
+        onClick={() => scrollToSection('products')}
         className="bg-[#8B2214] hover:bg-[#8a1f0c] text-white px-10 py-4 rounded-full text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-2xl animate-fade-in-up animation-delay-400"
       >
         Conheça Nossos Cafés
@@ -1292,7 +1292,7 @@ const Footer = ({ scrollToSection }: any) => {
                 {products.map((product) => (
                   <li key={product.id}>
                     <button
-                      onClick={() => { setSelectedProduct(null); scrollToSection('products'); }}
+                      onClick={() => scrollToSection('products')}
                       className="text-white/80 hover:text-white transition-colors text-sm"
                     >
                       {product.name.replace(/^Café\s+/i, '')}
@@ -1301,7 +1301,7 @@ const Footer = ({ scrollToSection }: any) => {
                 ))}
                 <li>
                   <button
-                    onClick={() => { setSelectedProduct(null); scrollToSection('products'); }}
+                    onClick={() => scrollToSection('products')}
                     className="text-white/80 hover:text-white transition-colors text-sm"
                   >
                     Todos os cafés
@@ -1315,7 +1315,7 @@ const Footer = ({ scrollToSection }: any) => {
               <h3 className="text-lg font-bold mb-6 text-white">Institucional</h3>
               <ul className="space-y-3">
                 <li>
-                  <button onClick={() => { setSelectedProduct(null); scrollToSection('about'); }} className="text-white/80 hover:text-white transition-colors text-sm">
+                  <button onClick={() => scrollToSection('about')} className="text-white/80 hover:text-white transition-colors text-sm">
                     Quem Somos
                   </button>
                 </li>
