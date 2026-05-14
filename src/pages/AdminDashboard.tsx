@@ -9,6 +9,7 @@ import { CustomersManagement } from '../components/admin/CustomersManagement';
 import { Dashboard } from '../components/admin/Dashboard';
 import { RepCoManagement } from '../components/admin/RepCoManagement';
 import { AdminNotificationBell } from '../components/admin/AdminNotificationBell';
+import BatchManagement from '../components/admin/BatchManagement';
 
 type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 'settings' | 'repco' | 'inventory';
 
@@ -127,13 +128,7 @@ export function AdminDashboard() {
             {activeTab === 'customers' && <CustomersManagement />}
             {activeTab === 'shipping' && <ShippingManagement />}
             {activeTab === 'repco' && <RepCoManagement />}
-            {activeTab === 'inventory' && (
-              <div className="text-center py-16 text-gray-400">
-                <p className="text-5xl mb-4">📦</p>
-                <p className="text-lg font-medium text-gray-600">Módulo de Inventário</p>
-                <p className="text-sm mt-2">Em desenvolvimento — disponível em breve</p>
-              </div>
-            )}
+            {activeTab === 'inventory' && <BatchManagement />}
             {activeTab === 'settings' && <StoreSettings />}
           </div>
         </div>
