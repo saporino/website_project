@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
-import { Package, Plus, Edit2, Trash2, ChevronDown, ChevronUp, Building2, X, Save, UserPlus, Phone, Mail } from "lucide-react";
+import { Package, Plus, Edit2, Trash2, ChevronDown, ChevronUp, Building2, X, Save, UserPlus, Phone, Mail, MessageCircle } from "lucide-react";
 
 interface RoastingCompany { id:string; name:string; cnpj:string; city:string; state:string; cep:string; company_code:number; active:boolean; notes:string; director_name:string; email:string; whatsapp:string; inscricao_estadual:string; }
 interface Contact { id:string; company_id:string; name:string; role:string; email:string; phone:string; whatsapp:string; extension:string; active:boolean; }
@@ -190,9 +190,15 @@ export default function BatchManagement() {
               </div>
               {expandedCompany===c.id&&(
                 <div className="border-t border-gray-100 bg-gray-50 px-4 py-3 space-y-3">
-                  <div className="flex gap-4 text-xs">
-                    {c.email&&<span className="flex items-center gap-1"><Mail className="w-3 h-3 text-gray-400"/>{c.email}</span>}
-                    {c.whatsapp&&<span className="flex items-center gap-1"><Phone className="w-3 h-3 text-gray-400"/>{c.whatsapp}</span>}
+                  <div className="flex flex-wrap gap-3 text-xs">
+                    {c.email&&<span className="flex items-center gap-1">
+                      <Mail className="w-3 h-3 text-gray-400"/>{c.email}
+                      <a href={`mailto:${c.email}`} className="p-0.5 hover:bg-gray-200 rounded text-[#8B2214]" title="Enviar email"><Mail className="w-3 h-3"/></a>
+                    </span>}
+                    {c.whatsapp&&<span className="flex items-center gap-1">
+                      <Phone className="w-3 h-3 text-gray-400"/>{c.whatsapp}
+                      <a href={`https://wa.me/${c.whatsapp.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" className="p-0.5 hover:bg-gray-200 rounded text-green-600" title="Abrir WhatsApp"><MessageCircle className="w-3 h-3"/></a>
+                    </span>}
                     {c.inscricao_estadual&&<span className="text-gray-400">IE: {c.inscricao_estadual}</span>}
                   </div>
                   <div className="flex items-center justify-between">
@@ -206,9 +212,9 @@ export default function BatchManagement() {
                           <div>
                             <span className="text-xs font-semibold text-gray-900">{ct.name}</span>
                             <span className="text-xs text-[#8B2214] ml-2 bg-red-50 px-1.5 py-0.5 rounded">{ct.role}</span>
-                            <div className="flex gap-3 mt-0.5">
-                              {ct.email&&<span className="text-[10px] text-gray-400">{ct.email}</span>}
-                              {ct.whatsapp&&<span className="text-[10px] text-gray-400">WA: {ct.whatsapp}</span>}
+                            <div className="flex flex-wrap gap-2 mt-0.5">
+                              {ct.email&&<span className="flex items-center gap-1 text-[10px] text-gray-400">{ct.email}<a href={`mailto:${ct.email}`} className="hover:text-[#8B2214]" title="Enviar email"><Mail className="w-2.5 h-2.5"/></a></span>}
+                              {ct.whatsapp&&<span className="flex items-center gap-1 text-[10px] text-gray-400">WA: {ct.whatsapp}<a href={`https://wa.me/${ct.whatsapp.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" className="hover:text-green-600" title="Abrir WhatsApp"><MessageCircle className="w-2.5 h-2.5"/></a></span>}
                               {ct.phone&&<span className="text-[10px] text-gray-400">Tel: {ct.phone}{ct.extension?" r."+ct.extension:""}</span>}
                             </div>
                           </div>
