@@ -508,14 +508,22 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
 
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">Peso (gramas) *</label>
-          <input
-            type="number"
-            required
-            min="1"
-            value={formData.weight_grams || ''}
-            onChange={(e) => setFormData({ ...formData, weight_grams: e.target.value ? parseInt(e.target.value) : 0 })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
-          />
+          <div className="flex gap-2">
+            {[250, 500, 1000].map(w => (
+              <button
+                type="button"
+                key={w}
+                onClick={() => setFormData({...formData, weight_grams: w})}
+                className={`px-4 py-2 rounded-lg border text-sm font-semibold transition-all ${
+                  formData.weight_grams === w
+                    ? 'bg-[#8B2214] text-white border-[#8B2214]'
+                    : 'bg-white text-gray-700 border-gray-300 hover:border-[#8B2214]'
+                }`}
+              >
+                {w >= 1000 ? '1kg' : `${w}g`}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
