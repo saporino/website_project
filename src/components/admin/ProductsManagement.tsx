@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Plus, Edit, Trash2, Save, X, Image as ImageIcon } from 'lucide-react';
 
@@ -514,7 +514,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
                 type="button"
                 key={w}
                 onClick={() => setFormData({...formData, weight_grams: w})}
-                className={`px-4 py-2 rounded-lg border text-sm font-semibold transition-all ${
+                className={`flex-1 py-2 rounded-lg border text-sm font-semibold text-center transition-all ${
                   formData.weight_grams === w
                     ? 'bg-[#8B2214] text-white border-[#8B2214]'
                     : 'bg-white text-gray-700 border-gray-300 hover:border-[#8B2214]'
