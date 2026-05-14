@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Plus, Edit, Trash2, Save, X, Image as ImageIcon } from 'lucide-react';
 
@@ -703,30 +703,6 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
               );
             })}
           </div>
-        </div>
-
-        {/* Fotos Adicionais */}
-        <div className="col-span-2">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Fotos Adicionais <span className="text-xs font-normal text-gray-400">(ate 4 URLs extras)</span>
-          </label>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {[0,1,2,3].map(idx => (
-              <input
-                key={idx}
-                type="url"
-                value={(formData.additional_images || [])[idx] || ''}
-                onChange={e => {
-                  const imgs = [...(formData.additional_images || ['','','',''])];
-                  imgs[idx] = e.target.value;
-                  setFormData({...formData, additional_images: imgs});
-                }}
-                 placeholder={`URL da foto ${idx + 2}`}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
-              />
-            ))}
-          </div>
-          <p className="text-xs text-gray-400 mt-1">Exibidas como miniaturas na pagina do produto</p>
         </div>
         <label className="flex items-center space-x-2">
           <input
