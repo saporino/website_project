@@ -125,6 +125,9 @@ function AppContent() {
   useEffect(() => {
     loadProducts();
     window.scrollTo(0, 0); // Scroll to top on page load/refresh
+    const handleVis = () => { if (document.visibilityState === 'visible') loadProducts(); };
+    document.addEventListener('visibilitychange', handleVis);
+    return () => document.removeEventListener('visibilitychange', handleVis);
   }, []);
 
   const loadProducts = async () => {
