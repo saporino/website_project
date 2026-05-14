@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Plus, Edit, Trash2, Save, X, Image as ImageIcon } from 'lucide-react';
 
@@ -23,6 +23,7 @@ interface Product {
 export function ProductsManagement() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeBatches, setActiveBatches] = useState<Record<string, string[]>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [formData, setFormData] = useState<Partial<Product>>({
@@ -55,10 +56,10 @@ export function ProductsManagement() {
 
   const loadProducts = async () => {
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('display_order', { ascending: true });
+      const [{ data, error }, { data: batches }] = await Promise.all([
+        supabase.from('products').select('*').order('display_order', { ascending: true }),
+        supabase.from('product_batches').select('product_id,batch_number').eq('status', 'active')
+      ]);
 
       if (error) throw error;
 
@@ -70,8 +71,16 @@ export function ProductsManagement() {
       });
 
       setProducts(sortedData);
+
+      const bMap: Record<string, string[]> = {};
+      (batches || []).forEach((b: any) => {
+        if (!bMap[b.product_id]) bMap[b.product_id] = [];
+        bMap[b.product_id].push(b.batch_number);
+      });
+      setActiveBatches(bMap);
     } catch (error) {
       console.error('Error loading products:', error);
+
     } finally {
       setLoading(false);
     }
@@ -327,6 +336,9 @@ export function ProductsManagement() {
                       <p>Categoria: {product.category} | Peso: {product.weight_grams}g</p>
                       {product.roast_type && <p>Torra: {product.roast_type}</p>}
                       {product.flavor_notes && <p>Notas: {product.flavor_notes}</p>}
+                      {activeBatches[product.id]?.length > 0 && (
+                        <p className="text-green-700 font-medium">Lotes ativos: {activeBatches[product.id].join(', ')}</p>
+                      )}
                     </div>
                   </div>
 

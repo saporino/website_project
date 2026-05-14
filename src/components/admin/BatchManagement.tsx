@@ -126,7 +126,6 @@ export default function BatchManagement() {
             <div className="text-center py-12 bg-white border border-gray-200 rounded-xl">
               <Package className="w-10 h-10 text-gray-300 mx-auto mb-2"/>
               <p className="text-gray-500 text-sm">Nenhum lote encontrado</p>
-              <button onClick={()=>setShowBatchForm(true)} className="mt-3 text-[#8B2214] text-sm font-semibold hover:underline">Criar primeiro lote</button>
             </div>
           ):(
             <div className="space-y-2">
