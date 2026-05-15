@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { Package, Plus, Edit2, Trash2, ChevronDown, ChevronUp, Building2, X, Save, UserPlus, Phone, Mail, MessageCircle } from "lucide-react";
 
@@ -7,8 +7,8 @@ interface Contact { id:string; company_id:string; name:string; role:string; emai
 interface Batch { id:string; batch_number:string; product_id:string; product_name?:string; roasting_company_id:string; company_name?:string; status:string; quantity_packages:number; production_date:string; expiry_date:string; variety:string; altitude_m:number; farm_name:string; green_weight_kg:number; green_cost_per_kg:number; sca_score:number; sensory_notes:string; cost_per_250g:number; cost_per_500g:number; cost_per_1kg:number; notes:string; }
 interface Product { id:string; name:string; stock:number; }
 
-const EMPTY_BATCH = { product_id:"", roasting_company_id:"", status:"active", quantity_packages:0, production_date:"", expiry_date:"", variety:"", altitude_m:0, farm_name:"", green_weight_kg:0, green_cost_per_kg:0, sca_score:0, sensory_notes:"", notes:"" };
-const EMPTY_COMPANY = { name:"", cnpj:"", city:"", state:"", cep:"", company_code:0, notes:"", director_name:"", email:"", whatsapp:"", inscricao_estadual:"" };
+const EMPTY_BATCH = { product_id:"", roasting_company_id:"", status:"active", quantity_packages:0, production_date:"", expiry_date:"", variety:"", altitude_m:0, farm_name:"", green_weight_kg:0, green_cost_per_kg:0, sca_score:0, sensory_notes:"" };
+const EMPTY_COMPANY = { name:"", cnpj:"", city:"", state:"", cep:"", company_code:0, director_name:"", email:"", whatsapp:"", inscricao_estadual:"" };
 const EMPTY_CONTACT = { company_id:"", name:"", role:"", email:"", phone:"", whatsapp:"", extension:"" };
 const STATUS_LABELS:Record<string,string> = { active:"Ativo", consumed:"Consumido", reserved:"Reservado", cancelled:"Cancelado" };
 const STATUS_COLORS:Record<string,string> = { active:"bg-green-100 text-green-800", consumed:"bg-gray-100 text-gray-600", reserved:"bg-amber-100 text-amber-800", cancelled:"bg-red-100 text-red-800" };
