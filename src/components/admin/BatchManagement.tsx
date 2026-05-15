@@ -45,7 +45,7 @@ export default function BatchManagement() {
       supabase.from("products").select("id,name,stock").order("name"),
       supabase.from("roasting_company_contacts").select("*").eq("active", true)
     ]);
-    setBatches((b||[]).map((x:any)=>({...x,product_name:x.products?.name,company_name:x.roasting_companies?.name})));
+    setBatches((b||[]).map((x:any)=>({...x})));
     setCompanies(c||[]);
     setProducts(p||[]);
     const ctMap:Record<string,Contact[]> = {};

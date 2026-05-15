@@ -1,0 +1,1 @@
+﻿const EMPTY_BATCH = { product_id:"", roasting_company_id:"", status:"active", quantity_packages:0, production_date:"", expiry_date:"", variety:"", altitude_m:0, farm_name:"", green_weight_kg:0, green_cost_per_kg:0, sca_score:0, sensory_notes:"" };
