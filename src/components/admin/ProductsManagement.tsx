@@ -541,15 +541,14 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Estoque *</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Estoque</label>
           <input
             type="number"
-            required
-            min="0"
-            value={formData.stock || ''}
-            onChange={(e) => setFormData({ ...formData, stock: e.target.value ? parseInt(e.target.value) : 0 })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
+            disabled
+            value={formData.stock || 0}
+            className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
           />
+          <p className="text-xs text-gray-400 mt-1">Controlado pelo Inventario</p>
         </div>
 
         <div className="col-span-2">

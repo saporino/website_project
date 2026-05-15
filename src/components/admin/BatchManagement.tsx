@@ -61,7 +61,7 @@ export default function BatchManagement() {
     const payload={...batchForm,altitude_m:Number(batchForm.altitude_m)||0,quantity_packages:Number(batchForm.quantity_packages)||0,green_weight_kg:Number(batchForm.green_weight_kg)||0,green_cost_per_kg:Number(batchForm.green_cost_per_kg)||0,sca_score:Number(batchForm.sca_score)||null};
     const {error}=editingBatch?await supabase.from("product_batches").update(payload).eq("id",editingBatch.id):await supabase.from("product_batches").insert([payload]);
     setSaving(false);
-    if(error){showToast("Erro: "+error.message);return;}
+    if(error){console.error('saveBatch error:', error); showToast("Erro: "+error.message);return;}
     showToast(editingBatch?"Lote atualizado!":"Lote criado!"); setShowBatchForm(false); setEditingBatch(null); setBatchForm(EMPTY_BATCH); loadAll();
   }
 
@@ -270,7 +270,7 @@ export default function BatchManagement() {
                 <select value={batchForm.status} onChange={e=>setBatchForm({...batchForm,status:e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent">
                   {Object.entries(STATUS_LABELS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
                 </select></div>
-              {[["quantity_packages","Qtd Pacotes","number"],["production_date","Data Producao","date"],["expiry_date","Validade","date"],["farm_name","Fazenda","text"],["variety","Variedade","text"],["altitude_m","Altitude (m)","number"],["sca_score","Score SCA","number"],["green_weight_kg","Peso Verde (kg)","number"],["green_cost_per_kg","Custo/kg Verde","number"]].map(([k,l,t])=>(
+              {[["quantity_packages","Qtd Pacotes","number"],["production_date","Data de Producao","date"],["expiry_date","Validade","date"],["farm_name","Fazenda","text"],["variety","Variedade","text"],["altitude_m","Altitude (m)","number"],["sca_score","Score SCA","number"],["green_weight_kg","Peso Verde (kg)","number"],["green_cost_per_kg","Custo/kg Verde","number"]].map(([k,l,t])=>(
                 <div key={k}><label className="block text-xs font-semibold text-gray-600 mb-1">{l}</label>
                   <input type={t} step={t==="number"?"0.01":undefined} value={batchForm[k]||""} onChange={e=>setBatchForm({...batchForm,[k]:e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
               ))}
