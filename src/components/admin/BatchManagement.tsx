@@ -61,7 +61,7 @@ export default function BatchManagement() {
     const payload={...batchForm,altitude_m:Number(batchForm.altitude_m)||0,quantity_packages:Number(batchForm.quantity_packages)||0,green_weight_kg:Number(batchForm.green_weight_kg)||0,green_cost_per_kg:Number(batchForm.green_cost_per_kg)||0,sca_score:Number(batchForm.sca_score)||null};
     const {error}=editingBatch?await supabase.from("product_batches").update(payload).eq("id",editingBatch.id):await supabase.from("product_batches").insert([payload]);
     setSaving(false);
-    if(error){console.error('saveBatch error:', error); showToast("Erro: "+error.message);return;}
+    if(error){console.error('saveBatch error:', JSON.stringify(error)); showToast("Erro: "+error.message);return;}
     showToast(editingBatch?"Lote atualizado!":"Lote criado!"); setShowBatchForm(false); setEditingBatch(null); setBatchForm(EMPTY_BATCH); loadAll();
   }
 
