@@ -31,11 +31,30 @@ export default function BatchManagement() {
   const [filterProduct, setFilterProduct] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [saving, setSaving] = useState(false);
+  const [userEditedBatch, setUserEditedBatch] = useState(false);
   const [expandedBatch, setExpandedBatch] = useState<string|null>(null);
   const [expandedCompany, setExpandedCompany] = useState<string|null>(null);
   const [toast, setToast] = useState("");
 
   useEffect(() => { loadAll(); }, []);
+
+  // Preview batch_number client-side when roasting_company changes
+  useEffect(() => {
+    if (editingBatch || userEditedBatch) return;
+    if (!batchForm.roasting_company_id) { setBatchForm((prev:any) => ({ ...prev, batch_number: '' })); return; }
+    const roaster = companies.find((r:any) => r.id === batchForm.roasting_company_id);
+    const code = roaster?.company_code != null ? String(roaster.company_code) : null;
+    if (!code) return;
+    const re = new RegExp('^' + code + '-(\\d+)$');
+    const max = batches
+      .filter((b:any) => b.roasting_company_id === batchForm.roasting_company_id)
+      .map((b:any) => { const m = b.batch_number?.match(re); return m ? parseInt(m[1], 10) : 0; })
+      .reduce((a:number, n:number) => Math.max(a, n), 0);
+    setBatchForm((prev:any) => ({ ...prev, batch_number: code + '-' + String(max + 1).padStart(3, '0') }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchForm.roasting_company_id, editingBatch, userEditedBatch]);
+
+  useEffect(() => { setUserEditedBatch(false); }, [editingBatch]);
 
   async function loadAll() {
     setLoading(true);
@@ -61,10 +80,10 @@ export default function BatchManagement() {
     const basePayload={...batchForm,altitude_m:Number(batchForm.altitude_m)||0,quantity_packages:Number(batchForm.quantity_packages)||0,green_weight_kg:Number(batchForm.green_weight_kg)||0,green_cost_per_kg:Number(batchForm.green_cost_per_kg)||0,sca_score:Number(batchForm.sca_score)||null};
     const {error}=editingBatch
       ?await supabase.from("product_batches").update(basePayload).eq("id",editingBatch.id)
-      :await supabase.from("product_batches").insert([{...basePayload, batch_number:''}]);
+      :await supabase.from("product_batches").insert([{...basePayload, batch_number: userEditedBatch ? (batchForm.batch_number||null) : null}]);
     setSaving(false);
     if(error){console.error('saveBatch error:', JSON.stringify(error)); showToast("Erro: "+error.message);return;}
-    showToast(editingBatch?"Lote atualizado!":"Lote criado!"); setShowBatchForm(false); setEditingBatch(null); setBatchForm(EMPTY_BATCH); loadAll();
+    showToast(editingBatch?"Lote atualizado!":"Lote criado!"); setShowBatchForm(false); setEditingBatch(null); setBatchForm(EMPTY_BATCH); setUserEditedBatch(false); loadAll();
   }
 
   async function deleteBatch(id:string){
@@ -258,17 +277,19 @@ export default function BatchManagement() {
               <button onClick={()=>{setShowBatchForm(false);setEditingBatch(null);setBatchForm(EMPTY_BATCH);}} className="p-1 hover:bg-gray-100 rounded"><X className="w-5 h-5 text-gray-500"/></button>
             </div>
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div><label className="block text-xs font-semibold text-gray-600 mb-1">Lote #{editingBatch ? '' : ' (gerado automaticamente)'}</label>
-                <input type="text" value={batchForm.batch_number||""} onChange={e=>setBatchForm({...batchForm,batch_number:e.target.value})} placeholder={editingBatch ? "" : "Ex: 750-001"} className={`w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent ${!editingBatch ? 'bg-gray-50 text-gray-400' : ''}`}/></div>
-              <div className="sm:col-span-2"><label className="block text-xs font-semibold text-gray-600 mb-1">Produto *</label>
-                <select value={batchForm.product_id} onChange={e=>setBatchForm({...batchForm,product_id:e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent">
-                  <option value="">Selecionar produto...</option>
-                  {products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-                </select></div>
+              {/* Linha 1: Torrefadora + Lote # */}
               <div><label className="block text-xs font-semibold text-gray-600 mb-1">Torrefadora *</label>
                 <select value={batchForm.roasting_company_id} onChange={e=>setBatchForm({...batchForm,roasting_company_id:e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent">
                   <option value="">Selecionar...</option>
                   {companies.map(c=><option key={c.id} value={c.id}>{c.name} ({c.company_code})</option>)}
+                </select></div>
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">Lote #{!editingBatch&&<span className="text-gray-400 font-normal ml-1">(auto)</span>}</label>
+                <input type="text" value={batchForm.batch_number||""} onChange={e=>{setUserEditedBatch(true);setBatchForm({...batchForm,batch_number:e.target.value});}} placeholder={!batchForm.roasting_company_id?"Selecione uma torrefadora":"Ex: 750-001"} className={`w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent ${(!editingBatch&&!userEditedBatch)?"bg-gray-50 text-gray-500":"bg-white"}`}/></div>
+              {/* Linha 2: Produto + Status */}
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">Produto *</label>
+                <select value={batchForm.product_id} onChange={e=>setBatchForm({...batchForm,product_id:e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent">
+                  <option value="">Selecionar produto...</option>
+                  {products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
                 </select></div>
               <div><label className="block text-xs font-semibold text-gray-600 mb-1">Status</label>
                 <select value={batchForm.status} onChange={e=>setBatchForm({...batchForm,status:e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent">
