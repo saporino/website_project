@@ -505,16 +505,29 @@ export default function BatchManagement() {
             <div className="p-4 space-y-3">
               <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">Verde disponivel: <strong>{Number(editingBatch.green_weight_kg??0).toFixed(1)} kg</strong></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Cru enviado pra torra (kg)</label>
-                <CurrencyInput value={roastForm.green_input_to_roast_kg} onChange={v=>setRoastForm({...roastForm,green_input_to_roast_kg:v})} placeholder="Ex: 1053" decimals={3}/></div>
+                <input type="number" step="0.01" value={roastForm.green_input_to_roast_kg??''} onChange={e=>setRoastForm({...roastForm,green_input_to_roast_kg:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 1053" className="w-full border border-gray-300 rounded px-3 py-2"/></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">R$/kg do servico de torra</label>
                 <CurrencyInput value={roastForm.service_price_per_kg} onChange={v=>setRoastForm({...roastForm,service_price_per_kg:v})} placeholder="Ex: 3,00"/></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Saida do forno (kg torrado)</label>
-                <CurrencyInput value={roastForm.roasted_output_kg} onChange={v=>setRoastForm({...roastForm,roasted_output_kg:v})} placeholder="Ex: 850" decimals={3}/></div>
+                <input type="number" step="0.01" value={roastForm.roasted_output_kg??''} onChange={e=>setRoastForm({...roastForm,roasted_output_kg:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 850" className="w-full border border-gray-300 rounded px-3 py-2"/></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Quebra fisica (%)</label>
+                <input type="number" step="0.01"
+                  value={roastForm.green_input_to_roast_kg&&roastForm.roasted_output_kg
+                    ?(((Number(roastForm.green_input_to_roast_kg)-Number(roastForm.roasted_output_kg))/Number(roastForm.green_input_to_roast_kg))*100).toFixed(2)
+                    :''}
+                  onChange={e=>{
+                    const novaQuebra=parseFloat(e.target.value);
+                    const cruIn=Number(roastForm.green_input_to_roast_kg)||0;
+                    if(cruIn>0&&!isNaN(novaQuebra)){
+                      const novaSaida=Math.round((cruIn*(1-novaQuebra/100))*1000)/1000;
+                      setRoastForm({...roastForm,roasted_output_kg:novaSaida});
+                    }
+                  }}
+                  placeholder="Ex: 22"
+                  className="w-full border border-gray-300 rounded px-3 py-2"/>
+                <p className="text-xs text-gray-500 mt-1">Editar a quebra recalcula a saida do forno automaticamente.</p></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Data da torra</label>
                 <input type="date" value={roastForm.roast_date??''} onChange={e=>setRoastForm({...roastForm,roast_date:e.target.value||null})} className="w-full border border-gray-300 rounded px-3 py-2"/></div>
-              {roastForm.green_input_to_roast_kg&&roastForm.roasted_output_kg&&(
-                <div className="bg-amber-50 border border-amber-200 rounded p-2 text-xs">Quebra fisica estimada: <strong>{((Number(roastForm.green_input_to_roast_kg)-Number(roastForm.roasted_output_kg))/Number(roastForm.green_input_to_roast_kg)*100).toFixed(2)}%</strong></div>
-              )}
             </div>
             <div className="p-4 border-t flex justify-end gap-2">
               <button type="button" onClick={()=>setShowRoastModal(false)} className="px-4 py-2 border rounded">Cancelar</button>
@@ -534,7 +547,7 @@ export default function BatchManagement() {
             <div className="p-4 space-y-3">
               <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">Torrado disponivel (saida do forno): <strong>{Number(editingBatch.roasted_output_kg??0).toFixed(1)} kg</strong></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Embalado (kg)</label>
-                <CurrencyInput value={packagingForm.packaged_kg} onChange={v=>setPackagingForm({...packagingForm,packaged_kg:v})} placeholder="Ex: 750" decimals={3}/></div>
+                <input type="number" step="0.01" value={packagingForm.packaged_kg??''} onChange={e=>setPackagingForm({...packagingForm,packaged_kg:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 750" className="w-full border border-gray-300 rounded px-3 py-2"/></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Custo embalagem (R$/kg)</label>
                 <CurrencyInput value={packagingForm.packaging_cost_per_kg} onChange={v=>setPackagingForm({...packagingForm,packaging_cost_per_kg:v})} placeholder="1,30"/></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Qtd de pacotes</label>
