@@ -7,7 +7,7 @@ interface Contact { id:string; company_id:string; name:string; role:string; emai
 interface Batch { id:string; batch_number:string; product_id:string; product_name?:string; roasting_company_id:string; company_name?:string; status:string; quantity_packages:number; production_date:string; expiry_date:string; variety:string; altitude_m:number; farm_name:string; green_weight_kg:number; green_cost_per_kg:number; sca_score:number; sensory_notes:string; cost_per_250g:number; cost_per_500g:number; cost_per_1kg:number; notes:string; }
 interface Product { id:string; name:string; stock:number; }
 
-const ALLOWED_BATCH_FIELDS = ['batch_number','product_id','product_name','status','supplier_name','supplier_city','supplier_state','variety','altitude_meters','green_weight_kg','green_cost_per_kg','roast_date','roasted_by','roasted_weight_kg','roast_cost','roast_profile','roast_temperature','roast_duration_minutes','pkg_cost_250g','pkg_cost_500g','pkg_cost_1kg','pkg_cost_fardo5kg','label_cost_per_unit','plastic_wrap_cost_per_unit','fuel_cost','toll_cost','hotel_cost','food_cost','other_costs','samples_given_units','samples_unit_size_g','bonus_given_units','bonus_unit_size_g','total_variable_cost','total_bonus_cost','cost_per_100g','cost_per_250g','cost_per_500g','cost_per_1kg','cost_per_fardo5kg','units_produced_250g','units_produced_500g','units_produced_1kg','units_produced_fardo5kg','production_date','expiry_date','nf_purchase_url','supplier_certificate_url','quality_report_url','sensory_notes','sca_score','created_by','roasting_company_id','farm_name','farm_city','farm_state','altitude_m','quantity_packages','nf_url','notes','ap_percentage','price_per_point'] as const;
+const ALLOWED_BATCH_FIELDS = ['batch_number','product_id','product_name','status','supplier_name','supplier_city','supplier_state','variety','altitude_meters','green_weight_kg','green_cost_per_kg','roast_date','roasted_by','roasted_weight_kg','roast_cost','roast_profile','roast_temperature','roast_duration_minutes','pkg_cost_250g','pkg_cost_500g','pkg_cost_1kg','pkg_cost_fardo5kg','label_cost_per_unit','plastic_wrap_cost_per_unit','fuel_cost','toll_cost','hotel_cost','food_cost','other_costs','samples_given_units','samples_unit_size_g','bonus_given_units','bonus_unit_size_g','total_variable_cost','total_bonus_cost','cost_per_100g','cost_per_250g','cost_per_500g','cost_per_1kg','cost_per_fardo5kg','units_produced_250g','units_produced_500g','units_produced_1kg','units_produced_fardo5kg','production_date','expiry_date','nf_purchase_url','supplier_certificate_url','quality_report_url','sensory_notes','sca_score','created_by','roasting_company_id','farm_name','farm_city','farm_state','altitude_m','quantity_packages','nf_url','notes','ap_percentage','price_per_point','total_paid_brl','logistics_cost_brl','logistics_breakdown','green_input_to_roast_kg','service_price_per_kg','roasted_output_kg','packaged_kg','packaging_cost_per_kg','roast_date','packaging_date'] as const;
 
 const buildBatchPayload = (form: any, isNew: boolean, userEdited: boolean) => {
   const payload: any = {};
@@ -70,7 +70,7 @@ export default function BatchManagement() {
   async function loadAll() {
     setLoading(true);
     const [{ data: b }, { data: c }, { data: p }, { data: ct }] = await Promise.all([
-      supabase.from("product_batches").select("*, products(name), roasting_companies(name)").order("created_at", { ascending: false }),
+      supabase.from("green_coffee_lots").select("*, products(name), roasting_companies(name)").order("created_at", { ascending: false }),
       supabase.from("roasting_companies").select("*").order("company_code"),
       supabase.from("products").select("id,name,stock").order("name"),
       supabase.from("roasting_company_contacts").select("*").eq("active", true)
@@ -90,8 +90,8 @@ export default function BatchManagement() {
     setSaving(true);
     const payload = buildBatchPayload(batchForm, !editingBatch, userEditedBatch);
     const {error}=editingBatch
-      ?await supabase.from("product_batches").update(payload).eq("id",editingBatch.id)
-      :await supabase.from("product_batches").insert([payload]);
+      ?await supabase.from("green_coffee_lots").update(payload).eq("id",editingBatch.id)
+      :await supabase.from("green_coffee_lots").insert([payload]);
     setSaving(false);
     if(error){console.error('saveBatch error:', JSON.stringify(error)); showToast("Erro: "+error.message);return;}
     showToast(editingBatch?"Lote atualizado!":"Lote criado!"); setShowBatchForm(false); setEditingBatch(null); setBatchForm(EMPTY_BATCH); setUserEditedBatch(false); loadAll();
@@ -99,7 +99,7 @@ export default function BatchManagement() {
 
   async function deleteBatch(id:string){
     if(!confirm("Excluir este lote?")) return;
-    await supabase.from("product_batches").delete().eq("id",id);
+    await supabase.from("green_coffee_lots").delete().eq("id",id);
     showToast("Lote excluido."); loadAll();
   }
 
@@ -310,30 +310,75 @@ export default function BatchManagement() {
                 <div key={k}><label className="block text-xs font-semibold text-gray-600 mb-1">{l}</label>
                   <input type={t} step={t==="number"?"0.01":undefined} value={batchForm[k]||""} onChange={e=>setBatchForm({...batchForm,[k]:e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
               ))}
+              {/* Valor total pago + Logistica */}
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">Valor total pago (R$)</label>
+                <input type="number" step="0.01" value={batchForm.total_paid_brl??""} onChange={e=>setBatchForm({...batchForm,total_paid_brl:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 27360.00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">Logistica (R$)</label>
+                <input type="number" step="0.01" value={batchForm.logistics_cost_brl??""} onChange={e=>setBatchForm({...batchForm,logistics_cost_brl:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Gasolina, pedagio, hotel..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
               {/* AP% + R$/ponto */}
-              <div><label className="block text-xs font-semibold text-gray-600 mb-1">AP % (rendimento)</label>
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">AP % (Aproveitamento)</label>
                 <input type="number" step="0.01" value={batchForm.ap_percentage??""} onChange={e=>setBatchForm({...batchForm,ap_percentage:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 95" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
               <div><label className="block text-xs font-semibold text-gray-600 mb-1">R$/ponto</label>
                 <input type="number" step="0.01" value={batchForm.price_per_point??""} onChange={e=>setBatchForm({...batchForm,price_per_point:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 24.00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
-              {/* Painel de calculo automatico */}
-              {(batchForm.ap_percentage!=null&&batchForm.price_per_point!=null)&&(()=>{
+              {/* Painel cadeia de custos */}
+              {(()=>{
+                const peso=Number(batchForm.green_weight_kg)||0;
+                const pago=Number(batchForm.total_paid_brl)||0;
+                const log=Number(batchForm.logistics_cost_brl)||0;
                 const ap=Number(batchForm.ap_percentage)||0;
                 const ppp=Number(batchForm.price_per_point)||0;
-                const peso=Number(batchForm.green_weight_kg)||0;
-                const pricePerKg=(ap/100)*ppp;
-                const pricePerBag=pricePerKg*60;
-                const bags=peso>0?peso/60:0;
-                const total=peso*pricePerKg;
+                const cruIn=Number(batchForm.green_input_to_roast_kg)||0;
+                const servPrice=Number(batchForm.service_price_per_kg)||0;
+                const outForno=Number(batchForm.roasted_output_kg)||0;
+                const embalado=Number(batchForm.packaged_kg)||0;
+                const embPrice=Number(batchForm.packaging_cost_per_kg)||1.30;
+                if(peso===0||pago===0) return null;
+                const cKgPuro=pago/peso;
+                const cKgEfetivo=(pago+log)/peso;
+                const cKgRef=ap&&ppp?(ap/100)*ppp:null;
+                const showTorra=cruIn>0&&outForno>0&&servPrice>0;
+                const servTotal=cruIn*servPrice;
+                const valorCruUsado=cruIn*cKgEfetivo;
+                const cKgTorrado=showTorra?(valorCruUsado+servTotal)/outForno:0;
+                const shrinkage=showTorra?((cruIn-outForno)/cruIn)*100:0;
+                const showEmb=showTorra&&embalado>0;
+                const sobraTorrado=showEmb?outForno-embalado:0;
+                const creditoTorrado=sobraTorrado*cKgTorrado;
+                const cFinalKg=showEmb?((outForno*cKgTorrado)-creditoTorrado)/embalado+embPrice:0;
+                const verdeSob=peso-cruIn;
                 return(
-                  <div className="sm:col-span-2 bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs">
-                    <p className="font-semibold text-amber-900 mb-2">Calculo de mercado (referencia)</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>Preco/kg: <strong>R$ {pricePerKg.toFixed(2)}</strong></div>
-                      <div>Preco/saca 60kg: <strong>R$ {pricePerBag.toFixed(2)}</strong></div>
-                      <div>Sacas estimadas: <strong>{bags.toFixed(2)}</strong></div>
-                      <div>Total calc.: <strong>R$ {total.toFixed(2)}</strong></div>
+                  <div className="sm:col-span-2 bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs space-y-2">
+                    <p className="font-semibold text-amber-900">Cadeia de custos do lote</p>
+                    <div className="border-b border-amber-200 pb-2">
+                      <p className="font-medium text-amber-800 mb-1">1. Compra (verde)</p>
+                      <div className="grid grid-cols-2 gap-1">
+                        <div>Custo/kg puro: <strong>R$ {cKgPuro.toFixed(2)}</strong></div>
+                        <div>Custo/kg efetivo: <strong>R$ {cKgEfetivo.toFixed(2)}</strong></div>
+                        {cKgRef!==null&&<div className="col-span-2">Cotacao ref. (AP×R$/ponto): R$ {cKgRef.toFixed(2)}/kg</div>}
+                        <div>Verde sobrando: <strong>{verdeSob.toFixed(1)} kg</strong></div>
+                        <div>Valor verde: <strong>R$ {(verdeSob*cKgEfetivo).toFixed(2)}</strong></div>
+                      </div>
                     </div>
-                    <p className="text-amber-700 mt-2">Use "Custo/kg Verde" para registrar o valor negociado real.</p>
+                    {showTorra&&(
+                      <div className="border-b border-amber-200 pb-2">
+                        <p className="font-medium text-amber-800 mb-1">2. Torra</p>
+                        <div className="grid grid-cols-2 gap-1">
+                          <div>Quebra fisica: <strong>{shrinkage.toFixed(2)}%</strong></div>
+                          <div>Custo servico: <strong>R$ {servTotal.toFixed(2)}</strong></div>
+                          <div className="col-span-2">Custo/kg torrado bruto: <strong>R$ {cKgTorrado.toFixed(2)}</strong></div>
+                        </div>
+                      </div>
+                    )}
+                    {showEmb&&(
+                      <div>
+                        <p className="font-medium text-amber-800 mb-1">3. Embalagem</p>
+                        <div className="grid grid-cols-2 gap-1">
+                          <div>Sobra torrado: <strong>{sobraTorrado.toFixed(1)} kg</strong></div>
+                          <div>Credito torrado: <strong>R$ {creditoTorrado.toFixed(2)}</strong></div>
+                          <div className="col-span-2 font-semibold text-amber-900">Custo final/kg embalado: R$ {cFinalKg.toFixed(2)}</div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
