@@ -7,6 +7,17 @@ interface Contact { id:string; company_id:string; name:string; role:string; emai
 interface Batch { id:string; batch_number:string; product_id:string; product_name?:string; roasting_company_id:string; company_name?:string; status:string; quantity_packages:number; production_date:string; expiry_date:string; variety:string; altitude_m:number; farm_name:string; green_weight_kg:number; green_cost_per_kg:number; sca_score:number; sensory_notes:string; cost_per_250g:number; cost_per_500g:number; cost_per_1kg:number; notes:string; }
 interface Product { id:string; name:string; stock:number; }
 
+const ALLOWED_BATCH_FIELDS = ['batch_number','product_id','product_name','status','supplier_name','supplier_city','supplier_state','variety','altitude_meters','green_weight_kg','green_cost_per_kg','roast_date','roasted_by','roasted_weight_kg','roast_cost','roast_profile','roast_temperature','roast_duration_minutes','pkg_cost_250g','pkg_cost_500g','pkg_cost_1kg','pkg_cost_fardo5kg','label_cost_per_unit','plastic_wrap_cost_per_unit','fuel_cost','toll_cost','hotel_cost','food_cost','other_costs','samples_given_units','samples_unit_size_g','bonus_given_units','bonus_unit_size_g','total_variable_cost','total_bonus_cost','cost_per_100g','cost_per_250g','cost_per_500g','cost_per_1kg','cost_per_fardo5kg','units_produced_250g','units_produced_500g','units_produced_1kg','units_produced_fardo5kg','production_date','expiry_date','nf_purchase_url','supplier_certificate_url','quality_report_url','sensory_notes','sca_score','created_by','roasting_company_id','farm_name','farm_city','farm_state','altitude_m','quantity_packages','nf_url','notes','ap_percentage','price_per_point'] as const;
+
+const buildBatchPayload = (form: any, isNew: boolean, userEdited: boolean) => {
+  const payload: any = {};
+  for (const k of ALLOWED_BATCH_FIELDS) {
+    if (form[k] !== undefined && form[k] !== '') payload[k] = form[k];
+  }
+  if (isNew && !userEdited) payload.batch_number = null;
+  return payload;
+};
+
 const EMPTY_BATCH = { product_id:"", roasting_company_id:"", status:"active", quantity_packages:0, production_date:"", expiry_date:"", variety:"", altitude_m:0, farm_name:"", green_weight_kg:0, green_cost_per_kg:0, sca_score:0, sensory_notes:"" };
 const EMPTY_COMPANY = { name:"", cnpj:"", city:"", state:"", cep:"", company_code:0, director_name:"", email:"", whatsapp:"", inscricao_estadual:"" };
 const EMPTY_CONTACT = { company_id:"", name:"", role:"", email:"", phone:"", whatsapp:"", extension:"" };
@@ -77,10 +88,10 @@ export default function BatchManagement() {
 
   async function saveBatch() {
     setSaving(true);
-    const basePayload={...batchForm,altitude_m:Number(batchForm.altitude_m)||0,quantity_packages:Number(batchForm.quantity_packages)||0,green_weight_kg:Number(batchForm.green_weight_kg)||0,green_cost_per_kg:Number(batchForm.green_cost_per_kg)||0,sca_score:Number(batchForm.sca_score)||null};
+    const payload = buildBatchPayload(batchForm, !editingBatch, userEditedBatch);
     const {error}=editingBatch
-      ?await supabase.from("product_batches").update(basePayload).eq("id",editingBatch.id)
-      :await supabase.from("product_batches").insert([{...basePayload, batch_number: userEditedBatch ? (batchForm.batch_number||null) : null}]);
+      ?await supabase.from("product_batches").update(payload).eq("id",editingBatch.id)
+      :await supabase.from("product_batches").insert([payload]);
     setSaving(false);
     if(error){console.error('saveBatch error:', JSON.stringify(error)); showToast("Erro: "+error.message);return;}
     showToast(editingBatch?"Lote atualizado!":"Lote criado!"); setShowBatchForm(false); setEditingBatch(null); setBatchForm(EMPTY_BATCH); setUserEditedBatch(false); loadAll();
