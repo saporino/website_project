@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { Package, Plus, Edit2, Trash2, ChevronDown, ChevronUp, Building2, X, Save, UserPlus, Phone, Mail, MessageCircle } from "lucide-react";
+import { CurrencyInput } from "../CurrencyInput";
+import { formatBRL } from "../../utils/currency";
 
 interface RoastingCompany { id:string; name:string; cnpj:string; city:string; state:string; cep:string; company_code:number; active:boolean; notes:string; director_name:string; email:string; whatsapp:string; inscricao_estadual:string; }
 interface Contact { id:string; company_id:string; name:string; role:string; email:string; phone:string; whatsapp:string; extension:string; active:boolean; }
@@ -306,20 +308,39 @@ export default function BatchManagement() {
                 <select value={batchForm.status} onChange={e=>setBatchForm({...batchForm,status:e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent">
                   {Object.entries(STATUS_LABELS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
                 </select></div>
-              {[["quantity_packages","Qtd Pacotes","number"],["production_date","Data de Producao","date"],["expiry_date","Validade","date"],["farm_name","Fazenda","text"],["variety","Variedade","text"],["altitude_m","Altitude (m)","number"],["sca_score","Score SCA","number"],["green_weight_kg","Peso Verde (kg)","number"],["green_cost_per_kg","Custo/kg Verde","number"]].map(([k,l,t])=>(
+              {[["quantity_packages","Qtd Pacotes","number"],["production_date","Data de Producao","date"],["expiry_date","Validade","date"],["farm_name","Fazenda","text"],["variety","Variedade","text"],["altitude_m","Altitude (m)","number"],["sca_score","Score SCA","number"],["green_weight_kg","Peso Verde (kg)","number"]].map(([k,l,t])=>(
                 <div key={k}><label className="block text-xs font-semibold text-gray-600 mb-1">{l}</label>
                   <input type={t} step={t==="number"?"0.01":undefined} value={batchForm[k]||""} onChange={e=>setBatchForm({...batchForm,[k]:e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
               ))}
-              {/* Valor total pago + Logistica */}
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">Custo/kg Verde (R$)</label>
+                <CurrencyInput value={batchForm.green_cost_per_kg} onChange={v=>setBatchForm({...batchForm,green_cost_per_kg:v})} placeholder="0,00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
+              {/* Valor total pago + Logistica 4 campos */}
               <div><label className="block text-xs font-semibold text-gray-600 mb-1">Valor total pago (R$)</label>
-                <input type="number" step="0.01" value={batchForm.total_paid_brl??""} onChange={e=>setBatchForm({...batchForm,total_paid_brl:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 27360.00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
-              <div><label className="block text-xs font-semibold text-gray-600 mb-1">Logistica (R$)</label>
-                <input type="number" step="0.01" value={batchForm.logistics_cost_brl??""} onChange={e=>setBatchForm({...batchForm,logistics_cost_brl:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Gasolina, pedagio, hotel..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
+                <CurrencyInput value={batchForm.total_paid_brl} onChange={v=>setBatchForm({...batchForm,total_paid_brl:v})} placeholder="27.360,00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
+              <div className="sm:col-span-2 border border-gray-200 rounded-lg p-3 bg-gray-50">
+                <p className="text-xs font-semibold text-gray-700 mb-2">Logistica da compra</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {([['fuel','Combustivel'],['tolls','Pedagio'],['hotel','Hotel'],['food','Comida']] as const).map(([key,label])=>(
+                    <div key={key}><label className="block text-xs font-medium text-gray-600 mb-1">{label} (R$)</label>
+                      <CurrencyInput
+                        value={(batchForm.logistics_breakdown as any)?.[key]??null}
+                        onChange={v=>{
+                          const bd={...(batchForm.logistics_breakdown??{}), [key]:v};
+                          const total=(bd.fuel??0)+(bd.tolls??0)+(bd.hotel??0)+(bd.food??0);
+                          setBatchForm({...batchForm,logistics_breakdown:bd,logistics_cost_brl:total});
+                        }}
+                        placeholder="0,00"
+                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
+                      /></div>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs font-semibold text-gray-800">Total: {formatBRL(batchForm.logistics_cost_brl??0)}</p>
+              </div>
               {/* AP% + R$/ponto */}
               <div><label className="block text-xs font-semibold text-gray-600 mb-1">AP % (Aproveitamento)</label>
                 <input type="number" step="0.01" value={batchForm.ap_percentage??""} onChange={e=>setBatchForm({...batchForm,ap_percentage:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 95" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
               <div><label className="block text-xs font-semibold text-gray-600 mb-1">R$/ponto</label>
-                <input type="number" step="0.01" value={batchForm.price_per_point??""} onChange={e=>setBatchForm({...batchForm,price_per_point:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 24.00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
+                <CurrencyInput value={batchForm.price_per_point} onChange={v=>setBatchForm({...batchForm,price_per_point:v})} placeholder="24,00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
               {/* Painel cadeia de custos */}
               {(()=>{
                 const peso=Number(batchForm.green_weight_kg)||0;
@@ -352,11 +373,11 @@ export default function BatchManagement() {
                     <div className="border-b border-amber-200 pb-2">
                       <p className="font-medium text-amber-800 mb-1">1. Compra (verde)</p>
                       <div className="grid grid-cols-2 gap-1">
-                        <div>Custo/kg puro: <strong>R$ {cKgPuro.toFixed(2)}</strong></div>
-                        <div>Custo/kg efetivo: <strong>R$ {cKgEfetivo.toFixed(2)}</strong></div>
-                        {cKgRef!==null&&<div className="col-span-2">Cotacao ref. (AP×R$/ponto): R$ {cKgRef.toFixed(2)}/kg</div>}
+                        <div>Custo/kg puro: <strong>{formatBRL(cKgPuro)}</strong></div>
+                        <div>Custo/kg efetivo: <strong>{formatBRL(cKgEfetivo)}</strong></div>
+                        {cKgRef!==null&&<div className="col-span-2">Cotacao ref. (AP×R$/ponto): {formatBRL(cKgRef)}/kg</div>}
                         <div>Verde sobrando: <strong>{verdeSob.toFixed(1)} kg</strong></div>
-                        <div>Valor verde: <strong>R$ {(verdeSob*cKgEfetivo).toFixed(2)}</strong></div>
+                        <div>Valor verde: <strong>{formatBRL(verdeSob*cKgEfetivo)}</strong></div>
                       </div>
                     </div>
                     {showTorra&&(
@@ -364,8 +385,8 @@ export default function BatchManagement() {
                         <p className="font-medium text-amber-800 mb-1">2. Torra</p>
                         <div className="grid grid-cols-2 gap-1">
                           <div>Quebra fisica: <strong>{shrinkage.toFixed(2)}%</strong></div>
-                          <div>Custo servico: <strong>R$ {servTotal.toFixed(2)}</strong></div>
-                          <div className="col-span-2">Custo/kg torrado bruto: <strong>R$ {cKgTorrado.toFixed(2)}</strong></div>
+                          <div>Custo servico: <strong>{formatBRL(servTotal)}</strong></div>
+                          <div className="col-span-2">Custo/kg torrado bruto: <strong>{formatBRL(cKgTorrado)}</strong></div>
                         </div>
                       </div>
                     )}
@@ -374,8 +395,8 @@ export default function BatchManagement() {
                         <p className="font-medium text-amber-800 mb-1">3. Embalagem</p>
                         <div className="grid grid-cols-2 gap-1">
                           <div>Sobra torrado: <strong>{sobraTorrado.toFixed(1)} kg</strong></div>
-                          <div>Credito torrado: <strong>R$ {creditoTorrado.toFixed(2)}</strong></div>
-                          <div className="col-span-2 font-semibold text-amber-900">Custo final/kg embalado: R$ {cFinalKg.toFixed(2)}</div>
+                          <div>Credito torrado: <strong>{formatBRL(creditoTorrado)}</strong></div>
+                          <div className="col-span-2 font-semibold text-amber-900">Custo final/kg embalado: {formatBRL(cFinalKg)}</div>
                         </div>
                       </div>
                     )}
