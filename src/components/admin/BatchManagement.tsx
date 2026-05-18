@@ -48,6 +48,17 @@ export default function BatchManagement() {
   const [expandedBatch, setExpandedBatch] = useState<string|null>(null);
   const [expandedCompany, setExpandedCompany] = useState<string|null>(null);
   const [toast, setToast] = useState("");
+  const [showRoastModal, setShowRoastModal] = useState(false);
+  const [showPackagingModal, setShowPackagingModal] = useState(false);
+  const [roastForm, setRoastForm] = useState<any>({ green_input_to_roast_kg:null, service_price_per_kg:null, roasted_output_kg:null, roast_date:null });
+  const [packagingForm, setPackagingForm] = useState<any>({ packaged_kg:null, packaging_cost_per_kg:1.30, quantity_packages:null, packaging_date:null });
+
+  useEffect(() => {
+    if (editingBatch) {
+      setRoastForm({ green_input_to_roast_kg:editingBatch.green_input_to_roast_kg??null, service_price_per_kg:editingBatch.service_price_per_kg??null, roasted_output_kg:editingBatch.roasted_output_kg??null, roast_date:editingBatch.roast_date??null });
+      setPackagingForm({ packaged_kg:editingBatch.packaged_kg??null, packaging_cost_per_kg:editingBatch.packaging_cost_per_kg??1.30, quantity_packages:editingBatch.quantity_packages??null, packaging_date:editingBatch.packaging_date??null });
+    }
+  }, [editingBatch]);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -104,6 +115,39 @@ export default function BatchManagement() {
     await supabase.from("green_coffee_lots").delete().eq("id",id);
     showToast("Lote excluido."); loadAll();
   }
+
+  const saveRoast = async () => {
+    if (!editingBatch?.id) { alert('Salve o lote primeiro'); return; }
+    const cruIn = Number(roastForm.green_input_to_roast_kg) || 0;
+    const out = Number(roastForm.roasted_output_kg) || 0;
+    const pesoVerde = Number(editingBatch.green_weight_kg) || 0;
+    if (cruIn > pesoVerde) { alert(`Cru pra torra (${cruIn}kg) nao pode ser maior que o peso verde (${pesoVerde}kg)`); return; }
+    if (out > cruIn) { alert(`Saida do forno (${out}kg) nao pode ser maior que o cru enviado (${cruIn}kg)`); return; }
+    setSaving(true);
+    const { error } = await supabase.from('green_coffee_lots').update({ green_input_to_roast_kg:roastForm.green_input_to_roast_kg, service_price_per_kg:roastForm.service_price_per_kg, roasted_output_kg:roastForm.roasted_output_kg, roast_date:roastForm.roast_date }).eq('id', editingBatch.id);
+    setSaving(false);
+    if (error) { alert('Erro: ' + error.message); return; }
+    setShowRoastModal(false);
+    await loadAll();
+    const { data: refreshed } = await supabase.from('green_coffee_lots').select('*').eq('id', editingBatch.id).single();
+    if (refreshed) { setEditingBatch(refreshed as any); setBatchForm({...batchForm,...refreshed}); }
+  };
+
+  const savePackaging = async () => {
+    if (!editingBatch?.id) { alert('Salve o lote primeiro'); return; }
+    const emb = Number(packagingForm.packaged_kg) || 0;
+    const out = Number(editingBatch.roasted_output_kg) || 0;
+    if (out === 0) { alert('Registre a torra antes de embalar'); return; }
+    if (emb > out) { alert(`Embalado (${emb}kg) nao pode ser maior que saida do forno (${out}kg)`); return; }
+    setSaving(true);
+    const { error } = await supabase.from('green_coffee_lots').update({ packaged_kg:packagingForm.packaged_kg, packaging_cost_per_kg:packagingForm.packaging_cost_per_kg, quantity_packages:packagingForm.quantity_packages, packaging_date:packagingForm.packaging_date }).eq('id', editingBatch.id);
+    setSaving(false);
+    if (error) { alert('Erro: ' + error.message); return; }
+    setShowPackagingModal(false);
+    await loadAll();
+    const { data: refreshed } = await supabase.from('green_coffee_lots').select('*').eq('id', editingBatch.id).single();
+    if (refreshed) { setEditingBatch(refreshed as any); setBatchForm({...batchForm,...refreshed}); }
+  };
 
   async function saveCompany(){
     setSaving(true);
@@ -401,6 +445,19 @@ export default function BatchManagement() {
                   </div>
                 );
               })()}
+              {editingBatch&&(
+                <div className="sm:col-span-2 border-t pt-3 mt-1 space-y-2">
+                  <p className="text-xs font-semibold text-gray-700">Operacoes do lote</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button type="button" onClick={()=>setShowRoastModal(true)} className="px-4 py-2 border border-amber-600 text-amber-700 rounded hover:bg-amber-50 text-sm font-medium">
+                      {editingBatch.roasted_output_kg?'Editar torra':'Registrar torra'}
+                    </button>
+                    <button type="button" onClick={()=>setShowPackagingModal(true)} disabled={!editingBatch.roasted_output_kg} className="px-4 py-2 border border-green-700 text-green-700 rounded hover:bg-green-50 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed" title={!editingBatch.roasted_output_kg?'Registre a torra primeiro':''}>
+                      {editingBatch.packaged_kg?'Editar embalagem':'Registrar embalagem'}
+                    </button>
+                  </div>
+                </div>
+              )}
               <div className="sm:col-span-2"><label className="block text-xs font-semibold text-gray-600 mb-1">Notas Sensoriais</label>
                 <input type="text" value={batchForm.sensory_notes||""} onChange={e=>setBatchForm({...batchForm,sensory_notes:e.target.value})} placeholder="Caramelo, nozes..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
               <div className="sm:col-span-2"><label className="block text-xs font-semibold text-gray-600 mb-1">Observacoes</label>
@@ -433,6 +490,61 @@ export default function BatchManagement() {
             <div className="flex gap-3 p-4 border-t border-gray-200">
               <button onClick={()=>{setShowCompanyForm(false);setEditingCompany(null);setCompanyForm(EMPTY_COMPANY);}} className="flex-1 py-2 border border-gray-300 rounded-lg text-sm text-gray-600">Cancelar</button>
               <button onClick={saveCompany} disabled={saving||!companyForm.name} className="flex-1 py-2 bg-[#8B2214] text-white rounded-lg text-sm font-semibold hover:bg-[#6d1a10] disabled:opacity-50">{saving?"Salvando...":"Salvar"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* SUB-MODAL: Torra */}
+      {showRoastModal&&editingBatch&&(
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h3 className="text-base font-semibold">Registrar Torra — {editingBatch.batch_number}</h3>
+              <button onClick={()=>setShowRoastModal(false)} className="text-gray-500 hover:text-gray-700 text-lg">✕</button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">Verde disponivel: <strong>{Number(editingBatch.green_weight_kg??0).toFixed(1)} kg</strong></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Cru enviado pra torra (kg)</label>
+                <CurrencyInput value={roastForm.green_input_to_roast_kg} onChange={v=>setRoastForm({...roastForm,green_input_to_roast_kg:v})} placeholder="Ex: 1053" decimals={3}/></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">R$/kg do servico de torra</label>
+                <CurrencyInput value={roastForm.service_price_per_kg} onChange={v=>setRoastForm({...roastForm,service_price_per_kg:v})} placeholder="Ex: 3,00"/></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Saida do forno (kg torrado)</label>
+                <CurrencyInput value={roastForm.roasted_output_kg} onChange={v=>setRoastForm({...roastForm,roasted_output_kg:v})} placeholder="Ex: 850" decimals={3}/></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Data da torra</label>
+                <input type="date" value={roastForm.roast_date??''} onChange={e=>setRoastForm({...roastForm,roast_date:e.target.value||null})} className="w-full border border-gray-300 rounded px-3 py-2"/></div>
+              {roastForm.green_input_to_roast_kg&&roastForm.roasted_output_kg&&(
+                <div className="bg-amber-50 border border-amber-200 rounded p-2 text-xs">Quebra fisica estimada: <strong>{((Number(roastForm.green_input_to_roast_kg)-Number(roastForm.roasted_output_kg))/Number(roastForm.green_input_to_roast_kg)*100).toFixed(2)}%</strong></div>
+              )}
+            </div>
+            <div className="p-4 border-t flex justify-end gap-2">
+              <button type="button" onClick={()=>setShowRoastModal(false)} className="px-4 py-2 border rounded">Cancelar</button>
+              <button type="button" onClick={saveRoast} disabled={saving} className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50">{saving?'Salvando...':'Salvar torra'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* SUB-MODAL: Embalagem */}
+      {showPackagingModal&&editingBatch&&(
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b flex justify-between items-center">
+              <h3 className="text-base font-semibold">Registrar Embalagem — {editingBatch.batch_number}</h3>
+              <button onClick={()=>setShowPackagingModal(false)} className="text-gray-500 hover:text-gray-700 text-lg">✕</button>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">Torrado disponivel (saida do forno): <strong>{Number(editingBatch.roasted_output_kg??0).toFixed(1)} kg</strong></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Embalado (kg)</label>
+                <CurrencyInput value={packagingForm.packaged_kg} onChange={v=>setPackagingForm({...packagingForm,packaged_kg:v})} placeholder="Ex: 750" decimals={3}/></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Custo embalagem (R$/kg)</label>
+                <CurrencyInput value={packagingForm.packaging_cost_per_kg} onChange={v=>setPackagingForm({...packagingForm,packaging_cost_per_kg:v})} placeholder="1,30"/></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Qtd de pacotes</label>
+                <input type="number" step="1" value={packagingForm.quantity_packages??''} onChange={e=>setPackagingForm({...packagingForm,quantity_packages:e.target.value===''?null:parseInt(e.target.value)})} placeholder="Ex: 1500" className="w-full border border-gray-300 rounded px-3 py-2"/></div>
+              <div><label className="block text-sm font-medium text-gray-700 mb-1">Data da embalagem</label>
+                <input type="date" value={packagingForm.packaging_date??''} onChange={e=>setPackagingForm({...packagingForm,packaging_date:e.target.value||null})} className="w-full border border-gray-300 rounded px-3 py-2"/></div>
+            </div>
+            <div className="p-4 border-t flex justify-end gap-2">
+              <button type="button" onClick={()=>setShowPackagingModal(false)} className="px-4 py-2 border rounded">Cancelar</button>
+              <button type="button" onClick={savePackaging} disabled={saving} className="px-4 py-2 bg-green-700 text-white rounded hover:bg-green-800 disabled:opacity-50">{saving?'Salvando...':'Salvar embalagem'}</button>
             </div>
           </div>
         </div>
