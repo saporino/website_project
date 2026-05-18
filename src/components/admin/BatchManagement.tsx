@@ -299,6 +299,33 @@ export default function BatchManagement() {
                 <div key={k}><label className="block text-xs font-semibold text-gray-600 mb-1">{l}</label>
                   <input type={t} step={t==="number"?"0.01":undefined} value={batchForm[k]||""} onChange={e=>setBatchForm({...batchForm,[k]:e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
               ))}
+              {/* AP% + R$/ponto */}
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">AP % (rendimento)</label>
+                <input type="number" step="0.01" value={batchForm.ap_percentage??""} onChange={e=>setBatchForm({...batchForm,ap_percentage:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 95" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">R$/ponto</label>
+                <input type="number" step="0.01" value={batchForm.price_per_point??""} onChange={e=>setBatchForm({...batchForm,price_per_point:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 24.00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
+              {/* Painel de calculo automatico */}
+              {(batchForm.ap_percentage!=null&&batchForm.price_per_point!=null)&&(()=>{
+                const ap=Number(batchForm.ap_percentage)||0;
+                const ppp=Number(batchForm.price_per_point)||0;
+                const peso=Number(batchForm.green_weight_kg)||0;
+                const pricePerKg=(ap/100)*ppp;
+                const pricePerBag=pricePerKg*60;
+                const bags=peso>0?peso/60:0;
+                const total=peso*pricePerKg;
+                return(
+                  <div className="sm:col-span-2 bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs">
+                    <p className="font-semibold text-amber-900 mb-2">Calculo de mercado (referencia)</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>Preco/kg: <strong>R$ {pricePerKg.toFixed(2)}</strong></div>
+                      <div>Preco/saca 60kg: <strong>R$ {pricePerBag.toFixed(2)}</strong></div>
+                      <div>Sacas estimadas: <strong>{bags.toFixed(2)}</strong></div>
+                      <div>Total calc.: <strong>R$ {total.toFixed(2)}</strong></div>
+                    </div>
+                    <p className="text-amber-700 mt-2">Use "Custo/kg Verde" para registrar o valor negociado real.</p>
+                  </div>
+                );
+              })()}
               <div className="sm:col-span-2"><label className="block text-xs font-semibold text-gray-600 mb-1">Notas Sensoriais</label>
                 <input type="text" value={batchForm.sensory_notes||""} onChange={e=>setBatchForm({...batchForm,sensory_notes:e.target.value})} placeholder="Caramelo, nozes..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
               <div className="sm:col-span-2"><label className="block text-xs font-semibold text-gray-600 mb-1">Observacoes</label>
