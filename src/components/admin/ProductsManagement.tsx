@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Plus, Edit, Trash2, Save, X, Image as ImageIcon } from 'lucide-react';
+import JsBarcode from 'jsbarcode';
 
 interface Product {
   id: string;
@@ -18,6 +19,22 @@ interface Product {
   roast_type: string | null;
   flavor_notes: string | null;
   display_order: number;
+  barcode?: string | null;
+}
+
+function BarcodeDisplay({ value }: { value: string }) {
+  const ref = useRef<SVGSVGElement>(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    if (!value || value.length !== 13 || !/^\d{13}$/.test(value)) {
+      while (ref.current.firstChild) ref.current.removeChild(ref.current.firstChild);
+      return;
+    }
+    try {
+      JsBarcode(ref.current, value, { format:'EAN13', width:2, height:60, fontSize:14, margin:5, displayValue:true });
+    } catch (e) { /* checksum invalido */ }
+  }, [value]);
+  return <svg ref={ref} />;
 }
 
 export function ProductsManagement() {
@@ -47,6 +64,7 @@ export function ProductsManagement() {
     subscription_months: 6 as number,
     subscription_discount_pct: 20 as number,
     display_order: 0,
+    barcode: '',
   });
   const [imageMode, setImageMode] = useState<'upload' | 'url'>('url');
   const [uploading, setUploading] = useState(false);
@@ -116,6 +134,7 @@ export function ProductsManagement() {
       featured: false,
       roast_type: '',
       flavor_notes: '',
+      barcode: '',
     });
   };
 
@@ -142,6 +161,7 @@ export function ProductsManagement() {
         subscription_months: formData.subscription_months || 6,
         subscription_discount_pct: formData.subscription_discount_pct || 20,
         display_order: Number.isNaN(Number(formData.display_order)) ? 0 : Number(formData.display_order),
+        barcode: (formData as any).barcode || null,
       };
 
       if (isAdding) {
@@ -412,6 +432,30 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
           />
+        </div>
+
+        <div className="md:col-span-4">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Codigo de barras (EAN-13)</label>
+          <input
+            type="text"
+            inputMode="numeric"
+            maxLength={13}
+            value={(formData as any).barcode || ''}
+            onChange={(e) => {
+              const v = e.target.value.replace(/\D/g, '').slice(0, 13);
+              setFormData({ ...formData, barcode: v });
+            }}
+            placeholder="Ex: 7891234567890"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
+          />
+          {(formData as any).barcode && (formData as any).barcode.length > 0 && (formData as any).barcode.length < 13 && (
+            <p className="text-xs text-red-600 mt-1">EAN-13 deve ter 13 digitos ({(formData as any).barcode.length}/13).</p>
+          )}
+          {(formData as any).barcode && (formData as any).barcode.length === 13 && (
+            <div className="mt-2 p-2 bg-gray-50 rounded inline-block">
+              <BarcodeDisplay value={(formData as any).barcode} />
+            </div>
+          )}
         </div>
 
         <div className="md:col-span-4">
