@@ -26,6 +26,7 @@ export function ProductsManagement() {
   const [activeBatches, setActiveBatches] = useState<Record<string, string[]>>({});
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [hasLots, setHasLots] = useState(false);
   const [formData, setFormData] = useState<Partial<Product>>({
     name: '',
     description: '',
@@ -50,9 +51,16 @@ export function ProductsManagement() {
   const [imageMode, setImageMode] = useState<'upload' | 'url'>('url');
   const [uploading, setUploading] = useState(false);
 
+  useEffect(() => { loadProducts(); }, []);
+
   useEffect(() => {
-    loadProducts();
-  }, []);
+    if (!editingId) { setHasLots(false); return; }
+    supabase
+      .from('green_coffee_lots')
+      .select('id', { count: 'exact', head: true })
+      .eq('product_id', editingId)
+      .then(({ count }) => setHasLots((count ?? 0) > 0));
+  }, [editingId]);
 
   const loadProducts = async () => {
     try {
@@ -123,7 +131,7 @@ export function ProductsManagement() {
         image_url: formData.image_url,
         additional_images: (formData.additional_images || []).filter((u: string) => u && u.trim() !== ''),
         weight_grams: formData.weight_grams || 500,
-        stock: formData.stock || 0,
+        // stock removido — controlado exclusivamente pelos lotes ativos
         is_active: formData.is_active,
         category: formData.category || 'café',
         featured: formData.featured,
@@ -292,6 +300,7 @@ export function ProductsManagement() {
             setImageMode={setImageMode}
             uploading={uploading}
             handleImageUpload={handleImageUpload}
+            hasLots={false}
           />
         </div>
       )}
@@ -313,6 +322,7 @@ export function ProductsManagement() {
                 setImageMode={setImageMode}
                 uploading={uploading}
                 handleImageUpload={handleImageUpload}
+                hasLots={hasLots}
               />
             ) : (
               <>
@@ -389,7 +399,7 @@ export function ProductsManagement() {
   );
 }
 
-function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setImageMode, uploading, handleImageUpload }: any) {
+function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setImageMode, uploading, handleImageUpload, hasLots = false }: any) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
@@ -518,25 +528,32 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Peso (gramas) *</label>
-          <div className="flex gap-2">
-            {[250, 500, 1000].map(w => (
-              <button
-                type="button"
-                key={w}
-                onClick={() => setFormData({...formData, weight_grams: w})}
-                className={`flex-1 py-2 rounded-lg border text-sm font-semibold text-center transition-all ${
-                  formData.weight_grams === w
-                    ? 'bg-[#8B2214] text-white border-[#8B2214]'
-                    : 'bg-white text-gray-700 border-gray-300 hover:border-[#8B2214]'
-                }`}
-              >
-                {w >= 1000 ? '1kg' : `${w}g`}
-              </button>
-            ))}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Peso (gramas) *</label>
+            <div className="flex gap-2">
+              {[250, 500, 1000].map(w => (
+                <button
+                  type="button"
+                  key={w}
+                  disabled={hasLots}
+                  onClick={() => !hasLots && setFormData({...formData, weight_grams: w})}
+                  className={`flex-1 py-2 rounded-lg border text-sm font-semibold text-center transition-all ${
+                    formData.weight_grams === w
+                      ? 'bg-[#8B2214] text-white border-[#8B2214]'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-[#8B2214]'
+                  } ${hasLots ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {w >= 1000 ? '1kg' : `${w}g`}
+                </button>
+              ))}
+            </div>
+            {hasLots && (
+              <p className="text-xs text-amber-700 mt-1">
+                Nao editavel — existe lote vinculado a este produto.
+                Crie um produto novo para outro tamanho (ex: "Cafe Saporino Tradicional 250g").
+              </p>
+            )}
           </div>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
