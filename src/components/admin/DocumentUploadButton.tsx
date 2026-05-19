@@ -67,7 +67,7 @@ export default function DocumentUploadButton({ lotId, kind, label, allowMultiple
   if (!lotId) {
     return (
       <button type="button" disabled
-        className="p-2 border border-gray-200 rounded text-gray-300 cursor-not-allowed"
+        className="px-3 flex items-center justify-center border border-gray-200 rounded text-gray-300 cursor-not-allowed"
         title="Salve o lote primeiro pra anexar documentos">
         <Paperclip className="w-4 h-4" />
       </button>
@@ -77,7 +77,7 @@ export default function DocumentUploadButton({ lotId, kind, label, allowMultiple
   return (
     <div className="relative">
       <button type="button" onClick={() => setOpen(!open)}
-        className={`p-2 border rounded flex items-center gap-1 ${docs.length > 0 ? "border-green-500 bg-green-50 text-green-700" : "border-gray-300 text-gray-500 hover:border-gray-400"}`}
+        className={`px-3 flex items-center justify-center gap-1 border rounded ${docs.length > 0 ? "border-green-500 bg-green-50 text-green-700" : "border-gray-300 text-gray-500 hover:border-gray-400"}`}
         title={`${label} — ${docs.length} anexo(s)`}>
         <Paperclip className="w-4 h-4" />
         {docs.length > 0 && <span className="text-xs font-semibold">{docs.length}</span>}
