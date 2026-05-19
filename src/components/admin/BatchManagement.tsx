@@ -209,8 +209,12 @@ export default function BatchManagement() {
     const totalValue = ownTorradoValue + inValue;
     return { total_kg:totalKg, total_value:totalValue, avg_cost_per_kg:totalKg>0?totalValue/totalKg:0, own_kg:outForno, in_kg:inKg };
   };
-  const getTransfersOut = (loteId:string) => transfers.filter(t => t.from_lot_id === loteId);
-  const getTransfersIn = (loteId:string) => transfers.filter(t => t.to_lot_id === loteId);
+  const getTransfersOut = (loteId:string) => transfers
+    .filter((t:any) => t.from_lot_id === loteId)
+    .sort((a:any,b:any) => { if(a.kind!==b.kind) return a.kind==='green'?-1:1; return new Date(a.transferred_at).getTime()-new Date(b.transferred_at).getTime(); });
+  const getTransfersIn = (loteId:string) => transfers
+    .filter((t:any) => t.to_lot_id === loteId)
+    .sort((a:any,b:any) => { if(a.kind!==b.kind) return a.kind==='green'?-1:1; return new Date(a.transferred_at).getTime()-new Date(b.transferred_at).getTime(); });
   const getLoteByName = (loteId:string) => batches.find(b => b.id === loteId);
 
   const saveTransfer = async () => {
