@@ -63,6 +63,15 @@ export default function BatchManagement() {
     }
   }, [editingBatch]);
 
+  // Calcular qtd de pacotes automaticamente baseado em embalado_kg e package_weight_grams do produto
+  useEffect(() => {
+    if (!editingBatch?.product_id || !packagingForm.packaged_kg) return;
+    const produto = products.find((p:any) => p.id === editingBatch.product_id);
+    if (!produto?.package_weight_grams || produto.package_weight_grams <= 0) return;
+    const pacotesCalc = Math.round((Number(packagingForm.packaged_kg) * 1000) / produto.package_weight_grams);
+    setPackagingForm((prev:any) => ({ ...prev, quantity_packages: pacotesCalc }));
+  }, [packagingForm.packaged_kg, editingBatch?.product_id, products]);
+
   useEffect(() => { loadAll(); }, []);
 
   // Preview batch_number client-side when roasting_company changes
@@ -694,8 +703,20 @@ export default function BatchManagement() {
                 <input type="number" step="0.01" value={packagingForm.packaged_kg??''} onChange={e=>setPackagingForm({...packagingForm,packaged_kg:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 750" className="w-full border border-gray-300 rounded px-3 py-2"/></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Custo embalagem (R$/kg)</label>
                 <CurrencyInput value={packagingForm.packaging_cost_per_kg} onChange={v=>setPackagingForm({...packagingForm,packaging_cost_per_kg:v})} placeholder="1,30"/></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Qtd de pacotes</label>
-                <input type="number" step="1" value={packagingForm.quantity_packages??''} onChange={e=>setPackagingForm({...packagingForm,quantity_packages:e.target.value===''?null:parseInt(e.target.value)})} placeholder="Ex: 1500" className="w-full border border-gray-300 rounded px-3 py-2"/></div>
+              {(()=>{
+                const produto=products.find((p:any)=>p.id===editingBatch?.product_id);
+                const pesoPacote=produto?.package_weight_grams??500;
+                return(
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">
+                    Qtd de pacotes <span className="text-xs text-gray-500">(pacote {pesoPacote}g — calc. automatico)</span>
+                  </label>
+                    <input type="number" step="1" value={packagingForm.quantity_packages??''} onChange={e=>setPackagingForm({...packagingForm,quantity_packages:e.target.value===''?null:parseInt(e.target.value)})} placeholder="Ex: 1500" className="w-full border border-gray-300 rounded px-3 py-2"/>
+                    {packagingForm.packaged_kg&&pesoPacote&&(
+                      <div className="text-xs text-gray-500 mt-1">{Number(packagingForm.packaged_kg).toFixed(1)} kg ÷ {pesoPacote}g = <strong>{Math.round((Number(packagingForm.packaged_kg)*1000)/pesoPacote)} pacotes</strong>. Edite acima para sobrescrever.</div>
+                    )}
+                  </div>
+                );
+              })()}
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Data da embalagem</label>
                 <input type="date" value={packagingForm.packaging_date??''} onChange={e=>setPackagingForm({...packagingForm,packaging_date:e.target.value||null})} className="w-full border border-gray-300 rounded px-3 py-2"/></div>
             </div>
