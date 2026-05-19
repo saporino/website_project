@@ -3,6 +3,7 @@ import { supabase } from "../../lib/supabase";
 import { Package, Plus, Edit2, Trash2, ChevronDown, ChevronUp, Building2, X, Save, UserPlus, Phone, Mail, MessageCircle } from "lucide-react";
 import { CurrencyInput } from "../CurrencyInput";
 import { formatBRL } from "../../utils/currency";
+import DocumentUploadButton from "./DocumentUploadButton";
 
 interface RoastingCompany { id:string; name:string; cnpj:string; city:string; state:string; cep:string; company_code:number; active:boolean; notes:string; director_name:string; email:string; whatsapp:string; inscricao_estadual:string; }
 interface Contact { id:string; company_id:string; name:string; role:string; email:string; phone:string; whatsapp:string; extension:string; active:boolean; }
@@ -445,13 +446,23 @@ export default function BatchManagement() {
                 <select value={batchForm.status} onChange={e=>setBatchForm({...batchForm,status:e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent">
                   {Object.entries(STATUS_LABELS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
                 </select></div>
-              {[["quantity_packages","Qtd Pacotes","number"],["production_date","Data de Producao","date"],["expiry_date","Validade","date"],["farm_name","Fazenda","text"],["variety","Variedade","text"],["altitude_m","Altitude (m)","number"],["sca_score","Score SCA","number"],["green_weight_kg","Peso Verde (kg)","number"]].map(([k,l,t])=>(
+              {[["quantity_packages","Qtd Pacotes","number"],["production_date","Data de Producao","date"],["expiry_date","Validade","date"],["farm_name","Fazenda","text"],["variety","Variedade","text"],["altitude_m","Altitude (m)","number"],["sca_score","Score SCA","number"]].map(([k,l,t])=>(
                 <div key={k}><label className="block text-xs font-semibold text-gray-600 mb-1">{l}</label>
                   <input type={t} step={t==="number"?"0.01":undefined} value={batchForm[k]||""} onChange={e=>setBatchForm({...batchForm,[k]:e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
               ))}
+              <div><label className="block text-xs font-semibold text-gray-600 mb-1">Peso Verde (kg)</label>
+                <div className="flex items-stretch gap-2">
+                  <input type="number" step="0.01" value={batchForm.green_weight_kg||""} onChange={e=>setBatchForm({...batchForm,green_weight_kg:e.target.value})} className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/>
+                  <DocumentUploadButton lotId={editingBatch?.id} kind="compra_verde" label="Comprovante compra do verde"/>
+                </div>
+              </div>
               {/* Valor total pago + Logistica 4 campos */}
               <div><label className="block text-xs font-semibold text-gray-600 mb-1">Valor total pago (R$)</label>
-                <CurrencyInput value={batchForm.total_paid_brl} onChange={v=>setBatchForm({...batchForm,total_paid_brl:v})} placeholder="27.360,00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
+                <div className="flex items-stretch gap-2">
+                  <CurrencyInput value={batchForm.total_paid_brl} onChange={v=>setBatchForm({...batchForm,total_paid_brl:v})} placeholder="27.360,00" className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/>
+                  <DocumentUploadButton lotId={editingBatch?.id} kind="nota_fiscal" label="NF e impostos" allowMultiple={true}/>
+                </div>
+              </div>
               <div className="sm:col-span-2 border border-gray-200 rounded-lg p-3 bg-gray-50">
                 <p className="text-xs font-semibold text-gray-700 mb-2">Logistica da compra</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -662,7 +673,11 @@ export default function BatchManagement() {
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Cru enviado pra torra (kg)</label>
                 <input type="number" step="0.01" value={roastForm.green_input_to_roast_kg??''} onChange={e=>setRoastForm({...roastForm,green_input_to_roast_kg:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 1053" className="w-full border border-gray-300 rounded px-3 py-2"/></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">R$/kg do servico de torra</label>
-                <CurrencyInput value={roastForm.service_price_per_kg} onChange={v=>setRoastForm({...roastForm,service_price_per_kg:v})} placeholder="Ex: 3,00"/></div>
+                <div className="flex items-stretch gap-2">
+                  <CurrencyInput value={roastForm.service_price_per_kg} onChange={v=>setRoastForm({...roastForm,service_price_per_kg:v})} placeholder="Ex: 3,00" className="flex-1"/>
+                  <DocumentUploadButton lotId={editingBatch?.id} kind="pagamento_torra" label="PIX da torra (Bruno)"/>
+                </div>
+              </div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Saida do forno (kg torrado)</label>
                 <input type="number" step="0.01" value={roastForm.roasted_output_kg??''} onChange={e=>setRoastForm({...roastForm,roasted_output_kg:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 850" className="w-full border border-gray-300 rounded px-3 py-2"/></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Quebra fisica (%)</label>
@@ -712,7 +727,11 @@ export default function BatchManagement() {
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Embalado (kg)</label>
                 <input type="number" step="0.01" value={packagingForm.packaged_kg??''} onChange={e=>setPackagingForm({...packagingForm,packaged_kg:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 750" className="w-full border border-gray-300 rounded px-3 py-2"/></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Custo embalagem (R$/kg)</label>
-                <CurrencyInput value={packagingForm.packaging_cost_per_kg} onChange={v=>setPackagingForm({...packagingForm,packaging_cost_per_kg:v})} placeholder="1,30"/></div>
+                <div className="flex items-stretch gap-2">
+                  <CurrencyInput value={packagingForm.packaging_cost_per_kg} onChange={v=>setPackagingForm({...packagingForm,packaging_cost_per_kg:v})} placeholder="1,30" className="flex-1"/>
+                  <DocumentUploadButton lotId={editingBatch?.id} kind="pagamento_embalagem" label="Comprovante embalagem"/>
+                </div>
+              </div>
               {(()=>{
                 const produto=products.find((p:any)=>p.id===editingBatch?.product_id);
                 const pesoPacote=produto?.weight_grams??500;

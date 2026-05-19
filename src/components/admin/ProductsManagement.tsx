@@ -435,7 +435,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
         </div>
 
         <div className="md:col-span-4">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Codigo de barras (EAN-13)</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-2 whitespace-nowrap">Codigo de barras (EAN-13)</label>
           <input
             type="text"
             inputMode="numeric"
