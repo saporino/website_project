@@ -67,8 +67,8 @@ export default function BatchManagement() {
   useEffect(() => {
     if (!editingBatch?.product_id || !packagingForm.packaged_kg) return;
     const produto = products.find((p:any) => p.id === editingBatch.product_id);
-    if (!produto?.package_weight_grams || produto.package_weight_grams <= 0) return;
-    const pacotesCalc = Math.round((Number(packagingForm.packaged_kg) * 1000) / produto.package_weight_grams);
+    if (!produto?.weight_grams || produto.weight_grams <= 0) return;
+    const pacotesCalc = Math.round((Number(packagingForm.packaged_kg) * 1000) / produto.weight_grams);
     setPackagingForm((prev:any) => ({ ...prev, quantity_packages: pacotesCalc }));
   }, [packagingForm.packaged_kg, editingBatch?.product_id, products]);
 
@@ -715,7 +715,7 @@ export default function BatchManagement() {
                 <CurrencyInput value={packagingForm.packaging_cost_per_kg} onChange={v=>setPackagingForm({...packagingForm,packaging_cost_per_kg:v})} placeholder="1,30"/></div>
               {(()=>{
                 const produto=products.find((p:any)=>p.id===editingBatch?.product_id);
-                const pesoPacote=produto?.package_weight_grams??500;
+                const pesoPacote=produto?.weight_grams??500;
                 return(
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">
                     Qtd de pacotes <span className="text-xs text-gray-500">(pacote {pesoPacote}g — calc. automatico)</span>
