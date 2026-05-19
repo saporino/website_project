@@ -674,7 +674,7 @@ export default function BatchManagement() {
                 <input type="number" step="0.01" value={roastForm.green_input_to_roast_kg??''} onChange={e=>setRoastForm({...roastForm,green_input_to_roast_kg:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 1053" className="w-full border border-gray-300 rounded px-3 py-2"/></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">R$/kg do servico de torra</label>
                 <div className="flex items-stretch gap-2">
-                  <CurrencyInput value={roastForm.service_price_per_kg} onChange={v=>setRoastForm({...roastForm,service_price_per_kg:v})} placeholder="Ex: 3,00" className="flex-1"/>
+                  <CurrencyInput value={roastForm.service_price_per_kg} onChange={v=>setRoastForm({...roastForm,service_price_per_kg:v})} placeholder="Ex: 3,00" className="flex-1 border border-gray-300 rounded px-3 py-2"/>
                   <DocumentUploadButton lotId={editingBatch?.id} kind="pagamento_torra" label="PIX da torra (Bruno)"/>
                 </div>
               </div>
@@ -728,7 +728,7 @@ export default function BatchManagement() {
                 <input type="number" step="0.01" value={packagingForm.packaged_kg??''} onChange={e=>setPackagingForm({...packagingForm,packaged_kg:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 750" className="w-full border border-gray-300 rounded px-3 py-2"/></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Custo embalagem (R$/kg)</label>
                 <div className="flex items-stretch gap-2">
-                  <CurrencyInput value={packagingForm.packaging_cost_per_kg} onChange={v=>setPackagingForm({...packagingForm,packaging_cost_per_kg:v})} placeholder="1,30" className="flex-1"/>
+                  <CurrencyInput value={packagingForm.packaging_cost_per_kg} onChange={v=>setPackagingForm({...packagingForm,packaging_cost_per_kg:v})} placeholder="1,30" className="flex-1 border border-gray-300 rounded px-3 py-2"/>
                   <DocumentUploadButton lotId={editingBatch?.id} kind="pagamento_embalagem" label="Comprovante embalagem"/>
                 </div>
               </div>
