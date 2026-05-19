@@ -519,8 +519,13 @@ export default function BatchManagement() {
                         <div className="grid grid-cols-2 gap-1">
                           <div>Quebra fisica: <strong>{shrinkage.toFixed(2)}%</strong></div>
                           <div>Custo servico: <strong>{formatBRL(servTotal)}</strong></div>
-                          <div className="col-span-2">Custo/kg torrado: <strong>{formatBRL((cruIn*ve.avg_cost_per_kg+servTotal)/outForno)}</strong></div>
+                          <div className="col-span-2">Custo/kg torrado (puro, sem embalagem): <strong>{formatBRL((cruIn*ve.avg_cost_per_kg+servTotal)/outForno)}</strong></div>
                           {te.in_kg>0&&<div className="col-span-2 text-blue-700">Torrado recebido: {te.in_kg.toFixed(1)} kg | Total: {te.total_kg.toFixed(1)} kg | Custo medio: {formatBRL(te.avg_cost_per_kg)}/kg</div>}
+                          {sobraTorrado>0&&(<>
+                            <div>Sobra torrado: <strong>{sobraTorrado.toFixed(1)} kg</strong></div>
+                            <div>Credito torrado: <strong>{formatBRL(valorCreditoTorrado)}</strong></div>
+                            <div className="col-span-2 text-xs text-gray-600 italic">(sobra disponivel pra transferir/embalar — sem custo de embalagem ate ser embalada)</div>
+                          </>)}
                         </div>
                       </div>
                     )}
@@ -528,9 +533,10 @@ export default function BatchManagement() {
                       <div className="border-b border-amber-200 pb-2">
                         <p className="font-medium text-amber-800 mb-1">3. Embalagem</p>
                         <div className="grid grid-cols-2 gap-1">
-                          <div>Sobra torrado: <strong>{sobraTorrado.toFixed(1)} kg</strong></div>
-                          <div>Credito torrado: <strong>{formatBRL(valorCreditoTorrado)}</strong></div>
-                          <div className="col-span-2 font-semibold text-amber-900">Custo final/kg embalado: {formatBRL(cFinalKg)}</div>
+                          <div>Embalado: <strong>{embalado.toFixed(1)} kg</strong></div>
+                          <div>Custo embalagem (material): <strong>{formatBRL(embPrice)}/kg</strong></div>
+                          <div className="col-span-2 text-xs text-gray-600">{formatBRL(te.avg_cost_per_kg)}/kg torrado + {formatBRL(embPrice)}/kg embalagem = <strong className="text-amber-900">{formatBRL(cFinalKg)}/kg</strong></div>
+                          <div className="col-span-2 font-semibold text-amber-900 border-t border-amber-200 pt-1 mt-1">Custo final por kg embalado: {formatBRL(cFinalKg)}</div>
                         </div>
                       </div>
                     )}
