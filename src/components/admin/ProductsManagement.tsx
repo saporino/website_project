@@ -31,10 +31,10 @@ function BarcodeDisplay({ value }: { value: string }) {
       return;
     }
     try {
-      JsBarcode(ref.current, value, { format:'EAN13', width:2, height:60, fontSize:14, margin:5, displayValue:true });
+      JsBarcode(ref.current, value, { format:'EAN13', width:1.5, height:45, fontSize:11, margin:4, displayValue:true });
     } catch (e) { /* checksum invalido */ }
   }, [value]);
-  return <svg ref={ref} />;
+  return <svg ref={ref} style={{ maxWidth:'100%', height:'auto', display:'block' }} />;
 }
 
 export function ProductsManagement() {
@@ -452,7 +452,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             <p className="text-xs text-red-600 mt-1">EAN-13 deve ter 13 digitos ({(formData as any).barcode.length}/13).</p>
           )}
           {(formData as any).barcode && (formData as any).barcode.length === 13 && (
-            <div className="mt-2 p-2 bg-gray-50 rounded inline-block">
+            <div className="mt-2 p-2 bg-gray-50 rounded max-w-full overflow-hidden">
               <BarcodeDisplay value={(formData as any).barcode} />
             </div>
           )}
