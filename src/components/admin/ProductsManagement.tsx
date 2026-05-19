@@ -89,7 +89,7 @@ export function ProductsManagement() {
     try {
       const [{ data, error }, { data: batches }] = await Promise.all([
         supabase.from('products').select('*').order('display_order', { ascending: true }),
-        supabase.from('product_batches').select('product_id,batch_number').eq('status', 'active')
+        supabase.from('green_coffee_lots').select('product_id,batch_number,status').eq('status', 'active')
       ]);
 
       if (error) throw error;

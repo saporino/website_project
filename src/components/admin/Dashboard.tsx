@@ -54,22 +54,39 @@ export function Dashboard() {
       const firstDay = new Date(selectedYear, selectedMonth, 1).toISOString();
       const lastDay = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59).toISOString();
 
-      // Load orders for selected month with customer profile
+      // Load orders for selected month
       const { data: orders } = await supabase
         .from('orders')
         .select(`
           total_amount, user_id,
           order_items(quantity, unit_price, products(name)),
-          shipments(carrier_name),
-          user_profiles!orders_user_id_fkey(account_type)
+          shipments(carrier_name)
         `)
         .gte('created_at', firstDay)
         .lte('created_at', lastDay)
         .in('payment_status', ['paid', 'approved'])
         .order('created_at');
 
+      const userIds = Array.from(new Set((orders || []).map((order: any) => order.user_id).filter(Boolean)));
+      const profileMap = new Map<string, string>();
+
+      if (userIds.length > 0) {
+        const { data: profiles, error: profilesError } = await supabase
+          .from('user_profiles')
+          .select('id, account_type')
+          .in('id', userIds);
+
+        if (profilesError) {
+          console.warn('Could not load user profile account types for dashboard orders:', profilesError.message);
+        } else {
+          (profiles || []).forEach((profile: any) => {
+            profileMap.set(profile.id, profile.account_type || 'PF');
+          });
+        }
+      }
+
       // Total customers
-      const [{ count: pfCount }, { count: pjCount }, { data: products }] = await Promise.all([
+      const [{ count: pfCount, error: pfError }, { count: pjCount, error: pjError }, { data: products }] = await Promise.all([
         supabase.from('user_profiles').select('id', { count: 'exact', head: true }).eq('account_type', 'PF'),
         supabase.from('user_profiles').select('id', { count: 'exact', head: true }).eq('account_type', 'PJ'),
         supabase.from('products').select('id', { count: 'exact', head: true }),
@@ -81,8 +98,12 @@ export function Dashboard() {
         .select('id', { count: 'exact', head: true })
         .in('order_status', ['created', 'payment_pending']);
 
-      setTotalCustomersPF(pfCount || 0);
-      setTotalCustomersPJ(pjCount || 0);
+      if (pfError || pjError) {
+        console.warn('Could not load PF/PJ customer counters from user_profiles.account_type:', pfError?.message || pjError?.message);
+      }
+
+      setTotalCustomersPF(pfError ? 0 : pfCount || 0);
+      setTotalCustomersPJ(pjError ? 0 : pjCount || 0);
       setTotalProducts((products as any)?.length || 0);
       setPendingOrders(pendingCount || 0);
 
@@ -92,7 +113,7 @@ export function Dashboard() {
       const carrierMap: Record<string, CarrierStats> = {};
 
       (orders || []).forEach((order: any) => {
-        const acctType = order.user_profiles?.account_type || 'PF';
+        const acctType = profileMap.get(order.user_id) || 'PF';
         const amount = Number(order.total_amount) || 0;
         const isPF = acctType !== 'PJ';
 

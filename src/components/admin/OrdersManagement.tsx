@@ -65,7 +65,7 @@ interface Order {
   }>;
   invoices?: Invoice[];
   shipments?: Shipment[];
-  account_type?: string; // from user_profiles join
+  account_type?: string;
 }
 
 const ORDER_STATUSES = [
@@ -113,13 +113,30 @@ export function OrdersManagement() {
     try {
       const { data, error } = await supabase
         .from('orders')
-        .select(`*, order_items(quantity, unit_price, product_id, products(name, weight_grams)), invoices(*), shipments(*), user_profiles!orders_user_id_fkey(account_type)`)
+        .select(`*, order_items(quantity, unit_price, product_id, products(name, weight_grams)), invoices(*), shipments(*)`)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      // Flatten account_type from nested user_profiles
+      const userIds = Array.from(new Set((data || []).map((o: any) => o.user_id).filter(Boolean)));
+      const profileMap = new Map<string, string>();
+
+      if (userIds.length > 0) {
+        const { data: profiles, error: profilesError } = await supabase
+          .from('user_profiles')
+          .select('id, account_type')
+          .in('id', userIds);
+
+        if (profilesError) {
+          console.warn('Could not load user profile account types for orders:', profilesError.message);
+        } else {
+          (profiles || []).forEach((profile: any) => {
+            profileMap.set(profile.id, profile.account_type || 'PF');
+          });
+        }
+      }
+
       const enriched = (data || []).map((o: any) => ({
         ...o,
-        account_type: o.user_profiles?.account_type || 'PF',
+        account_type: profileMap.get(o.user_id) || 'PF',
       }));
       setOrders(enriched);
     } catch (error) {
