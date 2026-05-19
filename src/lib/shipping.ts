@@ -28,7 +28,7 @@ export interface ShippingAddress {
  * Current mode: uses manual fallback (fixed_price + price_per_kg * weight).
  * Future: when api_type !== 'manual' and credentials are set, calls carrier API.
  */
-export async function getCarrierQuotes(cep: string, weightKg: number = 0.5): Promise<CarrierQuote[]> {
+export async function getCarrierQuotes(_cep: string, weightKg: number = 0.5): Promise<CarrierQuote[]> {
   try {
     const { data: carriers, error } = await supabase
       .from('shipping_carriers')

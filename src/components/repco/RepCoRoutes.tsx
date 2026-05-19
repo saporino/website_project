@@ -4,7 +4,6 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { supabase } from '../../lib/supabase';
 import { SEGMENT_LABEL } from '../../constants/segments';
-import { googleCalendarLink, outlookCalendarLink, downloadICS } from '../../utils/calendarLinks';
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({

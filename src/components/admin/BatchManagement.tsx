@@ -7,8 +7,8 @@ import DocumentUploadButton from "./DocumentUploadButton";
 
 interface RoastingCompany { id:string; name:string; cnpj:string; city:string; state:string; cep:string; company_code:number; active:boolean; notes:string; director_name:string; email:string; whatsapp:string; inscricao_estadual:string; }
 interface Contact { id:string; company_id:string; name:string; role:string; email:string; phone:string; whatsapp:string; extension:string; active:boolean; }
-interface Batch { id:string; batch_number:string; product_id:string; product_name?:string; roasting_company_id:string; company_name?:string; status:string; quantity_packages:number; production_date:string; expiry_date:string; variety:string; altitude_m:number; farm_name:string; green_weight_kg:number; green_cost_per_kg:number; sca_score:number; sensory_notes:string; cost_per_250g:number; cost_per_500g:number; cost_per_1kg:number; notes:string; }
-interface Product { id:string; name:string; stock:number; }
+interface Batch { id:string; batch_number:string; product_id:string; product_name?:string; roasting_company_id:string; company_name?:string; status:string; quantity_packages:number; production_date:string; expiry_date:string; variety:string; altitude_m:number; farm_name:string; green_weight_kg:number; green_cost_per_kg:number; sca_score:number; sensory_notes:string; cost_per_250g:number; cost_per_500g:number; cost_per_1kg:number; notes:string; total_paid_brl?:number|null; ap_percentage?:number|null; price_per_point?:number|null; logistics_cost_brl?:number|null; green_input_to_roast_kg?:number|null; service_price_per_kg?:number|null; roasted_output_kg?:number|null; roast_date?:string|null; packaged_kg?:number|null; packaging_cost_per_kg?:number|null; packaging_date?:string|null; }
+interface Product { id:string; name:string; stock:number; weight_grams:number; }
 
 const ALLOWED_BATCH_FIELDS = ['batch_number','product_id','product_name','status','supplier_name','supplier_city','supplier_state','variety','altitude_meters','green_weight_kg','roast_date','roasted_by','roasted_weight_kg','roast_cost','roast_profile','roast_temperature','roast_duration_minutes','pkg_cost_250g','pkg_cost_500g','pkg_cost_1kg','pkg_cost_fardo5kg','label_cost_per_unit','plastic_wrap_cost_per_unit','fuel_cost','toll_cost','hotel_cost','food_cost','other_costs','samples_given_units','samples_unit_size_g','bonus_given_units','bonus_unit_size_g','total_variable_cost','total_bonus_cost','cost_per_100g','cost_per_250g','cost_per_500g','cost_per_1kg','cost_per_fardo5kg','units_produced_250g','units_produced_500g','units_produced_1kg','units_produced_fardo5kg','production_date','expiry_date','nf_purchase_url','supplier_certificate_url','quality_report_url','sensory_notes','sca_score','created_by','roasting_company_id','farm_name','farm_city','farm_state','altitude_m','quantity_packages','nf_url','notes','ap_percentage','price_per_point','total_paid_brl','logistics_cost_brl','logistics_breakdown','green_input_to_roast_kg','service_price_per_kg','roasted_output_kg','packaged_kg','packaging_cost_per_kg','roast_date','packaging_date'] as const;
 
@@ -98,7 +98,7 @@ export default function BatchManagement() {
     const [{ data: b }, { data: c }, { data: p }, { data: ct }] = await Promise.all([
       supabase.from("green_coffee_lots").select("*, products(name), roasting_companies(name)").order("created_at", { ascending: false }),
       supabase.from("roasting_companies").select("*").order("company_code"),
-      supabase.from("products").select("id,name,stock").order("name"),
+      supabase.from("products").select("id,name,stock,weight_grams").order("name"),
       supabase.from("roasting_company_contacts").select("*").eq("active", true)
     ]);
     setBatches((b||[]).map((x:any)=>({...x})));
@@ -804,4 +804,3 @@ export default function BatchManagement() {
     </div>
   );
 }
-

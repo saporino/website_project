@@ -14,7 +14,7 @@ const DOC_TYPES = [
   { key: 'contrato', label: 'Contrato de Representação' },
 ];
 
-export function RepCoProfile({ rep, onUpdate }: Props) {
+export function RepCoProfile({ rep }: Props) {
   const { user } = useAuth();
   const [uploading, setUploading] = useState<string | null>(null);
   const [uploaded, setUploaded] = useState<Set<string>>(new Set());

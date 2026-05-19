@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import {
-  TrendingUp, DollarSign, ShoppingBag, Users, Package,
+  TrendingUp, ShoppingBag, Users, Package,
   AlertCircle, ChevronLeft, ChevronRight, Truck, Building2, UserCircle
 } from 'lucide-react';
 

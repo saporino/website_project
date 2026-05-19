@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { getTrackingUrl } from '../../lib/tracking';
-import { Printer, Tag, Package, Search, Filter,
+import { Printer, Tag, Package, Search,
   ChevronDown, ChevronUp, FileText, Truck, CheckCircle,
-  Clock, AlertCircle, Upload, ExternalLink, Save, X, Building2, UserCircle } from 'lucide-react';
+  AlertCircle, Upload, ExternalLink, Save, Building2, UserCircle } from 'lucide-react';
 
 interface Invoice {
   id: string;
@@ -204,7 +204,7 @@ export function OrdersManagement() {
               expanded={expandedOrderId === order.id}
               section={activeSection[order.id] || 'overview'}
               onToggle={() => toggleExpand(order.id)}
-              onSetSection={(s) => setSection(order.id, s)}
+              onSetSection={(s: string) => setSection(order.id, s)}
               onRefresh={loadOrders}
             />
           ))}
@@ -721,4 +721,3 @@ function LogisticsSection({ order, shipment, invoice, onRefresh }: any) {
     </div>
   );
 }
-

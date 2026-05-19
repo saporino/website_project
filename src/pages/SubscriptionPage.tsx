@@ -1,5 +1,5 @@
-import { useState, useEffect, FormEvent } from 'react';
-import { X, Check, Coffee, Package, Calendar, Truck, Shield, Award, Home, LogOut, User, ChevronDown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Check, Coffee, Package, Calendar, Truck, Shield, Award, Home, LogOut, User, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -8,7 +8,6 @@ import { AuthModal } from '../components/AuthModal';
 
 const coffeeFieldImage = '/coffee-field.webp';
 const logoImage = '/SAPORINO LOGO transparente big-PNG.png';
-const cafeLogoImage = '/cafe-logo-saporino copy.png';
 
 type AccountType = 'PF' | 'PJ' | null;
 

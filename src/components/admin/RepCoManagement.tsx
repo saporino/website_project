@@ -1,5 +1,5 @@
 import { useState, useEffect, Suspense, lazy, useMemo } from 'react';
-import { Users, CheckCircle, XCircle, Eye, Plus, DollarSign, Upload, Download, Phone, Mail, Map, Search } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, Plus, Upload, Download, Phone, Mail, Map, Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -267,6 +267,7 @@ export function RepCoManagement() {
     toast.success('Comissão marcada como paga!');
     if (selectedRep) fetchRepDetail(selectedRep);
   };
+  void handleMarkCommissionPaid;
 
   const handleCompleteOrder = async (order: RepOrder) => {
     const { error } = await supabase.from('representative_orders').update({ status: 'completed' }).eq('id', order.id);
@@ -749,4 +750,3 @@ export function RepCoManagement() {
     </div>
   );
 }
-

@@ -11,6 +11,7 @@ interface Product {
   promotional_price: number | null;
   discount_percentage: number;
   image_url: string | null;
+  additional_images?: string[];
   weight_grams: number;
   stock: number;
   is_active: boolean;
@@ -18,6 +19,10 @@ interface Product {
   featured: boolean;
   roast_type: string | null;
   flavor_notes: string | null;
+  full_details?: string | null;
+  subscription_enabled?: boolean;
+  subscription_months?: number;
+  subscription_discount_pct?: number;
   display_order: number;
   barcode?: string | null;
 }
@@ -253,7 +258,7 @@ export function ProductsManagement() {
       const filePath = `${fileName}`;
 
       // Upload to Supabase Storage
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from('product-images')
         .upload(filePath, file, {
           cacheControl: '3600',
@@ -842,5 +847,3 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
     </div>
   );
 }
-
-

@@ -213,7 +213,7 @@ export default function RepCoLiveMap() {
           {ranked.length === 0
             ? <div className="text-center py-8 text-gray-400"><p className="text-3xl mb-2">👥</p><p className="text-xs">Nenhum representante ativo</p></div>
             : ranked.map((rep, i) => {
-              const { badge, label } = getStatusStyle(rep);
+              const { badge } = getStatusStyle(rep);
               const medals = ['🥇', '🥈', '🥉'];
               return (
                 <div key={rep.id} onClick={() => toggleRepRoute(rep.id)}

@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { X, Package, Truck, CreditCard, Check } from 'lucide-react';
+import { X, Package, Check } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { createPreference } from '../lib/mercadopago';
@@ -48,6 +48,9 @@ export const SubscriptionCheckout = ({
   const [isLoadingCep, setIsLoadingCep] = useState(false);
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
+  void currentStep;
+  void setCurrentStep;
+  void orderId;
 
   const [formData, setFormData] = useState(initialFormData);
 
@@ -64,6 +67,8 @@ export const SubscriptionCheckout = ({
   });
 
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'cartao'>('pix');
+  void paymentMethod;
+  void setPaymentMethod;
 
   const fetchAddressByCep = async (cep: string) => {
     const cleanCep = cep.replace(/\D/g, '');
@@ -150,6 +155,7 @@ export const SubscriptionCheckout = ({
       }
     }
   };
+  void calculateFreight;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -427,6 +433,7 @@ export const SubscriptionCheckout = ({
 
   const basePrice = selectedCoffees.length * 35;
   const totalAmount = basePrice + freightData.freight_cost;
+  void totalAmount;
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-black/60 backdrop-blur-sm">

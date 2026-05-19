@@ -1,6 +1,6 @@
 import { useState, useEffect, FormEvent, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
-import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Mail, Phone, MapPin, Send, User, ChevronDown, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Send, User, ChevronDown, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CartProvider, useCart } from './contexts/CartContext';
 import { AuthModal } from './components/AuthModal';
@@ -119,8 +119,6 @@ function AppContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [addedProducts, setAddedProducts] = useState<Set<string>>(new Set());
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [contactSubmitted, setContactSubmitted] = useState(false);
-  const [contactForm, setContactForm] = useState({ name: '', email: '', message: '' });
 
   useEffect(() => {
     loadProducts();
@@ -179,14 +177,10 @@ function AppContent() {
         setAddedProducts={setAddedProducts}
         selectedProduct={selectedProduct}
         setSelectedProduct={setSelectedProduct}
+        onAuthOpen={openAuth}
       />
       <About />
-      <Contact
-        contactForm={contactForm}
-        setContactForm={setContactForm}
-        contactSubmitted={contactSubmitted}
-        setContactSubmitted={setContactSubmitted}
-      />
+      <Contact />
       <Footer scrollToSection={scrollToSection} />
       <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} onAuthOpen={openAuth} />
       <AuthModal
@@ -490,7 +484,7 @@ const Hero = ({ scrollToSection }: any) => (
   </section>
 );
 
-const Products = ({ products, loading, addedProducts, setAddedProducts, selectedProduct, setSelectedProduct }: any) => {
+const Products = ({ products, loading, addedProducts, setAddedProducts, selectedProduct, setSelectedProduct, onAuthOpen }: any) => {
   const { addToCart } = useCart();
 
   const handleAddToCart = (product: Product) => {
@@ -507,7 +501,7 @@ const Products = ({ products, loading, addedProducts, setAddedProducts, selected
 
 
   if (selectedProduct) {
-    return <ProductDetail product={selectedProduct} onBack={() => setSelectedProduct(null)} onAddToCart={handleAddToCart} isAdded={addedProducts.has(selectedProduct.id)} onOpenAuth={() => setIsAuthModalOpen(true)} />;
+    return <ProductDetail product={selectedProduct} onBack={() => setSelectedProduct(null)} onAddToCart={handleAddToCart} isAdded={addedProducts.has(selectedProduct.id)} onOpenAuth={() => onAuthOpen('login')} />;
   }
 
   if (loading) {
@@ -1143,16 +1137,7 @@ const About = () => (
   </section>
 );
 
-const Contact = ({ contactForm, setContactForm, contactSubmitted, setContactSubmitted }: any) => {
-  const handleSubmit = (e: FormEvent) => {
-    e.preventDefault();
-    setContactSubmitted(true);
-    setTimeout(() => {
-      setContactSubmitted(false);
-      setContactForm({ name: '', email: '', message: '' });
-    }, 3000);
-  };
-
+const Contact = () => {
   return (
     <section id="journey" className="py-24 bg-gradient-to-b from-stone-50 to-white">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Users, Search, Filter, Mail, Phone, Calendar, Building2, User, UserCircle, FileText, Edit, Save, X, ShoppingBag, TrendingUp, Package, Gift, Send, MessageCircle, Trash2 } from 'lucide-react';
+import { Users, Search, Mail, Phone, Calendar, Building2, User, UserCircle, FileText, Edit, Save, X, ShoppingBag, TrendingUp, Package, Gift, Send, MessageCircle, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 
@@ -47,7 +47,6 @@ export const CustomersManagement = () => {
     if (!phone) return false;
     const cleaned = phone.replace(/\D/g, '');
     if (cleaned.length === 13 && cleaned.startsWith('55')) {
-      const ddd = cleaned.substring(2, 4);
       const firstDigit = cleaned.charAt(4);
       return firstDigit === '9';
     }
@@ -309,7 +308,7 @@ export const CustomersManagement = () => {
       const oneYearAgo = new Date();
       oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
-      const { data: gift } = await supabase
+      const { error: giftError } = await supabase
         .from('anniversary_gifts')
         .insert({
           user_id: customer.id,
@@ -319,6 +318,7 @@ export const CustomersManagement = () => {
         })
         .select()
         .single();
+      if (giftError) throw giftError;
 
       await supabase
         .from('user_profiles')

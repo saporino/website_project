@@ -22,6 +22,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   const [prices, setPrices] = useState<PriceEntry[]>([]);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState('pix');
+  void paymentMethod;
   const [isPersonalDelivery, setIsPersonalDelivery] = useState(false);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
@@ -305,4 +306,3 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
     </div>
   );
 }
-

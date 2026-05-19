@@ -17,6 +17,9 @@ const RepCoRoutes = lazy(() => import('../components/repco/RepCoRoutes'));
 interface Representative {
   id: string;
   full_name: string;
+  cpf: string;
+  phone: string;
+  cnpj: string;
   status: 'pending' | 'active' | 'blocked';
   commission_rate: number;
   experience_start_date: string | null;

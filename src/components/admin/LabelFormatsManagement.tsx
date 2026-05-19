@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Tag, Plus, Edit, Trash2, Save, X, Package } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, Package } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface LabelFormat {

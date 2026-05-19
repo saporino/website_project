@@ -43,7 +43,7 @@ export default function RouteManager() {
         .order('created_at', { ascending: false }),
     ]);
     if (reps) setRepresentatives(reps);
-    if (rts) setRoutes(rts as Route[]);
+    if (rts) setRoutes(rts as unknown as Route[]);
     setLoading(false);
   }
 
@@ -239,4 +239,3 @@ export default function RouteManager() {
     </div>
   );
 }
-

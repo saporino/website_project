@@ -23,12 +23,13 @@ export function usePushNotifications() {
     if (!supported || permission !== 'granted') return;
     navigator.serviceWorker.ready
       .then(registration => {
-        registration.showNotification(title, {
+        const notificationOptions = {
           icon: '/icons/pwa-192x192.png',
           badge: '/icons/pwa-192x192.png',
           vibrate: [200, 100, 200],
           ...options,
-        });
+        } as NotificationOptions;
+        registration.showNotification(title, notificationOptions);
       })
       .catch(() => {
         const notif = new Notification(title, { icon: '/icons/pwa-192x192.png', ...options });
