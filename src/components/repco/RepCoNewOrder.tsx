@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { SEGMENT_LABEL } from '../../constants/segments';
 
@@ -116,7 +116,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
       notes: notes || null,
     });
     if (err) {
-      // Se falhou, volta para revisÃ£o com erro
+      // Se falhou, volta para revisão com erro
       setSuccess(false); setStep('review');
       setError('Erro ao enviar pedido. Tente novamente.');
     }
@@ -137,7 +137,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
       {/* Stepper */}
       <div className="flex items-center gap-2 text-xs font-medium">
         {(['client','products','review'] as const).map((s, i) => {
-          const labels = ['Cliente','Produtos','RevisÃ£o'];
+          const labels = ['Cliente','Produtos','Revisão'];
           const past = ['client','products','review'].indexOf(step) > i;
           return (
             <div key={s} className="flex items-center gap-2">
@@ -194,7 +194,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                           <p className="text-sm font-semibold text-gray-900 truncate">{product.name}</p>
                           <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                             {pe ? <span className={`text-xs font-medium ${hasDisc?'text-green-600':'text-[#a4240e]'}`}>R$ {ep?.toFixed(2)}{hasDisc&&<span className="ml-1 bg-green-50 px-1 rounded">-{pe.volume_discount}%</span>}</span>
-                              : <span className="text-xs text-gray-400">Sem preÃ§o p/ este segmento</span>}
+                              : <span className="text-xs text-gray-400">Sem preço p/ este segmento</span>}
                             <StockIndicator stock={product.stock} inStock={product.in_stock} />
                           </div>
                         </div>
@@ -243,13 +243,13 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
             <div className="flex justify-between border-t border-gray-200 pt-2 font-bold"><span>Total</span><span className="text-[#a4240e]">R$ {calcTotal().toFixed(2)}</span></div>
           </div>
           <div className="space-y-3">
-            {/* NÃºmero do pedido do cliente */}
+            {/* Número do pedido do cliente */}
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <input type="checkbox" id="has_order_number" checked={hasClientOrderNumber}
                   onChange={e=>{setHasClientOrderNumber(e.target.checked);if(!e.target.checked)setClientOrderNumber('');}}
                   className="w-4 h-4 accent-amber-600"/>
-                <label htmlFor="has_order_number" className="text-sm text-gray-700 cursor-pointer">Cliente tem nÃºmero de pedido</label>
+                <label htmlFor="has_order_number" className="text-sm text-gray-700 cursor-pointer">Cliente tem número de pedido</label>
               </div>
               {hasClientOrderNumber&&(
                 <input type="text" value={clientOrderNumber} onChange={e=>setClientOrderNumber(e.target.value)}
@@ -257,7 +257,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                   className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded focus:outline-none"/>
               )}
               {!hasClientOrderNumber&&(
-                <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">Pedido serÃ¡ encaminhado ao fiscal sem nÃºmero do cliente</p>
+                <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">Pedido será encaminhado ao fiscal sem número do cliente</p>
               )}
             </div>
             {/* Prazo de pagamento */}
@@ -273,7 +273,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
             {/* Desconto */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
-                Desconto ao cliente (%) <span className="text-gray-400 font-normal">â€” comissÃ£o calculada sobre preÃ§o com desconto</span>
+                Desconto ao cliente (%) <span className="text-gray-400 font-normal">â€” comissão calculada sobre preço com desconto</span>
               </label>
               <div className="flex gap-2 items-center">
                 <input type="number" value={discountPercentage}
@@ -285,7 +285,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                   <div className="flex gap-3 text-xs">
                     <span className="text-gray-400 line-through">R$ {calcTotal().toFixed(2)}</span>
                     <span className="text-green-600 font-medium">R$ {(calcTotal()*(1-discountPercentage/100)).toFixed(2)}</span>
-                    {paymentTerm===0&&<span className="text-amber-600">PIX: +0.5% bÃ´nus</span>}
+                    {paymentTerm===0&&<span className="text-amber-600">PIX: +0.5% bônus</span>}
                   </div>
                 )}
               </div>
@@ -293,9 +293,9 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
             {/* Entrega pessoal */}
             <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5">
               <input type="checkbox" id="pd" checked={isPersonalDelivery} onChange={e=>setIsPersonalDelivery(e.target.checked)} className="w-4 h-4 accent-[#a4240e]"/>
-              <label htmlFor="pd" className="text-sm text-amber-800 cursor-pointer">Entrega pessoal (+2,5% bÃ´nus na comissÃ£o)</label>
+              <label htmlFor="pd" className="text-sm text-amber-800 cursor-pointer">Entrega pessoal (+2,5% bônus na comissão)</label>
             </div>
-            <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2} placeholder="ObservaÃ§Ãµes..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none resize-none"/>
+            <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2} placeholder="ObservaçÃµes..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none resize-none"/>
           </div>
           <button onClick={handleSubmit} disabled={submitting} className="w-full bg-[#a4240e] text-white py-3 rounded-xl font-bold text-sm hover:bg-[#8a1f0c] disabled:opacity-50">
             {submitting?'Enviando...':`Confirmar Pedido â€” R$ ${(calcTotal()*(1-discountPercentage/100)).toFixed(2)}`}

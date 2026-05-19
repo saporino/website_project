@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { CLIENT_SEGMENTS, SEGMENT_LABEL } from '../../constants/segments';
 import type { ClientSegment } from '../../constants/segments';
@@ -71,7 +71,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
 
   async function searchCNPJ(){
     const cnpj=form.cnpj.replace(/\D/g,'');
-    if(cnpj.length!==14){setErr('CNPJ deve ter 14 dÃ­gitos.');return;}
+    if(cnpj.length!==14){setErr('CNPJ deve ter 14 dígitos.');return;}
     setSearching(true);setErr('');
     try{
       const r=await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
@@ -80,13 +80,13 @@ export default function RepCoClients({ representativeId }: { representativeId: s
       setForm(p=>({...p,razao_social:d.razao_social||'',nome_fantasia:d.nome_fantasia||'',
         situacao_receita:d.descricao_situacao_cadastral||'',
         endereco_completo:[d.logradouro,d.numero,d.complemento,d.bairro,d.municipio,d.uf,d.cep].filter(Boolean).join(', ')}));
-    }catch{setErr('CNPJ nÃ£o encontrado. Preencha manualmente.');}
+    }catch{setErr('CNPJ não encontrado. Preencha manualmente.');}
     setSearching(false);
   }
 
   async function handleSave(){
-    if(form.is_pj&&!form.cnpj){setErr('CNPJ obrigatÃ³rio.');return;}
-    if(!form.is_pj&&!form.cpf){setErr('CPF obrigatÃ³rio.');return;}
+    if(form.is_pj&&!form.cnpj){setErr('CNPJ obrigatório.');return;}
+    if(!form.is_pj&&!form.cpf){setErr('CPF obrigatório.');return;}
     if(!form.segment){setErr('Selecione o segmento.');return;}
     setSaving(true);setErr('');
     const p={representative_id:representativeId,
@@ -127,7 +127,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
       </div>
       {err&&<div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{err}</div>}
       <div className="flex gap-2 bg-gray-100 rounded-lg p-1">
-        {[{v:true,l:'Pessoa JurÃ­dica (CNPJ)'},{v:false,l:'Pessoa FÃ­sica (CPF)'}].map(opt=>(
+        {[{v:true,l:'Pessoa Jurídica (CNPJ)'},{v:false,l:'Pessoa Física (CPF)'}].map(opt=>(
           <button key={String(opt.v)} onClick={()=>setForm(p=>({...p,is_pj:opt.v}))}
             className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${form.is_pj===opt.v?'bg-white text-amber-700 shadow-sm':'text-gray-500'}`}>
             {opt.l}
@@ -159,7 +159,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
           </div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {form.is_pj&&<div><label className={lbl}>RazÃ£o Social *</label>
+          {form.is_pj&&<div><label className={lbl}>Razão Social *</label>
             <input type="text" value={form.razao_social} onChange={e=>setForm(p=>({...p,razao_social:e.target.value}))} className={inp}/></div>}
           <div><label className={lbl}>{form.is_pj?'Nome Fantasia':'Apelido'}</label>
             <input type="text" value={form.nome_fantasia} onChange={e=>setForm(p=>({...p,nome_fantasia:e.target.value}))} className={inp}/></div>
@@ -169,7 +169,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
               {CLIENT_SEGMENTS.map(s=><option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </div>
-          {form.is_pj&&<div><label className={lbl}>InscriÃ§Ã£o Estadual</label>
+          {form.is_pj&&<div><label className={lbl}>Inscrição Estadual</label>
             <input type="text" value={form.inscricao_estadual} onChange={e=>setForm(p=>({...p,inscricao_estadual:e.target.value}))} placeholder="000.000.000.000" className={inp}/></div>}
           <div><label className={lbl}>Nome do Comprador</label>
             <input type="text" value={form.nome_comprador} onChange={e=>setForm(p=>({...p,nome_comprador:e.target.value}))} className={inp}/></div>
@@ -185,16 +185,16 @@ export default function RepCoClients({ representativeId }: { representativeId: s
               <option value="pix">PIX</option><option value="boleto">Boleto</option><option value="a_vista">Ã€ Vista</option>
             </select>
           </div>
-          <div><label className={lbl}>Limite de CrÃ©dito (R$)</label>
+          <div><label className={lbl}>Limite de Crédito (R$)</label>
             <input type="number" value={form.limite_credito} onChange={e=>setForm(p=>({...p,limite_credito:parseFloat(e.target.value)||0}))} min="0" step="100" className={inp}/></div>
         </div>
-        {form.endereco_completo&&<div><label className={lbl}>EndereÃ§o</label>
+        {form.endereco_completo&&<div><label className={lbl}>Endereço</label>
           <input type="text" value={form.endereco_completo} onChange={e=>setForm(p=>({...p,endereco_completo:e.target.value}))} className={inp}/></div>}
       </div>
       <div className="flex gap-2">
         <button onClick={()=>setView('list')} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100">Cancelar</button>
         <button onClick={handleSave} disabled={saving} className="flex-1 px-6 py-2 text-sm bg-[#8B2214] text-white rounded-lg hover:bg-[#6d1a10] disabled:opacity-50">
-          {saving?'Salvando...':view==='edit'?'Salvar alteraÃ§Ãµes':'Cadastrar cliente'}
+          {saving?'Salvando...':view==='edit'?'Salvar alteraçÃµes':'Cadastrar cliente'}
         </button>
       </div>
     </div>
@@ -217,7 +217,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
           <span className="text-xl">âš ï¸</span>
           <div className="flex-1">
             <p className="text-sm font-medium text-red-700">{d>=999?'Nunca comprou':`${d} dias sem comprar`}</p>
-            {sel.snooze_admin_alert&&<p className="text-xs text-red-500 mt-0.5">Adiado {sel.snooze_count}x â€” requer atenÃ§Ã£o</p>}
+            {sel.snooze_admin_alert&&<p className="text-xs text-red-500 mt-0.5">Adiado {sel.snooze_count}x â€” requer atenção</p>}
           </div>
         </div>}
         <div className="grid grid-cols-2 gap-3">
@@ -240,11 +240,11 @@ export default function RepCoClients({ representativeId }: { representativeId: s
             <a href={`https://wa.me/55${sel.whatsapp_comprador.replace(/\D/g,'')}`} target="_blank" rel="noreferrer" className="text-green-600 hover:underline">{sel.whatsapp_comprador}</a>
           </div>}
           {sel.email_comprador&&<div className="flex justify-between text-sm"><span className="text-gray-500">Email</span><span className="truncate max-w-[200px]">{sel.email_comprador}</span></div>}
-          {sel.endereco_completo&&<div className="flex justify-between text-sm gap-4"><span className="text-gray-500 flex-shrink-0">EndereÃ§o</span><span className="text-right text-xs">{sel.endereco_completo}</span></div>}
-          {sel.limite_credito>0&&<div className="flex justify-between text-sm"><span className="text-gray-500">Limite crÃ©dito</span><span>R$ {sel.limite_credito.toLocaleString('pt-BR')}</span></div>}
+          {sel.endereco_completo&&<div className="flex justify-between text-sm gap-4"><span className="text-gray-500 flex-shrink-0">Endereço</span><span className="text-right text-xs">{sel.endereco_completo}</span></div>}
+          {sel.limite_credito>0&&<div className="flex justify-between text-sm"><span className="text-gray-500">Limite crédito</span><span>R$ {sel.limite_credito.toLocaleString('pt-BR')}</span></div>}
         </div>
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">HistÃ³rico de vendas <span className="font-normal normal-case text-gray-400">(somente leitura)</span></p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Histórico de vendas <span className="font-normal normal-case text-gray-400">(somente leitura)</span></p>
           {loadHist?<div className="flex justify-center py-4"><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-amber-600"/></div>
           :hist.length===0?<div className="text-center py-6 text-gray-400 text-sm">Nenhum pedido ainda</div>
           :hist.map(o=>(
@@ -253,7 +253,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
                 <span className="text-sm font-medium text-gray-800">{o.order_number}</span>
                 <div className="flex items-center gap-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${o.order_status==='completed'?'bg-green-100 text-green-700':o.order_status==='pending'?'bg-yellow-100 text-yellow-700':'bg-blue-100 text-blue-700'}`}>
-                    {o.order_status==='completed'?'ConcluÃ­do':o.order_status==='pending'?'Pendente':'Novo'}
+                    {o.order_status==='completed'?'Concluído':o.order_status==='pending'?'Pendente':'Novo'}
                   </span>
                   <span className="text-sm font-semibold text-amber-700">R$ {o.total_amount?.toLocaleString('pt-BR',{minimumFractionDigits:2})}</span>
                 </div>
@@ -287,7 +287,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
         className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"/>
       {clients.filter(c=>c.snooze_admin_alert).length>0&&(
         <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-          <p className="text-sm font-medium text-red-700 mb-2">âš ï¸ {clients.filter(c=>c.snooze_admin_alert).length} cliente(s) precisam de atenÃ§Ã£o</p>
+          <p className="text-sm font-medium text-red-700 mb-2">âš ï¸ {clients.filter(c=>c.snooze_admin_alert).length} cliente(s) precisam de atenção</p>
           {clients.filter(c=>c.snooze_admin_alert).map(c=>(
             <div key={c.id} className="flex items-center justify-between py-1">
               <span className="text-sm text-gray-700">{c.nome_fantasia||c.razao_social}</span>
@@ -309,7 +309,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
                     <span className="font-medium text-gray-800 text-sm">{c.nome_fantasia||c.razao_social||c.nome_completo||'Sem nome'}</span>
                     {c.segment&&<span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{SEGMENT_LABEL[c.segment]}</span>}
                     {!c.is_active_client&&<span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Inativo</span>}
-                    {c.snooze_admin_alert&&<span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">âš ï¸ AtenÃ§Ã£o</span>}
+                    {c.snooze_admin_alert&&<span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">âš ï¸ Atenção</span>}
                   </div>
                   <p className="text-xs text-gray-500 mt-0.5">
                     {c.cnpj&&c.cnpj!=='00000000000000'?fmtCNPJ(c.cnpj):c.cpf?fmtCPF(c.cpf):''}
@@ -318,7 +318,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
                 </div>
                 <div className="text-right flex-shrink-0 ml-2">
                   {inactive&&c.is_active_client&&<p className="text-xs text-red-500">{d>=999?'Nunca comprou':`${d}d sem comprar`}</p>}
-                  {c.last_order_at&&!inactive&&<p className="text-xs text-gray-400">{d===0?'hoje':`${d}d atrÃ¡s`}</p>}
+                  {c.last_order_at&&!inactive&&<p className="text-xs text-gray-400">{d===0?'hoje':`${d}d atrás`}</p>}
                 </div>
               </div>
             </div>

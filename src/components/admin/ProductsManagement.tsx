@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Plus, Edit, Trash2, Save, X, Image as ImageIcon } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
@@ -55,7 +55,7 @@ export function ProductsManagement() {
     weight_grams: 500,
     stock: 0,
     is_active: true,
-    category: 'cafÃ©',
+    category: 'café',
     featured: false,
     roast_type: '',
     flavor_notes: '',
@@ -130,7 +130,7 @@ export function ProductsManagement() {
       weight_grams: 500,
       stock: 0,
       is_active: true,
-      category: 'cafÃ©',
+      category: 'café',
       featured: false,
       roast_type: '',
       flavor_notes: '',
@@ -152,7 +152,7 @@ export function ProductsManagement() {
         weight_grams: formData.weight_grams || 500,
         // stock removido â€” controlado exclusivamente pelos lotes ativos
         is_active: formData.is_active,
-        category: formData.category || 'cafÃ©',
+        category: formData.category || 'café',
         featured: formData.featured,
         roast_type: formData.roast_type || null,
         flavor_notes: formData.flavor_notes || null,
@@ -241,7 +241,7 @@ export function ProductsManagement() {
 
       // Validate file size (max 2MB)
       if (file.size > 2 * 1024 * 1024) {
-        alert('Imagem muito grande! Tamanho mÃ¡ximo: 2MB');
+        alert('Imagem muito grande! Tamanho máximo: 2MB');
         return null;
       }
 
@@ -264,7 +264,7 @@ export function ProductsManagement() {
         console.error('Upload error:', error);
 
         if (error.message.includes('new row violates row-level security')) {
-          alert('Erro: VocÃª precisa configurar o bucket "product-images" no Supabase Storage primeiro.');
+          alert('Erro: Você precisa configurar o bucket "product-images" no Supabase Storage primeiro.');
         } else {
           alert(`Erro ao fazer upload: ${error.message}`);
         }
@@ -459,7 +459,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
         </div>
 
         <div className="md:col-span-4">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Ordem de ExibiÃ§Ã£o</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Ordem de Exibição</label>
           <input
             type="number"
             min="0"
@@ -480,16 +480,16 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"
           >
             <option value="">Selecione...</option>
-            <option value="CafÃ© em GrÃ£os">CafÃ© em GrÃ£os</option>
-            <option value="CafÃ© MoÃ­do">CafÃ© MoÃ­do</option>
-            <option value="AcessÃ³rios">AcessÃ³rios</option>
+            <option value="Café em Grãos">Café em Grãos</option>
+            <option value="Café Moído">Café Moído</option>
+            <option value="Acessórios">Acessórios</option>
             <option value="Kit">Kit</option>
           </select>
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">DescriÃ§Ã£o *</label>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Descrição *</label>
         <textarea
           required
           value={formData.description || ''}
@@ -509,9 +509,9 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
           >
             <option value="">Selecione...</option>
             <option value="Torra clara">Torra clara</option>
-            <option value="Torra mÃ©dia-clara">Torra mÃ©dia-clara</option>
-            <option value="Torra mÃ©dia">Torra mÃ©dia</option>
-            <option value="Torra mÃ©dia-escura">Torra mÃ©dia-escura</option>
+            <option value="Torra média-clara">Torra média-clara</option>
+            <option value="Torra média">Torra média</option>
+            <option value="Torra média-escura">Torra média-escura</option>
             <option value="Torra escura">Torra escura</option>
           </select>
         </div>
@@ -534,14 +534,14 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
           value={formData.full_details || ''}
           onChange={(e) => setFormData({ ...formData, full_details: e.target.value })}
           rows={5}
-          placeholder="Texto detalhado exibido na pÃ¡gina do produto..."
+          placeholder="Texto detalhado exibido na página do produto..."
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent resize-none"
         />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">PreÃ§o (R$) *</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Preço (R$) *</label>
           <input
             type="number"
             required
@@ -555,7 +555,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
 
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
-            PreÃ§o Promocional (R$)
+            Preço Promocional (R$)
           </label>
           <input
             type="number"
@@ -807,7 +807,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
 
       {/* Assinatura */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">DisponÃ­vel para Assinatura</label>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Disponível para Assinatura</label>
         <div className="flex items-center gap-3">
           <input type="checkbox" checked={formData.subscription_enabled || false} onChange={e => setFormData({...formData, subscription_enabled: e.target.checked})} className="w-4 h-4 accent-[#8B2214]" />
           <span className="text-sm text-gray-600">Ativar assinatura para este produto</span>
