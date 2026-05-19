@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { parseRouteCSV, geocodeAddress, optimizeRoute } from '../../utils/routeOptimizer';
 import type { StopWithCoords } from '../../utils/routeOptimizer';
@@ -53,7 +53,7 @@ export default function RouteManager() {
     setError(''); setOptimized(false); setGeocodeProgress(0);
     const text = await file.text();
     const stops = await parseRouteCSV(text);
-    if (stops.length === 0) { setError('Nenhum endereço encontrado. Colunas esperadas: nome_empresa, endereco, cidade'); return; }
+    if (stops.length === 0) { setError('Nenhum endereÃ§o encontrado. Colunas esperadas: nome_empresa, endereco, cidade'); return; }
     setCsvStops(stops.map(s => ({ ...s, lat: s.lat ?? 0, lng: s.lng ?? 0, geocoded: !!(s.lat && s.lng) })));
   }
 
@@ -86,7 +86,7 @@ export default function RouteManager() {
   }
 
   async function handleSaveRoute() {
-    if (!routeName.trim()) { setError('Dê um nome para a rota.'); return; }
+    if (!routeName.trim()) { setError('DÃª um nome para a rota.'); return; }
     if (!selectedRep) { setError('Selecione o representante.'); return; }
     if (csvStops.length === 0) { setError('Adicione pontos via CSV.'); return; }
     setSaving(true); setError('');
@@ -122,13 +122,13 @@ export default function RouteManager() {
             <button onClick={() => setView('create')} className="bg-[#a4240e] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#8a1f0c]">+ Nova Rota</button>
           </div>
           {routes.length === 0 ? (
-            <div className="text-center py-12 text-gray-400"><p className="text-4xl mb-3">🗺️</p><p className="font-medium">Nenhuma rota criada ainda</p><p className="text-sm mt-1">Clique em "Nova Rota" para fazer upload de um CSV</p></div>
+            <div className="text-center py-12 text-gray-400"><p className="text-4xl mb-3">ðŸ—ºï¸</p><p className="font-medium">Nenhuma rota criada ainda</p><p className="text-sm mt-1">Clique em "Nova Rota" para fazer upload de um CSV</p></div>
           ) : (
             <div className="space-y-2">
               {routes.map(route => (
                 <div key={route.id} className="bg-white border border-gray-200 rounded-xl p-4">
                   <div className="flex items-start justify-between">
-                    <div><p className="font-medium text-gray-800">{route.name}</p><p className="text-xs text-gray-500 mt-0.5">{(route.representatives as any)?.full_name ?? '—'} · {new Date(route.created_at).toLocaleDateString('pt-BR')}</p></div>
+                    <div><p className="font-medium text-gray-800">{route.name}</p><p className="text-xs text-gray-500 mt-0.5">{(route.representatives as any)?.full_name ?? 'â€”'} Â· {new Date(route.created_at).toLocaleDateString('pt-BR')}</p></div>
                     <div className="flex items-center gap-2">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${route.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{route.status === 'active' ? 'Ativa' : 'Inativa'}</span>
                       <button onClick={() => handleDeleteRoute(route.id)} className="text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded border border-red-200 hover:bg-red-50">Excluir</button>
@@ -144,13 +144,13 @@ export default function RouteManager() {
       {view === 'create' && (
         <div className="space-y-5">
           <div className="flex items-center gap-3">
-            <button onClick={() => { setView('list'); setCsvStops([]); setError(''); }} className="text-sm text-gray-500 hover:text-gray-700">‹ Voltar</button>
+            <button onClick={() => { setView('list'); setCsvStops([]); setError(''); }} className="text-sm text-gray-500 hover:text-gray-700">â€¹ Voltar</button>
             <h4 className="font-semibold text-gray-800">Nova Rota</h4>
           </div>
 
           <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">1. Informações</p>
-            <div><label className="block text-xs font-medium text-gray-600 mb-1">Nome da rota *</label><input type="text" value={routeName} onChange={e => setRouteName(e.target.value)} placeholder="Ex: Zona Sul SP — Semana 20" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none"/></div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">1. InformaÃ§Ãµes</p>
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">Nome da rota *</label><input type="text" value={routeName} onChange={e => setRouteName(e.target.value)} placeholder="Ex: Zona Sul SP â€” Semana 20" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none"/></div>
             <div><label className="block text-xs font-medium text-gray-600 mb-1">Representante *</label>
               <select value={selectedRep} onChange={e => setSelectedRep(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none">
                 <option value="">Selecione...</option>
@@ -162,11 +162,11 @@ export default function RouteManager() {
               <select value={routeType} onChange={e => setRouteType(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none">
                 <option value="visit">Visita</option>
                 <option value="delivery">Entrega</option>
-                <option value="prospection">Prospecção</option>
+                <option value="prospection">ProspecÃ§Ã£o</option>
               </select></div>
 
-            {/* Região */}
-            <div><label className="block text-xs font-medium text-gray-600 mb-1">Região / Cidade</label>
+            {/* RegiÃ£o */}
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">RegiÃ£o / Cidade</label>
               <input type="text" value={region} onChange={e => setRegion(e.target.value)} placeholder="Ex: Zona Sul SP, Osasco" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none" /></div>
 
             {/* Filtro de segmento */}
@@ -176,8 +176,8 @@ export default function RouteManager() {
                 {CLIENT_SEGMENTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select></div>
 
-            {/* Capacidade máxima */}
-            <div><label className="block text-xs font-medium text-gray-600 mb-1">Capacidade máxima (kg)</label>
+            {/* Capacidade mÃ¡xima */}
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">Capacidade mÃ¡xima (kg)</label>
               <input type="number" value={maxWeightKg} onChange={e => setMaxWeightKg(parseFloat(e.target.value) || 800)} min={100} max={2000} step={50} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none" />
               <p className="text-xs text-gray-400 mt-1">Kangoo: ~800kg recomendado</p></div>
           </div>
@@ -187,10 +187,10 @@ export default function RouteManager() {
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 space-y-1">
               <p className="font-semibold">Colunas esperadas no CSV:</p>
               <p className="font-mono bg-white/60 px-2 py-1 rounded">nome_empresa, endereco, cidade, telefone, segmento</p>
-              <p className="opacity-70">Cabeçalho obrigatório. Separado por vírgula. UTF-8.</p>
+              <p className="opacity-70">CabeÃ§alho obrigatÃ³rio. Separado por vÃ­rgula. UTF-8.</p>
             </div>
             <div onClick={() => fileRef.current?.click()} className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-[#a4240e] hover:bg-red-50/20 transition-colors">
-              <p className="text-2xl mb-2">📂</p>
+              <p className="text-2xl mb-2">ðŸ“‚</p>
               <p className="text-sm font-medium text-gray-700">Clique para selecionar o CSV</p>
               <p className="text-xs text-gray-400 mt-1">Exportado do Google Sheets, Excel, Scraper, etc.</p>
               <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleCSVUpload} className="hidden"/>
@@ -199,22 +199,22 @@ export default function RouteManager() {
             {csvStops.length > 0 && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-medium text-gray-700">{csvStops.length} endereços carregados</p>
+                  <p className="text-xs font-medium text-gray-700">{csvStops.length} endereÃ§os carregados</p>
                   <div className="flex gap-2">
                     {!geocoding && geocodeProgress < 100 && (
                       <button onClick={handleGeocode} className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700">Geocodificar</button>
                     )}
                     {geocodeProgress === 100 && !optimized && (
-                      <button onClick={handleOptimize} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700">✨ Otimizar rota</button>
+                      <button onClick={handleOptimize} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700">âœ¨ Otimizar rota</button>
                     )}
-                    {optimized && <span className="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-lg font-medium">✓ Otimizada</span>}
+                    {optimized && <span className="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-lg font-medium">âœ“ Otimizada</span>}
                   </div>
                 </div>
                 {geocoding && (
                   <div className="space-y-1">
                     <div className="flex justify-between text-xs text-gray-500"><span>Geocodificando...</span><span>{geocodeProgress}%</span></div>
                     <div className="bg-gray-200 rounded-full h-2"><div className="bg-[#a4240e] h-2 rounded-full transition-all" style={{ width: geocodeProgress + '%' }}/></div>
-                    <p className="text-xs text-gray-400">Aguarde — 1 req/s (OpenStreetMap)</p>
+                    <p className="text-xs text-gray-400">Aguarde â€” 1 req/s (OpenStreetMap)</p>
                   </div>
                 )}
                 <div className="max-h-48 overflow-y-auto space-y-1">
@@ -239,3 +239,4 @@ export default function RouteManager() {
     </div>
   );
 }
+

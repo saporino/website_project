@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Plus, Edit, Trash2, Save, X, Image as ImageIcon } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
@@ -55,7 +55,7 @@ export function ProductsManagement() {
     weight_grams: 500,
     stock: 0,
     is_active: true,
-    category: 'café',
+    category: 'cafÃ©',
     featured: false,
     roast_type: '',
     flavor_notes: '',
@@ -130,7 +130,7 @@ export function ProductsManagement() {
       weight_grams: 500,
       stock: 0,
       is_active: true,
-      category: 'café',
+      category: 'cafÃ©',
       featured: false,
       roast_type: '',
       flavor_notes: '',
@@ -150,9 +150,9 @@ export function ProductsManagement() {
         image_url: formData.image_url,
         additional_images: (formData.additional_images || []).filter((u: string) => u && u.trim() !== ''),
         weight_grams: formData.weight_grams || 500,
-        // stock removido — controlado exclusivamente pelos lotes ativos
+        // stock removido â€” controlado exclusivamente pelos lotes ativos
         is_active: formData.is_active,
-        category: formData.category || 'café',
+        category: formData.category || 'cafÃ©',
         featured: formData.featured,
         roast_type: formData.roast_type || null,
         flavor_notes: formData.flavor_notes || null,
@@ -241,7 +241,7 @@ export function ProductsManagement() {
 
       // Validate file size (max 2MB)
       if (file.size > 2 * 1024 * 1024) {
-        alert('Imagem muito grande! Tamanho máximo: 2MB');
+        alert('Imagem muito grande! Tamanho mÃ¡ximo: 2MB');
         return null;
       }
 
@@ -264,7 +264,7 @@ export function ProductsManagement() {
         console.error('Upload error:', error);
 
         if (error.message.includes('new row violates row-level security')) {
-          alert('Erro: Você precisa configurar o bucket "product-images" no Supabase Storage primeiro.');
+          alert('Erro: VocÃª precisa configurar o bucket "product-images" no Supabase Storage primeiro.');
         } else {
           alert(`Erro ao fazer upload: ${error.message}`);
         }
@@ -430,7 +430,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             required
             value={formData.name || ''}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
+            className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"
           />
         </div>
 
@@ -446,7 +446,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
               setFormData({ ...formData, barcode: v });
             }}
             placeholder="Ex: 7891234567890"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
+            className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"
           />
           {(formData as any).barcode && (formData as any).barcode.length > 0 && (formData as any).barcode.length < 13 && (
             <p className="text-xs text-red-600 mt-1">EAN-13 deve ter 13 digitos ({(formData as any).barcode.length}/13).</p>
@@ -459,13 +459,13 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
         </div>
 
         <div className="md:col-span-4">
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Ordem de Exibição</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Ordem de ExibiÃ§Ã£o</label>
           <input
             type="number"
             min="0"
             value={formData.display_order || ''}
             onChange={(e) => setFormData({ ...formData, display_order: e.target.value ? parseInt(e.target.value) : 0 })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
+            className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"
             title="Dica: Coloque 1 para aparecer em primeiro, 2 para segundo..."
           />
         </div>
@@ -477,25 +477,25 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
           <select
             value={formData.category || ''}
             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
+            className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"
           >
             <option value="">Selecione...</option>
-            <option value="Café em Grãos">Café em Grãos</option>
-            <option value="Café Moído">Café Moído</option>
-            <option value="Acessórios">Acessórios</option>
+            <option value="CafÃ© em GrÃ£os">CafÃ© em GrÃ£os</option>
+            <option value="CafÃ© MoÃ­do">CafÃ© MoÃ­do</option>
+            <option value="AcessÃ³rios">AcessÃ³rios</option>
             <option value="Kit">Kit</option>
           </select>
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Descrição *</label>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">DescriÃ§Ã£o *</label>
         <textarea
           required
           value={formData.description || ''}
           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           rows={3}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
+          className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"
         />
       </div>
 
@@ -505,13 +505,13 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
           <select
             value={formData.roast_type || ''}
             onChange={(e) => setFormData({ ...formData, roast_type: e.target.value })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
+            className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"
           >
             <option value="">Selecione...</option>
             <option value="Torra clara">Torra clara</option>
-            <option value="Torra média-clara">Torra média-clara</option>
-            <option value="Torra média">Torra média</option>
-            <option value="Torra média-escura">Torra média-escura</option>
+            <option value="Torra mÃ©dia-clara">Torra mÃ©dia-clara</option>
+            <option value="Torra mÃ©dia">Torra mÃ©dia</option>
+            <option value="Torra mÃ©dia-escura">Torra mÃ©dia-escura</option>
             <option value="Torra escura">Torra escura</option>
           </select>
         </div>
@@ -523,7 +523,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             value={formData.flavor_notes || ''}
             onChange={(e) => setFormData({ ...formData, flavor_notes: e.target.value })}
             placeholder="Ex: Chocolate, Caramelo, Nozes"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
+            className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"
           />
         </div>
       </div>
@@ -534,14 +534,14 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
           value={formData.full_details || ''}
           onChange={(e) => setFormData({ ...formData, full_details: e.target.value })}
           rows={5}
-          placeholder="Texto detalhado exibido na página do produto..."
+          placeholder="Texto detalhado exibido na pÃ¡gina do produto..."
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent resize-none"
         />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Preço (R$) *</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">PreÃ§o (R$) *</label>
           <input
             type="number"
             required
@@ -549,13 +549,13 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             min="0"
             value={formData.price || ''}
             onChange={(e) => setFormData({ ...formData, price: e.target.value ? parseFloat(e.target.value) : 0 })}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
+            className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"
           />
         </div>
 
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Preço Promocional (R$)
+            PreÃ§o Promocional (R$)
           </label>
           <input
             type="number"
@@ -568,7 +568,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
                 promotional_price: e.target.value ? parseFloat(e.target.value) : null,
               })
             }
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
+            className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"
           />
         </div>
 
@@ -593,7 +593,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             </div>
             {hasLots && (
               <p className="text-xs text-amber-700 mt-1">
-                Nao editavel — existe lote vinculado a este produto.
+                Nao editavel â€” existe lote vinculado a este produto.
                 Crie um produto novo para outro tamanho (ex: "Cafe Saporino Tradicional 250g").
               </p>
             )}
@@ -650,7 +650,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
                   value={formData.image_url || ''}
                   onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
                   placeholder="https://exemplo.com/imagem-produto.png"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"
+                  className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Cole a URL de uma imagem da internet (opcional)
@@ -807,7 +807,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
 
       {/* Assinatura */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Disponível para Assinatura</label>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">DisponÃ­vel para Assinatura</label>
         <div className="flex items-center gap-3">
           <input type="checkbox" checked={formData.subscription_enabled || false} onChange={e => setFormData({...formData, subscription_enabled: e.target.checked})} className="w-4 h-4 accent-[#8B2214]" />
           <span className="text-sm text-gray-600">Ativar assinatura para este produto</span>
@@ -816,11 +816,11 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">Meses de assinatura</label>
-          <input type="number" min="1" max="24" value={formData.subscription_months || 6} onChange={e => setFormData({...formData, subscription_months: parseInt(e.target.value)})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+          <input type="number" min="1" max="24" value={formData.subscription_months || 6} onChange={e => setFormData({...formData, subscription_months: parseInt(e.target.value)})} className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded" />
         </div>
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">Desconto assinatura (%)</label>
-          <input type="number" min="0" max="100" value={formData.subscription_discount_pct || 20} onChange={e => setFormData({...formData, subscription_discount_pct: parseInt(e.target.value)})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+          <input type="number" min="0" max="100" value={formData.subscription_discount_pct || 20} onChange={e => setFormData({...formData, subscription_discount_pct: parseInt(e.target.value)})} className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded" />
         </div>
       </div>
       <div className="flex items-center space-x-3 pt-4">
@@ -842,3 +842,5 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
     </div>
   );
 }
+
+

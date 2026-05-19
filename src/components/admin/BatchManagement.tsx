@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { Package, Plus, Edit2, Trash2, ChevronDown, ChevronUp, Building2, X, Save, UserPlus, Phone, Mail, MessageCircle } from "lucide-react";
 import { CurrencyInput } from "../CurrencyInput";
@@ -311,7 +311,7 @@ export default function BatchManagement() {
                           <span className="font-semibold text-sm text-gray-900">{b.batch_number||"Sem numero"}</span>
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[b.status]}`}>{STATUS_LABELS[b.status]}</span>
                         </div>
-                        <p className="text-xs text-gray-500">{b.product_name} · {b.company_name} · {b.quantity_packages} pacotes</p>
+                        <p className="text-xs text-gray-500">{b.product_name} Â· {b.company_name} Â· {b.quantity_packages} pacotes</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -349,7 +349,7 @@ export default function BatchManagement() {
                   <div className="w-10 h-10 bg-[#f5f0ef] rounded-lg flex items-center justify-center"><Building2 className="w-5 h-5 text-[#8B2214]"/></div>
                   <div>
                     <p className="font-semibold text-sm text-gray-900">{c.name}</p>
-                    <p className="text-xs text-gray-500">Cod: {c.company_code} · {c.cnpj} · {c.city}/{c.state}</p>
+                    <p className="text-xs text-gray-500">Cod: {c.company_code} Â· {c.cnpj} Â· {c.city}/{c.state}</p>
                     {c.director_name&&<p className="text-xs text-gray-400">Dir: {c.director_name}</p>}
                   </div>
                 </div>
@@ -430,25 +430,25 @@ export default function BatchManagement() {
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Linha 1: Torrefadora + Lote # */}
               <div><label className="block text-xs font-semibold text-gray-600 mb-1">Torrefadora *</label>
-                <select value={batchForm.roasting_company_id} onChange={e=>setBatchForm({...batchForm,roasting_company_id:e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent">
+                <select value={batchForm.roasting_company_id} onChange={e=>setBatchForm({...batchForm,roasting_company_id:e.target.value})} className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded">
                   <option value="">Selecionar...</option>
                   {companies.map(c=><option key={c.id} value={c.id}>{c.name} ({c.company_code})</option>)}
                 </select></div>
               <div><label className="block text-xs font-semibold text-gray-600 mb-1">Lote #{!editingBatch&&<span className="text-gray-400 font-normal ml-1">(auto)</span>}</label>
-                <input type="text" value={batchForm.batch_number||""} onChange={e=>{setUserEditedBatch(true);setBatchForm({...batchForm,batch_number:e.target.value});}} placeholder={!batchForm.roasting_company_id?"Selecione uma torrefadora":"Ex: 750-001"} className={`w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent ${(!editingBatch&&!userEditedBatch)?"bg-gray-50 text-gray-500":"bg-white"}`}/></div>
+                <input type="text" value={batchForm.batch_number||""} onChange={e=>{setUserEditedBatch(true);setBatchForm({...batchForm,batch_number:e.target.value});}} placeholder={!batchForm.roasting_company_id?"Selecione uma torrefadora":"Ex: 750-001"} className={`w-full h-[34px] px-3 text-sm border border-gray-300 rounded ${(!editingBatch&&!userEditedBatch)?"bg-gray-50 text-gray-500":"bg-white"}`}/></div>
               {/* Linha 2: Produto + Status */}
               <div><label className="block text-xs font-semibold text-gray-600 mb-1">Produto *</label>
-                <select value={batchForm.product_id} onChange={e=>setBatchForm({...batchForm,product_id:e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent">
+                <select value={batchForm.product_id} onChange={e=>setBatchForm({...batchForm,product_id:e.target.value})} className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded">
                   <option value="">Selecionar produto...</option>
                   {products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
                 </select></div>
               <div><label className="block text-xs font-semibold text-gray-600 mb-1">Status</label>
-                <select value={batchForm.status} onChange={e=>setBatchForm({...batchForm,status:e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent">
+                <select value={batchForm.status} onChange={e=>setBatchForm({...batchForm,status:e.target.value})} className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded">
                   {Object.entries(STATUS_LABELS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
                 </select></div>
               {[["quantity_packages","Qtd Pacotes","number"],["production_date","Data de Producao","date"],["expiry_date","Validade","date"],["farm_name","Fazenda","text"],["variety","Variedade","text"],["altitude_m","Altitude (m)","number"],["sca_score","Score SCA","number"]].map(([k,l,t])=>(
                 <div key={k}><label className="block text-xs font-semibold text-gray-600 mb-1">{l}</label>
-                  <input type={t} step={t==="number"?"0.01":undefined} value={batchForm[k]||""} onChange={e=>setBatchForm({...batchForm,[k]:e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
+                  <input type={t} step={t==="number"?"0.01":undefined} value={batchForm[k]||""} onChange={e=>setBatchForm({...batchForm,[k]:e.target.value})} className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/></div>
               ))}
               <div><label className="block text-xs font-semibold text-gray-600 mb-1">Peso Verde (kg)</label>
                 <div className="flex items-start gap-2">
@@ -484,9 +484,9 @@ export default function BatchManagement() {
               </div>
               {/* AP% + R$/ponto */}
               <div><label className="block text-xs font-semibold text-gray-600 mb-1">AP % (Aproveitamento)</label>
-                <input type="number" step="0.01" value={batchForm.ap_percentage??""} onChange={e=>setBatchForm({...batchForm,ap_percentage:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 95" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
+                <input type="number" step="0.01" value={batchForm.ap_percentage??""} onChange={e=>setBatchForm({...batchForm,ap_percentage:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 95" className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/></div>
               <div><label className="block text-xs font-semibold text-gray-600 mb-1">R$/ponto</label>
-                <CurrencyInput value={batchForm.price_per_point} onChange={v=>setBatchForm({...batchForm,price_per_point:v})} placeholder="24,00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
+                <CurrencyInput value={batchForm.price_per_point} onChange={v=>setBatchForm({...batchForm,price_per_point:v})} placeholder="24,00" className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/></div>
               {/* Painel cadeia de custos */}
               {editingBatch&&(()=>{
                 const peso=Number(editingBatch.green_weight_kg)||0;
@@ -520,7 +520,7 @@ export default function BatchManagement() {
                       <div className="grid grid-cols-2 gap-1">
                         <div>Custo/kg puro: <strong>{formatBRL(cKgPuro)}</strong></div>
                         <div>Custo/kg efetivo: <strong>{formatBRL(cKgEfetivoProprio)}</strong></div>
-                        {cKgRef!==null&&<div className="col-span-2">Cotacao ref. (AP×R$/ponto): {formatBRL(cKgRef)}/kg</div>}
+                        {cKgRef!==null&&<div className="col-span-2">Cotacao ref. (APÃ—R$/ponto): {formatBRL(cKgRef)}/kg</div>}
                         {ve.in_kg>0&&<div className="col-span-2 text-blue-700">Verde recebido: {ve.in_kg.toFixed(1)} kg | Total: {ve.total_kg.toFixed(1)} kg | Custo medio: {formatBRL(ve.avg_cost_per_kg)}/kg</div>}
                       </div>
                     </div>
@@ -535,7 +535,7 @@ export default function BatchManagement() {
                           {sobraTorrado>0&&(<>
                             <div>Sobra torrado: <strong>{sobraTorrado.toFixed(1)} kg</strong></div>
                             <div>Credito torrado: <strong>{formatBRL(valorCreditoTorrado)}</strong></div>
-                            <div className="col-span-2 text-xs text-gray-600 italic">(sobra disponivel pra transferir/embalar — sem custo de embalagem ate ser embalada)</div>
+                            <div className="col-span-2 text-xs text-gray-600 italic">(sobra disponivel pra transferir/embalar â€” sem custo de embalagem ate ser embalada)</div>
                           </>)}
                         </div>
                       </div>
@@ -582,7 +582,7 @@ export default function BatchManagement() {
                         {out.map((t:any)=>{
                           const dest=getLoteByName(t.to_lot_id);
                           return(<div key={t.id} className="text-xs flex justify-between">
-                            <span>→ {dest?.batch_number??'?'} | {Number(t.kg_amount).toFixed(1)} kg {t.kind==='green'?'verde':'torrado'}</span>
+                            <span>â†’ {dest?.batch_number??'?'} | {Number(t.kg_amount).toFixed(1)} kg {t.kind==='green'?'verde':'torrado'}</span>
                             <span>{formatBRL(Number(t.value_amount_brl))}</span>
                           </div>);
                         })}
@@ -594,7 +594,7 @@ export default function BatchManagement() {
                         {incoming.map((t:any)=>{
                           const src=getLoteByName(t.from_lot_id);
                           return(<div key={t.id} className="text-xs flex justify-between">
-                            <span>← {src?.batch_number??'?'} | {Number(t.kg_amount).toFixed(1)} kg {t.kind==='green'?'verde':'torrado'}</span>
+                            <span>â† {src?.batch_number??'?'} | {Number(t.kg_amount).toFixed(1)} kg {t.kind==='green'?'verde':'torrado'}</span>
                             <span>{formatBRL(Number(t.value_amount_brl))}</span>
                           </div>);
                         })}
@@ -617,7 +617,7 @@ export default function BatchManagement() {
                 </div>
               )}
               <div className="sm:col-span-2"><label className="block text-xs font-semibold text-gray-600 mb-1">Notas Sensoriais</label>
-                <input type="text" value={batchForm.sensory_notes||""} onChange={e=>setBatchForm({...batchForm,sensory_notes:e.target.value})} placeholder="Caramelo, nozes..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
+                <input type="text" value={batchForm.sensory_notes||""} onChange={e=>setBatchForm({...batchForm,sensory_notes:e.target.value})} placeholder="Caramelo, nozes..." className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/></div>
               <div className="sm:col-span-2"><label className="block text-xs font-semibold text-gray-600 mb-1">Observacoes</label>
                 <textarea value={batchForm.notes||""} onChange={e=>setBatchForm({...batchForm,notes:e.target.value})} rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
             </div>
@@ -640,7 +640,7 @@ export default function BatchManagement() {
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
               {([["name","Razao Social *","text","sm:col-span-2"],["cnpj","CNPJ","text",""],["inscricao_estadual","Insc. Estadual","text",""],["city","Cidade","text",""],["state","Estado","text",""],["cep","CEP","text",""],["company_code","Codigo","number",""],["director_name","Diretor","text",""],["email","Email","email","sm:col-span-2"],["whatsapp","WhatsApp","text",""]] as const).map(([k,l,t,span])=>(
                 <div key={k} className={span}><label className="block text-xs font-semibold text-gray-600 mb-1">{l}</label>
-                  <input type={t} value={companyForm[k]||""} onChange={e=>setCompanyForm({...companyForm,[k]:t==="number"?Number(e.target.value):e.target.value})} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
+                  <input type={t} value={companyForm[k]||""} onChange={e=>setCompanyForm({...companyForm,[k]:t==="number"?Number(e.target.value):e.target.value})} className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/></div>
               ))}
               <div className="sm:col-span-2"><label className="block text-xs font-semibold text-gray-600 mb-1">Observacoes</label>
                 <textarea value={companyForm.notes||""} onChange={e=>setCompanyForm({...companyForm,notes:e.target.value})} rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
@@ -657,8 +657,8 @@ export default function BatchManagement() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-4 border-b flex justify-between items-center">
-              <h3 className="text-base font-semibold">Registrar Torra — {editingBatch.batch_number}</h3>
-              <button onClick={()=>setShowRoastModal(false)} className="text-gray-500 hover:text-gray-700 text-lg">✕</button>
+              <h3 className="text-base font-semibold">Registrar Torra â€” {editingBatch.batch_number}</h3>
+              <button onClick={()=>setShowRoastModal(false)} className="text-gray-500 hover:text-gray-700 text-lg">âœ•</button>
             </div>
             <div className="p-4 space-y-3">
               {(()=>{
@@ -671,7 +671,7 @@ export default function BatchManagement() {
                 );
               })()}
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Cru enviado pra torra (kg)</label>
-                <input type="number" step="0.01" value={roastForm.green_input_to_roast_kg??''} onChange={e=>setRoastForm({...roastForm,green_input_to_roast_kg:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 1053" className="w-full border border-gray-300 rounded px-3 py-2"/></div>
+                <input type="number" step="0.01" value={roastForm.green_input_to_roast_kg??''} onChange={e=>setRoastForm({...roastForm,green_input_to_roast_kg:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 1053" className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">R$/kg do servico de torra</label>
                 <div className="flex items-start gap-2">
                   <CurrencyInput value={roastForm.service_price_per_kg} onChange={v=>setRoastForm({...roastForm,service_price_per_kg:v})} placeholder="Ex: 3,00" className="flex-1 w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/>
@@ -679,7 +679,7 @@ export default function BatchManagement() {
                 </div>
               </div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Saida do forno (kg torrado)</label>
-                <input type="number" step="0.01" value={roastForm.roasted_output_kg??''} onChange={e=>setRoastForm({...roastForm,roasted_output_kg:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 850" className="w-full border border-gray-300 rounded px-3 py-2"/></div>
+                <input type="number" step="0.01" value={roastForm.roasted_output_kg??''} onChange={e=>setRoastForm({...roastForm,roasted_output_kg:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 850" className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Quebra fisica (%)</label>
                 <input type="number" step="0.01"
                   value={roastForm.green_input_to_roast_kg&&roastForm.roasted_output_kg
@@ -694,10 +694,10 @@ export default function BatchManagement() {
                     }
                   }}
                   placeholder="Ex: 22"
-                  className="w-full border border-gray-300 rounded px-3 py-2"/>
+                  className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/>
                 <p className="text-xs text-gray-500 mt-1">Editar a quebra recalcula a saida do forno automaticamente.</p></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Data da torra</label>
-                <input type="date" value={roastForm.roast_date??''} onChange={e=>setRoastForm({...roastForm,roast_date:e.target.value||null})} className="w-full border border-gray-300 rounded px-3 py-2"/></div>
+                <input type="date" value={roastForm.roast_date??''} onChange={e=>setRoastForm({...roastForm,roast_date:e.target.value||null})} className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/></div>
             </div>
             <div className="p-4 border-t flex justify-end gap-2">
               <button type="button" onClick={()=>setShowRoastModal(false)} className="px-4 py-2 border rounded">Cancelar</button>
@@ -711,8 +711,8 @@ export default function BatchManagement() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-4 border-b flex justify-between items-center">
-              <h3 className="text-base font-semibold">Registrar Embalagem — {editingBatch.batch_number}</h3>
-              <button onClick={()=>setShowPackagingModal(false)} className="text-gray-500 hover:text-gray-700 text-lg">✕</button>
+              <h3 className="text-base font-semibold">Registrar Embalagem â€” {editingBatch.batch_number}</h3>
+              <button onClick={()=>setShowPackagingModal(false)} className="text-gray-500 hover:text-gray-700 text-lg">âœ•</button>
             </div>
             <div className="p-4 space-y-3">
               {(()=>{
@@ -725,7 +725,7 @@ export default function BatchManagement() {
                 );
               })()}
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Embalado (kg)</label>
-                <input type="number" step="0.01" value={packagingForm.packaged_kg??''} onChange={e=>setPackagingForm({...packagingForm,packaged_kg:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 750" className="w-full border border-gray-300 rounded px-3 py-2"/></div>
+                <input type="number" step="0.01" value={packagingForm.packaged_kg??''} onChange={e=>setPackagingForm({...packagingForm,packaged_kg:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 750" className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Custo embalagem (R$/kg)</label>
                 <div className="flex items-start gap-2">
                   <CurrencyInput value={packagingForm.packaging_cost_per_kg} onChange={v=>setPackagingForm({...packagingForm,packaging_cost_per_kg:v})} placeholder="1,30" className="flex-1 w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/>
@@ -737,17 +737,17 @@ export default function BatchManagement() {
                 const pesoPacote=produto?.weight_grams??500;
                 return(
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">
-                    Qtd de pacotes <span className="text-xs text-gray-500">(pacote {pesoPacote}g — calc. automatico)</span>
+                    Qtd de pacotes <span className="text-xs text-gray-500">(pacote {pesoPacote}g â€” calc. automatico)</span>
                   </label>
-                    <input type="number" step="1" value={packagingForm.quantity_packages??''} onChange={e=>setPackagingForm({...packagingForm,quantity_packages:e.target.value===''?null:parseInt(e.target.value)})} placeholder="Ex: 1500" className="w-full border border-gray-300 rounded px-3 py-2"/>
+                    <input type="number" step="1" value={packagingForm.quantity_packages??''} onChange={e=>setPackagingForm({...packagingForm,quantity_packages:e.target.value===''?null:parseInt(e.target.value)})} placeholder="Ex: 1500" className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/>
                     {packagingForm.packaged_kg&&pesoPacote&&(
-                      <div className="text-xs text-gray-500 mt-1">{Number(packagingForm.packaged_kg).toFixed(1)} kg ÷ {pesoPacote}g = <strong>{Math.round((Number(packagingForm.packaged_kg)*1000)/pesoPacote)} pacotes</strong>. Edite acima para sobrescrever.</div>
+                      <div className="text-xs text-gray-500 mt-1">{Number(packagingForm.packaged_kg).toFixed(1)} kg Ã· {pesoPacote}g = <strong>{Math.round((Number(packagingForm.packaged_kg)*1000)/pesoPacote)} pacotes</strong>. Edite acima para sobrescrever.</div>
                     )}
                   </div>
                 );
               })()}
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Data da embalagem</label>
-                <input type="date" value={packagingForm.packaging_date??''} onChange={e=>setPackagingForm({...packagingForm,packaging_date:e.target.value||null})} className="w-full border border-gray-300 rounded px-3 py-2"/></div>
+                <input type="date" value={packagingForm.packaging_date??''} onChange={e=>setPackagingForm({...packagingForm,packaging_date:e.target.value||null})} className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/></div>
             </div>
             <div className="p-4 border-t flex justify-end gap-2">
               <button type="button" onClick={()=>setShowPackagingModal(false)} className="px-4 py-2 border rounded">Cancelar</button>
@@ -767,17 +767,17 @@ export default function BatchManagement() {
             <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
               <div className="p-4 border-b flex justify-between items-center">
                 <h3 className="text-lg font-semibold">Transferir saldo do {editingBatch.batch_number}</h3>
-                <button onClick={()=>setShowTransferModal(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+                <button onClick={()=>setShowTransferModal(false)} className="text-gray-500 hover:text-gray-700">âœ•</button>
               </div>
               <div className="p-4 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                    <select value={transferForm.kind} onChange={e=>setTransferForm({...transferForm,kind:e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2">
+                    <select value={transferForm.kind} onChange={e=>setTransferForm({...transferForm,kind:e.target.value})} className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded">
                       <option value="green">Verde (cru)</option>
                       <option value="roasted">Torrado solto</option>
                     </select></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Lote destino</label>
-                    <select value={transferForm.to_lot_id} onChange={e=>setTransferForm({...transferForm,to_lot_id:e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2">
+                    <select value={transferForm.to_lot_id} onChange={e=>setTransferForm({...transferForm,to_lot_id:e.target.value})} className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded">
                       <option value="">Selecionar lote...</option>
                       {lotesDestino.map((b:any)=>(<option key={b.id} value={b.id}>{b.batch_number}</option>))}
                     </select></div>
@@ -787,11 +787,11 @@ export default function BatchManagement() {
                   Custo unitario: <strong>{formatBRL(unitCost)}/kg</strong>
                 </div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Quantidade a transferir (kg)</label>
-                  <input type="number" step="0.01" value={transferForm.kg_amount??''} onChange={e=>setTransferForm({...transferForm,kg_amount:e.target.value===''?null:parseFloat(e.target.value)})} placeholder={`Ex: ${saldoDisponivel.toFixed(0)}`} className="w-full border border-gray-300 rounded px-3 py-2"/>
+                  <input type="number" step="0.01" value={transferForm.kg_amount??''} onChange={e=>setTransferForm({...transferForm,kg_amount:e.target.value===''?null:parseFloat(e.target.value)})} placeholder={`Ex: ${saldoDisponivel.toFixed(0)}`} className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/>
                   <div className="text-xs text-gray-500 mt-1">Valor da transferencia: <strong>{formatBRL((Number(transferForm.kg_amount)||0)*unitCost)}</strong></div>
                 </div>
                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Notas (opcional)</label>
-                  <input type="text" value={transferForm.notes??''} onChange={e=>setTransferForm({...transferForm,notes:e.target.value})} placeholder="Ex: sobra do lote anterior" className="w-full border border-gray-300 rounded px-3 py-2"/></div>
+                  <input type="text" value={transferForm.notes??''} onChange={e=>setTransferForm({...transferForm,notes:e.target.value})} placeholder="Ex: sobra do lote anterior" className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/></div>
               </div>
               <div className="p-4 border-t flex justify-end gap-2">
                 <button type="button" onClick={()=>setShowTransferModal(false)} className="px-4 py-2 border rounded">Cancelar</button>
@@ -804,3 +804,4 @@ export default function BatchManagement() {
     </div>
   );
 }
+

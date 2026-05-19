@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense, lazy, useMemo } from 'react';
+﻿import { useState, useEffect, Suspense, lazy, useMemo } from 'react';
 import { Users, CheckCircle, XCircle, Eye, Plus, DollarSign, Upload, Download, Phone, Mail, Map, Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -225,7 +225,7 @@ export function RepCoManagement() {
 
     // If pay_commission is false, we mark a note (the trigger will still create but admin can cancel)
     if (!payCommission) {
-      await supabase.from('representative_orders').update({ notes: 'SEM COMISSÃO - admin marcou como não-comissionável' }).eq('id', order.id);
+      await supabase.from('representative_orders').update({ notes: 'SEM COMISSÃƒO - admin marcou como nÃ£o-comissionÃ¡vel' }).eq('id', order.id);
     }
 
     if (nfFile) await uploadNF(order.id, nfFile);
@@ -264,14 +264,14 @@ export function RepCoManagement() {
       paid_at: new Date().toISOString(),
     }).eq('id', commission.id);
     if (error) { toast.error('Erro'); return; }
-    toast.success('Comissão marcada como paga!');
+    toast.success('ComissÃ£o marcada como paga!');
     if (selectedRep) fetchRepDetail(selectedRep);
   };
 
   const handleCompleteOrder = async (order: RepOrder) => {
     const { error } = await supabase.from('representative_orders').update({ status: 'completed' }).eq('id', order.id);
     if (error) { toast.error('Erro ao concluir pedido'); return; }
-    toast.success('Pedido concluído! Comissão calculada automaticamente.');
+    toast.success('Pedido concluÃ­do! ComissÃ£o calculada automaticamente.');
     if (selectedRep) fetchRepDetail(selectedRep);
   };
 
@@ -286,7 +286,7 @@ export function RepCoManagement() {
     };
     const labels: Record<string, string> = {
       pending: 'Pendente', active: 'Ativo', blocked: 'Bloqueado',
-      new: 'Novo', completed: 'Concluído', cancelled: 'Cancelado',
+      new: 'Novo', completed: 'ConcluÃ­do', cancelled: 'Cancelado',
     };
     return <span className={`text-xs font-semibold px-2 py-1 rounded-full ${map[status] || 'bg-gray-100 text-gray-600'}`}>{labels[status] || status}</span>;
   };
@@ -306,7 +306,7 @@ export function RepCoManagement() {
   const pendingCount = reps.filter(r => r.status === 'pending').length;
   const totalPending = commissions.filter(c => c.status === 'pending').reduce((s, c) => s + c.commission_amount, 0);
 
-  // ── DETAIL VIEW ──
+  // â”€â”€ DETAIL VIEW â”€â”€
   if (adminTab === 'detail' && selectedRep) {
     return (
       <div className="space-y-6">
@@ -314,13 +314,13 @@ export function RepCoManagement() {
         <div className="flex items-center gap-4">
           <button onClick={() => { setAdminTab('list'); setSelectedRep(null); }}
             className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-            ← Voltar
+            â† Voltar
           </button>
           <div className="flex-1">
             <h2 className="text-2xl font-bold text-gray-900">{selectedRep.full_name}</h2>
             <div className="flex items-center gap-3 mt-1">
               {statusBadge(selectedRep.status)}
-              <span className="text-sm text-gray-500">CPF: {selectedRep.cpf || '—'}</span>
+              <span className="text-sm text-gray-500">CPF: {selectedRep.cpf || 'â€”'}</span>
               {selectedRep.phone && <a href={`https://wa.me/55${selectedRep.phone.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-green-600 hover:underline"><Phone className="w-3.5 h-3.5" />{selectedRep.phone}</a>}
             </div>
           </div>
@@ -345,7 +345,7 @@ export function RepCoManagement() {
             <p className="text-2xl font-bold text-gray-900">{orders.length}</p>
           </div>
           <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <p className="text-xs text-gray-500 mb-1">Comissões Pendentes</p>
+            <p className="text-xs text-gray-500 mb-1">ComissÃµes Pendentes</p>
             <p className="text-2xl font-bold text-amber-600">R$ {totalPending.toFixed(2)}</p>
           </div>
           <div className="bg-white border border-gray-200 rounded-xl p-4">
@@ -357,7 +357,7 @@ export function RepCoManagement() {
         {/* Inner tabs */}
         <div className="border-b border-gray-200 mb-4">
           <div className="flex gap-1">
-            {([{key:'pedidos',label:'Pedidos'},{key:'comissoes',label:'Comissões'},{key:'precos',label:'Tabela de Preços'},{key:'rotas',label:'Rotas de Visita'}] as const).map(tab=>(
+            {([{key:'pedidos',label:'Pedidos'},{key:'comissoes',label:'ComissÃµes'},{key:'precos',label:'Tabela de PreÃ§os'},{key:'rotas',label:'Rotas de Visita'}] as const).map(tab=>(
               <button key={tab.key} onClick={()=>setDetailTab(tab.key)}
                 className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${detailTab===tab.key?'border-[#a4240e] text-[#a4240e]':'border-transparent text-gray-500 hover:text-gray-700'}`}>
                 {tab.label}
@@ -375,7 +375,7 @@ export function RepCoManagement() {
             <h3 className="font-bold text-gray-900">Pedidos</h3>
             <button onClick={() => setShowNewOrder(!showNewOrder)}
               className="flex items-center gap-1.5 px-3 py-2 bg-[#a4240e] text-white text-sm font-semibold rounded-lg hover:bg-[#8a1f0c] transition-colors">
-              <Plus className="w-4 h-4" /> Lançar Pedido
+              <Plus className="w-4 h-4" /> LanÃ§ar Pedido
             </button>
           </div>
 
@@ -388,8 +388,8 @@ export function RepCoManagement() {
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Cliente</label>
                   <select value={orderForm.representative_client_id} onChange={e => setOrderForm(f => ({ ...f, representative_client_id: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a4240e] focus:border-transparent">
-                    <option value="">— Selecionar cliente —</option>
+                    className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded">
+                    <option value="">â€” Selecionar cliente â€”</option>
                     {clients.map(c => <option key={c.id} value={c.id}>{c.razao_social} ({c.cnpj})</option>)}
                   </select>
                 </div>
@@ -419,7 +419,7 @@ export function RepCoManagement() {
                       return (
                         <div key={product.id} className={`flex items-center gap-3 p-2 rounded-lg transition-all ${isOut ? 'opacity-50' : qty > 0 ? 'bg-amber-50 border border-amber-200' : 'hover:bg-gray-50'}`}>
                           <div className="w-8 h-8 rounded-md overflow-hidden bg-gray-100 flex-shrink-0">
-                            {product.image_url ? <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">☕</div>}
+                            {product.image_url ? <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">â˜•</div>}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
@@ -427,7 +427,7 @@ export function RepCoManagement() {
                           </div>
                           <div className="flex items-center gap-1.5">
                             {qty > 0 ? (<>
-                              <button onClick={() => updateOrderCart(product.id, -1)} className="w-6 h-6 rounded-full border border-gray-300 text-gray-600 flex items-center justify-center hover:bg-gray-100 text-xs">−</button>
+                              <button onClick={() => updateOrderCart(product.id, -1)} className="w-6 h-6 rounded-full border border-gray-300 text-gray-600 flex items-center justify-center hover:bg-gray-100 text-xs">âˆ’</button>
                               <span className="w-5 text-center text-sm font-bold">{qty}</span>
                               <button onClick={() => updateOrderCart(product.id, 1)} disabled={qty >= product.stock} className="w-6 h-6 rounded-full bg-[#a4240e] text-white flex items-center justify-center hover:bg-[#8a1f0c] disabled:opacity-30 text-xs">+</button>
                             </>) : (
@@ -447,7 +447,7 @@ export function RepCoManagement() {
                       {Object.entries(orderCart).filter(([,q]) => q > 0).map(([pid, qty]) => {
                         const p = orderProducts.find(pr => pr.id === pid);
                         if (!p) return null;
-                        return <div key={pid} className="flex justify-between text-sm"><span className="text-gray-700">{p.name} × {qty}</span><span className="font-medium">R$ {(p.price * qty).toFixed(2)}</span></div>;
+                        return <div key={pid} className="flex justify-between text-sm"><span className="text-gray-700">{p.name} Ã— {qty}</span><span className="font-medium">R$ {(p.price * qty).toFixed(2)}</span></div>;
                       })}
                       <div className="flex justify-between border-t border-gray-200 pt-2 mt-2 font-bold text-sm">
                         <span>Total</span><span className="text-[#a4240e]">R$ {orderCartTotal.toFixed(2)}</span>
@@ -461,8 +461,8 @@ export function RepCoManagement() {
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Forma de Pagamento</label>
                     <select value={orderForm.payment_method} onChange={e => setOrderForm(f => ({ ...f, payment_method: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a4240e] focus:border-transparent">
-                      <option value="a_vista">À Vista</option>
+                      className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded">
+                      <option value="a_vista">Ã€ Vista</option>
                       <option value="boleto">Boleto</option>
                       <option value="pix">PIX</option>
                     </select>
@@ -474,9 +474,9 @@ export function RepCoManagement() {
                   </div>
                 </div>
 
-                {/* Comissão manual */}
+                {/* ComissÃ£o manual */}
                 <div className="space-y-2 border-t border-amber-200 pt-3 mt-1">
-                  <p className="text-xs font-medium text-gray-600">Comissão do representante:</p>
+                  <p className="text-xs font-medium text-gray-600">ComissÃ£o do representante:</p>
                   <div className="flex items-center gap-2">
                     <input type="checkbox" id="manual_delivery" checked={manualDeliveryBonus}
                       onChange={e => setManualDeliveryBonus(e.target.checked)}
@@ -493,14 +493,14 @@ export function RepCoManagement() {
                     <input type="checkbox" id="pay_commission" checked={payCommission}
                       onChange={e => setPayCommission(e.target.checked)}
                       className="w-4 h-4 accent-[#a4240e]" />
-                    <label htmlFor="pay_commission" className="text-sm text-gray-700">Pagar comissão ao representante por este pedido</label>
+                    <label htmlFor="pay_commission" className="text-sm text-gray-700">Pagar comissÃ£o ao representante por este pedido</label>
                   </div>
                 </div>
               </div>
               <div className="flex gap-3 mt-4">
                 <button onClick={handleCreateOrder} disabled={Object.keys(orderCart).length === 0}
                   className="px-5 py-2 bg-[#a4240e] text-white text-sm font-semibold rounded-lg hover:bg-[#8a1f0c] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                  Criar Pedido{orderCartTotal > 0 ? ` — R$ ${orderCartTotal.toFixed(2)}` : ''}
+                  Criar Pedido{orderCartTotal > 0 ? ` â€” R$ ${orderCartTotal.toFixed(2)}` : ''}
                 </button>
                 <button onClick={() => { setShowNewOrder(false); setOrderCart({}); setOrderProductSearch(''); }} className="px-5 py-2 bg-white border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors">Cancelar</button>
               </div>
@@ -548,7 +548,7 @@ export function RepCoManagement() {
                     {order.status === 'new' || order.status === 'pending' ? (
                       <button onClick={() => handleCompleteOrder(order)}
                         className="text-xs font-medium text-green-700 hover:text-green-800 flex items-center gap-1">
-                        <CheckCircle className="w-3.5 h-3.5" /> Marcar Concluído
+                        <CheckCircle className="w-3.5 h-3.5" /> Marcar ConcluÃ­do
                       </button>
                     ) : null}
                   </div>
@@ -570,18 +570,18 @@ export function RepCoManagement() {
     );
   }
 
-  // ── PRICE LIST VIEW ──
+  // â”€â”€ PRICE LIST VIEW â”€â”€
   if (adminView === 'price-list') {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <button onClick={() => setAdminView('list')}
             className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors">
-            ← Voltar aos Representantes
+            â† Voltar aos Representantes
           </button>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Tabela de Preços Global</h2>
-            <p className="text-sm text-gray-500">Preços B2B por segmento — válidos para todos os representantes</p>
+            <h2 className="text-2xl font-bold text-gray-900">Tabela de PreÃ§os Global</h2>
+            <p className="text-sm text-gray-500">PreÃ§os B2B por segmento â€” vÃ¡lidos para todos os representantes</p>
           </div>
         </div>
         <div className="bg-white border border-gray-200 rounded-xl p-6">
@@ -591,7 +591,7 @@ export function RepCoManagement() {
     );
   }
 
-  // ── LIST VIEW ──
+  // â”€â”€ LIST VIEW â”€â”€
   return (
     <div className="space-y-6">
       {/* Row 1: Title + Action buttons */}
@@ -599,18 +599,18 @@ export function RepCoManagement() {
         <div>
           <h2 className="text-3xl font-bold text-gray-900">Representantes Comerciais</h2>
           {pendingCount > 0 && (
-            <p className="text-sm text-amber-600 mt-1 font-medium">⚠ {pendingCount} aguardando aprovação</p>
+            <p className="text-sm text-amber-600 mt-1 font-medium">âš  {pendingCount} aguardando aprovaÃ§Ã£o</p>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button onClick={() => setAdminView('price-list')}
             className="h-9 px-4 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
-            📋 Tabela de Preços
+            ðŸ“‹ Tabela de PreÃ§os
           </button>
           {isAdmin && (
             <button onClick={() => window.location.href = '/repco'}
               className="h-9 px-4 rounded-lg text-sm font-medium bg-[#8B2214] text-white hover:bg-[#6d1a10] transition-colors flex items-center gap-1.5">
-              🚀 Abrir Portal RepCo
+              ðŸš€ Abrir Portal RepCo
             </button>
           )}
           <button onClick={() => setAdminView(v => v === 'map' ? 'list' : 'map')}
@@ -646,7 +646,7 @@ export function RepCoManagement() {
       {snoozedClients.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4">
           <p className="text-sm font-semibold text-red-700 mb-2">
-            ⚠️ {snoozedClients.length} cliente(s) adiados 2+ vezes sem comprar
+            âš ï¸ {snoozedClients.length} cliente(s) adiados 2+ vezes sem comprar
           </p>
           <p className="text-xs text-red-600 mb-3">Considere transferir para outro representante ou contatar diretamente.</p>
           {snoozedClients.slice(0, 3).map((c: any) => (
@@ -683,11 +683,11 @@ export function RepCoManagement() {
       ) : filteredReps.length === 0 ? (
         <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
           <p className="text-4xl mb-3">
-            {canalFilter === 'site' ? '🛒' : canalFilter === 'marketplaces' ? '🏦' : '👥'}
+            {canalFilter === 'site' ? 'ðŸ›’' : canalFilter === 'marketplaces' ? 'ðŸ¦' : 'ðŸ‘¥'}
           </p>
           <p className="text-gray-500 font-medium">
             {canalFilter === 'site' ? 'Nenhum cliente do site ainda' :
-             canalFilter === 'marketplaces' ? 'Nenhum cliente de marketplace cadastrado ainda — disponível após integração com ML, Amazon, Shopee e TikTok' :
+             canalFilter === 'marketplaces' ? 'Nenhum cliente de marketplace cadastrado ainda â€” disponÃ­vel apÃ³s integraÃ§Ã£o com ML, Amazon, Shopee e TikTok' :
              'Nenhum representante encontrado'}
           </p>
         </div>
@@ -700,7 +700,7 @@ export function RepCoManagement() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Contato</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Cadastro</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Ações</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">AÃ§Ãµes</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -709,7 +709,7 @@ export function RepCoManagement() {
                   <td className="px-4 py-3">
                     <div>
                       <p className="font-semibold text-gray-900">{rep.full_name}</p>
-                      <p className="text-xs text-gray-500">CPF: {rep.cpf || '—'}</p>
+                      <p className="text-xs text-gray-500">CPF: {rep.cpf || 'â€”'}</p>
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -749,3 +749,4 @@ export function RepCoManagement() {
     </div>
   );
 }
+

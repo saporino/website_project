@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { getTrackingUrl } from '../../lib/tracking';
 import { Printer, Tag, Package, Search, Filter,
@@ -69,15 +69,15 @@ interface Order {
 }
 
 const ORDER_STATUSES = [
-  { key: 'created', label: 'Criado', color: 'bg-gray-100 text-gray-700', icon: '📋' },
-  { key: 'payment_pending', label: 'Ag. Pagamento', color: 'bg-yellow-100 text-yellow-800', icon: '⏳' },
-  { key: 'payment_approved', label: 'Pago', color: 'bg-blue-100 text-blue-800', icon: '💳' },
-  { key: 'invoice_pending', label: 'Ag. Nota Fiscal', color: 'bg-orange-100 text-orange-800', icon: '🧾' },
-  { key: 'ready_for_shipment', label: 'Pronto p/ Envio', color: 'bg-purple-100 text-purple-800', icon: '📦' },
-  { key: 'label_generated', label: 'Etiqueta Gerada', color: 'bg-indigo-100 text-indigo-800', icon: '🏷️' },
-  { key: 'shipped', label: 'Enviado', color: 'bg-cyan-100 text-cyan-800', icon: '🚚' },
-  { key: 'delivered', label: 'Entregue', color: 'bg-green-100 text-green-800', icon: '✅' },
-  { key: 'cancelled', label: 'Cancelado', color: 'bg-red-100 text-red-800', icon: '❌' },
+  { key: 'created', label: 'Criado', color: 'bg-gray-100 text-gray-700', icon: 'ðŸ“‹' },
+  { key: 'payment_pending', label: 'Ag. Pagamento', color: 'bg-yellow-100 text-yellow-800', icon: 'â³' },
+  { key: 'payment_approved', label: 'Pago', color: 'bg-blue-100 text-blue-800', icon: 'ðŸ’³' },
+  { key: 'invoice_pending', label: 'Ag. Nota Fiscal', color: 'bg-orange-100 text-orange-800', icon: 'ðŸ§¾' },
+  { key: 'ready_for_shipment', label: 'Pronto p/ Envio', color: 'bg-purple-100 text-purple-800', icon: 'ðŸ“¦' },
+  { key: 'label_generated', label: 'Etiqueta Gerada', color: 'bg-indigo-100 text-indigo-800', icon: 'ðŸ·ï¸' },
+  { key: 'shipped', label: 'Enviado', color: 'bg-cyan-100 text-cyan-800', icon: 'ðŸšš' },
+  { key: 'delivered', label: 'Entregue', color: 'bg-green-100 text-green-800', icon: 'âœ…' },
+  { key: 'cancelled', label: 'Cancelado', color: 'bg-red-100 text-red-800', icon: 'âŒ' },
 ];
 
 // Legacy status map
@@ -180,7 +180,7 @@ export function OrdersManagement() {
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-            <input type="text" placeholder="Buscar por número, nome ou email..."
+            <input type="text" placeholder="Buscar por nÃºmero, nome ou email..."
               value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a4240e] focus:border-transparent" />
           </div>
@@ -239,7 +239,7 @@ function OrderCard({ order, expanded, section, onToggle, onSetSection, onRefresh
                   </span>
                 )}
               </div>
-              <p className="text-sm text-gray-600">{order.customer_name} • {new Date(order.created_at).toLocaleDateString('pt-BR')}</p>
+              <p className="text-sm text-gray-600">{order.customer_name} â€¢ {new Date(order.created_at).toLocaleDateString('pt-BR')}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -258,10 +258,10 @@ function OrderCard({ order, expanded, section, onToggle, onSetSection, onRefresh
           {/* Section Tabs */}
           <div className="flex overflow-x-auto border-b border-gray-100 bg-gray-50">
             {[
-              { key: 'overview', label: '📋 Visão Geral' },
-              { key: 'package', label: '📦 Embalagem' },
-              { key: 'invoice', label: `🧾 Nota Fiscal${invoice ? ' ✅' : ''}` },
-              { key: 'logistics', label: '🚚 Logística' },
+              { key: 'overview', label: 'ðŸ“‹ VisÃ£o Geral' },
+              { key: 'package', label: 'ðŸ“¦ Embalagem' },
+              { key: 'invoice', label: `ðŸ§¾ Nota Fiscal${invoice ? ' âœ…' : ''}` },
+              { key: 'logistics', label: 'ðŸšš LogÃ­stica' },
             ].map(tab => (
               <button key={tab.key} onClick={() => onSetSection(tab.key)}
                 className={`flex-shrink-0 px-5 py-3 text-sm font-medium transition-colors ${section === tab.key ? 'border-b-2 border-[#a4240e] text-[#a4240e] bg-white' : 'text-gray-600 hover:text-gray-800'}`}>
@@ -300,10 +300,10 @@ function OverviewSection({ order, onRefresh }: any) {
       th,td{padding:10px;text-align:left;border-bottom:1px solid #ddd}th{background:#f5f5f5}
       .box{background:#f9f9f9;padding:15px;border-radius:8px;margin-bottom:15px}
     </style></head><body>
-    <h1>CAFÉ SAPORINO — PEDIDO ${order.order_number}</h1>
+    <h1>CAFÃ‰ SAPORINO â€” PEDIDO ${order.order_number}</h1>
     <div class="box"><strong>Cliente:</strong> ${order.customer_name}<br><strong>E-mail:</strong> ${order.customer_email}<br><strong>Telefone:</strong> ${order.customer_phone}</div>
-    <div class="box"><strong>Endereço:</strong> ${order.address_street || ''}, ${order.address_number || ''}<br>${order.address_city || ''} - ${order.address_state || ''} • CEP: ${order.cep || ''}</div>
-    <table><thead><tr><th>Produto</th><th>Qtd</th><th>Peso Unit.</th><th>Preço Unit.</th><th>Subtotal</th></tr></thead><tbody>
+    <div class="box"><strong>EndereÃ§o:</strong> ${order.address_street || ''}, ${order.address_number || ''}<br>${order.address_city || ''} - ${order.address_state || ''} â€¢ CEP: ${order.cep || ''}</div>
+    <table><thead><tr><th>Produto</th><th>Qtd</th><th>Peso Unit.</th><th>PreÃ§o Unit.</th><th>Subtotal</th></tr></thead><tbody>
     ${order.order_items?.map((i: any) => `<tr><td>${i.products?.name}</td><td>${i.quantity}</td><td>${i.products?.weight_grams}g</td><td>R$ ${i.unit_price.toFixed(2)}</td><td>R$ ${(i.unit_price * i.quantity).toFixed(2)}</td></tr>`).join('')}
     </tbody></table>
     <div><p>Peso total: ${totalWeight}g (${(totalWeight / 1000).toFixed(2)}kg)</p></div>
@@ -321,7 +321,7 @@ function OverviewSection({ order, onRefresh }: any) {
           <p className="text-sm text-gray-600">{order.customer_email}</p>
           <p className="text-sm text-gray-600">{order.customer_phone}</p>
         </div>
-        <div><p className="text-xs font-semibold text-gray-500 uppercase mb-1">Endereço</p>
+        <div><p className="text-xs font-semibold text-gray-500 uppercase mb-1">EndereÃ§o</p>
           <p className="text-sm">{order.address_street}, {order.address_number}</p>
           <p className="text-sm">{order.address_neighborhood}</p>
           <p className="text-sm">{order.address_city} - {order.address_state}</p>
@@ -337,7 +337,7 @@ function OverviewSection({ order, onRefresh }: any) {
       <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
         <select value={getOrderStatus(order)}
           onChange={(e) => updateStatus(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a4240e]">
+          className="h-[34px] px-3 text-sm border border-gray-300 rounded">
           {ORDER_STATUSES.map(s => <option key={s.key} value={s.key}>{s.icon} {s.label}</option>)}
         </select>
         <button onClick={printOrder}
@@ -389,7 +389,7 @@ function PackageSection({ order, onRefresh }: any) {
     <div className="space-y-4">
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
         <p className="text-sm text-amber-800">
-          <strong>⚖️ Peso estimado dos produtos:</strong> {totalWeight}g ({(totalWeight / 1000).toFixed(3)}kg)
+          <strong>âš–ï¸ Peso estimado dos produtos:</strong> {totalWeight}g ({(totalWeight / 1000).toFixed(3)}kg)
           <br /><span className="text-xs">Inclua o peso da embalagem ao preencher abaixo</span>
         </p>
       </div>
@@ -406,7 +406,7 @@ function PackageSection({ order, onRefresh }: any) {
             <input type="number" step="0.001" value={field.value}
               onChange={(e) => field.setter(e.target.value)}
               placeholder={field.placeholder}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a4240e] focus:border-transparent" />
+              className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded" />
           </div>
         ))}
       </div>
@@ -414,7 +414,7 @@ function PackageSection({ order, onRefresh }: any) {
       <button onClick={savePackage} disabled={saving}
         className="flex items-center gap-2 px-5 py-2.5 bg-[#a4240e] text-white rounded-lg hover:bg-[#8a1f0c] transition-colors text-sm font-medium disabled:opacity-60">
         <Save className="w-4 h-4" />
-        <span>{saving ? 'Salvando...' : 'Salvar Dimensões'}</span>
+        <span>{saving ? 'Salvando...' : 'Salvar DimensÃµes'}</span>
       </button>
     </div>
   );
@@ -450,7 +450,7 @@ function InvoiceSection({ order, invoice, onRefresh }: any) {
   };
 
   const saveInvoice = async () => {
-    if (!number || !key) { alert('Preencha o número e a chave da NF'); return; }
+    if (!number || !key) { alert('Preencha o nÃºmero e a chave da NF'); return; }
     setSaving(true);
     try {
       const data = {
@@ -494,35 +494,35 @@ function InvoiceSection({ order, invoice, onRefresh }: any) {
       {invoice && (
         <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
           <CheckCircle className="w-5 h-5 text-green-600" />
-          <span className="text-sm font-semibold text-green-800">NF Vinculada — NF {invoice.invoice_number} / Série {invoice.invoice_series}</span>
+          <span className="text-sm font-semibold text-green-800">NF Vinculada â€” NF {invoice.invoice_number} / SÃ©rie {invoice.invoice_series}</span>
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Número NF *</label>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">NÃºmero NF *</label>
           <input type="text" value={number} onChange={(e) => setNumber(e.target.value)}
-            placeholder="123456" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a4240e]" />
+            placeholder="123456" className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded" />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Série *</label>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">SÃ©rie *</label>
           <input type="text" value={series} onChange={(e) => setSeries(e.target.value)}
-            placeholder="1" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a4240e]" />
+            placeholder="1" className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded" />
         </div>
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">Valor NF (R$)</label>
           <input type="number" step="0.01" value={total} onChange={(e) => setTotal(e.target.value)}
-            placeholder="0.00" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a4240e]" />
+            placeholder="0.00" className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded" />
         </div>
       </div>
 
       <div>
-        <label className="block text-xs font-semibold text-gray-600 mb-1">Chave NF-e (44 dígitos) *</label>
+        <label className="block text-xs font-semibold text-gray-600 mb-1">Chave NF-e (44 dÃ­gitos) *</label>
         <input type="text" value={key} onChange={(e) => setKey(e.target.value)}
           placeholder="00000000000000000000000000000000000000000000"
           maxLength={44}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-[#a4240e]" />
-        <p className="text-xs text-gray-400 mt-1">{key.replace(/\D/g, '').length}/44 dígitos</p>
+          className="w-full h-[34px] px-3 text-sm font-mono border border-gray-300 rounded" />
+        <p className="text-xs text-gray-400 mt-1">{key.replace(/\D/g, '').length}/44 dÃ­gitos</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -530,8 +530,8 @@ function InvoiceSection({ order, invoice, onRefresh }: any) {
           <label className="block text-xs font-semibold text-gray-600 mb-1">PDF da NF</label>
           <div className="flex gap-2">
             <input type="text" value={pdfUrl} onChange={(e) => setPdfUrl(e.target.value)}
-              placeholder="URL do PDF ou faça upload >"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a4240e]" />
+              placeholder="URL do PDF ou faÃ§a upload >"
+              className="flex-1 h-[34px] px-3 text-sm border border-gray-300 rounded" />
             <label className="flex items-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg cursor-pointer hover:bg-gray-200 text-sm whitespace-nowrap">
               {uploadingPdf ? <div className="animate-spin h-4 w-4 border-b-2 border-gray-600 rounded-full" /> : <Upload className="w-4 h-4" />}
               <input type="file" accept=".pdf" className="hidden"
@@ -543,8 +543,8 @@ function InvoiceSection({ order, invoice, onRefresh }: any) {
           <label className="block text-xs font-semibold text-gray-600 mb-1">XML da NF</label>
           <div className="flex gap-2">
             <input type="text" value={xmlUrl} onChange={(e) => setXmlUrl(e.target.value)}
-              placeholder="URL do XML ou faça upload >"
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#a4240e]" />
+              placeholder="URL do XML ou faÃ§a upload >"
+              className="flex-1 h-[34px] px-3 text-sm border border-gray-300 rounded" />
             <label className="flex items-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg cursor-pointer hover:bg-gray-200 text-sm whitespace-nowrap">
               {uploadingXml ? <div className="animate-spin h-4 w-4 border-b-2 border-gray-600 rounded-full" /> : <Upload className="w-4 h-4" />}
               <input type="file" accept=".xml" className="hidden"
@@ -584,9 +584,9 @@ function LogisticsSection({ order, shipment, invoice, onRefresh }: any) {
       .row{display:flex;justify-content:space-between;align-items:flex-start}
     </style></head><body><div class="box">
     <div class="sec"><div class="sec-title">Remetente</div>
-      <strong>Café Saporino</strong><br>Rua Exemplo, 123 — Barueri/SP<br>CEP: 06454-000
+      <strong>CafÃ© Saporino</strong><br>Rua Exemplo, 123 â€” Barueri/SP<br>CEP: 06454-000
     </div>
-    <div class="sec"><div class="sec-title">Destinatário</div>
+    <div class="sec"><div class="sec-title">DestinatÃ¡rio</div>
       <div class="big">${order.shipping_recipient || order.customer_name}</div>
       ${order.address_street || ''}, ${order.address_number || ''}${order.address_complement ? ', ' + order.address_complement : ''}<br>
       ${order.address_neighborhood || ''}<br>
@@ -613,7 +613,7 @@ function LogisticsSection({ order, shipment, invoice, onRefresh }: any) {
   };
 
   const confirmDispatch = async () => {
-    if (!trackingCode) { alert('Insira o código de rastreamento antes de confirmar o despacho'); return; }
+    if (!trackingCode) { alert('Insira o cÃ³digo de rastreamento antes de confirmar o despacho'); return; }
     setSaving(true);
     const now = new Date().toISOString();
     // Save shipment
@@ -667,7 +667,7 @@ function LogisticsSection({ order, shipment, invoice, onRefresh }: any) {
             <strong>Para gerar a etiqueta:</strong>
             <ul className="mt-1 list-disc list-inside space-y-0.5">
               {!invoice && <li>Vincule a Nota Fiscal (aba NF)</li>}
-              {!order.package_weight && <li>Preencha o peso e dimensões (aba Embalagem)</li>}
+              {!order.package_weight && <li>Preencha o peso e dimensÃµes (aba Embalagem)</li>}
             </ul>
           </div>
         </div>
@@ -675,11 +675,11 @@ function LogisticsSection({ order, shipment, invoice, onRefresh }: any) {
 
       {/* Tracking code */}
       <div>
-        <label className="block text-xs font-semibold text-gray-600 mb-1">Código de Rastreamento</label>
+        <label className="block text-xs font-semibold text-gray-600 mb-1">CÃ³digo de Rastreamento</label>
         <div className="flex gap-2">
           <input type="text" value={trackingCode} onChange={(e) => setTrackingCode(e.target.value)}
             placeholder="BR123456789BR"
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-[#a4240e]" />
+            className="flex-1 h-[34px] px-3 text-sm font-mono border border-gray-300 rounded" />
           {trackingCode && (
             <a href={getTrackingUrl(trackingCode, order.shipping_carrier_name || order.carrier_name || 'correios')}
               target="_blank" rel="noopener noreferrer"
@@ -721,3 +721,4 @@ function LogisticsSection({ order, shipment, invoice, onRefresh }: any) {
     </div>
   );
 }
+
