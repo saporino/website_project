@@ -125,8 +125,8 @@ export default function BatchManagement() {
     if (!editingBatch?.id) { alert('Salve o lote primeiro'); return; }
     const cruIn = Number(roastForm.green_input_to_roast_kg) || 0;
     const out = Number(roastForm.roasted_output_kg) || 0;
-    const pesoVerde = Number(editingBatch.green_weight_kg) || 0;
-    if (cruIn > pesoVerde) { alert(`Cru pra torra (${cruIn}kg) nao pode ser maior que o peso verde (${pesoVerde}kg)`); return; }
+    const veCheck = getEffectiveVerde(editingBatch);
+    if (cruIn > veCheck.total_kg) { alert(`Cru pra torra (${cruIn}kg) maior que verde disponivel (${veCheck.total_kg.toFixed(2)} kg, incluindo creditos recebidos)`); return; }
     if (out > cruIn) { alert(`Saida do forno (${out}kg) nao pode ser maior que o cru enviado (${cruIn}kg)`); return; }
     setSaving(true);
     const { error } = await supabase.from('green_coffee_lots').update({ green_input_to_roast_kg:roastForm.green_input_to_roast_kg, service_price_per_kg:roastForm.service_price_per_kg, roasted_output_kg:roastForm.roasted_output_kg, roast_date:roastForm.roast_date }).eq('id', editingBatch.id);
@@ -141,9 +141,9 @@ export default function BatchManagement() {
   const savePackaging = async () => {
     if (!editingBatch?.id) { alert('Salve o lote primeiro'); return; }
     const emb = Number(packagingForm.packaged_kg) || 0;
-    const out = Number(editingBatch.roasted_output_kg) || 0;
-    if (out === 0) { alert('Registre a torra antes de embalar'); return; }
-    if (emb > out) { alert(`Embalado (${emb}kg) nao pode ser maior que saida do forno (${out}kg)`); return; }
+    const teCheck = getEffectiveTorrado(editingBatch);
+    if (teCheck.total_kg === 0) { alert('Registre a torra ou receba creditos de torrado antes de embalar'); return; }
+    if (emb > teCheck.total_kg) { alert(`Embalado (${emb}kg) maior que torrado disponivel (${teCheck.total_kg.toFixed(2)} kg, incluindo creditos)`); return; }
     setSaving(true);
     const { error } = await supabase.from('green_coffee_lots').update({ packaged_kg:packagingForm.packaged_kg, packaging_cost_per_kg:packagingForm.packaging_cost_per_kg, quantity_packages:packagingForm.quantity_packages, packaging_date:packagingForm.packaging_date }).eq('id', editingBatch.id);
     setSaving(false);
@@ -156,24 +156,49 @@ export default function BatchManagement() {
 
   const getRealBalances = (lote: any) => {
     if (!lote?.id) return { green_remaining:0, roasted_remaining:0, green_value:0, roasted_value:0, cost_per_kg_verde_efetivo:0, cost_per_kg_torrado_bruto:0 };
-    const out = transfers.filter(t => t.from_lot_id === lote.id);
-    const greenOut = out.filter(t => t.kind === 'green').reduce((s:number,t:any) => s + Number(t.kg_amount), 0);
-    const roastedOut = out.filter(t => t.kind === 'roasted').reduce((s:number,t:any) => s + Number(t.kg_amount), 0);
-    const greenBase = Number(lote.green_remaining_kg ?? lote.green_weight_kg ?? 0);
-    const roastedBase = Number(lote.sobra_torrado_kg ?? 0);
-    const ce = Number(lote.cost_per_kg_verde_efetivo ?? 0);
+    const ve = getEffectiveVerde(lote);
+    const te = getEffectiveTorrado(lote);
+    const out = transfers.filter((t:any) => t.from_lot_id === lote.id);
+    const greenOut = out.filter((t:any) => t.kind === 'green').reduce((s:number,t:any) => s + Number(t.kg_amount), 0);
+    const roastedOut = out.filter((t:any) => t.kind === 'roasted').reduce((s:number,t:any) => s + Number(t.kg_amount), 0);
+    const cru = Number(lote.green_input_to_roast_kg) || 0;
+    const greenRemaining = ve.total_kg - cru - greenOut;
+    const embalado = Number(lote.packaged_kg) || 0;
+    const roastedRemaining = te.total_kg - embalado - roastedOut;
+    return {
+      green_remaining: greenRemaining,
+      roasted_remaining: roastedRemaining,
+      green_value: greenRemaining * ve.avg_cost_per_kg,
+      roasted_value: roastedRemaining * te.avg_cost_per_kg,
+      cost_per_kg_verde_efetivo: ve.avg_cost_per_kg,
+      cost_per_kg_torrado_bruto: te.avg_cost_per_kg,
+    };
+  };
+  const getEffectiveVerde = (lote: any) => {
+    if (!lote?.id) return { total_kg:0, total_value:0, avg_cost_per_kg:0, own_kg:0, in_kg:0 };
+    const incoming = getTransfersIn(lote.id).filter((t:any) => t.kind === 'green');
+    const ownKg = Number(lote.green_weight_kg) || 0;
+    const ownCostKg = Number(lote.cost_per_kg_verde_efetivo) || 0;
+    const ownValue = ownKg * ownCostKg;
+    const inKg = incoming.reduce((s:number,t:any) => s + Number(t.kg_amount), 0);
+    const inValue = incoming.reduce((s:number,t:any) => s + Number(t.value_amount_brl), 0);
+    const totalKg = ownKg + inKg;
+    const totalValue = ownValue + inValue;
+    return { total_kg:totalKg, total_value:totalValue, avg_cost_per_kg:totalKg>0?totalValue/totalKg:0, own_kg:ownKg, in_kg:inKg };
+  };
+  const getEffectiveTorrado = (lote: any) => {
+    if (!lote?.id) return { total_kg:0, total_value:0, avg_cost_per_kg:0, own_kg:0, in_kg:0 };
+    const ve = getEffectiveVerde(lote);
     const cru = Number(lote.green_input_to_roast_kg) || 0;
     const sp = Number(lote.service_price_per_kg) || 0;
-    const outFor = Number(lote.roasted_output_kg) || 0;
-    const cTorradoBruto = outFor > 0 ? (cru * ce + cru * sp) / outFor : 0;
-    return {
-      green_remaining: greenBase - greenOut,
-      roasted_remaining: roastedBase - roastedOut,
-      green_value: (greenBase - greenOut) * ce,
-      roasted_value: (roastedBase - roastedOut) * cTorradoBruto,
-      cost_per_kg_verde_efetivo: ce,
-      cost_per_kg_torrado_bruto: cTorradoBruto,
-    };
+    const outForno = Number(lote.roasted_output_kg) || 0;
+    const ownTorradoValue = outForno > 0 ? (cru * ve.avg_cost_per_kg + cru * sp) : 0;
+    const incoming = getTransfersIn(lote.id).filter((t:any) => t.kind === 'roasted');
+    const inKg = incoming.reduce((s:number,t:any) => s + Number(t.kg_amount), 0);
+    const inValue = incoming.reduce((s:number,t:any) => s + Number(t.value_amount_brl), 0);
+    const totalKg = outForno + inKg;
+    const totalValue = ownTorradoValue + inValue;
+    return { total_kg:totalKg, total_value:totalValue, avg_cost_per_kg:totalKg>0?totalValue/totalKg:0, own_kg:outForno, in_kg:inKg };
   };
   const getTransfersOut = (loteId:string) => transfers.filter(t => t.from_lot_id === loteId);
   const getTransfersIn = (loteId:string) => transfers.filter(t => t.to_lot_id === loteId);
@@ -439,31 +464,30 @@ export default function BatchManagement() {
               <div><label className="block text-xs font-semibold text-gray-600 mb-1">R$/ponto</label>
                 <CurrencyInput value={batchForm.price_per_point} onChange={v=>setBatchForm({...batchForm,price_per_point:v})} placeholder="24,00" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
               {/* Painel cadeia de custos */}
-              {(()=>{
-                const peso=Number(batchForm.green_weight_kg)||0;
-                const pago=Number(batchForm.total_paid_brl)||0;
-                const log=Number(batchForm.logistics_cost_brl)||0;
-                const ap=Number(batchForm.ap_percentage)||0;
-                const ppp=Number(batchForm.price_per_point)||0;
-                const cruIn=Number(batchForm.green_input_to_roast_kg)||0;
-                const servPrice=Number(batchForm.service_price_per_kg)||0;
-                const outForno=Number(batchForm.roasted_output_kg)||0;
-                const embalado=Number(batchForm.packaged_kg)||0;
-                const embPrice=Number(batchForm.packaging_cost_per_kg)||1.30;
+              {editingBatch&&(()=>{
+                const peso=Number(editingBatch.green_weight_kg)||0;
+                const pago=Number(editingBatch.total_paid_brl)||0;
+                const ap=Number(editingBatch.ap_percentage)||0;
+                const ppp=Number(editingBatch.price_per_point)||0;
                 if(peso===0||pago===0) return null;
+                const ve=getEffectiveVerde(editingBatch);
+                const te=getEffectiveTorrado(editingBatch);
+                const rb=getRealBalances(editingBatch);
                 const cKgPuro=pago/peso;
-                const cKgEfetivo=(pago+log)/peso;
+                const cKgEfetivoProprio=(pago+Number(editingBatch.logistics_cost_brl||0))/peso;
                 const cKgRef=ap&&ppp?(ap/100)*ppp:null;
-                const showTorra=cruIn>0&&outForno>0&&servPrice>0;
-                const servTotal=cruIn*servPrice;
-                const valorCruUsado=cruIn*cKgEfetivo;
-                const cKgTorrado=showTorra?(valorCruUsado+servTotal)/outForno:0;
+                const cruIn=Number(editingBatch.green_input_to_roast_kg)||0;
+                const sp=Number(editingBatch.service_price_per_kg)||0;
+                const outForno=Number(editingBatch.roasted_output_kg)||0;
+                const embalado=Number(editingBatch.packaged_kg)||0;
+                const embPrice=Number(editingBatch.packaging_cost_per_kg)||0;
+                const showTorra=cruIn>0&&outForno>0&&sp>0;
+                const showEmb=embalado>0&&te.total_kg>0;
+                const servTotal=cruIn*sp;
                 const shrinkage=showTorra?((cruIn-outForno)/cruIn)*100:0;
-                const showEmb=showTorra&&embalado>0;
-                const sobraTorrado=showEmb?outForno-embalado:0;
-                const creditoTorrado=sobraTorrado*cKgTorrado;
-                const cFinalKg=showEmb?((outForno*cKgTorrado)-creditoTorrado)/embalado+embPrice:0;
-                const verdeSob=peso-cruIn;
+                const sobraTorrado=te.total_kg-embalado;
+                const valorCreditoTorrado=sobraTorrado>0?sobraTorrado*te.avg_cost_per_kg:0;
+                const cFinalKg=showEmb?te.avg_cost_per_kg+embPrice:0;
                 return(
                   <div className="sm:col-span-2 bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs space-y-2">
                     <p className="font-semibold text-amber-900">Cadeia de custos do lote</p>
@@ -471,10 +495,9 @@ export default function BatchManagement() {
                       <p className="font-medium text-amber-800 mb-1">1. Compra (verde)</p>
                       <div className="grid grid-cols-2 gap-1">
                         <div>Custo/kg puro: <strong>{formatBRL(cKgPuro)}</strong></div>
-                        <div>Custo/kg efetivo: <strong>{formatBRL(cKgEfetivo)}</strong></div>
+                        <div>Custo/kg efetivo: <strong>{formatBRL(cKgEfetivoProprio)}</strong></div>
                         {cKgRef!==null&&<div className="col-span-2">Cotacao ref. (AP×R$/ponto): {formatBRL(cKgRef)}/kg</div>}
-                        <div>Verde sobrando: <strong>{verdeSob.toFixed(1)} kg</strong></div>
-                        <div>Valor verde: <strong>{formatBRL(verdeSob*cKgEfetivo)}</strong></div>
+                        {ve.in_kg>0&&<div className="col-span-2 text-blue-700">Verde recebido: {ve.in_kg.toFixed(1)} kg | Total: {ve.total_kg.toFixed(1)} kg | Custo medio: {formatBRL(ve.avg_cost_per_kg)}/kg</div>}
                       </div>
                     </div>
                     {showTorra&&(
@@ -483,40 +506,36 @@ export default function BatchManagement() {
                         <div className="grid grid-cols-2 gap-1">
                           <div>Quebra fisica: <strong>{shrinkage.toFixed(2)}%</strong></div>
                           <div>Custo servico: <strong>{formatBRL(servTotal)}</strong></div>
-                          <div className="col-span-2">Custo/kg torrado bruto: <strong>{formatBRL(cKgTorrado)}</strong></div>
+                          <div className="col-span-2">Custo/kg torrado: <strong>{formatBRL((cruIn*ve.avg_cost_per_kg+servTotal)/outForno)}</strong></div>
+                          {te.in_kg>0&&<div className="col-span-2 text-blue-700">Torrado recebido: {te.in_kg.toFixed(1)} kg | Total: {te.total_kg.toFixed(1)} kg | Custo medio: {formatBRL(te.avg_cost_per_kg)}/kg</div>}
                         </div>
                       </div>
                     )}
                     {showEmb&&(
-                      <div>
+                      <div className="border-b border-amber-200 pb-2">
                         <p className="font-medium text-amber-800 mb-1">3. Embalagem</p>
                         <div className="grid grid-cols-2 gap-1">
                           <div>Sobra torrado: <strong>{sobraTorrado.toFixed(1)} kg</strong></div>
-                          <div>Credito torrado: <strong>{formatBRL(creditoTorrado)}</strong></div>
+                          <div>Credito torrado: <strong>{formatBRL(valorCreditoTorrado)}</strong></div>
                           <div className="col-span-2 font-semibold text-amber-900">Custo final/kg embalado: {formatBRL(cFinalKg)}</div>
                         </div>
                       </div>
                     )}
-                    {editingBatch&&(()=>{
-                      const rb=getRealBalances(editingBatch);
-                      return(
-                        <div>
-                          <div className="font-medium text-amber-800 mb-1">Saldos atuais (apos transferencias)</div>
-                          <div className="grid grid-cols-2 gap-2 text-xs items-center">
-                            <div>Verde sobrando: <strong>{rb.green_remaining.toFixed(1)} kg</strong></div>
-                            <div className="text-right"><strong>{formatBRL(rb.green_value)}</strong>
-                              {rb.green_remaining>0.001&&<button type="button" onClick={()=>{setTransferForm({kind:'green',kg_amount:rb.green_remaining,to_lot_id:'',notes:''});setShowTransferModal(true);}} className="ml-2 text-xs underline text-amber-900 hover:text-amber-700">Transferir</button>}
-                            </div>
-                            {rb.roasted_remaining>0&&(<>
-                              <div>Torrado solto: <strong>{rb.roasted_remaining.toFixed(1)} kg</strong></div>
-                              <div className="text-right"><strong>{formatBRL(rb.roasted_value)}</strong>
-                                <button type="button" onClick={()=>{setTransferForm({kind:'roasted',kg_amount:rb.roasted_remaining,to_lot_id:'',notes:''});setShowTransferModal(true);}} className="ml-2 text-xs underline text-amber-900 hover:text-amber-700">Transferir</button>
-                              </div>
-                            </>)}
-                          </div>
+                    <div>
+                      <div className="font-medium text-amber-800 mb-1">Saldos atuais (apos transferencias)</div>
+                      <div className="grid grid-cols-2 gap-2 items-center">
+                        <div>Verde sobrando: <strong>{rb.green_remaining.toFixed(1)} kg</strong></div>
+                        <div className="text-right"><strong>{formatBRL(rb.green_value)}</strong>
+                          {rb.green_remaining>0.001&&<button type="button" onClick={()=>{setTransferForm({kind:'green',kg_amount:rb.green_remaining,to_lot_id:'',notes:''});setShowTransferModal(true);}} className="ml-2 text-xs underline text-amber-900 hover:text-amber-700">Transferir</button>}
                         </div>
-                      );
-                    })()}
+                        {rb.roasted_remaining>0&&(<>
+                          <div>Torrado solto: <strong>{rb.roasted_remaining.toFixed(1)} kg</strong></div>
+                          <div className="text-right"><strong>{formatBRL(rb.roasted_value)}</strong>
+                            <button type="button" onClick={()=>{setTransferForm({kind:'roasted',kg_amount:rb.roasted_remaining,to_lot_id:'',notes:''});setShowTransferModal(true);}} className="ml-2 text-xs underline text-amber-900 hover:text-amber-700">Transferir</button>
+                          </div>
+                        </>)}
+                      </div>
+                    </div>
                   </div>
                 );
               })()}
@@ -612,7 +631,15 @@ export default function BatchManagement() {
               <button onClick={()=>setShowRoastModal(false)} className="text-gray-500 hover:text-gray-700 text-lg">✕</button>
             </div>
             <div className="p-4 space-y-3">
-              <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">Verde disponivel: <strong>{Number(editingBatch.green_weight_kg??0).toFixed(1)} kg</strong></div>
+              {(()=>{
+                const ve=getEffectiveVerde(editingBatch);
+                return(
+                  <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded space-y-1">
+                    <div>Verde disponivel: <strong>{ve.total_kg.toFixed(1)} kg</strong> (custo medio {formatBRL(ve.avg_cost_per_kg)}/kg)</div>
+                    {ve.in_kg>0&&<div className="text-xs text-blue-700">Proprio: {ve.own_kg.toFixed(1)} kg + Recebido em credito: {ve.in_kg.toFixed(1)} kg</div>}
+                  </div>
+                );
+              })()}
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Cru enviado pra torra (kg)</label>
                 <input type="number" step="0.01" value={roastForm.green_input_to_roast_kg??''} onChange={e=>setRoastForm({...roastForm,green_input_to_roast_kg:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 1053" className="w-full border border-gray-300 rounded px-3 py-2"/></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">R$/kg do servico de torra</label>
@@ -654,7 +681,15 @@ export default function BatchManagement() {
               <button onClick={()=>setShowPackagingModal(false)} className="text-gray-500 hover:text-gray-700 text-lg">✕</button>
             </div>
             <div className="p-4 space-y-3">
-              <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">Torrado disponivel (saida do forno): <strong>{Number(editingBatch.roasted_output_kg??0).toFixed(1)} kg</strong></div>
+              {(()=>{
+                const te=getEffectiveTorrado(editingBatch);
+                return(
+                  <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded space-y-1">
+                    <div>Torrado disponivel: <strong>{te.total_kg.toFixed(1)} kg</strong> (custo medio {formatBRL(te.avg_cost_per_kg)}/kg)</div>
+                    {te.in_kg>0&&<div className="text-xs text-blue-700">Da torra deste lote: {te.own_kg.toFixed(1)} kg + Recebido em credito: {te.in_kg.toFixed(1)} kg</div>}
+                  </div>
+                );
+              })()}
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Embalado (kg)</label>
                 <input type="number" step="0.01" value={packagingForm.packaged_kg??''} onChange={e=>setPackagingForm({...packagingForm,packaged_kg:e.target.value===''?null:parseFloat(e.target.value)})} placeholder="Ex: 750" className="w-full border border-gray-300 rounded px-3 py-2"/></div>
               <div><label className="block text-sm font-medium text-gray-700 mb-1">Custo embalagem (R$/kg)</label>
