@@ -52,6 +52,9 @@ export default function BatchManagement() {
   const [showPackagingModal, setShowPackagingModal] = useState(false);
   const [roastForm, setRoastForm] = useState<any>({ green_input_to_roast_kg:null, service_price_per_kg:null, roasted_output_kg:null, roast_date:null });
   const [packagingForm, setPackagingForm] = useState<any>({ packaged_kg:null, packaging_cost_per_kg:1.30, quantity_packages:null, packaging_date:null });
+  const [transfers, setTransfers] = useState<any[]>([]);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferForm, setTransferForm] = useState<any>({ kind:'green', kg_amount:null, to_lot_id:'', notes:'' });
 
   useEffect(() => {
     if (editingBatch) {
@@ -94,6 +97,8 @@ export default function BatchManagement() {
     const ctMap:Record<string,Contact[]> = {};
     (ct||[]).forEach((x:Contact)=>{ if(!ctMap[x.company_id]) ctMap[x.company_id]=[]; ctMap[x.company_id].push(x); });
     setContacts(ctMap);
+    const { data: tsData, error: tsError } = await supabase.from('lot_transfers').select('*').order('transferred_at', { ascending: false });
+    if (!tsError) setTransfers(tsData || []);
     setLoading(false);
   }
 
@@ -147,6 +152,56 @@ export default function BatchManagement() {
     await loadAll();
     const { data: refreshed } = await supabase.from('green_coffee_lots').select('*').eq('id', editingBatch.id).single();
     if (refreshed) { setEditingBatch(refreshed as any); setBatchForm({...batchForm,...refreshed}); }
+  };
+
+  const getRealBalances = (lote: any) => {
+    if (!lote?.id) return { green_remaining:0, roasted_remaining:0, green_value:0, roasted_value:0, cost_per_kg_verde_efetivo:0, cost_per_kg_torrado_bruto:0 };
+    const out = transfers.filter(t => t.from_lot_id === lote.id);
+    const greenOut = out.filter(t => t.kind === 'green').reduce((s:number,t:any) => s + Number(t.kg_amount), 0);
+    const roastedOut = out.filter(t => t.kind === 'roasted').reduce((s:number,t:any) => s + Number(t.kg_amount), 0);
+    const greenBase = Number(lote.green_remaining_kg ?? lote.green_weight_kg ?? 0);
+    const roastedBase = Number(lote.sobra_torrado_kg ?? 0);
+    const ce = Number(lote.cost_per_kg_verde_efetivo ?? 0);
+    const cru = Number(lote.green_input_to_roast_kg) || 0;
+    const sp = Number(lote.service_price_per_kg) || 0;
+    const outFor = Number(lote.roasted_output_kg) || 0;
+    const cTorradoBruto = outFor > 0 ? (cru * ce + cru * sp) / outFor : 0;
+    return {
+      green_remaining: greenBase - greenOut,
+      roasted_remaining: roastedBase - roastedOut,
+      green_value: (greenBase - greenOut) * ce,
+      roasted_value: (roastedBase - roastedOut) * cTorradoBruto,
+      cost_per_kg_verde_efetivo: ce,
+      cost_per_kg_torrado_bruto: cTorradoBruto,
+    };
+  };
+  const getTransfersOut = (loteId:string) => transfers.filter(t => t.from_lot_id === loteId);
+  const getTransfersIn = (loteId:string) => transfers.filter(t => t.to_lot_id === loteId);
+  const getLoteByName = (loteId:string) => batches.find(b => b.id === loteId);
+
+  const saveTransfer = async () => {
+    if (!editingBatch?.id) { alert('Salve o lote primeiro'); return; }
+    if (!transferForm.to_lot_id) { alert('Selecione o lote destino'); return; }
+    if (transferForm.to_lot_id === editingBatch.id) { alert('Lote destino nao pode ser o proprio'); return; }
+    const kg = Number(transferForm.kg_amount) || 0;
+    if (kg <= 0) { alert('Quantidade invalida'); return; }
+    const realBal = getRealBalances(editingBatch);
+    let unitCost = 0;
+    if (transferForm.kind === 'green') {
+      if (kg > realBal.green_remaining) { alert(`Quantidade (${kg}kg) maior que saldo verde disponivel (${realBal.green_remaining.toFixed(2)} kg)`); return; }
+      unitCost = realBal.cost_per_kg_verde_efetivo;
+    } else {
+      if (realBal.cost_per_kg_torrado_bruto === 0) { alert('Este lote ainda nao tem torra registrada'); return; }
+      if (kg > realBal.roasted_remaining) { alert(`Quantidade (${kg}kg) maior que saldo torrado disponivel (${realBal.roasted_remaining.toFixed(2)} kg)`); return; }
+      unitCost = realBal.cost_per_kg_torrado_bruto;
+    }
+    setSaving(true);
+    const { error } = await supabase.from('lot_transfers').insert({ from_lot_id:editingBatch.id, to_lot_id:transferForm.to_lot_id, kind:transferForm.kind, kg_amount:kg, unit_cost_brl:unitCost, notes:transferForm.notes||null });
+    setSaving(false);
+    if (error) { alert('Erro: ' + error.message); return; }
+    setShowTransferModal(false);
+    setTransferForm({ kind:'green', kg_amount:null, to_lot_id:'', notes:'' });
+    await loadAll();
   };
 
   async function saveCompany(){
@@ -442,6 +497,60 @@ export default function BatchManagement() {
                         </div>
                       </div>
                     )}
+                    {editingBatch&&(()=>{
+                      const rb=getRealBalances(editingBatch);
+                      return(
+                        <div>
+                          <div className="font-medium text-amber-800 mb-1">Saldos atuais (apos transferencias)</div>
+                          <div className="grid grid-cols-2 gap-2 text-xs items-center">
+                            <div>Verde sobrando: <strong>{rb.green_remaining.toFixed(1)} kg</strong></div>
+                            <div className="text-right"><strong>{formatBRL(rb.green_value)}</strong>
+                              {rb.green_remaining>0.001&&<button type="button" onClick={()=>{setTransferForm({kind:'green',kg_amount:rb.green_remaining,to_lot_id:'',notes:''});setShowTransferModal(true);}} className="ml-2 text-xs underline text-amber-900 hover:text-amber-700">Transferir</button>}
+                            </div>
+                            {rb.roasted_remaining>0&&(<>
+                              <div>Torrado solto: <strong>{rb.roasted_remaining.toFixed(1)} kg</strong></div>
+                              <div className="text-right"><strong>{formatBRL(rb.roasted_value)}</strong>
+                                <button type="button" onClick={()=>{setTransferForm({kind:'roasted',kg_amount:rb.roasted_remaining,to_lot_id:'',notes:''});setShowTransferModal(true);}} className="ml-2 text-xs underline text-amber-900 hover:text-amber-700">Transferir</button>
+                              </div>
+                            </>)}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                );
+              })()}
+              {editingBatch&&(()=>{
+                const out=getTransfersOut(editingBatch.id);
+                const incoming=getTransfersIn(editingBatch.id);
+                if(out.length===0&&incoming.length===0) return null;
+                return(
+                  <div className="sm:col-span-2 border border-blue-200 bg-blue-50 rounded p-3 text-sm space-y-2">
+                    <div className="font-semibold text-blue-900">Movimentacoes do lote</div>
+                    {out.length>0&&(
+                      <div>
+                        <div className="font-medium text-blue-800 text-xs mb-1">Transferido para outros lotes:</div>
+                        {out.map((t:any)=>{
+                          const dest=getLoteByName(t.to_lot_id);
+                          return(<div key={t.id} className="text-xs flex justify-between">
+                            <span>→ {dest?.batch_number??'?'} | {Number(t.kg_amount).toFixed(1)} kg {t.kind==='green'?'verde':'torrado'}</span>
+                            <span>{formatBRL(Number(t.value_amount_brl))}</span>
+                          </div>);
+                        })}
+                      </div>
+                    )}
+                    {incoming.length>0&&(
+                      <div>
+                        <div className="font-medium text-blue-800 text-xs mb-1">Creditos recebidos:</div>
+                        {incoming.map((t:any)=>{
+                          const src=getLoteByName(t.from_lot_id);
+                          return(<div key={t.id} className="text-xs flex justify-between">
+                            <span>← {src?.batch_number??'?'} | {Number(t.kg_amount).toFixed(1)} kg {t.kind==='green'?'verde':'torrado'}</span>
+                            <span>{formatBRL(Number(t.value_amount_brl))}</span>
+                          </div>);
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
               })()}
@@ -562,6 +671,51 @@ export default function BatchManagement() {
           </div>
         </div>
       )}
+      {/* SUB-MODAL: Transferencia */}
+      {showTransferModal&&editingBatch&&(()=>{
+        const rb=getRealBalances(editingBatch);
+        const saldoDisponivel=transferForm.kind==='green'?rb.green_remaining:rb.roasted_remaining;
+        const unitCost=transferForm.kind==='green'?rb.cost_per_kg_verde_efetivo:rb.cost_per_kg_torrado_bruto;
+        const lotesDestino=batches.filter(b=>b.id!==editingBatch.id&&b.status==='active');
+        return(
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-4 border-b flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Transferir saldo do {editingBatch.batch_number}</h3>
+                <button onClick={()=>setShowTransferModal(false)} className="text-gray-500 hover:text-gray-700">✕</button>
+              </div>
+              <div className="p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                    <select value={transferForm.kind} onChange={e=>setTransferForm({...transferForm,kind:e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2">
+                      <option value="green">Verde (cru)</option>
+                      <option value="roasted">Torrado solto</option>
+                    </select></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Lote destino</label>
+                    <select value={transferForm.to_lot_id} onChange={e=>setTransferForm({...transferForm,to_lot_id:e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2">
+                      <option value="">Selecionar lote...</option>
+                      {lotesDestino.map((b:any)=>(<option key={b.id} value={b.id}>{b.batch_number}</option>))}
+                    </select></div>
+                </div>
+                <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                  Saldo disponivel: <strong>{saldoDisponivel.toFixed(2)} kg</strong><br/>
+                  Custo unitario: <strong>{formatBRL(unitCost)}/kg</strong>
+                </div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Quantidade a transferir (kg)</label>
+                  <input type="number" step="0.01" value={transferForm.kg_amount??''} onChange={e=>setTransferForm({...transferForm,kg_amount:e.target.value===''?null:parseFloat(e.target.value)})} placeholder={`Ex: ${saldoDisponivel.toFixed(0)}`} className="w-full border border-gray-300 rounded px-3 py-2"/>
+                  <div className="text-xs text-gray-500 mt-1">Valor da transferencia: <strong>{formatBRL((Number(transferForm.kg_amount)||0)*unitCost)}</strong></div>
+                </div>
+                <div><label className="block text-sm font-medium text-gray-700 mb-1">Notas (opcional)</label>
+                  <input type="text" value={transferForm.notes??''} onChange={e=>setTransferForm({...transferForm,notes:e.target.value})} placeholder="Ex: sobra do lote anterior" className="w-full border border-gray-300 rounded px-3 py-2"/></div>
+              </div>
+              <div className="p-4 border-t flex justify-end gap-2">
+                <button type="button" onClick={()=>setShowTransferModal(false)} className="px-4 py-2 border rounded">Cancelar</button>
+                <button type="button" onClick={saveTransfer} disabled={saving} className="px-4 py-2 bg-blue-700 text-white rounded hover:bg-blue-800 disabled:opacity-50">{saving?'Salvando...':'Confirmar transferencia'}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
