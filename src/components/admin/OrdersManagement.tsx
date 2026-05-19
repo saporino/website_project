@@ -300,7 +300,7 @@ function OverviewSection({ order, onRefresh }: any) {
       th,td{padding:10px;text-align:left;border-bottom:1px solid #ddd}th{background:#f5f5f5}
       .box{background:#f9f9f9;padding:15px;border-radius:8px;margin-bottom:15px}
     </style></head><body>
-    <h1>CAFÉ SAPORINO â€” PEDIDO ${order.order_number}</h1>
+    <h1>CAFÉ SAPORINO — PEDIDO ${order.order_number}</h1>
     <div class="box"><strong>Cliente:</strong> ${order.customer_name}<br><strong>E-mail:</strong> ${order.customer_email}<br><strong>Telefone:</strong> ${order.customer_phone}</div>
     <div class="box"><strong>Endereço:</strong> ${order.address_street || ''}, ${order.address_number || ''}<br>${order.address_city || ''} - ${order.address_state || ''} â€¢ CEP: ${order.cep || ''}</div>
     <table><thead><tr><th>Produto</th><th>Qtd</th><th>Peso Unit.</th><th>Preço Unit.</th><th>Subtotal</th></tr></thead><tbody>
@@ -494,7 +494,7 @@ function InvoiceSection({ order, invoice, onRefresh }: any) {
       {invoice && (
         <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
           <CheckCircle className="w-5 h-5 text-green-600" />
-          <span className="text-sm font-semibold text-green-800">NF Vinculada â€” NF {invoice.invoice_number} / Série {invoice.invoice_series}</span>
+          <span className="text-sm font-semibold text-green-800">NF Vinculada — NF {invoice.invoice_number} / Série {invoice.invoice_series}</span>
         </div>
       )}
 
@@ -584,7 +584,7 @@ function LogisticsSection({ order, shipment, invoice, onRefresh }: any) {
       .row{display:flex;justify-content:space-between;align-items:flex-start}
     </style></head><body><div class="box">
     <div class="sec"><div class="sec-title">Remetente</div>
-      <strong>Café Saporino</strong><br>Rua Exemplo, 123 â€” Barueri/SP<br>CEP: 06454-000
+      <strong>Café Saporino</strong><br>Rua Exemplo, 123 — Barueri/SP<br>CEP: 06454-000
     </div>
     <div class="sec"><div class="sec-title">Destinatário</div>
       <div class="big">${order.shipping_recipient || order.customer_name}</div>

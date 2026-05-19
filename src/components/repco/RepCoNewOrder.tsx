@@ -94,7 +94,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
     const finalAmount = originalAmount * (1 - discountPercentage / 100);
     const description = items.map(i => `${i.product.name} x${i.quantity} (R$ ${effectivePrice(i.price, i.quantity).toFixed(2)})`).join(', ');
 
-    // Optimistic update â€” mostra sucesso imediatamente
+    // Optimistic update — mostra sucesso imediatamente
     setSuccess(true); setSubmitting(false); onOrderCreated?.();
 
     // Insert em background
@@ -236,7 +236,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
           <div className="space-y-2">
             {items.map(item => { const ep=effectivePrice(item.price,item.quantity); return (
               <div key={item.product.id} className="flex items-center justify-between bg-white border border-gray-100 rounded-lg px-3 py-2">
-                <div><p className="text-sm text-gray-800">{item.product.name}</p><p className="text-xs text-gray-400">R$ {ep.toFixed(2)} Ã— {item.quantity}</p></div>
+                <div><p className="text-sm text-gray-800">{item.product.name}</p><p className="text-xs text-gray-400">R$ {ep.toFixed(2)} × {item.quantity}</p></div>
                 <p className="text-sm font-semibold">R$ {(ep*item.quantity).toFixed(2)}</p>
               </div>
             );})}
@@ -266,14 +266,14 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
               <select value={paymentTerm} onChange={e=>{const t=parseInt(e.target.value);setPaymentTerm(t);if(t===0)setPaymentMethod('pix');}}
                 className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded focus:outline-none">
                 {paymentTerms.map(term=>(
-                  <option key={term} value={term}>{term===0?'Ã€ vista / PIX (0 dias)':`${term} dias`}</option>
+                  <option key={term} value={term}>{term===0?'À vista / PIX (0 dias)':`${term} dias`}</option>
                 ))}
               </select>
             </div>
             {/* Desconto */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
-                Desconto ao cliente (%) <span className="text-gray-400 font-normal">â€” comissão calculada sobre preço com desconto</span>
+                Desconto ao cliente (%) <span className="text-gray-400 font-normal">— comissão calculada sobre preço com desconto</span>
               </label>
               <div className="flex gap-2 items-center">
                 <input type="number" value={discountPercentage}
@@ -298,7 +298,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
             <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2} placeholder="ObservaçÃµes..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none resize-none"/>
           </div>
           <button onClick={handleSubmit} disabled={submitting} className="w-full bg-[#a4240e] text-white py-3 rounded-xl font-bold text-sm hover:bg-[#8a1f0c] disabled:opacity-50">
-            {submitting?'Enviando...':`Confirmar Pedido â€” R$ ${(calcTotal()*(1-discountPercentage/100)).toFixed(2)}`}
+            {submitting?'Enviando...':`Confirmar Pedido — R$ ${(calcTotal()*(1-discountPercentage/100)).toFixed(2)}`}
           </button>
         </div>
       )}

@@ -128,7 +128,7 @@ export default function RouteManager() {
               {routes.map(route => (
                 <div key={route.id} className="bg-white border border-gray-200 rounded-xl p-4">
                   <div className="flex items-start justify-between">
-                    <div><p className="font-medium text-gray-800">{route.name}</p><p className="text-xs text-gray-500 mt-0.5">{(route.representatives as any)?.full_name ?? 'â€”'} Â· {new Date(route.created_at).toLocaleDateString('pt-BR')}</p></div>
+                    <div><p className="font-medium text-gray-800">{route.name}</p><p className="text-xs text-gray-500 mt-0.5">{(route.representatives as any)?.full_name ?? '—'} Â· {new Date(route.created_at).toLocaleDateString('pt-BR')}</p></div>
                     <div className="flex items-center gap-2">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${route.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{route.status === 'active' ? 'Ativa' : 'Inativa'}</span>
                       <button onClick={() => handleDeleteRoute(route.id)} className="text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded border border-red-200 hover:bg-red-50">Excluir</button>
@@ -150,7 +150,7 @@ export default function RouteManager() {
 
           <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">1. InformaçÃµes</p>
-            <div><label className="block text-xs font-medium text-gray-600 mb-1">Nome da rota *</label><input type="text" value={routeName} onChange={e => setRouteName(e.target.value)} placeholder="Ex: Zona Sul SP â€” Semana 20" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none"/></div>
+            <div><label className="block text-xs font-medium text-gray-600 mb-1">Nome da rota *</label><input type="text" value={routeName} onChange={e => setRouteName(e.target.value)} placeholder="Ex: Zona Sul SP — Semana 20" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none"/></div>
             <div><label className="block text-xs font-medium text-gray-600 mb-1">Representante *</label>
               <select value={selectedRep} onChange={e => setSelectedRep(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none">
                 <option value="">Selecione...</option>
@@ -214,7 +214,7 @@ export default function RouteManager() {
                   <div className="space-y-1">
                     <div className="flex justify-between text-xs text-gray-500"><span>Geocodificando...</span><span>{geocodeProgress}%</span></div>
                     <div className="bg-gray-200 rounded-full h-2"><div className="bg-[#a4240e] h-2 rounded-full transition-all" style={{ width: geocodeProgress + '%' }}/></div>
-                    <p className="text-xs text-gray-400">Aguarde â€” 1 req/s (OpenStreetMap)</p>
+                    <p className="text-xs text-gray-400">Aguarde — 1 req/s (OpenStreetMap)</p>
                   </div>
                 )}
                 <div className="max-h-48 overflow-y-auto space-y-1">

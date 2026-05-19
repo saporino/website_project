@@ -320,7 +320,7 @@ export function RepCoManagement() {
             <h2 className="text-2xl font-bold text-gray-900">{selectedRep.full_name}</h2>
             <div className="flex items-center gap-3 mt-1">
               {statusBadge(selectedRep.status)}
-              <span className="text-sm text-gray-500">CPF: {selectedRep.cpf || 'â€”'}</span>
+              <span className="text-sm text-gray-500">CPF: {selectedRep.cpf || '—'}</span>
               {selectedRep.phone && <a href={`https://wa.me/55${selectedRep.phone.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-green-600 hover:underline"><Phone className="w-3.5 h-3.5" />{selectedRep.phone}</a>}
             </div>
           </div>
@@ -389,7 +389,7 @@ export function RepCoManagement() {
                   <label className="block text-xs font-medium text-gray-600 mb-1">Cliente</label>
                   <select value={orderForm.representative_client_id} onChange={e => setOrderForm(f => ({ ...f, representative_client_id: e.target.value }))}
                     className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded">
-                    <option value="">â€” Selecionar cliente â€”</option>
+                    <option value="">— Selecionar cliente —</option>
                     {clients.map(c => <option key={c.id} value={c.id}>{c.razao_social} ({c.cnpj})</option>)}
                   </select>
                 </div>
@@ -447,7 +447,7 @@ export function RepCoManagement() {
                       {Object.entries(orderCart).filter(([,q]) => q > 0).map(([pid, qty]) => {
                         const p = orderProducts.find(pr => pr.id === pid);
                         if (!p) return null;
-                        return <div key={pid} className="flex justify-between text-sm"><span className="text-gray-700">{p.name} Ã— {qty}</span><span className="font-medium">R$ {(p.price * qty).toFixed(2)}</span></div>;
+                        return <div key={pid} className="flex justify-between text-sm"><span className="text-gray-700">{p.name} × {qty}</span><span className="font-medium">R$ {(p.price * qty).toFixed(2)}</span></div>;
                       })}
                       <div className="flex justify-between border-t border-gray-200 pt-2 mt-2 font-bold text-sm">
                         <span>Total</span><span className="text-[#a4240e]">R$ {orderCartTotal.toFixed(2)}</span>
@@ -462,7 +462,7 @@ export function RepCoManagement() {
                     <label className="block text-xs font-medium text-gray-600 mb-1">Forma de Pagamento</label>
                     <select value={orderForm.payment_method} onChange={e => setOrderForm(f => ({ ...f, payment_method: e.target.value }))}
                       className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded">
-                      <option value="a_vista">Ã€ Vista</option>
+                      <option value="a_vista">À Vista</option>
                       <option value="boleto">Boleto</option>
                       <option value="pix">PIX</option>
                     </select>
@@ -500,7 +500,7 @@ export function RepCoManagement() {
               <div className="flex gap-3 mt-4">
                 <button onClick={handleCreateOrder} disabled={Object.keys(orderCart).length === 0}
                   className="px-5 py-2 bg-[#a4240e] text-white text-sm font-semibold rounded-lg hover:bg-[#8a1f0c] transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                  Criar Pedido{orderCartTotal > 0 ? ` â€” R$ ${orderCartTotal.toFixed(2)}` : ''}
+                  Criar Pedido{orderCartTotal > 0 ? ` — R$ ${orderCartTotal.toFixed(2)}` : ''}
                 </button>
                 <button onClick={() => { setShowNewOrder(false); setOrderCart({}); setOrderProductSearch(''); }} className="px-5 py-2 bg-white border border-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors">Cancelar</button>
               </div>
@@ -581,7 +581,7 @@ export function RepCoManagement() {
           </button>
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Tabela de Preços Global</h2>
-            <p className="text-sm text-gray-500">Preços B2B por segmento â€” válidos para todos os representantes</p>
+            <p className="text-sm text-gray-500">Preços B2B por segmento — válidos para todos os representantes</p>
           </div>
         </div>
         <div className="bg-white border border-gray-200 rounded-xl p-6">
@@ -687,7 +687,7 @@ export function RepCoManagement() {
           </p>
           <p className="text-gray-500 font-medium">
             {canalFilter === 'site' ? 'Nenhum cliente do site ainda' :
-             canalFilter === 'marketplaces' ? 'Nenhum cliente de marketplace cadastrado ainda â€” disponível após integração com ML, Amazon, Shopee e TikTok' :
+             canalFilter === 'marketplaces' ? 'Nenhum cliente de marketplace cadastrado ainda — disponível após integração com ML, Amazon, Shopee e TikTok' :
              'Nenhum representante encontrado'}
           </p>
         </div>
@@ -709,7 +709,7 @@ export function RepCoManagement() {
                   <td className="px-4 py-3">
                     <div>
                       <p className="font-semibold text-gray-900">{rep.full_name}</p>
-                      <p className="text-xs text-gray-500">CPF: {rep.cpf || 'â€”'}</p>
+                      <p className="text-xs text-gray-500">CPF: {rep.cpf || '—'}</p>
                     </div>
                   </td>
                   <td className="px-4 py-3">

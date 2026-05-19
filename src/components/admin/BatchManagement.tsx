@@ -520,7 +520,7 @@ export default function BatchManagement() {
                       <div className="grid grid-cols-2 gap-1">
                         <div>Custo/kg puro: <strong>{formatBRL(cKgPuro)}</strong></div>
                         <div>Custo/kg efetivo: <strong>{formatBRL(cKgEfetivoProprio)}</strong></div>
-                        {cKgRef!==null&&<div className="col-span-2">Cotacao ref. (APÃ—R$/ponto): {formatBRL(cKgRef)}/kg</div>}
+                        {cKgRef!==null&&<div className="col-span-2">Cotacao ref. (AP×R$/ponto): {formatBRL(cKgRef)}/kg</div>}
                         {ve.in_kg>0&&<div className="col-span-2 text-blue-700">Verde recebido: {ve.in_kg.toFixed(1)} kg | Total: {ve.total_kg.toFixed(1)} kg | Custo medio: {formatBRL(ve.avg_cost_per_kg)}/kg</div>}
                       </div>
                     </div>
@@ -535,7 +535,7 @@ export default function BatchManagement() {
                           {sobraTorrado>0&&(<>
                             <div>Sobra torrado: <strong>{sobraTorrado.toFixed(1)} kg</strong></div>
                             <div>Credito torrado: <strong>{formatBRL(valorCreditoTorrado)}</strong></div>
-                            <div className="col-span-2 text-xs text-gray-600 italic">(sobra disponivel pra transferir/embalar â€” sem custo de embalagem ate ser embalada)</div>
+                            <div className="col-span-2 text-xs text-gray-600 italic">(sobra disponivel pra transferir/embalar — sem custo de embalagem ate ser embalada)</div>
                           </>)}
                         </div>
                       </div>
@@ -657,8 +657,8 @@ export default function BatchManagement() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-4 border-b flex justify-between items-center">
-              <h3 className="text-base font-semibold">Registrar Torra â€” {editingBatch.batch_number}</h3>
-              <button onClick={()=>setShowRoastModal(false)} className="text-gray-500 hover:text-gray-700 text-lg">âœ•</button>
+              <h3 className="text-base font-semibold">Registrar Torra — {editingBatch.batch_number}</h3>
+              <button onClick={()=>setShowRoastModal(false)} className="text-gray-500 hover:text-gray-700 text-lg">×</button>
             </div>
             <div className="p-4 space-y-3">
               {(()=>{
@@ -711,8 +711,8 @@ export default function BatchManagement() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="p-4 border-b flex justify-between items-center">
-              <h3 className="text-base font-semibold">Registrar Embalagem â€” {editingBatch.batch_number}</h3>
-              <button onClick={()=>setShowPackagingModal(false)} className="text-gray-500 hover:text-gray-700 text-lg">âœ•</button>
+              <h3 className="text-base font-semibold">Registrar Embalagem — {editingBatch.batch_number}</h3>
+              <button onClick={()=>setShowPackagingModal(false)} className="text-gray-500 hover:text-gray-700 text-lg">×</button>
             </div>
             <div className="p-4 space-y-3">
               {(()=>{
@@ -737,11 +737,11 @@ export default function BatchManagement() {
                 const pesoPacote=produto?.weight_grams??500;
                 return(
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">
-                    Qtd de pacotes <span className="text-xs text-gray-500">(pacote {pesoPacote}g â€” calc. automatico)</span>
+                    Qtd de pacotes <span className="text-xs text-gray-500">(pacote {pesoPacote}g — calc. automatico)</span>
                   </label>
                     <input type="number" step="1" value={packagingForm.quantity_packages??''} onChange={e=>setPackagingForm({...packagingForm,quantity_packages:e.target.value===''?null:parseInt(e.target.value)})} placeholder="Ex: 1500" className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/>
                     {packagingForm.packaged_kg&&pesoPacote&&(
-                      <div className="text-xs text-gray-500 mt-1">{Number(packagingForm.packaged_kg).toFixed(1)} kg Ã· {pesoPacote}g = <strong>{Math.round((Number(packagingForm.packaged_kg)*1000)/pesoPacote)} pacotes</strong>. Edite acima para sobrescrever.</div>
+                      <div className="text-xs text-gray-500 mt-1">{Number(packagingForm.packaged_kg).toFixed(1)} kg ÷ {pesoPacote}g = <strong>{Math.round((Number(packagingForm.packaged_kg)*1000)/pesoPacote)} pacotes</strong>. Edite acima para sobrescrever.</div>
                     )}
                   </div>
                 );
@@ -767,7 +767,7 @@ export default function BatchManagement() {
             <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
               <div className="p-4 border-b flex justify-between items-center">
                 <h3 className="text-lg font-semibold">Transferir saldo do {editingBatch.batch_number}</h3>
-                <button onClick={()=>setShowTransferModal(false)} className="text-gray-500 hover:text-gray-700">âœ•</button>
+                <button onClick={()=>setShowTransferModal(false)} className="text-gray-500 hover:text-gray-700">×</button>
               </div>
               <div className="p-4 space-y-3">
                 <div className="grid grid-cols-2 gap-3">

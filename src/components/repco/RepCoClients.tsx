@@ -182,7 +182,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
           <div><label className={lbl}>Forma de Pagamento</label>
             <select value={form.forma_pagamento} onChange={e=>setForm(p=>({...p,forma_pagamento:e.target.value}))} className={inp}>
               <option value="">Selecione...</option>
-              <option value="pix">PIX</option><option value="boleto">Boleto</option><option value="a_vista">Ã€ Vista</option>
+              <option value="pix">PIX</option><option value="boleto">Boleto</option><option value="a_vista">À Vista</option>
             </select>
           </div>
           <div><label className={lbl}>Limite de Crédito (R$)</label>
@@ -217,7 +217,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
           <span className="text-xl">âš ï¸</span>
           <div className="flex-1">
             <p className="text-sm font-medium text-red-700">{d>=999?'Nunca comprou':`${d} dias sem comprar`}</p>
-            {sel.snooze_admin_alert&&<p className="text-xs text-red-500 mt-0.5">Adiado {sel.snooze_count}x â€” requer atenção</p>}
+            {sel.snooze_admin_alert&&<p className="text-xs text-red-500 mt-0.5">Adiado {sel.snooze_count}x — requer atenção</p>}
           </div>
         </div>}
         <div className="grid grid-cols-2 gap-3">

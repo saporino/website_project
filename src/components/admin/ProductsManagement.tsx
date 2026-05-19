@@ -150,7 +150,7 @@ export function ProductsManagement() {
         image_url: formData.image_url,
         additional_images: (formData.additional_images || []).filter((u: string) => u && u.trim() !== ''),
         weight_grams: formData.weight_grams || 500,
-        // stock removido â€” controlado exclusivamente pelos lotes ativos
+        // stock removido — controlado exclusivamente pelos lotes ativos
         is_active: formData.is_active,
         category: formData.category || 'café',
         featured: formData.featured,
@@ -593,7 +593,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             </div>
             {hasLots && (
               <p className="text-xs text-amber-700 mt-1">
-                Nao editavel â€” existe lote vinculado a este produto.
+                Nao editavel — existe lote vinculado a este produto.
                 Crie um produto novo para outro tamanho (ex: "Cafe Saporino Tradicional 250g").
               </p>
             )}
