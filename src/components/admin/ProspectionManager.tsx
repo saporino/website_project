@@ -76,6 +76,21 @@ interface ParsedLead {
   duplicateReason: string | null;
 }
 
+interface StoredProspectLead extends Omit<ParsedLead, 'rowNumber' | 'isValid' | 'error' | 'duplicateReason'> {
+  id: string;
+  status: string;
+  audit_notes: string | null;
+  rejection_reason: string | null;
+  rowNumber?: number;
+  isValid?: boolean;
+  error?: string | null;
+  duplicateReason?: string | null;
+}
+
+type AuditTarget =
+  | { type: 'preview'; lead: ParsedLead }
+  | { type: 'stored'; lead: StoredProspectLead };
+
 const MAX_IMPORT_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const MAX_IMPORT_ROWS = 5000;
 const DANGEROUS_RAW_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
@@ -263,6 +278,19 @@ function toBrazilPhone(digits: string) {
   return digits.startsWith('55') ? digits : `55${digits}`;
 }
 
+function formatPhone(digits: string) {
+  const local = digits.startsWith('55') && digits.length > 11 ? digits.slice(2) : digits;
+  if (local.length === 11) return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+  if (local.length === 10) return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+  return digits;
+}
+
+function looksLikeBrazilMobile(digits: string | null) {
+  if (!digits) return false;
+  const local = digits.startsWith('55') && digits.length > 11 ? digits.slice(2) : digits;
+  return local.length === 11 && local[2] === '9';
+}
+
 function normalizeUrl(value: string | null) {
   if (!value) return null;
   const text = value.trim();
@@ -380,8 +408,10 @@ function isLeadAssignable(lead: Pick<ParsedLead, 'isValid' | 'duplicate_of_clien
 }
 
 function getContactLinks(lead: Pick<ParsedLead, 'phone' | 'whatsapp' | 'email' | 'website' | 'raw_data'>) {
-  const whatsappDigits = cleanPhone(lead.whatsapp) || cleanPhone(getRawValue(lead.raw_data, ['whatsapp', 'whats', 'mobile', 'celular']));
-  const phoneDigits = cleanPhone(lead.phone) || cleanPhone(getRawValue(lead.raw_data, ['phone', 'phones/0', 'telefone', 'tel']));
+  const explicitWhatsapp = cleanPhone(lead.whatsapp) || cleanPhone(getRawValue(lead.raw_data, ['whatsapp', 'whats', 'mobile', 'celular']));
+  const rawPhone = cleanPhone(lead.phone) || cleanPhone(getRawValue(lead.raw_data, ['phone', 'phones/0', 'telefone', 'tel']));
+  const whatsappDigits = explicitWhatsapp || (looksLikeBrazilMobile(rawPhone) ? rawPhone : null);
+  const phoneDigits = rawPhone && rawPhone !== whatsappDigits ? rawPhone : null;
   const email = lead.email || getRawValue(lead.raw_data, ['email', 'emails/0', 'e_mail']);
   const urlCandidates = [
     normalizeUrl(lead.website),
@@ -409,6 +439,26 @@ function getContactLinks(lead: Pick<ParsedLead, 'phone' | 'whatsapp' | 'email' |
     instagram: links.instagram,
     facebook: links.facebook,
   };
+}
+
+function getBaseFileName(fileName: string) {
+  return fileName
+    .replace(/\.[^.]+$/, '')
+    .replace(/[-_\s]+dataset.*$/i, '')
+    .replace(/[-_\s]+apify.*$/i, '')
+    .trim();
+}
+
+function titleCase(value: string) {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+function normalizeFilterLabel(value: string | null) {
+  return normalizeComparableText(value).replace(/_/g, ' ');
 }
 
 async function parseProspectFile(file: File) {
@@ -500,6 +550,7 @@ export default function ProspectionManager() {
   const [selectedFileName, setSelectedFileName] = useState('');
   const [parsedLeads, setParsedLeads] = useState<ParsedLead[]>([]);
   const [listName, setListName] = useState('');
+  const [listNameEdited, setListNameEdited] = useState(false);
   const [description, setDescription] = useState('');
   const [segment, setSegment] = useState('');
   const [selectedRep, setSelectedRep] = useState('');
@@ -516,6 +567,13 @@ export default function ProspectionManager() {
   const [assigningFilteredKey, setAssigningFilteredKey] = useState<string | null>(null);
   const [deletingListId, setDeletingListId] = useState<string | null>(null);
   const [previewVisibleCount, setPreviewVisibleCount] = useState(PREVIEW_PAGE_SIZE);
+  const [openedList, setOpenedList] = useState<ProspectList | null>(null);
+  const [openedListLeads, setOpenedListLeads] = useState<StoredProspectLead[]>([]);
+  const [loadingOpenedList, setLoadingOpenedList] = useState(false);
+  const [auditTarget, setAuditTarget] = useState<AuditTarget | null>(null);
+  const [auditReason, setAuditReason] = useState('Site inválido');
+  const [auditSiteValue, setAuditSiteValue] = useState('');
+  const [savingAudit, setSavingAudit] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -524,6 +582,12 @@ export default function ProspectionManager() {
   useEffect(() => {
     setPreviewVisibleCount(PREVIEW_PAGE_SIZE);
   }, [importCategoryFilter, importSegmentFilter, parsedLeads.length]);
+
+  useEffect(() => {
+    if (!parsedLeads.length || listNameEdited) return;
+    const suggested = getSuggestedListName();
+    if (suggested) setListName(suggested);
+  }, [importCategoryFilter, importSegmentFilter, parsedLeads.length, selectedFileName, listNameEdited]);
 
   async function fetchData() {
     setLoading(true);
@@ -606,6 +670,21 @@ export default function ProspectionManager() {
     [filteredParsedLeads, previewVisibleCount]
   );
 
+  function getSuggestedListName() {
+    const baseName = getBaseFileName(selectedFileName || listName).replace(/[-_]+/g, ' ').trim();
+    const categoryLabel = importCategoryFilter || null;
+    const segmentLabel = importSegmentFilter
+      ? PROSPECT_SEGMENT_LABEL[importSegmentFilter] || SEGMENT_LABEL[importSegmentFilter] || importSegmentFilter
+      : null;
+    const filterLabel =
+      categoryLabel && segmentLabel && normalizeFilterLabel(categoryLabel) === normalizeFilterLabel(segmentLabel)
+        ? categoryLabel
+        : [categoryLabel, segmentLabel].filter(Boolean).join(' - ');
+
+    if (!filterLabel) return baseName;
+    return [baseName, titleCase(filterLabel)].filter(Boolean).join(' - ');
+  }
+
   async function fetchExistingClients() {
     const { data, error } = await supabase
       .from('representative_clients')
@@ -626,8 +705,9 @@ export default function ProspectionManager() {
     setParseError('');
     setSelectedFileName(file.name);
     setParsedLeads([]);
+    setListNameEdited(false);
     if (!listName.trim()) {
-      setListName(file.name.replace(/\.[^.]+$/, ''));
+      setListName(getBaseFileName(file.name));
     }
 
     let parsedRows: Record<string, unknown>[];
@@ -742,6 +822,7 @@ export default function ProspectionManager() {
       setImportCategoryFilter('');
       setImportSegmentFilter('');
       setListName('');
+      setListNameEdited(false);
       setDescription('');
       setSelectedRep('');
     } else {
@@ -772,7 +853,7 @@ export default function ProspectionManager() {
         return;
       }
 
-      toast.success('Atribui??o removida da lista e dos leads.');
+      toast.success('Atribuição removida da lista e dos leads.');
       fetchData();
       return;
     }
@@ -867,7 +948,77 @@ export default function ProspectionManager() {
     }
 
     toast.success('Lista de prospecção deletada. Clientes reais foram preservados.');
+    if (openedList?.id === list.id) {
+      setOpenedList(null);
+      setOpenedListLeads([]);
+    }
     fetchData();
+  }
+  async function handleOpenList(list: ProspectList) {
+    setOpenedList(list);
+    setLoadingOpenedList(true);
+    const { data, error } = await supabase
+      .from('prospect_leads')
+      .select('*')
+      .eq('prospect_list_id', list.id)
+      .order('company_name', { ascending: true });
+
+    setLoadingOpenedList(false);
+    if (error) {
+      toast.error('Não foi possível carregar os leads da lista.');
+      return;
+    }
+
+    setOpenedListLeads(((data || []) as StoredProspectLead[]).map(lead => ({ ...lead, raw_data: lead.raw_data || {} })));
+  }
+
+  function openAudit(target: AuditTarget) {
+    setAuditTarget(target);
+    setAuditReason('Site inválido');
+    setAuditSiteValue(target.lead.website || '');
+  }
+
+  async function handleSaveAudit() {
+    if (!auditTarget) return;
+    setSavingAudit(true);
+    const nextWebsite =
+      auditReason === 'Corrigir/remover link do site'
+        ? normalizeValue(auditSiteValue)
+        : auditReason === 'É Instagram' || auditReason === 'É Facebook'
+          ? normalizeValue(auditSiteValue || auditTarget.lead.website)
+          : null;
+    const note = `Auditoria do site: ${auditReason}${nextWebsite ? ` (${nextWebsite})` : ''}`;
+
+    if (auditTarget.type === 'preview') {
+      setParsedLeads(current =>
+        current.map(lead =>
+          lead.rowNumber === auditTarget.lead.rowNumber
+            ? { ...lead, website: nextWebsite, raw_data: { ...lead.raw_data, website: nextWebsite, site_audit: note } }
+            : lead
+        )
+      );
+    } else {
+      const previousNotes = auditTarget.lead.audit_notes || '';
+      const auditNotes = [previousNotes, note].filter(Boolean).join('\n');
+      const { error } = await supabase
+        .from('prospect_leads')
+        .update({ website: nextWebsite, audit_notes: auditNotes })
+        .eq('id', auditTarget.lead.id);
+
+      if (error) {
+        setSavingAudit(false);
+        toast.error('Não foi possível salvar a auditoria do site.');
+        return;
+      }
+
+      setOpenedListLeads(current =>
+        current.map(lead => (lead.id === auditTarget.lead.id ? { ...lead, website: nextWebsite, audit_notes: auditNotes } : lead))
+      );
+    }
+
+    setSavingAudit(false);
+    setAuditTarget(null);
+    toast.success('Auditoria do site salva.');
   }
   function getActiveFilterLabel() {
     const parts = [
@@ -881,6 +1032,7 @@ export default function ProspectionManager() {
     setSelectedFileName('');
     setParsedLeads([]);
     setListName('');
+    setListNameEdited(false);
     setDescription('');
     setSegment('');
     setSelectedRep('');
@@ -926,7 +1078,10 @@ export default function ProspectionManager() {
             <label className="mb-1 block text-xs font-medium text-gray-600">Nome da lista *</label>
             <input
               value={listName}
-              onChange={event => setListName(event.target.value)}
+              onChange={event => {
+                setListName(event.target.value);
+                setListNameEdited(true);
+              }}
               placeholder="Ex: Padarias Zona Sul - Maio"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#a4240e]"
             />
@@ -1083,7 +1238,7 @@ export default function ProspectionManager() {
               ) : (
                 <div className="grid gap-3 xl:grid-cols-2">
                   {visiblePreviewLeads.map(lead => (
-                    <PreviewLeadCard key={lead.rowNumber} lead={lead} />
+                    <PreviewLeadCard key={lead.rowNumber} lead={lead} onAudit={openAudit} />
                   ))}
                 </div>
               )}
@@ -1113,7 +1268,7 @@ export default function ProspectionManager() {
                 disabled={saving || filteredValidLeads.length === 0}
                 className="rounded-lg bg-[#a4240e] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#8a1f0c] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {saving ? 'Criando...' : `Criar lista com ${filteredAssignableLeads.length} para visita`}
+                {saving ? 'Criando...' : `Criar lista ${listName.trim() || getSuggestedListName()} com ${filteredAssignableLeads.length} leads`}
               </button>
             </div>
           </div>
@@ -1183,6 +1338,13 @@ export default function ProspectionManager() {
                   <tr key={list.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <p className="font-semibold text-gray-900">{list.name}</p>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenList(list)}
+                        className="mt-1 text-xs font-semibold text-[#a4240e] hover:underline"
+                      >
+                        Ver lista
+                      </button>
                       <p className="text-xs text-gray-500">
                         {[list.source_name, list.segment ? PROSPECT_SEGMENT_LABEL[list.segment] || SEGMENT_LABEL[list.segment] || list.segment : null].filter(Boolean).join(' | ') || '-'}
                       </p>
@@ -1289,11 +1451,99 @@ export default function ProspectionManager() {
           </div>
         )}
       </div>
+
+      {openedList && (
+        <div className="rounded-xl border border-gray-200 bg-white">
+          <div className="flex flex-col gap-2 border-b border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h4 className="font-semibold text-gray-900">{openedList.name}</h4>
+              <p className="text-xs text-gray-500">{openedListLeads.length} lead{openedListLeads.length !== 1 ? 's' : ''} nesta lista</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setOpenedList(null);
+                setOpenedListLeads([]);
+              }}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+            >
+              Fechar lista
+            </button>
+          </div>
+          <div className="p-5">
+            {loadingOpenedList ? (
+              <div className="py-8 text-center text-sm text-gray-500">Carregando leads...</div>
+            ) : openedListLeads.length === 0 ? (
+              <div className="py-8 text-center text-sm text-gray-500">Nenhum lead encontrado nesta lista.</div>
+            ) : (
+              <div className="grid gap-3 xl:grid-cols-2">
+                {openedListLeads.map(lead => (
+                  <PreviewLeadCard key={lead.id} lead={{ ...lead, rowNumber: lead.rowNumber || 0, isValid: true, error: null }} onAudit={openAudit} stored />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {auditTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl">
+            <h4 className="text-lg font-semibold text-gray-900">Auditar site</h4>
+            <p className="mt-1 text-sm text-gray-500">{auditTarget.lead.trade_name || auditTarget.lead.company_name}</p>
+
+            <label className="mt-4 block text-xs font-medium text-gray-600">Situação</label>
+            <select
+              value={auditReason}
+              onChange={event => setAuditReason(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#a4240e]"
+            >
+              <option>Site inválido</option>
+              <option>Certificado vencido</option>
+              <option>Não tem site</option>
+              <option>É Instagram</option>
+              <option>É Facebook</option>
+              <option>Corrigir/remover link do site</option>
+            </select>
+
+            {(auditReason === 'Corrigir/remover link do site' || auditReason === 'É Instagram' || auditReason === 'É Facebook') && (
+              <div className="mt-3">
+                <label className="block text-xs font-medium text-gray-600">Link do site/perfil</label>
+                <input
+                  value={auditSiteValue}
+                  onChange={event => setAuditSiteValue(event.target.value)}
+                  placeholder="https://..."
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#a4240e]"
+                />
+                <p className="mt-1 text-xs text-gray-500">Deixe em branco para remover o link.</p>
+              </div>
+            )}
+
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setAuditTarget(null)}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveAudit}
+                disabled={savingAudit}
+                className="rounded-lg bg-[#a4240e] px-4 py-2 text-sm font-semibold text-white hover:bg-[#8a1f0c] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {savingAudit ? 'Salvando...' : 'Salvar auditoria'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function PreviewLeadCard({ lead }: { lead: ParsedLead }) {
+function PreviewLeadCard({ lead, onAudit, stored = false }: { lead: ParsedLead | StoredProspectLead; onAudit: (target: AuditTarget) => void; stored?: boolean }) {
   const status = !lead.isValid
     ? { label: lead.error || 'Inválida', className: 'bg-red-100 text-red-700', icon: <AlertCircle className="h-3.5 w-3.5" /> }
     : lead.duplicate_of_client_id
@@ -1314,7 +1564,16 @@ function PreviewLeadCard({ lead }: { lead: ParsedLead }) {
           {lead.trade_name && <p className="mt-0.5 text-xs text-gray-500">{lead.trade_name}</p>}
           {(lead.cnpj || lead.cpf) && <p className="mt-1 text-xs text-gray-500">{lead.cnpj || lead.cpf}</p>}
         </div>
-        <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-500">Linha {lead.rowNumber}</span>
+        <div className="flex flex-wrap items-center gap-2">
+          {lead.rowNumber ? <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-500">Linha {lead.rowNumber}</span> : null}
+          <button
+            type="button"
+            onClick={() => onAudit(stored ? { type: 'stored', lead: lead as StoredProspectLead } : { type: 'preview', lead: lead as ParsedLead })}
+            className="rounded-full border border-gray-200 px-2 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+          >
+            Auditar
+          </button>
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5">
@@ -1338,7 +1597,7 @@ function PreviewLeadCard({ lead }: { lead: ParsedLead }) {
   );
 }
 
-function ContactPreview({ lead }: { lead: ParsedLead }) {
+function ContactPreview({ lead }: { lead: ParsedLead | StoredProspectLead }) {
   const links = getContactLinks(lead);
 
   if (!links.whatsappDigits && !links.phoneDigits && !links.email && !links.site && !links.instagram && !links.facebook) {
@@ -1348,19 +1607,19 @@ function ContactPreview({ lead }: { lead: ParsedLead }) {
   return (
     <div className="flex max-w-sm flex-wrap gap-1.5">
       {links.whatsappDigits && (
-        <a href={`https://wa.me/${toBrazilPhone(links.whatsappDigits)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-green-200 bg-green-50 px-2 py-1 text-green-700">
+        <a href={`https://wa.me/${toBrazilPhone(links.whatsappDigits)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-green-200 bg-green-50 px-1.5 py-0.5 text-[11px] font-medium text-green-700">
           <MessageCircle className="h-3 w-3" />
-          WhatsApp
+          WhatsApp · {formatPhone(links.whatsappDigits)}
         </a>
       )}
       {links.phoneDigits && links.phoneDigits !== links.whatsappDigits && (
-        <a href={`tel:${links.phoneDigits}`} className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-gray-600">
+        <a href={`tel:${links.phoneDigits}`} className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
           <Phone className="h-3 w-3" />
-          Telefone
+          Telefone · {formatPhone(links.phoneDigits)}
         </a>
       )}
       {links.email && (
-        <a href={`mailto:${links.email}`} className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-gray-600">
+        <a href={`mailto:${links.email}`} className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
           <Mail className="h-3 w-3" />
           Email
         </a>
@@ -1372,7 +1631,7 @@ function ContactPreview({ lead }: { lead: ParsedLead }) {
   );
 }
 
-function AddressPreview({ lead }: { lead: ParsedLead }) {
+function AddressPreview({ lead }: { lead: ParsedLead | StoredProspectLead }) {
   const address = [lead.address, lead.number, lead.district].filter(Boolean).join(', ');
   const city = [lead.city, lead.state].filter(Boolean).join('/');
   const zipCode = lead.zip_code ? `CEP ${lead.zip_code}` : null;
@@ -1389,7 +1648,7 @@ function AddressPreview({ lead }: { lead: ParsedLead }) {
 
 function ExternalContactLink({ href, label }: { href: string; label: string }) {
   return (
-    <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-gray-600">
+    <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
       <ExternalLink className="h-3 w-3" />
       {label}
     </a>
