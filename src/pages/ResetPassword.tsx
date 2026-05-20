@@ -16,13 +16,6 @@ export const ResetPassword = () => {
       const refreshToken = hashParams.get('refresh_token');
       const type = hashParams.get('type');
 
-      // Redirecionar de localhost para a URL correta do bolt.new
-      if (window.location.hostname === 'localhost' && accessToken && type === 'recovery') {
-        const currentHash = window.location.hash;
-        const boltUrl = `https://bolt.new/~/sb1-25xmsho6/reset-password${currentHash}`;
-        window.location.href = boltUrl;
-        return;
-      }
 
       if (accessToken && refreshToken && type === 'recovery') {
         const { error } = await supabase.auth.setSession({
