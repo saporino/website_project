@@ -4,7 +4,7 @@ import { AlertCircle, CheckCircle, FileText, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { CLIENT_SEGMENTS, SEGMENT_LABEL } from '../../constants/segments';
+import { SEGMENT_LABEL } from '../../constants/segments';
 
 interface Representative {
   id: string;
@@ -29,6 +29,11 @@ interface ProspectList {
   created_at: string;
   completed_at: string | null;
   representatives?: { full_name: string } | null;
+}
+
+interface ProspectLeadCategory {
+  prospect_list_id: string;
+  category: string | null;
 }
 
 interface ParsedLead {
@@ -62,10 +67,74 @@ interface ParsedLead {
 const STATUS_LABEL: Record<string, string> = {
   draft: 'Rascunho',
   imported: 'Importada',
-  assigned: 'Atribuida',
+  assigned: 'Atribuída',
   in_progress: 'Em andamento',
-  completed: 'Concluida',
+  completed: 'Concluída',
   cancelled: 'Cancelada',
+};
+
+const PROSPECT_SEGMENT_LABEL: Record<string, string> = {
+  padaria: 'Padaria',
+  cafeteria: 'Cafeteria',
+  food_service: 'Food service',
+  hotelaria: 'Hotelaria',
+  alimentacao_coletiva: 'Alimentação coletiva',
+  distribuicao: 'Distribuição',
+  varejo: 'Varejo',
+  confeitaria: 'Confeitaria',
+  institucional: 'Institucional',
+  corporativo: 'Corporativo',
+  outros: 'Outros',
+};
+
+const CATEGORY_SEGMENT_MAP: Record<string, string> = {
+  padaria: 'padaria',
+  padaria_e_confeitaria: 'padaria',
+  panificadora: 'padaria',
+  padaria_artesanal: 'padaria',
+  padaria_gourmet: 'padaria',
+  cafetaria: 'cafeteria',
+  cafetaria_artesanal: 'cafeteria',
+  cafe_especial: 'cafeteria',
+  specialty_coffee: 'cafeteria',
+  coffee_shop: 'cafeteria',
+  restaurante: 'food_service',
+  restaurante_por_quilo: 'food_service',
+  lanchonete: 'food_service',
+  bistrot: 'food_service',
+  buffet: 'food_service',
+  self_service: 'food_service',
+  almoco_executivo: 'food_service',
+  food_service: 'food_service',
+  pizzaria: 'food_service',
+  churrascaria: 'food_service',
+  hotel: 'hotelaria',
+  pousada: 'hotelaria',
+  resort: 'hotelaria',
+  hotel_fazenda: 'hotelaria',
+  cozinha_industrial: 'alimentacao_coletiva',
+  refeitorio: 'alimentacao_coletiva',
+  alimentacao_coletiva: 'alimentacao_coletiva',
+  empresa_de_alimentacao: 'alimentacao_coletiva',
+  distribuidora_de_alimentos: 'distribuicao',
+  distribuidora_de_cafe: 'distribuicao',
+  atacado_de_alimentos: 'distribuicao',
+  distribuidora_food_service: 'distribuicao',
+  distribuidora_de_produtos_para_padaria: 'distribuicao',
+  emporio: 'varejo',
+  supermercado_atacado: 'varejo',
+  cash_and_carry: 'varejo',
+  mercado: 'varejo',
+  mini_mercado: 'varejo',
+  conveniencia: 'varejo',
+  posto_de_gasolina: 'varejo',
+  mercadinho_de_condominio: 'varejo',
+  confeitaria: 'confeitaria',
+  doceria: 'confeitaria',
+  bolo_artesanal: 'confeitaria',
+  hospital: 'institucional',
+  academia: 'outros',
+  coworking: 'corporativo',
 };
 
 const STATUS_STYLE: Record<string, string> = {
@@ -117,6 +186,15 @@ function getField(row: Record<string, unknown>, aliases: string[]) {
   return null;
 }
 
+function normalizeCategorySegment(category: string | null, fallbackSegment: string) {
+  if (!category) return fallbackSegment || null;
+  return CATEGORY_SEGMENT_MAP[normalizeKey(category)] || 'outros';
+}
+
+function getCategoryField(row: Record<string, unknown>) {
+  return getField(row, ['categoryname', 'categories_0', 'categories', 'category', 'categoria', 'tipo', 'segmento']);
+}
+
 function normalizeRow(row: Record<string, unknown>, rowNumber: number, fallbackSegment: string): ParsedLead {
   const normalizedRow = Object.entries(row).reduce<Record<string, unknown>>((acc, [key, value]) => {
     acc[normalizeKey(key)] = value;
@@ -126,7 +204,8 @@ function normalizeRow(row: Record<string, unknown>, rowNumber: number, fallbackS
   const companyName =
     getField(normalizedRow, ['company_name', 'nome_empresa', 'empresa', 'razao_social', 'razao', 'nome', 'name']) || '';
   const tradeName = getField(normalizedRow, ['trade_name', 'nome_fantasia', 'fantasia']);
-  const segment = getField(normalizedRow, ['segment', 'segmento', 'setor']) || fallbackSegment || null;
+  const category = getCategoryField(normalizedRow);
+  const segment = normalizeCategorySegment(category, getField(normalizedRow, ['segment', 'segmento', 'setor']) || fallbackSegment);
   const lat = parseNumber(getField(normalizedRow, ['lat', 'latitude']));
   const lng = parseNumber(getField(normalizedRow, ['lng', 'lon', 'long', 'longitude']));
   const isValid = companyName.trim().length > 0;
@@ -138,7 +217,7 @@ function normalizeRow(row: Record<string, unknown>, rowNumber: number, fallbackS
     cnpj: onlyDigits(getField(normalizedRow, ['cnpj'])),
     cpf: onlyDigits(getField(normalizedRow, ['cpf'])),
     segment,
-    category: getField(normalizedRow, ['category', 'categoria']),
+    category,
     source: getField(normalizedRow, ['source', 'origem', 'fonte']),
     address: getField(normalizedRow, ['address', 'endereco', 'logradouro', 'rua']),
     number: getField(normalizedRow, ['number', 'numero', 'num']),
@@ -174,6 +253,10 @@ export default function ProspectionManager() {
   const [segment, setSegment] = useState('');
   const [selectedRep, setSelectedRep] = useState('');
   const [parseError, setParseError] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [listCategories, setListCategories] = useState<Record<string, string[]>>({});
+  const [assignmentDraft, setAssignmentDraft] = useState<Record<string, string>>({});
+  const [assigningListId, setAssigningListId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -181,15 +264,25 @@ export default function ProspectionManager() {
 
   async function fetchData() {
     setLoading(true);
-    const [{ data: reps }, { data: prospectLists }] = await Promise.all([
+    const [{ data: reps }, { data: prospectLists }, { data: leadCategories }] = await Promise.all([
       supabase.from('representatives').select('id,full_name,status').eq('status', 'active').order('full_name'),
       supabase
         .from('prospect_lists')
         .select('*, representatives(full_name)')
         .order('created_at', { ascending: false }),
+      supabase.from('prospect_leads').select('prospect_list_id,category').not('category', 'is', null),
     ]);
     setRepresentatives(reps || []);
     setLists((prospectLists || []) as ProspectList[]);
+    const categoriesByList = ((leadCategories || []) as ProspectLeadCategory[]).reduce<Record<string, Set<string>>>((acc, lead) => {
+      if (!lead.category) return acc;
+      if (!acc[lead.prospect_list_id]) acc[lead.prospect_list_id] = new Set<string>();
+      acc[lead.prospect_list_id].add(lead.category);
+      return acc;
+    }, {});
+    setListCategories(
+      Object.fromEntries(Object.entries(categoriesByList).map(([listId, categories]) => [listId, Array.from(categories).sort()]))
+    );
     setLoading(false);
   }
 
@@ -198,6 +291,17 @@ export default function ProspectionManager() {
   const leadsWithCoords = useMemo(
     () => validLeads.filter(lead => lead.lat !== null && lead.lng !== null).length,
     [validLeads]
+  );
+  const categoryOptions = useMemo(
+    () => Array.from(new Set(Object.values(listCategories).flat())).sort(),
+    [listCategories]
+  );
+  const filteredLists = useMemo(
+    () =>
+      categoryFilter
+        ? lists.filter(list => (listCategories[list.id] || []).includes(categoryFilter))
+        : lists,
+    [categoryFilter, listCategories, lists]
   );
 
   async function handleCSVUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -244,12 +348,14 @@ export default function ProspectionManager() {
 
     setSaving(true);
     const listStatus = selectedRep ? 'assigned' : 'imported';
+    const uniqueSegments = Array.from(new Set(validLeads.map(lead => lead.segment).filter(Boolean)));
+    const listSegment = segment || (uniqueSegments.length === 1 ? uniqueSegments[0] : null);
     const { data: list, error: listError } = await supabase
       .from('prospect_lists')
       .insert({
         name: listName.trim(),
         description: description.trim() || null,
-        segment: segment || null,
+        segment: listSegment,
         source_type: 'csv',
         source_name: selectedFileName || null,
         status: listStatus,
@@ -311,6 +417,27 @@ export default function ProspectionManager() {
     toast.success(`Lista criada com ${validLeads.length} lead${validLeads.length !== 1 ? 's' : ''}.`);
     setSaving(false);
     resetImportForm();
+    fetchData();
+  }
+
+  async function handleAssignList(list: ProspectList) {
+    const representativeId = assignmentDraft[list.id] ?? list.assigned_representative_id ?? '';
+    setAssigningListId(list.id);
+    const { error } = await supabase
+      .from('prospect_lists')
+      .update({
+        assigned_representative_id: representativeId || null,
+        status: representativeId ? 'assigned' : 'imported',
+      })
+      .eq('id', list.id);
+
+    setAssigningListId(null);
+    if (error) {
+      toast.error('Não foi possível atribuir a lista.');
+      return;
+    }
+
+    toast.success(representativeId ? 'Lista atribuída ao representante.' : 'Atribuição removida da lista.');
     fetchData();
   }
 
@@ -387,14 +514,16 @@ export default function ProspectionManager() {
               value={segment}
               onChange={event => {
                 setSegment(event.target.value);
-                setParsedLeads(current => current.map(lead => ({ ...lead, segment: lead.segment || event.target.value || null })));
+                setParsedLeads(current =>
+                  current.map(lead => ({ ...lead, segment: normalizeCategorySegment(lead.category, event.target.value) }))
+                );
               }}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#a4240e]"
             >
               <option value="">Não definido</option>
-              {CLIENT_SEGMENTS.map(item => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
+              {Object.entries(PROSPECT_SEGMENT_LABEL).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
             </select>
@@ -413,8 +542,9 @@ export default function ProspectionManager() {
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
           <p className="font-semibold">Colunas aceitas</p>
           <p className="mt-1 font-mono text-[11px]">
-            nome_empresa, razao_social, nome_fantasia, cnpj, cpf, endereco, numero, bairro, cidade, estado, cep, telefone,
-            whatsapp, email, site, latitude, longitude
+            nome_empresa, razao_social, nome_fantasia, categoryName, categories/0, categories, category, categoria, tipo,
+            segmento, cnpj, cpf, endereco, numero, bairro, cidade, estado, cep, telefone, whatsapp, email, site, latitude,
+            longitude
           </p>
         </div>
 
@@ -429,18 +559,20 @@ export default function ProspectionManager() {
           <div className="mt-5 space-y-4">
             <div className="grid gap-3 sm:grid-cols-4">
               <Metric label="Linhas" value={parsedLeads.length} />
-              <Metric label="Validas" value={validLeads.length} tone="green" />
-              <Metric label="Invalidas" value={invalidLeads.length} tone={invalidLeads.length > 0 ? 'red' : 'gray'} />
+              <Metric label="Válidas" value={validLeads.length} tone="green" />
+              <Metric label="Inválidas" value={invalidLeads.length} tone={invalidLeads.length > 0 ? 'red' : 'gray'} />
               <Metric label="Com coordenada" value={leadsWithCoords} />
             </div>
 
             <div className="overflow-hidden rounded-lg border border-gray-200">
               <div className="max-h-80 overflow-auto">
-                <table className="w-full min-w-[760px] text-sm">
+                <table className="w-full min-w-[940px] text-sm">
                   <thead className="sticky top-0 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                     <tr>
                       <th className="px-3 py-2 text-left">Linha</th>
                       <th className="px-3 py-2 text-left">Empresa</th>
+                      <th className="px-3 py-2 text-left">Categoria</th>
+                      <th className="px-3 py-2 text-left">Segmento</th>
                       <th className="px-3 py-2 text-left">CNPJ/CPF</th>
                       <th className="px-3 py-2 text-left">Cidade</th>
                       <th className="px-3 py-2 text-left">Contato</th>
@@ -455,6 +587,10 @@ export default function ProspectionManager() {
                           <p className="font-medium text-gray-900">{lead.company_name || '-'}</p>
                           {lead.trade_name && <p className="text-xs text-gray-500">{lead.trade_name}</p>}
                         </td>
+                        <td className="px-3 py-2 text-xs text-gray-600">{lead.category || '-'}</td>
+                        <td className="px-3 py-2 text-xs text-gray-600">
+                          {lead.segment ? PROSPECT_SEGMENT_LABEL[lead.segment] || SEGMENT_LABEL[lead.segment] || lead.segment : '-'}
+                        </td>
                         <td className="px-3 py-2 text-xs text-gray-600">{lead.cnpj || lead.cpf || '-'}</td>
                         <td className="px-3 py-2 text-xs text-gray-600">{lead.city || '-'}</td>
                         <td className="px-3 py-2 text-xs text-gray-600">{lead.phone || lead.whatsapp || lead.email || '-'}</td>
@@ -462,7 +598,7 @@ export default function ProspectionManager() {
                           {lead.isValid ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
                               <CheckCircle className="h-3 w-3" />
-                              Valida
+                              Válida
                             </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700">
@@ -503,19 +639,39 @@ export default function ProspectionManager() {
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white">
-        <div className="border-b border-gray-100 px-5 py-4">
-          <h4 className="font-semibold text-gray-900">Listas de prospecção</h4>
-          <p className="text-xs text-gray-500">{lists.length} lista{lists.length !== 1 ? 's' : ''} cadastrada{lists.length !== 1 ? 's' : ''}</p>
+        <div className="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h4 className="font-semibold text-gray-900">Listas de prospecção</h4>
+            <p className="text-xs text-gray-500">{filteredLists.length} de {lists.length} lista{lists.length !== 1 ? 's' : ''}</p>
+          </div>
+          <div className="w-full lg:w-72">
+            <label className="mb-1 block text-xs font-medium text-gray-600">Filtrar por categoria</label>
+            <select
+              value={categoryFilter}
+              onChange={event => setCategoryFilter(event.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#a4240e]"
+            >
+              <option value="">Todas as categorias</option>
+              {categoryOptions.map(category => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {lists.length === 0 ? (
           <div className="py-12 text-center text-sm text-gray-500">Nenhuma lista de prospecção criada ainda.</div>
+        ) : filteredLists.length === 0 ? (
+          <div className="py-12 text-center text-sm text-gray-500">Nenhuma lista encontrada para esta categoria.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[840px] text-sm">
+            <table className="w-full min-w-[1040px] text-sm">
               <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                 <tr>
                   <th className="px-4 py-3 text-left">Lista</th>
+                  <th className="px-4 py-3 text-left">Categorias</th>
                   <th className="px-4 py-3 text-left">Representante</th>
                   <th className="px-4 py-3 text-left">Status</th>
                   <th className="px-4 py-3 text-left">Leads</th>
@@ -523,15 +679,51 @@ export default function ProspectionManager() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {lists.map(list => (
+                {filteredLists.map(list => (
                   <tr key={list.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <p className="font-semibold text-gray-900">{list.name}</p>
                       <p className="text-xs text-gray-500">
-                        {[list.source_name, list.segment ? SEGMENT_LABEL[list.segment] || list.segment : null].filter(Boolean).join(' | ') || '-'}
+                        {[list.source_name, list.segment ? PROSPECT_SEGMENT_LABEL[list.segment] || SEGMENT_LABEL[list.segment] || list.segment : null].filter(Boolean).join(' | ') || '-'}
                       </p>
                     </td>
-                    <td className="px-4 py-3 text-gray-700">{list.representatives?.full_name || 'Não atribuído'}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex max-w-xs flex-wrap gap-1">
+                        {(listCategories[list.id] || []).slice(0, 4).map(category => (
+                          <span key={category} className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-700">
+                            {category}
+                          </span>
+                        ))}
+                        {(listCategories[list.id] || []).length > 4 && (
+                          <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-500">
+                            +{(listCategories[list.id] || []).length - 4}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex min-w-64 items-center gap-2">
+                        <select
+                          value={assignmentDraft[list.id] ?? list.assigned_representative_id ?? ''}
+                          onChange={event => setAssignmentDraft(current => ({ ...current, [list.id]: event.target.value }))}
+                          className="min-w-0 flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-[#a4240e]"
+                        >
+                          <option value="">Sem representante</option>
+                          {representatives.map(rep => (
+                            <option key={rep.id} value={rep.id}>
+                              {rep.full_name}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={() => handleAssignList(list)}
+                          disabled={assigningListId === list.id}
+                          className="rounded-lg border border-[#a4240e] px-3 py-1.5 text-xs font-semibold text-[#a4240e] hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {assigningListId === list.id ? 'Atribuindo...' : 'Atribuir lista'}
+                        </button>
+                      </div>
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2 py-1 text-xs font-semibold ${STATUS_STYLE[list.status] || 'bg-gray-100 text-gray-600'}`}>
                         {STATUS_LABEL[list.status] || list.status}
@@ -542,7 +734,7 @@ export default function ProspectionManager() {
                         <span className="rounded-full bg-gray-100 px-2 py-1 text-gray-700">{list.total_count} total</span>
                         <span className="rounded-full bg-amber-100 px-2 py-1 text-amber-700">{list.pending_count} pendentes</span>
                         {list.converted_count > 0 && <span className="rounded-full bg-green-100 px-2 py-1 text-green-700">{list.converted_count} convertidos</span>}
-                        {list.invalid_count > 0 && <span className="rounded-full bg-red-100 px-2 py-1 text-red-700">{list.invalid_count} invalidos</span>}
+                        {list.invalid_count > 0 && <span className="rounded-full bg-red-100 px-2 py-1 text-red-700">{list.invalid_count} inválidos</span>}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">{new Date(list.created_at).toLocaleDateString('pt-BR')}</td>
