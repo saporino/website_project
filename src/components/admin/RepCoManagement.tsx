@@ -7,6 +7,7 @@ import PriceListManager from './PriceListManager';
 import RouteManager from './RouteManager';
 import RepCoOrdersManager from './RepCoOrdersManager';
 import RepCoCommissionsManager from './RepCoCommissionsManager';
+import ProspectionManager from './ProspectionManager';
 
 const RepCoLiveMap = lazy(() => import('./RepCoLiveMap'));
 
@@ -58,7 +59,7 @@ export function RepCoManagement() {
   const { profile } = useAuth();
   const isAdmin = profile?.is_admin === true;
   const [adminTab, setAdminTab] = useState<AdminTab>('list');
-  const [adminView, setAdminView] = useState<'list' | 'map' | 'price-list'>('list');
+  const [adminView, setAdminView] = useState<'list' | 'map' | 'price-list' | 'prospection'>('list');
   const [detailTab, setDetailTab] = useState<'pedidos' | 'comissoes' | 'precos' | 'rotas'>('pedidos');
   const [reps, setReps] = useState<Representative[]>([]);
   const [selectedRep, setSelectedRep] = useState<Representative | null>(null);
@@ -592,6 +593,24 @@ export function RepCoManagement() {
     );
   }
 
+  if (adminView === 'prospection') {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <button onClick={() => setAdminView('list')}
+            className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors">
+            Voltar aos Representantes
+          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Prospeccao RepCo</h2>
+            <p className="text-sm text-gray-500">Listas CSV e leads de prospeccao para representantes</p>
+          </div>
+        </div>
+        <ProspectionManager />
+      </div>
+    );
+  }
+
   // â”€â”€ LIST VIEW â”€â”€
   return (
     <div className="space-y-6">
@@ -607,6 +626,11 @@ export function RepCoManagement() {
           <button onClick={() => setAdminView('price-list')}
             className="h-9 px-4 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
             ðŸ“‹ Tabela de Preços
+          </button>
+          <button onClick={() => setAdminView('prospection')}
+            className="h-9 px-4 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
+            <Upload className="w-4 h-4" />
+            Prospeccao
           </button>
           {isAdmin && (
             <button onClick={() => window.location.href = '/repco'}
