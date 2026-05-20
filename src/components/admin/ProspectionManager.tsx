@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Papa from 'papaparse';
-import { AlertCircle, CheckCircle, FileText, Upload } from 'lucide-react';
+import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, FileText, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -34,6 +34,7 @@ interface ProspectList {
 interface ProspectLeadCategory {
   prospect_list_id: string;
   category: string | null;
+  segment: string | null;
 }
 
 interface ParsedLead {
@@ -79,7 +80,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 const PROSPECT_SEGMENT_LABEL: Record<string, string> = {
   padaria: 'Padaria',
-  cafeteria: 'Cafeteria',
+  cafeteria: 'cafeteria',
   food_service: 'Food service',
   hotelaria: 'Hotelaria',
   alimentacao_coletiva: 'Alimentação coletiva',
@@ -97,9 +98,13 @@ const CATEGORY_SEGMENT_MAP: Record<string, string> = {
   panificadora: 'padaria',
   padaria_artesanal: 'padaria',
   padaria_gourmet: 'padaria',
+  cafeteria: 'cafeteria',
+  cafeteria_artesanal: 'cafeteria',
   cafetaria: 'cafeteria',
   cafetaria_artesanal: 'cafeteria',
   cafe_especial: 'cafeteria',
+  cafes_especiais: 'cafeteria',
+  cafe: 'cafeteria',
   specialty_coffee: 'cafeteria',
   coffee_shop: 'cafeteria',
   restaurante: 'food_service',
@@ -309,9 +314,13 @@ export default function ProspectionManager() {
   const [selectedRep, setSelectedRep] = useState('');
   const [parseError, setParseError] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [segmentFilter, setSegmentFilter] = useState('');
+  const [showAcceptedColumns, setShowAcceptedColumns] = useState(false);
   const [listCategories, setListCategories] = useState<Record<string, string[]>>({});
+  const [listSegments, setListSegments] = useState<Record<string, string[]>>({});
   const [assignmentDraft, setAssignmentDraft] = useState<Record<string, string>>({});
   const [assigningListId, setAssigningListId] = useState<string | null>(null);
+  const [assigningFilteredKey, setAssigningFilteredKey] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -325,7 +334,7 @@ export default function ProspectionManager() {
         .from('prospect_lists')
         .select('*, representatives(full_name)')
         .order('created_at', { ascending: false }),
-      supabase.from('prospect_leads').select('prospect_list_id,category').not('category', 'is', null),
+      supabase.from('prospect_leads').select('prospect_list_id,category,segment'),
     ]);
     setRepresentatives(reps || []);
     setLists((prospectLists || []) as ProspectList[]);
@@ -335,8 +344,17 @@ export default function ProspectionManager() {
       acc[lead.prospect_list_id].add(lead.category);
       return acc;
     }, {});
+    const segmentsByList = ((leadCategories || []) as ProspectLeadCategory[]).reduce<Record<string, Set<string>>>((acc, lead) => {
+      if (!lead.segment) return acc;
+      if (!acc[lead.prospect_list_id]) acc[lead.prospect_list_id] = new Set<string>();
+      acc[lead.prospect_list_id].add(lead.segment);
+      return acc;
+    }, {});
     setListCategories(
       Object.fromEntries(Object.entries(categoriesByList).map(([listId, categories]) => [listId, Array.from(categories).sort()]))
+    );
+    setListSegments(
+      Object.fromEntries(Object.entries(segmentsByList).map(([listId, segments]) => [listId, Array.from(segments).sort()]))
     );
     setLoading(false);
   }
@@ -351,12 +369,18 @@ export default function ProspectionManager() {
     () => Array.from(new Set(Object.values(listCategories).flat())).sort(),
     [listCategories]
   );
+  const segmentOptions = useMemo(
+    () => Array.from(new Set(Object.values(listSegments).flat())).sort(),
+    [listSegments]
+  );
   const filteredLists = useMemo(
     () =>
-      categoryFilter
-        ? lists.filter(list => (listCategories[list.id] || []).includes(categoryFilter))
-        : lists,
-    [categoryFilter, listCategories, lists]
+      lists.filter(list => {
+        const matchesCategory = categoryFilter ? (listCategories[list.id] || []).includes(categoryFilter) : true;
+        const matchesSegment = segmentFilter ? (listSegments[list.id] || []).includes(segmentFilter) : true;
+        return matchesCategory && matchesSegment;
+      }),
+    [categoryFilter, listCategories, listSegments, lists, segmentFilter]
   );
 
   async function handleProspectFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
@@ -474,8 +498,8 @@ export default function ProspectionManager() {
     fetchData();
   }
 
-  async function handleAssignList(list: ProspectList) {
-    const representativeId = assignmentDraft[list.id] ?? list.assigned_representative_id ?? '';
+  async function handleAssignList(list: ProspectList, overrideRepresentativeId?: string) {
+    const representativeId = overrideRepresentativeId ?? assignmentDraft[list.id] ?? list.assigned_representative_id ?? '';
     setAssigningListId(list.id);
     const { error } = await supabase
       .from('prospect_lists')
@@ -493,6 +517,48 @@ export default function ProspectionManager() {
 
     toast.success(representativeId ? 'Lista atribuída ao representante.' : 'Atribuição removida da lista.');
     fetchData();
+  }
+
+  async function handleAssignFilteredLeads(list: ProspectList, remove = false) {
+    if (!categoryFilter && !segmentFilter) {
+      toast.error('Escolha uma categoria ou segmento para aplicar nos leads filtrados.');
+      return;
+    }
+
+    const representativeId = assignmentDraft[list.id] ?? list.assigned_representative_id ?? '';
+    if (!remove && !representativeId) {
+      toast.error('Escolha um representante para receber os leads filtrados.');
+      return;
+    }
+
+    const actionKey = `${list.id}-${remove ? 'remove' : 'assign'}`;
+    setAssigningFilteredKey(actionKey);
+    let query = supabase
+      .from('prospect_leads')
+      .update({ representative_id: remove ? null : representativeId })
+      .eq('prospect_list_id', list.id);
+
+    if (categoryFilter) query = query.eq('category', categoryFilter);
+    if (segmentFilter) query = query.eq('segment', segmentFilter);
+
+    const { error } = await query;
+    setAssigningFilteredKey(null);
+
+    if (error) {
+      toast.error(remove ? 'Não foi possível remover o representante dos leads filtrados.' : 'Não foi possível atribuir os leads filtrados.');
+      return;
+    }
+
+    toast.success(remove ? 'Representante removido dos leads filtrados.' : 'Leads filtrados atribuídos ao representante.');
+    fetchData();
+  }
+
+  function getActiveFilterLabel() {
+    const parts = [
+      categoryFilter ? `categoria ${categoryFilter}` : null,
+      segmentFilter ? `segmento ${PROSPECT_SEGMENT_LABEL[segmentFilter] || SEGMENT_LABEL[segmentFilter] || segmentFilter}` : null,
+    ].filter(Boolean);
+    return parts.length > 0 ? parts.join(' + ') : '';
   }
 
   function resetImportForm() {
@@ -593,13 +659,25 @@ export default function ProspectionManager() {
           </div>
         </div>
 
-        <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-          <p className="font-semibold">Colunas aceitas</p>
-          <p className="mt-1 font-mono text-[11px]">
-            title, name, nome_empresa, companyName, businessName, categoryName, categories/0, categories/1, categories,
-            address, street, city, state, postalCode, location/lat, location/lng, phone, phones/0, email, emails/0,
-            website, instagramUrl, facebookUrl
-          </p>
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => setShowAcceptedColumns(current => !current)}
+            className="inline-flex items-center gap-1 text-xs font-medium text-[#a4240e] hover:underline"
+          >
+            {showAcceptedColumns ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            {showAcceptedColumns ? 'Ocultar colunas aceitas' : 'Ver colunas aceitas'}
+          </button>
+          {showAcceptedColumns && (
+            <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+              <p className="font-semibold">Colunas aceitas</p>
+              <p className="mt-1 font-mono text-[11px]">
+                title, name, nome_empresa, companyName, businessName, categoryName, categories/0, categories/1,
+                categories, address, street, city, state, postalCode, location/lat, location/lng, phone, phones/0,
+                email, emails/0, website, instagramUrl, facebookUrl
+              </p>
+            </div>
+          )}
         </div>
 
         {parseError && (
@@ -698,20 +776,37 @@ export default function ProspectionManager() {
             <h4 className="font-semibold text-gray-900">Listas de prospecção</h4>
             <p className="text-xs text-gray-500">{filteredLists.length} de {lists.length} lista{lists.length !== 1 ? 's' : ''}</p>
           </div>
-          <div className="w-full lg:w-72">
-            <label className="mb-1 block text-xs font-medium text-gray-600">Filtrar por categoria</label>
-            <select
-              value={categoryFilter}
-              onChange={event => setCategoryFilter(event.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#a4240e]"
-            >
-              <option value="">Todas as categorias</option>
-              {categoryOptions.map(category => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
+          <div className="grid w-full gap-3 sm:grid-cols-2 lg:w-[560px]">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">Filtrar por categoria</label>
+              <select
+                value={categoryFilter}
+                onChange={event => setCategoryFilter(event.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#a4240e]"
+              >
+                <option value="">Todas as categorias</option>
+                {categoryOptions.map(category => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-gray-600">Filtrar por segmento</label>
+              <select
+                value={segmentFilter}
+                onChange={event => setSegmentFilter(event.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#a4240e]"
+              >
+                <option value="">Todos os segmentos</option>
+                {segmentOptions.map(segmentValue => (
+                  <option key={segmentValue} value={segmentValue}>
+                    {PROSPECT_SEGMENT_LABEL[segmentValue] || SEGMENT_LABEL[segmentValue] || segmentValue}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -776,6 +871,40 @@ export default function ProspectionManager() {
                         >
                           {assigningListId === list.id ? 'Atribuindo...' : 'Atribuir lista'}
                         </button>
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {list.assigned_representative_id && (
+                          <button
+                            onClick={() => {
+                              setAssignmentDraft(current => ({ ...current, [list.id]: '' }));
+                              handleAssignList(list, '');
+                            }}
+                            disabled={assigningListId === list.id}
+                            className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Remover representante da lista
+                          </button>
+                        )}
+                        {(categoryFilter || segmentFilter) && (
+                          <>
+                            <button
+                              onClick={() => handleAssignFilteredLeads(list)}
+                              disabled={assigningFilteredKey === `${list.id}-assign`}
+                              className="rounded-lg bg-[#a4240e] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#8a1f0c] disabled:cursor-not-allowed disabled:opacity-50"
+                              title={`Aplicar em leads filtrados por ${getActiveFilterLabel()}`}
+                            >
+                              {assigningFilteredKey === `${list.id}-assign` ? 'Atribuindo...' : 'Atribuir leads filtrados'}
+                            </button>
+                            <button
+                              onClick={() => handleAssignFilteredLeads(list, true)}
+                              disabled={assigningFilteredKey === `${list.id}-remove`}
+                              className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                              title={`Remover dos leads filtrados por ${getActiveFilterLabel()}`}
+                            >
+                              {assigningFilteredKey === `${list.id}-remove` ? 'Removendo...' : 'Remover dos filtrados'}
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3">

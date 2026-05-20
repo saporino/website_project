@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CheckCircle, Clock, ExternalLink, Mail, MapPin, Phone, RotateCcw } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, ExternalLink, Globe2, Mail, MapPin, MessageCircle, Phone, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { SEGMENT_LABEL } from '../../constants/segments';
@@ -24,6 +24,7 @@ interface ProspectLead {
   whatsapp: string | null;
   email: string | null;
   website: string | null;
+  raw_data: Record<string, unknown> | null;
   status: string;
   audit_notes: string | null;
   rejection_reason: string | null;
@@ -64,9 +65,21 @@ const STATUS_STYLE: Record<string, string> = {
   invalid: 'bg-red-100 text-red-700',
 };
 
+const REJECTION_REASONS = [
+  'Não existe no endereço',
+  'Fechou',
+  'Não é o mesmo negócio',
+  'Gerente não estava',
+  'Pediu para voltar depois',
+  'Não tem interesse',
+  'Já compra de outro fornecedor',
+  'Telefone/endereço incorreto',
+  'Outro',
+];
+
 const PROSPECT_SEGMENT_LABEL: Record<string, string> = {
   padaria: 'Padaria',
-  cafeteria: 'Cafeteria',
+  cafeteria: 'cafeteria',
   food_service: 'Food service',
   hotelaria: 'Hotelaria',
   alimentacao_coletiva: 'Alimentação coletiva',
@@ -81,14 +94,14 @@ const PROSPECT_SEGMENT_LABEL: Record<string, string> = {
 const SELECT_FIELDS = `
   id, prospect_list_id, representative_id, company_name, trade_name, category, segment,
   address, number, district, city, state, zip_code, lat, lng,
-  phone, whatsapp, email, website, status, audit_notes, rejection_reason, visited_at, created_at,
+  phone, whatsapp, email, website, raw_data, status, audit_notes, rejection_reason, visited_at, created_at,
   prospect_lists(name, assigned_representative_id)
 `;
 
 const SELECT_LIST_FIELDS = `
   id, prospect_list_id, representative_id, company_name, trade_name, category, segment,
   address, number, district, city, state, zip_code, lat, lng,
-  phone, whatsapp, email, website, status, audit_notes, rejection_reason, visited_at, created_at,
+  phone, whatsapp, email, website, raw_data, status, audit_notes, rejection_reason, visited_at, created_at,
   prospect_lists!inner(name, assigned_representative_id)
 `;
 
@@ -117,6 +130,101 @@ function getSegmentLabel(segment: string | null) {
   return PROSPECT_SEGMENT_LABEL[segment] || SEGMENT_LABEL[segment] || segment;
 }
 
+function normalizeKey(key: string) {
+  return key
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '');
+}
+
+function normalizeUrl(value: string | null) {
+  if (!value) return null;
+  const text = value.trim();
+  if (!text) return null;
+  if (/^https?:\/\//i.test(text)) return text;
+  if (text.startsWith('@')) return `https://instagram.com/${text.slice(1)}`;
+  return `https://${text}`;
+}
+
+function cleanPhone(value: string | null) {
+  if (!value) return null;
+  const digits = value.replace(/\D/g, '');
+  return digits.length >= 8 ? digits : null;
+}
+
+function toBrazilPhone(digits: string) {
+  return digits.startsWith('55') ? digits : `55${digits}`;
+}
+
+function getRawValue(rawData: Record<string, unknown> | null, aliases: string[]) {
+  if (!rawData) return null;
+  const normalizedAliases = aliases.map(normalizeKey);
+  for (const [key, value] of Object.entries(rawData)) {
+    if (!normalizedAliases.includes(normalizeKey(key))) continue;
+    if (value === null || value === undefined) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return null;
+}
+
+function collectRawUrls(rawData: Record<string, unknown> | null) {
+  if (!rawData) return [];
+  return Object.entries(rawData)
+    .filter(([key]) => {
+      const normalized = normalizeKey(key);
+      return normalized.includes('url') || normalized.includes('website') || normalized.includes('site') || normalized.includes('instagram') || normalized.includes('facebook');
+    })
+    .map(([, value]) => (value === null || value === undefined ? '' : String(value).trim()))
+    .filter(Boolean);
+}
+
+function getContactLinks(lead: ProspectLead) {
+  const rawUrls = collectRawUrls(lead.raw_data);
+  const websiteCandidates = [
+    lead.website,
+    getRawValue(lead.raw_data, ['website', 'site', 'url']),
+    getRawValue(lead.raw_data, ['instagram', 'instagramUrl', 'instagram_url', 'socialLinks/instagram', 'sociallinks_instagram']),
+    getRawValue(lead.raw_data, ['facebook', 'facebookUrl', 'facebook_url', 'socialLinks/facebook', 'sociallinks_facebook']),
+    ...rawUrls,
+  ].filter(Boolean) as string[];
+  const links = new Map<string, { label: string; href: string; kind: 'instagram' | 'facebook' | 'site' }>();
+
+  websiteCandidates.forEach(candidate => {
+    const href = normalizeUrl(candidate);
+    if (!href) return;
+    const lower = href.toLowerCase();
+    if (lower.includes('instagram.com')) {
+      links.set('instagram', { label: 'Instagram', href, kind: 'instagram' });
+    } else if (lower.includes('facebook.com') || lower.includes('fb.com')) {
+      links.set('facebook', { label: 'Facebook', href, kind: 'facebook' });
+    } else if (!links.has('site')) {
+      links.set('site', { label: 'Site', href, kind: 'site' });
+    }
+  });
+
+  return Array.from(links.values());
+}
+
+function getLeadPhone(lead: ProspectLead) {
+  return (
+    cleanPhone(lead.whatsapp) ||
+    cleanPhone(lead.phone) ||
+    cleanPhone(getRawValue(lead.raw_data, ['whatsapp', 'phone', 'phones/0', 'telefone', 'tel', 'mobile']))
+  );
+}
+
+function getLeadEmail(lead: ProspectLead) {
+  return lead.email || getRawValue(lead.raw_data, ['email', 'emails/0', 'e_mail']);
+}
+
+function getSortKey(lead: ProspectLead) {
+  return [lead.city, lead.zip_code, lead.address, lead.company_name].filter(Boolean).join('|').toLowerCase();
+}
+
 function normalizeLeadRelation(lead: any): ProspectLead {
   const list = Array.isArray(lead.prospect_lists) ? lead.prospect_lists[0] : lead.prospect_lists;
   return { ...lead, prospect_lists: list || null } as ProspectLead;
@@ -126,6 +234,9 @@ export default function RepCoProspection({ representativeId, currentLat, current
   const [leads, setLeads] = useState<ProspectLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [rejectingLead, setRejectingLead] = useState<ProspectLead | null>(null);
+  const [rejectReason, setRejectReason] = useState(REJECTION_REASONS[0]);
+  const [rejectNote, setRejectNote] = useState('');
 
   useEffect(() => {
     fetchLeads();
@@ -172,28 +283,60 @@ export default function RepCoProspection({ representativeId, currentLat, current
     toast.success('Lead atualizado.');
   }
 
-  function openDirections(lead: ProspectLead) {
+  function openDirections(lead: ProspectLead, app: 'google' | 'waze') {
     if (lead.lat !== null && lead.lng !== null) {
-      window.open(`https://www.google.com/maps/dir/?api=1&destination=${lead.lat},${lead.lng}`, '_blank');
+      const url =
+        app === 'waze'
+          ? `https://waze.com/ul?ll=${lead.lat},${lead.lng}&navigate=yes`
+          : `https://www.google.com/maps/dir/?api=1&destination=${lead.lat},${lead.lng}`;
+      window.open(url, '_blank');
       return;
     }
 
     const address = buildAddress(lead) || lead.company_name;
-    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`, '_blank');
+    const encodedAddress = encodeURIComponent(address);
+    const url =
+      app === 'waze'
+        ? `https://waze.com/ul?q=${encodedAddress}&navigate=yes`
+        : `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+    window.open(url, '_blank');
   }
 
   function handleCheckIn(lead: ProspectLead) {
     updateLead(lead, { status: 'visited', visited_at: new Date().toISOString() });
   }
 
-  function handleReject(lead: ProspectLead) {
-    const reason = window.prompt('Motivo simples para registrar:');
-    if (reason === null) return;
-    updateLead(lead, {
+  function openRejectModal(lead: ProspectLead) {
+    setRejectingLead(lead);
+    setRejectReason(REJECTION_REASONS[0]);
+    setRejectNote('');
+  }
+
+  async function handleRejectSubmit() {
+    if (!rejectingLead) return;
+    const reason = rejectReason || REJECTION_REASONS[0];
+
+    if (reason === 'Pediu para voltar depois') {
+      await updateLead(rejectingLead, {
+        status: 'pending_visit',
+        audit_notes: rejectNote.trim()
+          ? `${rejectingLead.audit_notes ? `${rejectingLead.audit_notes}\n` : ''}${reason}: ${rejectNote.trim()}`
+          : `${rejectingLead.audit_notes ? `${rejectingLead.audit_notes}\n` : ''}${reason}`,
+      });
+      setRejectingLead(null);
+      return;
+    }
+
+    await updateLead(rejectingLead, {
       status: 'rejected',
-      rejection_reason: reason.trim() || 'Não deu certo',
-      audit_notes: reason.trim() || lead.audit_notes,
+      rejection_reason: reason,
+      audit_notes: rejectNote.trim() || rejectingLead.audit_notes,
     });
+    setRejectingLead(null);
+  }
+
+  function handleReject(lead: ProspectLead) {
+    openRejectModal(lead);
   }
 
   function handleReturnLater(lead: ProspectLead) {
@@ -214,7 +357,7 @@ export default function RepCoProspection({ representativeId, currentLat, current
         if (aDistance !== null) return -1;
         if (bDistance !== null) return 1;
       }
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime() || a.company_name.localeCompare(b.company_name);
+      return getSortKey(a).localeCompare(getSortKey(b)) || new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
     });
   }, [currentLat, currentLng, leads]);
 
@@ -243,6 +386,9 @@ export default function RepCoProspection({ representativeId, currentLat, current
                 ? distanceKm(currentLat, currentLng, lead.lat, lead.lng)
                 : null;
             const statusClass = STATUS_STYLE[lead.status] || 'bg-gray-100 text-gray-600';
+            const contactLinks = getContactLinks(lead);
+            const phoneDigits = getLeadPhone(lead);
+            const email = getLeadEmail(lead);
 
             return (
               <div key={lead.id} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -268,17 +414,51 @@ export default function RepCoProspection({ representativeId, currentLat, current
                       </p>
                     )}
                     <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                      {lead.phone && <a href={`tel:${lead.phone}`} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50"><Phone className="h-3 w-3" />{lead.phone}</a>}
-                      {lead.whatsapp && <a href={`https://wa.me/55${lead.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-green-200 bg-green-50 px-2 py-1 text-green-700">WhatsApp</a>}
-                      {lead.email && <a href={`mailto:${lead.email}`} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50"><Mail className="h-3 w-3" />{lead.email}</a>}
-                      {lead.website && <a href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50"><ExternalLink className="h-3 w-3" />Site</a>}
+                      {phoneDigits && (
+                        <>
+                          <a href={`https://wa.me/${toBrazilPhone(phoneDigits)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-green-200 bg-green-50 px-2 py-1 text-green-700 hover:bg-green-100">
+                            <MessageCircle className="h-3 w-3" />
+                            WhatsApp
+                          </a>
+                          <a href={`tel:${phoneDigits}`} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50">
+                            <Phone className="h-3 w-3" />
+                            Ligar
+                          </a>
+                          <a href={`sms:${phoneDigits}`} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50">
+                            SMS
+                          </a>
+                        </>
+                      )}
+                      {email && <a href={`mailto:${email}`} className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50"><Mail className="h-3 w-3" />Email</a>}
+                      {contactLinks.map(link => (
+                        <a
+                          key={link.kind}
+                          href={link.href}
+                          target="_blank"
+                          rel="noreferrer"
+                          className={`inline-flex items-center gap-1 rounded-lg border px-2 py-1 hover:bg-gray-50 ${
+                            link.kind === 'instagram'
+                              ? 'border-pink-200 bg-pink-50 text-pink-700'
+                              : link.kind === 'facebook'
+                                ? 'border-blue-200 bg-blue-50 text-blue-700'
+                                : 'border-gray-200 text-gray-600'
+                          }`}
+                        >
+                          {link.kind === 'site' ? <Globe2 className="h-3 w-3" /> : <ExternalLink className="h-3 w-3" />}
+                          {link.label}
+                        </a>
+                      ))}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap lg:max-w-xs lg:justify-end">
-                    <button onClick={() => openDirections(lead)} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100">
+                    <button onClick={() => openDirections(lead, 'google')} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100">
                       <MapPin className="h-3.5 w-3.5" />
-                      Ir até o local
+                      Google Maps
+                    </button>
+                    <button onClick={() => openDirections(lead, 'waze')} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-700 hover:bg-sky-100">
+                      <MapPin className="h-3.5 w-3.5" />
+                      Waze
                     </button>
                     <button onClick={() => handleCheckIn(lead)} disabled={updatingId === lead.id} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-100 disabled:opacity-50">
                       <CheckCircle className="h-3.5 w-3.5" />
@@ -304,6 +484,54 @@ export default function RepCoProspection({ representativeId, currentLat, current
               </div>
             );
           })}
+        </div>
+      )}
+      {rejectingLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl">
+            <h4 className="text-lg font-semibold text-gray-900">Registrar motivo</h4>
+            <p className="mt-1 text-sm text-gray-500">{rejectingLead.trade_name || rejectingLead.company_name}</p>
+            <label className="mt-4 block text-xs font-medium text-gray-600">Motivo</label>
+            <select
+              value={rejectReason}
+              onChange={event => setRejectReason(event.target.value)}
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#a4240e]"
+            >
+              {REJECTION_REASONS.map(reason => (
+                <option key={reason} value={reason}>
+                  {reason}
+                </option>
+              ))}
+            </select>
+            {(rejectReason === 'Outro' || rejectReason === 'Pediu para voltar depois') && (
+              <>
+                <label className="mt-3 block text-xs font-medium text-gray-600">Observação</label>
+                <textarea
+                  value={rejectNote}
+                  onChange={event => setRejectNote(event.target.value)}
+                  rows={3}
+                  maxLength={240}
+                  placeholder="Detalhe rápido para o admin"
+                  className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#a4240e]"
+                />
+              </>
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setRejectingLead(null)}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleRejectSubmit}
+                disabled={updatingId === rejectingLead.id}
+                className="rounded-lg bg-[#a4240e] px-4 py-2 text-sm font-semibold text-white hover:bg-[#8a1f0c] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Salvar motivo
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
