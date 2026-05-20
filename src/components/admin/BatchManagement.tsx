@@ -311,7 +311,7 @@ export default function BatchManagement() {
                           <span className="font-semibold text-sm text-gray-900">{b.batch_number||"Sem numero"}</span>
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[b.status]}`}>{STATUS_LABELS[b.status]}</span>
                         </div>
-                        <p className="text-xs text-gray-500">{b.product_name} · {b.company_name} · {b.quantity_packages} pacotes</p>
+                        <p className="text-xs text-gray-500">{[b.product_name, b.company_name, `${b.quantity_packages} pacotes`].filter(Boolean).join(' · ')}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
