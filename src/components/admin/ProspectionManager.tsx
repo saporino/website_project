@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Papa from 'papaparse';
-import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, FileText, Upload } from 'lucide-react';
+import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, ExternalLink, FileText, Mail, MapPin, MessageCircle, Phone, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -37,6 +37,15 @@ interface ProspectLeadCategory {
   segment: string | null;
 }
 
+interface RepresentativeClient {
+  id: string;
+  cnpj: string | null;
+  razao_social: string | null;
+  nome_fantasia: string | null;
+  nome_completo: string | null;
+  endereco_completo: string | null;
+}
+
 interface ParsedLead {
   rowNumber: number;
   company_name: string;
@@ -63,6 +72,8 @@ interface ParsedLead {
   raw_data: Record<string, unknown>;
   isValid: boolean;
   error: string | null;
+  duplicate_of_client_id: string | null;
+  duplicateReason: string | null;
 }
 
 const MAX_IMPORT_FILE_SIZE_BYTES = 10 * 1024 * 1024;
@@ -178,6 +189,38 @@ function onlyDigits(value: unknown) {
   return digits.length > 0 ? digits : null;
 }
 
+function normalizeComparableText(value: unknown) {
+  const text = normalizeValue(value);
+  if (!text) return '';
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\b(ltda|me|eireli|sa|s\/a|epp|mei)\b/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function cleanPhone(value: string | null) {
+  if (!value) return null;
+  const digits = value.replace(/\D/g, '');
+  return digits.length >= 8 ? digits : null;
+}
+
+function toBrazilPhone(digits: string) {
+  return digits.startsWith('55') ? digits : `55${digits}`;
+}
+
+function normalizeUrl(value: string | null) {
+  if (!value) return null;
+  const text = value.trim();
+  if (!text) return null;
+  if (/^https?:\/\//i.test(text)) return text;
+  if (text.startsWith('@')) return `https://instagram.com/${text.slice(1)}`;
+  return `https://${text}`;
+}
+
 function parseNumber(value: unknown) {
   const text = normalizeValue(value);
   if (!text) return null;
@@ -204,6 +247,16 @@ function getCategoryField(row: Record<string, unknown>) {
   return getField(row, ['categoryname', 'categories_0', 'categories_1', 'categories', 'category', 'categoria', 'tipo', 'segmento']);
 }
 
+function getRawValue(rawData: Record<string, unknown>, aliases: string[]) {
+  const normalizedAliases = aliases.map(normalizeKey);
+  for (const [key, value] of Object.entries(rawData)) {
+    if (!normalizedAliases.includes(normalizeKey(key))) continue;
+    const normalized = normalizeValue(value);
+    if (normalized) return normalized;
+  }
+  return null;
+}
+
 function sanitizeRawData(row: Record<string, unknown>) {
   return Object.entries(row).reduce<Record<string, unknown>>((acc, [key, value]) => {
     if (DANGEROUS_RAW_KEYS.has(key) || DANGEROUS_RAW_KEYS.has(normalizeKey(key))) return acc;
@@ -220,6 +273,67 @@ function sanitizeRawData(row: Record<string, unknown>) {
     }
     return acc;
   }, {});
+}
+
+function namesMatch(leadName: string, clientName: string) {
+  if (!leadName || !clientName) return false;
+  if (leadName === clientName) return true;
+  if (leadName.length < 6 || clientName.length < 6) return false;
+  return leadName.includes(clientName) || clientName.includes(leadName);
+}
+
+function findExistingClient(lead: ParsedLead, clients: RepresentativeClient[]) {
+  if (lead.cnpj) {
+    const clientByCnpj = clients.find(client => onlyDigits(client.cnpj) === lead.cnpj);
+    if (clientByCnpj) return { clientId: clientByCnpj.id, reason: 'Já é cliente: CNPJ encontrado na carteira.' };
+  }
+
+  if (!lead.city) return null;
+  const leadCity = normalizeComparableText(lead.city);
+  const leadNames = [lead.company_name, lead.trade_name].map(normalizeComparableText).filter(Boolean);
+  if (leadNames.length === 0) return null;
+
+  const clientByNameAndCity = clients.find(client => {
+    const clientAddress = normalizeComparableText(client.endereco_completo);
+    if (!clientAddress || !clientAddress.includes(leadCity)) return false;
+    const clientNames = [client.razao_social, client.nome_fantasia, client.nome_completo].map(normalizeComparableText).filter(Boolean);
+    return leadNames.some(leadName => clientNames.some(clientName => namesMatch(leadName, clientName)));
+  });
+
+  return clientByNameAndCity
+    ? { clientId: clientByNameAndCity.id, reason: 'Já é cliente: nome e cidade encontrados na carteira.' }
+    : null;
+}
+
+function markExistingClient(lead: ParsedLead, clients: RepresentativeClient[]): ParsedLead {
+  if (!lead.isValid) return lead;
+  const match = findExistingClient(lead, clients);
+  if (!match) return lead;
+  return {
+    ...lead,
+    duplicate_of_client_id: match.clientId,
+    duplicateReason: match.reason,
+  };
+}
+
+function isLeadAssignable(lead: Pick<ParsedLead, 'isValid' | 'duplicate_of_client_id'>) {
+  return lead.isValid && !lead.duplicate_of_client_id;
+}
+
+function getContactLinks(lead: Pick<ParsedLead, 'phone' | 'whatsapp' | 'email' | 'website' | 'raw_data'>) {
+  const phoneDigits = cleanPhone(lead.whatsapp) || cleanPhone(lead.phone) || cleanPhone(getRawValue(lead.raw_data, ['phone', 'phones/0', 'telefone', 'tel', 'mobile']));
+  const email = lead.email || getRawValue(lead.raw_data, ['email', 'emails/0', 'e_mail']);
+  const site = normalizeUrl(lead.website || getRawValue(lead.raw_data, ['website', 'site', 'url']));
+  const instagram = normalizeUrl(getRawValue(lead.raw_data, ['instagram', 'instagramUrl', 'instagram_url', 'socialLinks/instagram', 'sociallinks_instagram']));
+  const facebook = normalizeUrl(getRawValue(lead.raw_data, ['facebook', 'facebookUrl', 'facebook_url', 'socialLinks/facebook', 'sociallinks_facebook']));
+
+  return {
+    phoneDigits,
+    email,
+    site,
+    instagram,
+    facebook,
+  };
 }
 
 async function parseProspectFile(file: File) {
@@ -296,6 +410,8 @@ function normalizeRow(row: Record<string, unknown>, rowNumber: number, fallbackS
     raw_data: sanitizeRawData(row),
     isValid,
     error: isValid ? null : 'Nome da empresa ausente',
+    duplicate_of_client_id: null,
+    duplicateReason: null,
   };
 }
 
@@ -321,6 +437,7 @@ export default function ProspectionManager() {
   const [assignmentDraft, setAssignmentDraft] = useState<Record<string, string>>({});
   const [assigningListId, setAssigningListId] = useState<string | null>(null);
   const [assigningFilteredKey, setAssigningFilteredKey] = useState<string | null>(null);
+  const [deletingListId, setDeletingListId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -361,6 +478,8 @@ export default function ProspectionManager() {
 
   const validLeads = useMemo(() => parsedLeads.filter(lead => lead.isValid), [parsedLeads]);
   const invalidLeads = useMemo(() => parsedLeads.filter(lead => !lead.isValid), [parsedLeads]);
+  const duplicateLeads = useMemo(() => validLeads.filter(lead => lead.duplicate_of_client_id), [validLeads]);
+  const assignableLeads = useMemo(() => validLeads.filter(isLeadAssignable), [validLeads]);
   const leadsWithCoords = useMemo(
     () => validLeads.filter(lead => lead.lat !== null && lead.lng !== null).length,
     [validLeads]
@@ -382,6 +501,19 @@ export default function ProspectionManager() {
       }),
     [categoryFilter, listCategories, listSegments, lists, segmentFilter]
   );
+
+  async function fetchExistingClients() {
+    const { data, error } = await supabase
+      .from('representative_clients')
+      .select('id,cnpj,razao_social,nome_fantasia,nome_completo,endereco_completo');
+
+    if (error) {
+      toast.warning('Não foi possível comparar com clientes existentes agora.');
+      return [];
+    }
+
+    return (data || []) as RepresentativeClient[];
+  }
 
   async function handleProspectFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -411,7 +543,8 @@ export default function ProspectionManager() {
       return;
     }
 
-    setParsedLeads(rows.map((row, index) => normalizeRow(row, index + 2, segment)));
+    const clients = await fetchExistingClients();
+    setParsedLeads(rows.map((row, index) => markExistingClient(normalizeRow(row, index + 2, segment), clients)));
   }
 
   async function handleCreateList() {
@@ -420,12 +553,14 @@ export default function ProspectionManager() {
       return;
     }
     if (validLeads.length === 0) {
-      toast.error('Importe um CSV com pelo menos uma linha valida.');
+      toast.error('Importe um arquivo com pelo menos uma linha válida.');
       return;
     }
 
     setSaving(true);
-    const listStatus = selectedRep ? 'assigned' : 'imported';
+    const hasNonAssignableLeads = validLeads.some(lead => !isLeadAssignable(lead));
+    const canAssignByList = Boolean(selectedRep && !hasNonAssignableLeads);
+    const listStatus = selectedRep && assignableLeads.length > 0 ? 'assigned' : 'imported';
     const uniqueSegments = Array.from(new Set(validLeads.map(lead => lead.segment).filter(Boolean)));
     const listSegment = segment || (uniqueSegments.length === 1 ? uniqueSegments[0] : null);
     const { data: list, error: listError } = await supabase
@@ -437,9 +572,10 @@ export default function ProspectionManager() {
         source_type: 'csv',
         source_name: selectedFileName || null,
         status: listStatus,
-        assigned_representative_id: selectedRep || null,
+        assigned_representative_id: canAssignByList ? selectedRep : null,
         total_count: parsedLeads.length,
-        pending_count: validLeads.length,
+        pending_count: assignableLeads.length,
+        duplicate_count: duplicateLeads.length,
         invalid_count: invalidLeads.length,
         created_by: user?.id || null,
       })
@@ -454,7 +590,7 @@ export default function ProspectionManager() {
 
     const payload = validLeads.map(lead => ({
       prospect_list_id: list.id,
-      representative_id: selectedRep || null,
+      representative_id: selectedRep && isLeadAssignable(lead) ? selectedRep : null,
       company_name: lead.company_name,
       trade_name: lead.trade_name,
       cnpj: lead.cnpj,
@@ -480,7 +616,9 @@ export default function ProspectionManager() {
       email: lead.email,
       website: lead.website,
       raw_data: lead.raw_data,
-      status: selectedRep ? 'assigned' : 'new',
+      status: lead.duplicate_of_client_id ? 'duplicate' : selectedRep ? 'assigned' : 'new',
+      rejection_reason: lead.duplicateReason,
+      duplicate_of_client_id: lead.duplicate_of_client_id,
       created_by: user?.id || null,
     }));
 
@@ -492,7 +630,7 @@ export default function ProspectionManager() {
       return;
     }
 
-    toast.success(`Lista criada com ${validLeads.length} lead${validLeads.length !== 1 ? 's' : ''}.`);
+    toast.success(`Lista criada com ${assignableLeads.length} lead${assignableLeads.length !== 1 ? 's' : ''} para visita${duplicateLeads.length ? ` e ${duplicateLeads.length} já cliente/duplicado` : ''}.`);
     setSaving(false);
     resetImportForm();
     fetchData();
@@ -501,21 +639,65 @@ export default function ProspectionManager() {
   async function handleAssignList(list: ProspectList, overrideRepresentativeId?: string) {
     const representativeId = overrideRepresentativeId ?? assignmentDraft[list.id] ?? list.assigned_representative_id ?? '';
     setAssigningListId(list.id);
-    const { error } = await supabase
+
+    if (!representativeId) {
+      const [{ error: listError }, { error: leadsError }] = await Promise.all([
+        supabase
+          .from('prospect_lists')
+          .update({
+            assigned_representative_id: null,
+            status: 'imported',
+          })
+          .eq('id', list.id),
+        supabase.from('prospect_leads').update({ representative_id: null }).eq('prospect_list_id', list.id),
+      ]);
+
+      setAssigningListId(null);
+      if (listError || leadsError) {
+        toast.error('Não foi possível remover a atribuição.');
+        return;
+      }
+
+      toast.success('Atribui??o removida da lista e dos leads.');
+      fetchData();
+      return;
+    }
+
+    const { data: leads, error: leadsFetchError } = await supabase
+      .from('prospect_leads')
+      .select('id,status,duplicate_of_client_id')
+      .eq('prospect_list_id', list.id);
+
+    if (leadsFetchError) {
+      setAssigningListId(null);
+      toast.error('Não foi possível verificar duplicados antes da atribuição.');
+      return;
+    }
+
+    const safeToAssignByList = (leads || []).every(lead => lead.status !== 'duplicate' && lead.status !== 'invalid' && !lead.duplicate_of_client_id);
+
+    const { error: listError } = await supabase
       .from('prospect_lists')
       .update({
-        assigned_representative_id: representativeId || null,
-        status: representativeId ? 'assigned' : 'imported',
+        assigned_representative_id: safeToAssignByList ? representativeId : null,
+        status: 'assigned',
       })
       .eq('id', list.id);
 
+    const { error: leadsError } = await supabase
+      .from('prospect_leads')
+      .update({ representative_id: representativeId, status: 'assigned' })
+      .eq('prospect_list_id', list.id)
+      .is('duplicate_of_client_id', null)
+      .not('status', 'in', '(duplicate,invalid,converted)');
+
     setAssigningListId(null);
-    if (error) {
+    if (listError || leadsError) {
       toast.error('Não foi possível atribuir a lista.');
       return;
     }
 
-    toast.success(representativeId ? 'Lista atribuída ao representante.' : 'Atribuição removida da lista.');
+    toast.success(safeToAssignByList ? 'Lista atribuída ao representante.' : 'Leads elegíveis atribuídos. Já clientes/duplicados não foram enviados para visita.');
     fetchData();
   }
 
@@ -533,10 +715,15 @@ export default function ProspectionManager() {
 
     const actionKey = `${list.id}-${remove ? 'remove' : 'assign'}`;
     setAssigningFilteredKey(actionKey);
-    let query = supabase
-      .from('prospect_leads')
-      .update({ representative_id: remove ? null : representativeId })
-      .eq('prospect_list_id', list.id);
+    let query = supabase.from('prospect_leads').update({ representative_id: remove ? null : representativeId });
+
+    if (!remove) {
+      query = query
+        .is('duplicate_of_client_id', null)
+        .not('status', 'in', '(duplicate,invalid,converted)');
+    }
+
+    query = query.eq('prospect_list_id', list.id);
 
     if (categoryFilter) query = query.eq('category', categoryFilter);
     if (segmentFilter) query = query.eq('segment', segmentFilter);
@@ -549,10 +736,25 @@ export default function ProspectionManager() {
       return;
     }
 
-    toast.success(remove ? 'Representante removido dos leads filtrados.' : 'Leads filtrados atribuídos ao representante.');
+    toast.success(remove ? 'Representante removido dos leads filtrados.' : 'Leads filtrados atribuídos ao representante. Já clientes/duplicados ficaram fora da visita.');
     fetchData();
   }
+  async function handleDeleteList(list: ProspectList) {
+    const confirmed = window.confirm(`Deletar a lista "${list.name}"? Os leads de prospecção serão removidos, mas clientes reais não serão apagados.`);
+    if (!confirmed) return;
 
+    setDeletingListId(list.id);
+    const { error } = await supabase.from('prospect_lists').delete().eq('id', list.id);
+    setDeletingListId(null);
+
+    if (error) {
+      toast.error('Não foi possível deletar a lista.');
+      return;
+    }
+
+    toast.success('Lista de prospecção deletada. Clientes reais foram preservados.');
+    fetchData();
+  }
   function getActiveFilterLabel() {
     const parts = [
       categoryFilter ? `categoria ${categoryFilter}` : null,
@@ -698,7 +900,7 @@ export default function ProspectionManager() {
 
             <div className="overflow-hidden rounded-lg border border-gray-200">
               <div className="max-h-80 overflow-auto">
-                <table className="w-full min-w-[940px] text-sm">
+                <table className="w-full min-w-[1120px] text-sm">
                   <thead className="sticky top-0 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                     <tr>
                       <th className="px-3 py-2 text-left">Linha</th>
@@ -725,17 +927,22 @@ export default function ProspectionManager() {
                         </td>
                         <td className="px-3 py-2 text-xs text-gray-600">{lead.cnpj || lead.cpf || '-'}</td>
                         <td className="px-3 py-2 text-xs text-gray-600">{lead.city || '-'}</td>
-                        <td className="px-3 py-2 text-xs text-gray-600">{lead.phone || lead.whatsapp || lead.email || '-'}</td>
+                        <td className="px-3 py-2 text-xs text-gray-600"><ContactPreview lead={lead} /></td>
                         <td className="px-3 py-2">
-                          {lead.isValid ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
-                              <CheckCircle className="h-3 w-3" />
-                              Válida
-                            </span>
-                          ) : (
+                          {!lead.isValid ? (
                             <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700">
                               <AlertCircle className="h-3 w-3" />
                               {lead.error}
+                            </span>
+                          ) : lead.duplicate_of_client_id ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700" title={lead.duplicateReason || undefined}>
+                              <AlertCircle className="h-3 w-3" />
+                              Já é cliente
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                              <CheckCircle className="h-3 w-3" />
+                              Para visita
                             </span>
                           )}
                         </td>
@@ -763,7 +970,7 @@ export default function ProspectionManager() {
                 disabled={saving || validLeads.length === 0}
                 className="rounded-lg bg-[#a4240e] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#8a1f0c] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {saving ? 'Criando...' : `Criar lista com ${validLeads.length} leads`}
+                {saving ? 'Criando...' : `Criar lista com ${assignableLeads.length} para visita`}
               </button>
             </div>
           </div>
@@ -816,7 +1023,7 @@ export default function ProspectionManager() {
           <div className="py-12 text-center text-sm text-gray-500">Nenhuma lista encontrada para esta categoria.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1040px] text-sm">
+            <table className="w-full min-w-[1140px] text-sm">
               <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
                 <tr>
                   <th className="px-4 py-3 text-left">Lista</th>
@@ -825,6 +1032,7 @@ export default function ProspectionManager() {
                   <th className="px-4 py-3 text-left">Status</th>
                   <th className="px-4 py-3 text-left">Leads</th>
                   <th className="px-4 py-3 text-left">Criada em</th>
+                  <th className="px-4 py-3 text-left">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -921,6 +1129,16 @@ export default function ProspectionManager() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">{new Date(list.created_at).toLocaleDateString('pt-BR')}</td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => handleDeleteList(list)}
+                        disabled={deletingListId === list.id}
+                        className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        {deletingListId === list.id ? 'Deletando...' : 'Deletar lista'}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -932,11 +1150,65 @@ export default function ProspectionManager() {
   );
 }
 
-function Metric({ label, value, tone = 'gray' }: { label: string; value: number; tone?: 'gray' | 'green' | 'red' }) {
+function ContactPreview({ lead }: { lead: ParsedLead }) {
+  const links = getContactLinks(lead);
+  const address = [lead.address, lead.number, lead.district, lead.city, lead.state].filter(Boolean).join(', ');
+
+  if (!links.phoneDigits && !links.email && !links.site && !links.instagram && !links.facebook && !address) {
+    return <span>-</span>;
+  }
+
+  return (
+    <div className="flex max-w-xs flex-wrap gap-1">
+      {links.phoneDigits && (
+        <>
+          <a href={`https://wa.me/${toBrazilPhone(links.phoneDigits)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded border border-green-200 bg-green-50 px-1.5 py-0.5 text-green-700">
+            <MessageCircle className="h-3 w-3" />
+            WhatsApp
+          </a>
+          <a href={`tel:${links.phoneDigits}`} className="inline-flex items-center gap-1 rounded border border-gray-200 px-1.5 py-0.5 text-gray-600">
+            <Phone className="h-3 w-3" />
+            Telefone
+          </a>
+          <a href={`sms:${links.phoneDigits}`} className="rounded border border-gray-200 px-1.5 py-0.5 text-gray-600">
+            SMS
+          </a>
+        </>
+      )}
+      {links.email && (
+        <a href={`mailto:${links.email}`} className="inline-flex items-center gap-1 rounded border border-gray-200 px-1.5 py-0.5 text-gray-600">
+          <Mail className="h-3 w-3" />
+          Email
+        </a>
+      )}
+      {links.instagram && <ExternalContactLink href={links.instagram} label="Instagram" />}
+      {links.facebook && <ExternalContactLink href={links.facebook} label="Facebook" />}
+      {links.site && <ExternalContactLink href={links.site} label="Site" />}
+      {address && (
+        <span title={address} className="inline-flex items-center gap-1 rounded border border-gray-200 px-1.5 py-0.5 text-gray-600">
+          <MapPin className="h-3 w-3" />
+          Endereço
+        </span>
+      )}
+    </div>
+  );
+}
+
+function ExternalContactLink({ href, label }: { href: string; label: string }) {
+  return (
+    <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded border border-gray-200 px-1.5 py-0.5 text-gray-600">
+      <ExternalLink className="h-3 w-3" />
+      {label}
+    </a>
+  );
+}
+
+function Metric({ label, value, tone = 'gray' }: { label: string; value: number; tone?: 'gray' | 'green' | 'red' | 'amber' }) {
   const toneClass = {
     gray: 'text-gray-900',
     green: 'text-green-700',
     red: 'text-red-700',
+    amber: 'text-amber-700',
   }[tone];
 
   return (
