@@ -219,7 +219,7 @@ export default function ProspectionManager() {
     });
 
     if (result.errors.length > 0) {
-      setParseError(result.errors[0]?.message || 'Nao foi possivel ler o CSV.');
+      setParseError(result.errors[0]?.message || 'Não foi possível ler o CSV.');
       return;
     }
 
@@ -263,7 +263,7 @@ export default function ProspectionManager() {
       .single();
 
     if (listError || !list) {
-      toast.error('Erro ao criar lista de prospeccao.');
+      toast.error('Erro ao criar lista de prospecção.');
       setSaving(false);
       return;
     }
@@ -303,7 +303,7 @@ export default function ProspectionManager() {
     const { error: leadsError } = await supabase.from('prospect_leads').insert(payload);
     if (leadsError) {
       await supabase.from('prospect_lists').delete().eq('id', list.id);
-      toast.error('Nao foi possivel salvar os leads. A lista criada foi removida para evitar cadastro incompleto.');
+      toast.error('Não foi possível salvar os leads. A lista criada foi removida para evitar cadastro incompleto.');
       setSaving(false);
       return;
     }
@@ -337,7 +337,7 @@ export default function ProspectionManager() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-xl font-bold text-gray-900">Prospeccao RepCo</h3>
+          <h3 className="text-xl font-bold text-gray-900">Prospecção RepCo</h3>
           <p className="text-sm text-gray-500">Importe CSVs e transforme linhas em leads para representantes.</p>
         </div>
         <button
@@ -373,7 +373,7 @@ export default function ProspectionManager() {
               onChange={event => setSelectedRep(event.target.value)}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#a4240e]"
             >
-              <option value="">Sem atribuicao agora</option>
+              <option value="">Sem atribuição agora</option>
               {representatives.map(rep => (
                 <option key={rep.id} value={rep.id}>
                   {rep.full_name}
@@ -391,7 +391,7 @@ export default function ProspectionManager() {
               }}
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#a4240e]"
             >
-              <option value="">Nao definido</option>
+              <option value="">Não definido</option>
               {CLIENT_SEGMENTS.map(item => (
                 <option key={item.value} value={item.value}>
                   {item.label}
@@ -400,11 +400,11 @@ export default function ProspectionManager() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">Descricao</label>
+            <label className="mb-1 block text-xs font-medium text-gray-600">Descrição</label>
             <input
               value={description}
               onChange={event => setDescription(event.target.value)}
-              placeholder="Origem, regiao, observacoes"
+              placeholder="Origem, região, observações"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#a4240e]"
             />
           </div>
@@ -504,12 +504,12 @@ export default function ProspectionManager() {
 
       <div className="rounded-xl border border-gray-200 bg-white">
         <div className="border-b border-gray-100 px-5 py-4">
-          <h4 className="font-semibold text-gray-900">Listas de prospeccao</h4>
+          <h4 className="font-semibold text-gray-900">Listas de prospecção</h4>
           <p className="text-xs text-gray-500">{lists.length} lista{lists.length !== 1 ? 's' : ''} cadastrada{lists.length !== 1 ? 's' : ''}</p>
         </div>
 
         {lists.length === 0 ? (
-          <div className="py-12 text-center text-sm text-gray-500">Nenhuma lista de prospeccao criada ainda.</div>
+          <div className="py-12 text-center text-sm text-gray-500">Nenhuma lista de prospecção criada ainda.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[840px] text-sm">
@@ -531,7 +531,7 @@ export default function ProspectionManager() {
                         {[list.source_name, list.segment ? SEGMENT_LABEL[list.segment] || list.segment : null].filter(Boolean).join(' | ') || '-'}
                       </p>
                     </td>
-                    <td className="px-4 py-3 text-gray-700">{list.representatives?.full_name || 'Nao atribuido'}</td>
+                    <td className="px-4 py-3 text-gray-700">{list.representatives?.full_name || 'Não atribuído'}</td>
                     <td className="px-4 py-3">
                       <span className={`rounded-full px-2 py-1 text-xs font-semibold ${STATUS_STYLE[list.status] || 'bg-gray-100 text-gray-600'}`}>
                         {STATUS_LABEL[list.status] || list.status}

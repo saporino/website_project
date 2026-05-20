@@ -226,7 +226,7 @@ export function RepCoManagement() {
 
     // If pay_commission is false, we mark a note (the trigger will still create but admin can cancel)
     if (!payCommission) {
-      await supabase.from('representative_orders').update({ notes: 'SEM COMISSÃƒO - admin marcou como não-comissionável' }).eq('id', order.id);
+      await supabase.from('representative_orders').update({ notes: 'SEM COMISSÃO - admin marcou como não-comissionável' }).eq('id', order.id);
     }
 
     if (nfFile) await uploadNF(order.id, nfFile);
@@ -308,7 +308,7 @@ export function RepCoManagement() {
   const pendingCount = reps.filter(r => r.status === 'pending').length;
   const totalPending = commissions.filter(c => c.status === 'pending').reduce((s, c) => s + c.commission_amount, 0);
 
-  // â”€â”€ DETAIL VIEW â”€â”€
+  // DETAIL VIEW
   if (adminTab === 'detail' && selectedRep) {
     return (
       <div className="space-y-6">
@@ -316,7 +316,7 @@ export function RepCoManagement() {
         <div className="flex items-center gap-4">
           <button onClick={() => { setAdminTab('list'); setSelectedRep(null); }}
             className="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-            â† Voltar
+            Voltar
           </button>
           <div className="flex-1">
             <h2 className="text-2xl font-bold text-gray-900">{selectedRep.full_name}</h2>
@@ -347,7 +347,7 @@ export function RepCoManagement() {
             <p className="text-2xl font-bold text-gray-900">{orders.length}</p>
           </div>
           <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <p className="text-xs text-gray-500 mb-1">ComissÃµes Pendentes</p>
+            <p className="text-xs text-gray-500 mb-1">Comissões Pendentes</p>
             <p className="text-2xl font-bold text-amber-600">R$ {totalPending.toFixed(2)}</p>
           </div>
           <div className="bg-white border border-gray-200 rounded-xl p-4">
@@ -359,7 +359,7 @@ export function RepCoManagement() {
         {/* Inner tabs */}
         <div className="border-b border-gray-200 mb-4">
           <div className="flex gap-1">
-            {([{key:'pedidos',label:'Pedidos'},{key:'comissoes',label:'ComissÃµes'},{key:'precos',label:'Tabela de Preços'},{key:'rotas',label:'Rotas de Visita'}] as const).map(tab=>(
+            {([{key:'pedidos',label:'Pedidos'},{key:'comissoes',label:'Comissões'},{key:'precos',label:'Tabela de Preços'},{key:'rotas',label:'Rotas de Visita'}] as const).map(tab=>(
               <button key={tab.key} onClick={()=>setDetailTab(tab.key)}
                 className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${detailTab===tab.key?'border-[#a4240e] text-[#a4240e]':'border-transparent text-gray-500 hover:text-gray-700'}`}>
                 {tab.label}
@@ -421,7 +421,7 @@ export function RepCoManagement() {
                       return (
                         <div key={product.id} className={`flex items-center gap-3 p-2 rounded-lg transition-all ${isOut ? 'opacity-50' : qty > 0 ? 'bg-amber-50 border border-amber-200' : 'hover:bg-gray-50'}`}>
                           <div className="w-8 h-8 rounded-md overflow-hidden bg-gray-100 flex-shrink-0">
-                            {product.image_url ? <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">â˜•</div>}
+                            {product.image_url ? <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-300 text-xs">Café</div>}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
@@ -429,7 +429,7 @@ export function RepCoManagement() {
                           </div>
                           <div className="flex items-center gap-1.5">
                             {qty > 0 ? (<>
-                              <button onClick={() => updateOrderCart(product.id, -1)} className="w-6 h-6 rounded-full border border-gray-300 text-gray-600 flex items-center justify-center hover:bg-gray-100 text-xs">âˆ’</button>
+                              <button onClick={() => updateOrderCart(product.id, -1)} className="w-6 h-6 rounded-full border border-gray-300 text-gray-600 flex items-center justify-center hover:bg-gray-100 text-xs">−</button>
                               <span className="w-5 text-center text-sm font-bold">{qty}</span>
                               <button onClick={() => updateOrderCart(product.id, 1)} disabled={qty >= product.stock} className="w-6 h-6 rounded-full bg-[#a4240e] text-white flex items-center justify-center hover:bg-[#8a1f0c] disabled:opacity-30 text-xs">+</button>
                             </>) : (
@@ -572,14 +572,14 @@ export function RepCoManagement() {
     );
   }
 
-  // â”€â”€ PRICE LIST VIEW â”€â”€
+  // PRICE LIST VIEW
   if (adminView === 'price-list') {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
           <button onClick={() => setAdminView('list')}
             className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors">
-            â† Voltar aos Representantes
+            Voltar aos Representantes
           </button>
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Tabela de Preços Global</h2>
@@ -602,8 +602,8 @@ export function RepCoManagement() {
             Voltar aos Representantes
           </button>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Prospeccao RepCo</h2>
-            <p className="text-sm text-gray-500">Listas CSV e leads de prospeccao para representantes</p>
+            <h2 className="text-2xl font-bold text-gray-900">Prospecção RepCo</h2>
+            <p className="text-sm text-gray-500">Listas CSV e leads de prospecção para representantes</p>
           </div>
         </div>
         <ProspectionManager />
@@ -611,7 +611,7 @@ export function RepCoManagement() {
     );
   }
 
-  // â”€â”€ LIST VIEW â”€â”€
+  // LIST VIEW
   return (
     <div className="space-y-6">
       {/* Row 1: Title + Action buttons */}
@@ -619,23 +619,23 @@ export function RepCoManagement() {
         <div>
           <h2 className="text-3xl font-bold text-gray-900">Representantes Comerciais</h2>
           {pendingCount > 0 && (
-            <p className="text-sm text-amber-600 mt-1 font-medium">âš  {pendingCount} aguardando aprovação</p>
+            <p className="text-sm text-amber-600 mt-1 font-medium">{pendingCount} aguardando aprovação</p>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button onClick={() => setAdminView('price-list')}
             className="h-9 px-4 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
-            ðŸ“‹ Tabela de Preços
+            Tabela de Preços
           </button>
           <button onClick={() => setAdminView('prospection')}
             className="h-9 px-4 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
             <Upload className="w-4 h-4" />
-            Prospeccao
+            Prospecção
           </button>
           {isAdmin && (
             <button onClick={() => window.location.href = '/repco'}
               className="h-9 px-4 rounded-lg text-sm font-medium bg-[#8B2214] text-white hover:bg-[#6d1a10] transition-colors flex items-center gap-1.5">
-              ðŸš€ Abrir Portal RepCo
+              Abrir Portal RepCo
             </button>
           )}
           <button onClick={() => setAdminView(v => v === 'map' ? 'list' : 'map')}
@@ -671,7 +671,7 @@ export function RepCoManagement() {
       {snoozedClients.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4">
           <p className="text-sm font-semibold text-red-700 mb-2">
-            âš ï¸ {snoozedClients.length} cliente(s) adiados 2+ vezes sem comprar
+            {snoozedClients.length} cliente(s) adiados 2+ vezes sem comprar
           </p>
           <p className="text-xs text-red-600 mb-3">Considere transferir para outro representante ou contatar diretamente.</p>
           {snoozedClients.slice(0, 3).map((c: any) => (
@@ -708,7 +708,7 @@ export function RepCoManagement() {
       ) : filteredReps.length === 0 ? (
         <div className="text-center py-16 bg-white border border-gray-200 rounded-xl">
           <p className="text-4xl mb-3">
-            {canalFilter === 'site' ? 'ðŸ›’' : canalFilter === 'marketplaces' ? 'ðŸ¦' : 'ðŸ‘¥'}
+            {canalFilter === 'site' ? 'Site' : canalFilter === 'marketplaces' ? 'Marketplaces' : 'RepCo'}
           </p>
           <p className="text-gray-500 font-medium">
             {canalFilter === 'site' ? 'Nenhum cliente do site ainda' :
@@ -725,7 +725,7 @@ export function RepCoManagement() {
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Contato</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Cadastro</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">AçÃµes</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">

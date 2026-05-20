@@ -125,7 +125,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
 
   if (success) return (
     <div className="text-center py-12 space-y-4">
-      <div className="text-5xl">âœ…</div>
+      <div className="text-5xl">✓</div>
       <h3 className="text-lg font-semibold text-gray-800">Pedido enviado!</h3>
       <p className="text-sm text-gray-500">Registrado e aguardando processamento.</p>
       <button onClick={() => { setSuccess(false); setStep('client'); setSelectedClient(null); setItems([]); setNotes(''); }}
@@ -142,9 +142,9 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
           const past = ['client','products','review'].indexOf(step) > i;
           return (
             <div key={s} className="flex items-center gap-2">
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${step===s?'bg-[#a4240e] text-white':past?'bg-green-500 text-white':'bg-gray-200 text-gray-500'}`}>{past?'âœ“':i+1}</span>
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${step===s?'bg-[#a4240e] text-white':past?'bg-green-500 text-white':'bg-gray-200 text-gray-500'}`}>{past?'✓':i+1}</span>
               <span className={step===s?'text-[#a4240e]':'text-gray-400'}>{labels[i]}</span>
-              {i<2&&<span className="text-gray-300">â€º</span>}
+              {i<2&&<span className="text-gray-300">›</span>}
             </div>
           );
         })}
@@ -174,7 +174,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div><p className="text-sm font-semibold text-gray-900">{selectedClient.nome_fantasia||selectedClient.razao_social}</p>{selectedClient.segment&&<p className="text-xs text-[#a4240e]">{SEGMENT_LABEL[selectedClient.segment]}</p>}</div>
-            <button onClick={()=>setStep('client')} className="text-xs text-gray-400 hover:text-gray-600">â€¹ Trocar</button>
+            <button onClick={()=>setStep('client')} className="text-xs text-gray-400 hover:text-gray-600">Trocar</button>
           </div>
           {loading ? <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#a4240e]"/></div> : (
             <>
@@ -189,7 +189,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                     <div key={product.id} className={`bg-white border rounded-xl p-3 transition-all ${isOut?'opacity-60 border-gray-100':qty>0?'border-[#a4240e]/40':'border-gray-200'}`}>
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                          {product.image_url?<img src={product.image_url} alt={product.name} className="w-full h-full object-cover"/>:<div className="w-full h-full flex items-center justify-center text-gray-300">â˜•</div>}
+                          {product.image_url?<img src={product.image_url} alt={product.name} className="w-full h-full object-cover"/>:<div className="w-full h-full flex items-center justify-center text-gray-300">Café</div>}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-gray-900 truncate">{product.name}</p>
@@ -201,7 +201,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                         </div>
                         <div className="flex items-center gap-2">
                           {qty>0 ? (<>
-                            <button onClick={()=>updateQty(product,-1)} className="w-7 h-7 rounded-full border border-gray-300 text-gray-600 flex items-center justify-center hover:bg-gray-100">âˆ’</button>
+                            <button onClick={()=>updateQty(product,-1)} className="w-7 h-7 rounded-full border border-gray-300 text-gray-600 flex items-center justify-center hover:bg-gray-100">−</button>
                             <span className="w-6 text-center text-sm font-bold">{qty}</span>
                             <button onClick={()=>updateQty(product,1)} disabled={qty>=product.stock} className="w-7 h-7 rounded-full bg-[#a4240e] text-white flex items-center justify-center hover:bg-[#8a1f0c] disabled:opacity-30">+</button>
                           </>) : (
@@ -220,7 +220,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                 <div className="sticky bottom-0 bg-white border border-[#a4240e]/30 rounded-xl p-3 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div><p className="text-xs text-gray-500">{items.reduce((s,i)=>s+i.quantity,0)} itens</p><p className="font-bold text-[#a4240e]">R$ {calcTotal().toFixed(2)}</p></div>
-                    <button onClick={()=>setStep('review')} className="bg-[#a4240e] text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-[#8a1f0c]">Revisar â€º</button>
+                    <button onClick={()=>setStep('review')} className="bg-[#a4240e] text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-[#8a1f0c]">Revisar</button>
                   </div>
                 </div>
               )}
@@ -232,7 +232,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
       {/* Step 3 */}
       {step==='review' && selectedClient && (
         <div className="space-y-4">
-          <button onClick={()=>setStep('products')} className="text-xs text-gray-400 hover:text-gray-600">â€¹ Voltar</button>
+          <button onClick={()=>setStep('products')} className="text-xs text-gray-400 hover:text-gray-600">Voltar</button>
           <div className="bg-gray-50 rounded-xl p-4"><p className="font-semibold text-gray-900">{selectedClient.nome_fantasia||selectedClient.razao_social}</p>{selectedClient.segment&&<p className="text-xs text-[#a4240e] mt-0.5">{SEGMENT_LABEL[selectedClient.segment]}</p>}</div>
           <div className="space-y-2">
             {items.map(item => { const ep=effectivePrice(item.price,item.quantity); return (
@@ -254,7 +254,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
               </div>
               {hasClientOrderNumber&&(
                 <input type="text" value={clientOrderNumber} onChange={e=>setClientOrderNumber(e.target.value)}
-                  placeholder="NÂº do pedido do cliente"
+                  placeholder="Nº do pedido do cliente"
                   className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded focus:outline-none"/>
               )}
               {!hasClientOrderNumber&&(
@@ -296,7 +296,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
               <input type="checkbox" id="pd" checked={isPersonalDelivery} onChange={e=>setIsPersonalDelivery(e.target.checked)} className="w-4 h-4 accent-[#a4240e]"/>
               <label htmlFor="pd" className="text-sm text-amber-800 cursor-pointer">Entrega pessoal (+2,5% bônus na comissão)</label>
             </div>
-            <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2} placeholder="ObservaçÃµes..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none resize-none"/>
+            <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2} placeholder="Observações..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none resize-none"/>
           </div>
           <button onClick={handleSubmit} disabled={submitting} className="w-full bg-[#a4240e] text-white py-3 rounded-xl font-bold text-sm hover:bg-[#8a1f0c] disabled:opacity-50">
             {submitting?'Enviando...':`Confirmar Pedido — R$ ${(calcTotal()*(1-discountPercentage/100)).toFixed(2)}`}

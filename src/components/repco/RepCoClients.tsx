@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { CLIENT_SEGMENTS, SEGMENT_LABEL } from '../../constants/segments';
 import type { ClientSegment } from '../../constants/segments';
-
 interface RepCoClient {
   id: string; representative_id: string; cnpj: string; cpf: string | null;
   nome_completo: string | null; razao_social: string | null; nome_fantasia: string | null;
@@ -25,11 +24,9 @@ const emptyForm = {
   inscricao_estadual:'', is_pj:true,
 };
 type ViewMode = 'list'|'detail'|'edit'|'new';
-
 function fmtCNPJ(v:string){return v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5');}
 function fmtCPF(v:string){return v.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/,'$1.$2.$3-$4');}
 function days(d:string|null){if(!d)return 999;return Math.floor((Date.now()-new Date(d).getTime())/86400000);}
-
 export default function RepCoClients({ representativeId }: { representativeId: string }) {
   const [clients,setClients]=useState<RepCoClient[]>([]);
   const [loading,setLoading]=useState(true);
@@ -43,9 +40,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
   const [err,setErr]=useState('');
   const [ok,setOk]=useState('');
   const [search,setSearch]=useState('');
-
   useEffect(()=>{fetchClients();},[representativeId]);
-
   async function fetchClients(){
     setLoading(true);
     const{data}=await supabase.from('representative_clients').select('*').eq('representative_id',representativeId).order('razao_social',{ascending:true});
@@ -68,7 +63,6 @@ export default function RepCoClients({ representativeId }: { representativeId: s
     setView('edit');setErr('');
   }
   function openNew(){setForm(emptyForm);setView('new');setErr('');}
-
   async function searchCNPJ(){
     const cnpj=form.cnpj.replace(/\D/g,'');
     if(cnpj.length!==14){setErr('CNPJ deve ter 14 dígitos.');return;}
@@ -83,7 +77,6 @@ export default function RepCoClients({ representativeId }: { representativeId: s
     }catch{setErr('CNPJ não encontrado. Preencha manualmente.');}
     setSearching(false);
   }
-
   async function handleSave(){
     if(form.is_pj&&!form.cnpj){setErr('CNPJ obrigatório.');return;}
     if(!form.is_pj&&!form.cpf){setErr('CPF obrigatório.');return;}
@@ -107,22 +100,18 @@ export default function RepCoClients({ representativeId }: { representativeId: s
     else{setOk(view==='edit'?'Atualizado!':'Cadastrado!');fetchClients();setView('list');setTimeout(()=>setOk(''),3000);}
     setSaving(false);
   }
-
   const filtered=clients.filter(c=>{
     if(!search)return true;
     const t=search.toLowerCase();
     return c.nome_fantasia?.toLowerCase().includes(t)||c.razao_social?.toLowerCase().includes(t)||c.cnpj?.includes(t)||c.nome_comprador?.toLowerCase().includes(t);
   });
-
   const inp='w-full h-[34px] px-3 text-sm border border-gray-300 rounded focus:outline-none';
   const lbl='block text-xs font-medium text-gray-600 mb-1';
-
   if(loading)return<div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600"/></div>;
-
   if(view==='new'||view==='edit') return(
     <div className="space-y-4">
       <div className="flex items-center gap-3">
-        <button onClick={()=>setView('list')} className="text-sm text-gray-400 hover:text-gray-600">â€¹ Voltar</button>
+        <button onClick={()=>setView('list')} className="text-sm text-gray-400 hover:text-gray-600">Voltar</button>
         <h3 className="text-lg font-semibold text-gray-800">{view==='edit'?'Editar cliente':'Novo cliente B2B'}</h3>
       </div>
       {err&&<div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{err}</div>}
@@ -194,27 +183,25 @@ export default function RepCoClients({ representativeId }: { representativeId: s
       <div className="flex gap-2">
         <button onClick={()=>setView('list')} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100">Cancelar</button>
         <button onClick={handleSave} disabled={saving} className="flex-1 px-6 py-2 text-sm bg-[#8B2214] text-white rounded-lg hover:bg-[#6d1a10] disabled:opacity-50">
-          {saving?'Salvando...':view==='edit'?'Salvar alteraçÃµes':'Cadastrar cliente'}
+          {saving?'Salvando...':view==='edit'?'Salvar alterações':'Cadastrar cliente'}
         </button>
       </div>
     </div>
   );
-
   if(view==='detail'&&sel) {
     const d=days(sel.last_order_at);
     const total=hist.reduce((s,o)=>s+(o.total_amount||0),0);
     return(
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <button onClick={()=>setView('list')} className="text-sm text-gray-400 hover:text-gray-600">â€¹ Voltar</button>
+          <button onClick={()=>setView('list')} className="text-sm text-gray-400 hover:text-gray-600">Voltar</button>
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-gray-800">{sel.nome_fantasia||sel.razao_social||sel.nome_completo}</h3>
             {sel.segment&&<span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{SEGMENT_LABEL[sel.segment]}</span>}
           </div>
-          <button onClick={()=>openEdit(sel)} className="text-sm bg-[#8B2214] text-white px-3 py-1.5 rounded-lg hover:bg-[#6d1a10]">âœï¸ Editar</button>
+          <button onClick={()=>openEdit(sel)} className="text-sm bg-[#8B2214] text-white px-3 py-1.5 rounded-lg hover:bg-[#6d1a10]">Editar</button>
         </div>
         {d>=7&&<div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-3">
-          <span className="text-xl">âš ï¸</span>
           <div className="flex-1">
             <p className="text-sm font-medium text-red-700">{d>=999?'Nunca comprou':`${d} dias sem comprar`}</p>
             {sel.snooze_admin_alert&&<p className="text-xs text-red-500 mt-0.5">Adiado {sel.snooze_count}x — requer atenção</p>}
@@ -272,14 +259,13 @@ export default function RepCoClients({ representativeId }: { representativeId: s
       </div>
     );
   }
-
   return(
     <div className="space-y-4">
       {ok&&<div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">{ok}</div>}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-800">Meus Clientes</h3>
-          <p className="text-sm text-gray-500">{clients.filter(c=>c.is_active_client).length} ativos Â· {clients.filter(c=>!c.is_active_client).length} inativos</p>
+          <p className="text-sm text-gray-500">{clients.filter(c=>c.is_active_client).length} ativos · {clients.filter(c=>!c.is_active_client).length} inativos</p>
         </div>
         <button onClick={openNew} className="flex items-center gap-2 bg-[#8B2214] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#6d1a10]">+ Novo Cliente</button>
       </div>
@@ -287,7 +273,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
         className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"/>
       {clients.filter(c=>c.snooze_admin_alert).length>0&&(
         <div className="bg-red-50 border border-red-200 rounded-xl p-3">
-          <p className="text-sm font-medium text-red-700 mb-2">âš ï¸ {clients.filter(c=>c.snooze_admin_alert).length} cliente(s) precisam de atenção</p>
+          <p className="text-sm font-medium text-red-700 mb-2">{clients.filter(c=>c.snooze_admin_alert).length} cliente(s) precisam de atenção</p>
           {clients.filter(c=>c.snooze_admin_alert).map(c=>(
             <div key={c.id} className="flex items-center justify-between py-1">
               <span className="text-sm text-gray-700">{c.nome_fantasia||c.razao_social}</span>
@@ -296,7 +282,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
           ))}
         </div>
       )}
-      {filtered.length===0?<div className="text-center py-12 text-gray-400"><p className="text-4xl mb-3">ðŸª</p><p className="font-medium">Nenhum cliente encontrado</p></div>
+      {filtered.length===0?<div className="text-center py-12 text-gray-400"><p className="font-medium">Nenhum cliente encontrado</p></div>
       :<div className="space-y-2">
         {filtered.map(c=>{
           const d=days(c.last_order_at);const inactive=d>=7;
@@ -309,11 +295,11 @@ export default function RepCoClients({ representativeId }: { representativeId: s
                     <span className="font-medium text-gray-800 text-sm">{c.nome_fantasia||c.razao_social||c.nome_completo||'Sem nome'}</span>
                     {c.segment&&<span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{SEGMENT_LABEL[c.segment]}</span>}
                     {!c.is_active_client&&<span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Inativo</span>}
-                    {c.snooze_admin_alert&&<span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">âš ï¸ Atenção</span>}
+                    {c.snooze_admin_alert&&<span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">Atenção</span>}
                   </div>
                   <p className="text-xs text-gray-500 mt-0.5">
                     {c.cnpj&&c.cnpj!=='00000000000000'?fmtCNPJ(c.cnpj):c.cpf?fmtCPF(c.cpf):''}
-                    {c.nome_comprador&&` Â· ${c.nome_comprador}`}
+                    {c.nome_comprador&&` · ${c.nome_comprador}`}
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0 ml-2">
@@ -328,4 +314,3 @@ export default function RepCoClients({ representativeId }: { representativeId: s
     </div>
   );
 }
-

@@ -69,15 +69,15 @@ interface Order {
 }
 
 const ORDER_STATUSES = [
-  { key: 'created', label: 'Criado', color: 'bg-gray-100 text-gray-700', icon: 'ðŸ“‹' },
-  { key: 'payment_pending', label: 'Ag. Pagamento', color: 'bg-yellow-100 text-yellow-800', icon: 'â³' },
-  { key: 'payment_approved', label: 'Pago', color: 'bg-blue-100 text-blue-800', icon: 'ðŸ’³' },
-  { key: 'invoice_pending', label: 'Ag. Nota Fiscal', color: 'bg-orange-100 text-orange-800', icon: 'ðŸ§¾' },
-  { key: 'ready_for_shipment', label: 'Pronto p/ Envio', color: 'bg-purple-100 text-purple-800', icon: 'ðŸ“¦' },
-  { key: 'label_generated', label: 'Etiqueta Gerada', color: 'bg-indigo-100 text-indigo-800', icon: 'ðŸ·ï¸' },
-  { key: 'shipped', label: 'Enviado', color: 'bg-cyan-100 text-cyan-800', icon: 'ðŸšš' },
-  { key: 'delivered', label: 'Entregue', color: 'bg-green-100 text-green-800', icon: 'âœ✅' },
-  { key: 'cancelled', label: 'Cancelado', color: 'bg-red-100 text-red-800', icon: 'âŒ' },
+  { key: 'created', label: 'Criado', color: 'bg-gray-100 text-gray-700', icon: '' },
+  { key: 'payment_pending', label: 'Ag. Pagamento', color: 'bg-yellow-100 text-yellow-800', icon: '' },
+  { key: 'payment_approved', label: 'Pago', color: 'bg-blue-100 text-blue-800', icon: '' },
+  { key: 'invoice_pending', label: 'Ag. Nota Fiscal', color: 'bg-orange-100 text-orange-800', icon: '' },
+  { key: 'ready_for_shipment', label: 'Pronto p/ Envio', color: 'bg-purple-100 text-purple-800', icon: '' },
+  { key: 'label_generated', label: 'Etiqueta Gerada', color: 'bg-indigo-100 text-indigo-800', icon: '' },
+  { key: 'shipped', label: 'Enviado', color: 'bg-cyan-100 text-cyan-800', icon: '' },
+  { key: 'delivered', label: 'Entregue', color: 'bg-green-100 text-green-800', icon: '' },
+  { key: 'cancelled', label: 'Cancelado', color: 'bg-red-100 text-red-800', icon: '' },
 ];
 
 // Legacy status map
@@ -204,7 +204,7 @@ export function OrdersManagement() {
           <select value={filter} onChange={(e) => setFilter(e.target.value)}
             className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a4240e] focus:border-transparent">
             <option value="all">Todos os Status</option>
-            {ORDER_STATUSES.map(s => <option key={s.key} value={s.key}>{s.icon} {s.label}</option>)}
+            {ORDER_STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
           </select>
         </div>
       </div>
@@ -256,12 +256,12 @@ function OrderCard({ order, expanded, section, onToggle, onSetSection, onRefresh
                   </span>
                 )}
               </div>
-              <p className="text-sm text-gray-600">{order.customer_name} â€¢ {new Date(order.created_at).toLocaleDateString('pt-BR')}</p>
+              <p className="text-sm text-gray-600">{order.customer_name} · {new Date(order.created_at).toLocaleDateString('pt-BR')}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <span className={`px-3 py-1 rounded-full text-sm font-semibold ${statusInfo.color}`}>
-              {statusInfo.icon} {statusInfo.label}
+              {statusInfo.label}
             </span>
             <span className="text-xl font-bold text-[#a4240e]">R$ {order.total_amount?.toFixed(2)}</span>
             {expanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
@@ -277,7 +277,7 @@ function OrderCard({ order, expanded, section, onToggle, onSetSection, onRefresh
             {[
               { key: 'overview', label: '📋 Visão Geral' },
               { key: 'package', label: '📦 Embalagem' },
-              { key: 'invoice', label: `🧾 Nota Fiscal${invoice ? ' âœ✅' : ''}` },
+              { key: 'invoice', label: `Nota Fiscal${invoice ? ' ✓' : ''}` },
               { key: 'logistics', label: '🚚 Logística' },
             ].map(tab => (
               <button key={tab.key} onClick={() => onSetSection(tab.key)}
@@ -319,7 +319,7 @@ function OverviewSection({ order, onRefresh }: any) {
     </style></head><body>
     <h1>CAFÉ SAPORINO — PEDIDO ${order.order_number}</h1>
     <div class="box"><strong>Cliente:</strong> ${order.customer_name}<br><strong>E-mail:</strong> ${order.customer_email}<br><strong>Telefone:</strong> ${order.customer_phone}</div>
-    <div class="box"><strong>Endereço:</strong> ${order.address_street || ''}, ${order.address_number || ''}<br>${order.address_city || ''} - ${order.address_state || ''} â€¢ CEP: ${order.cep || ''}</div>
+    <div class="box"><strong>Endereço:</strong> ${order.address_street || ''}, ${order.address_number || ''}<br>${order.address_city || ''} - ${order.address_state || ''} · CEP: ${order.cep || ''}</div>
     <table><thead><tr><th>Produto</th><th>Qtd</th><th>Peso Unit.</th><th>Preço Unit.</th><th>Subtotal</th></tr></thead><tbody>
     ${order.order_items?.map((i: any) => `<tr><td>${i.products?.name}</td><td>${i.quantity}</td><td>${i.products?.weight_grams}g</td><td>R$ ${i.unit_price.toFixed(2)}</td><td>R$ ${(i.unit_price * i.quantity).toFixed(2)}</td></tr>`).join('')}
     </tbody></table>
@@ -355,7 +355,7 @@ function OverviewSection({ order, onRefresh }: any) {
         <select value={getOrderStatus(order)}
           onChange={(e) => updateStatus(e.target.value)}
           className="h-[34px] px-3 text-sm border border-gray-300 rounded">
-          {ORDER_STATUSES.map(s => <option key={s.key} value={s.key}>{s.icon} {s.label}</option>)}
+          {ORDER_STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
         </select>
         <button onClick={printOrder}
           className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium transition-colors">
@@ -406,7 +406,7 @@ function PackageSection({ order, onRefresh }: any) {
     <div className="space-y-4">
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
         <p className="text-sm text-amber-800">
-          <strong>âš–ï¸ Peso estimado dos produtos:</strong> {totalWeight}g ({(totalWeight / 1000).toFixed(3)}kg)
+          <strong>Peso estimado dos produtos:</strong> {totalWeight}g ({(totalWeight / 1000).toFixed(3)}kg)
           <br /><span className="text-xs">Inclua o peso da embalagem ao preencher abaixo</span>
         </p>
       </div>
@@ -431,7 +431,7 @@ function PackageSection({ order, onRefresh }: any) {
       <button onClick={savePackage} disabled={saving}
         className="flex items-center gap-2 px-5 py-2.5 bg-[#a4240e] text-white rounded-lg hover:bg-[#8a1f0c] transition-colors text-sm font-medium disabled:opacity-60">
         <Save className="w-4 h-4" />
-        <span>{saving ? 'Salvando...' : 'Salvar DimensÃµes'}</span>
+        <span>{saving ? 'Salvando...' : 'Salvar Dimensões'}</span>
       </button>
     </div>
   );
@@ -684,7 +684,7 @@ function LogisticsSection({ order, shipment, invoice, onRefresh }: any) {
             <strong>Para gerar a etiqueta:</strong>
             <ul className="mt-1 list-disc list-inside space-y-0.5">
               {!invoice && <li>Vincule a Nota Fiscal (aba NF)</li>}
-              {!order.package_weight && <li>Preencha o peso e dimensÃµes (aba Embalagem)</li>}
+              {!order.package_weight && <li>Preencha o peso e dimensões (aba Embalagem)</li>}
             </ul>
           </div>
         </div>

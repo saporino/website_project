@@ -311,7 +311,7 @@ export default function BatchManagement() {
                           <span className="font-semibold text-sm text-gray-900">{b.batch_number||"Sem numero"}</span>
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[b.status]}`}>{STATUS_LABELS[b.status]}</span>
                         </div>
-                        <p className="text-xs text-gray-500">{b.product_name} Â· {b.company_name} Â· {b.quantity_packages} pacotes</p>
+                        <p className="text-xs text-gray-500">{b.product_name} · {b.company_name} · {b.quantity_packages} pacotes</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -349,7 +349,7 @@ export default function BatchManagement() {
                   <div className="w-10 h-10 bg-[#f5f0ef] rounded-lg flex items-center justify-center"><Building2 className="w-5 h-5 text-[#8B2214]"/></div>
                   <div>
                     <p className="font-semibold text-sm text-gray-900">{c.name}</p>
-                    <p className="text-xs text-gray-500">Cod: {c.company_code} Â· {c.cnpj} Â· {c.city}/{c.state}</p>
+                    <p className="text-xs text-gray-500">Cód: {c.company_code} · {c.cnpj} · {c.city}/{c.state}</p>
                     {c.director_name&&<p className="text-xs text-gray-400">Dir: {c.director_name}</p>}
                   </div>
                 </div>
@@ -582,7 +582,7 @@ export default function BatchManagement() {
                         {out.map((t:any)=>{
                           const dest=getLoteByName(t.to_lot_id);
                           return(<div key={t.id} className="text-xs flex justify-between">
-                            <span>â†’ {dest?.batch_number??'?'} | {Number(t.kg_amount).toFixed(1)} kg {t.kind==='green'?'verde':'torrado'}</span>
+                            <span>→ {dest?.batch_number??'?'} | {Number(t.kg_amount).toFixed(1)} kg {t.kind==='green'?'verde':'torrado'}</span>
                             <span>{formatBRL(Number(t.value_amount_brl))}</span>
                           </div>);
                         })}
@@ -594,7 +594,7 @@ export default function BatchManagement() {
                         {incoming.map((t:any)=>{
                           const src=getLoteByName(t.from_lot_id);
                           return(<div key={t.id} className="text-xs flex justify-between">
-                            <span>â† {src?.batch_number??'?'} | {Number(t.kg_amount).toFixed(1)} kg {t.kind==='green'?'verde':'torrado'}</span>
+                            <span>← {src?.batch_number??'?'} | {Number(t.kg_amount).toFixed(1)} kg {t.kind==='green'?'verde':'torrado'}</span>
                             <span>{formatBRL(Number(t.value_amount_brl))}</span>
                           </div>);
                         })}

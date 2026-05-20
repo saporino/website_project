@@ -122,13 +122,13 @@ export default function RouteManager() {
             <button onClick={() => setView('create')} className="bg-[#a4240e] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-[#8a1f0c]">+ Nova Rota</button>
           </div>
           {routes.length === 0 ? (
-            <div className="text-center py-12 text-gray-400"><p className="text-4xl mb-3">ðŸ—ºï¸</p><p className="font-medium">Nenhuma rota criada ainda</p><p className="text-sm mt-1">Clique em "Nova Rota" para fazer upload de um CSV</p></div>
+            <div className="text-center py-12 text-gray-400"><p className="font-medium">Nenhuma rota criada ainda</p><p className="text-sm mt-1">Clique em "Nova Rota" para fazer upload de um CSV</p></div>
           ) : (
             <div className="space-y-2">
               {routes.map(route => (
                 <div key={route.id} className="bg-white border border-gray-200 rounded-xl p-4">
                   <div className="flex items-start justify-between">
-                    <div><p className="font-medium text-gray-800">{route.name}</p><p className="text-xs text-gray-500 mt-0.5">{(route.representatives as any)?.full_name ?? '—'} Â· {new Date(route.created_at).toLocaleDateString('pt-BR')}</p></div>
+                    <div><p className="font-medium text-gray-800">{route.name}</p><p className="text-xs text-gray-500 mt-0.5">{(route.representatives as any)?.full_name ?? '—'} · {new Date(route.created_at).toLocaleDateString('pt-BR')}</p></div>
                     <div className="flex items-center gap-2">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${route.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>{route.status === 'active' ? 'Ativa' : 'Inativa'}</span>
                       <button onClick={() => handleDeleteRoute(route.id)} className="text-red-400 hover:text-red-600 text-xs px-2 py-1 rounded border border-red-200 hover:bg-red-50">Excluir</button>
@@ -144,12 +144,12 @@ export default function RouteManager() {
       {view === 'create' && (
         <div className="space-y-5">
           <div className="flex items-center gap-3">
-            <button onClick={() => { setView('list'); setCsvStops([]); setError(''); }} className="text-sm text-gray-500 hover:text-gray-700">â€¹ Voltar</button>
+            <button onClick={() => { setView('list'); setCsvStops([]); setError(''); }} className="text-sm text-gray-500 hover:text-gray-700">Voltar</button>
             <h4 className="font-semibold text-gray-800">Nova Rota</h4>
           </div>
 
           <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">1. InformaçÃµes</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">1. Informações</p>
             <div><label className="block text-xs font-medium text-gray-600 mb-1">Nome da rota *</label><input type="text" value={routeName} onChange={e => setRouteName(e.target.value)} placeholder="Ex: Zona Sul SP — Semana 20" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none"/></div>
             <div><label className="block text-xs font-medium text-gray-600 mb-1">Representante *</label>
               <select value={selectedRep} onChange={e => setSelectedRep(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none">
@@ -190,7 +190,6 @@ export default function RouteManager() {
               <p className="opacity-70">Cabeçalho obrigatório. Separado por vírgula. UTF-8.</p>
             </div>
             <div onClick={() => fileRef.current?.click()} className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-[#a4240e] hover:bg-red-50/20 transition-colors">
-              <p className="text-2xl mb-2">ðŸ“‚</p>
               <p className="text-sm font-medium text-gray-700">Clique para selecionar o CSV</p>
               <p className="text-xs text-gray-400 mt-1">Exportado do Google Sheets, Excel, Scraper, etc.</p>
               <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleCSVUpload} className="hidden"/>
@@ -205,9 +204,9 @@ export default function RouteManager() {
                       <button onClick={handleGeocode} className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700">Geocodificar</button>
                     )}
                     {geocodeProgress === 100 && !optimized && (
-                      <button onClick={handleOptimize} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700">âœ¨ Otimizar rota</button>
+                      <button onClick={handleOptimize} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700">Otimizar rota</button>
                     )}
-                    {optimized && <span className="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-lg font-medium">âœ“ Otimizada</span>}
+                    {optimized && <span className="text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-lg font-medium">Otimizada</span>}
                   </div>
                 </div>
                 {geocoding && (
