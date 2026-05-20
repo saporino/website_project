@@ -64,6 +64,10 @@ interface ParsedLead {
   error: string | null;
 }
 
+const MAX_IMPORT_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_IMPORT_ROWS = 5000;
+const DANGEROUS_RAW_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
 const STATUS_LABEL: Record<string, string> = {
   draft: 'Rascunho',
   imported: 'Importada',
@@ -158,7 +162,7 @@ function normalizeKey(key: string) {
 
 function normalizeValue(value: unknown) {
   if (value === null || value === undefined) return null;
-  const text = String(value).trim();
+  const text = String(value).replace(/\u0000/g, '').trim();
   return text.length > 0 ? text : null;
 }
 
@@ -192,22 +196,73 @@ function normalizeCategorySegment(category: string | null, fallbackSegment: stri
 }
 
 function getCategoryField(row: Record<string, unknown>) {
-  return getField(row, ['categoryname', 'categories_0', 'categories', 'category', 'categoria', 'tipo', 'segmento']);
+  return getField(row, ['categoryname', 'categories_0', 'categories_1', 'categories', 'category', 'categoria', 'tipo', 'segmento']);
+}
+
+function sanitizeRawData(row: Record<string, unknown>) {
+  return Object.entries(row).reduce<Record<string, unknown>>((acc, [key, value]) => {
+    if (DANGEROUS_RAW_KEYS.has(key) || DANGEROUS_RAW_KEYS.has(normalizeKey(key))) return acc;
+    if (value === null || value === undefined) {
+      acc[key] = value;
+    } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      acc[key] = String(value).replace(/\u0000/g, '');
+    } else {
+      try {
+        acc[key] = JSON.parse(JSON.stringify(value));
+      } catch {
+        acc[key] = String(value).replace(/\u0000/g, '');
+      }
+    }
+    return acc;
+  }, {});
+}
+
+async function parseProspectFile(file: File) {
+  const extension = file.name.split('.').pop()?.toLowerCase();
+
+  if (file.size > MAX_IMPORT_FILE_SIZE_BYTES) {
+    throw new Error('Arquivo grande demais. Envie um arquivo de até 10 MB.');
+  }
+
+  if (extension === 'xlsx' || extension === 'xls') {
+    const XLSX = await import('xlsx');
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: 'array' });
+    const firstSheetName = workbook.SheetNames[0];
+    if (!firstSheetName) throw new Error('Planilha inválida: nenhuma aba encontrada.');
+    const sheet = workbook.Sheets[firstSheetName];
+    return XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '', raw: false });
+  }
+
+  const text = await file.text();
+  const result = Papa.parse<Record<string, unknown>>(text, {
+    header: true,
+    skipEmptyLines: 'greedy',
+    transformHeader: header => header.trim(),
+  });
+
+  if (result.errors.length > 0) {
+    throw new Error(result.errors[0]?.message || 'Não foi possível ler o arquivo.');
+  }
+
+  return result.data;
 }
 
 function normalizeRow(row: Record<string, unknown>, rowNumber: number, fallbackSegment: string): ParsedLead {
   const normalizedRow = Object.entries(row).reduce<Record<string, unknown>>((acc, [key, value]) => {
-    acc[normalizeKey(key)] = value;
+    if (!DANGEROUS_RAW_KEYS.has(key) && !DANGEROUS_RAW_KEYS.has(normalizeKey(key))) {
+      acc[normalizeKey(key)] = value;
+    }
     return acc;
   }, {});
 
   const companyName =
-    getField(normalizedRow, ['company_name', 'nome_empresa', 'empresa', 'razao_social', 'razao', 'nome', 'name']) || '';
-  const tradeName = getField(normalizedRow, ['trade_name', 'nome_fantasia', 'fantasia']);
+    getField(normalizedRow, ['title', 'name', 'nome_empresa', 'companyname', 'businessname', 'empresa', 'razao_social', 'razao', 'nome', 'nome_fantasia']) || '';
+  const tradeName = getField(normalizedRow, ['trade_name', 'nome_fantasia', 'fantasia', 'businessname']);
   const category = getCategoryField(normalizedRow);
   const segment = normalizeCategorySegment(category, getField(normalizedRow, ['segment', 'segmento', 'setor']) || fallbackSegment);
-  const lat = parseNumber(getField(normalizedRow, ['lat', 'latitude']));
-  const lng = parseNumber(getField(normalizedRow, ['lng', 'lon', 'long', 'longitude']));
+  const lat = parseNumber(getField(normalizedRow, ['location_lat', 'lat', 'latitude']));
+  const lng = parseNumber(getField(normalizedRow, ['location_lng', 'lng', 'lon', 'long', 'longitude']));
   const isValid = companyName.trim().length > 0;
 
   return {
@@ -219,21 +274,21 @@ function normalizeRow(row: Record<string, unknown>, rowNumber: number, fallbackS
     segment,
     category,
     source: getField(normalizedRow, ['source', 'origem', 'fonte']),
-    address: getField(normalizedRow, ['address', 'endereco', 'logradouro', 'rua']),
+    address: getField(normalizedRow, ['address', 'endereco', 'street', 'logradouro', 'rua']),
     number: getField(normalizedRow, ['number', 'numero', 'num']),
     complement: getField(normalizedRow, ['complement', 'complemento']),
-    district: getField(normalizedRow, ['district', 'bairro']),
+    district: getField(normalizedRow, ['district', 'neighborhood', 'bairro']),
     city: getField(normalizedRow, ['city', 'cidade', 'municipio']),
     state: getField(normalizedRow, ['state', 'estado', 'uf']),
-    zip_code: onlyDigits(getField(normalizedRow, ['zip_code', 'cep', 'postal_code'])),
+    zip_code: onlyDigits(getField(normalizedRow, ['zip_code', 'postalcode', 'cep', 'postal_code'])),
     lat,
     lng,
     contact_name: getField(normalizedRow, ['contact_name', 'contato', 'nome_contato', 'responsavel']),
-    phone: getField(normalizedRow, ['phone', 'telefone', 'tel']),
+    phone: getField(normalizedRow, ['phone', 'phones_0', 'telefone', 'tel']),
     whatsapp: getField(normalizedRow, ['whatsapp', 'whats']),
-    email: getField(normalizedRow, ['email', 'e_mail']),
+    email: getField(normalizedRow, ['email', 'emails_0', 'e_mail']),
     website: getField(normalizedRow, ['website', 'site', 'url']),
-    raw_data: row,
+    raw_data: sanitizeRawData(row),
     isValid,
     error: isValid ? null : 'Nome da empresa ausente',
   };
@@ -304,7 +359,7 @@ export default function ProspectionManager() {
     [categoryFilter, listCategories, lists]
   );
 
-  async function handleCSVUpload(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleProspectFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -315,21 +370,20 @@ export default function ProspectionManager() {
       setListName(file.name.replace(/\.[^.]+$/, ''));
     }
 
-    const text = await file.text();
-    const result = Papa.parse<Record<string, unknown>>(text, {
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: header => header.trim(),
-    });
-
-    if (result.errors.length > 0) {
-      setParseError(result.errors[0]?.message || 'Não foi possível ler o CSV.');
+    let parsedRows: Record<string, unknown>[];
+    try {
+      parsedRows = await parseProspectFile(file);
+    } catch (error) {
+      setParseError(error instanceof Error ? error.message : 'Não foi possível ler o arquivo.');
       return;
     }
-
-    const rows = result.data.filter(row => Object.values(row).some(value => normalizeValue(value)));
+    const rows = parsedRows.filter(row => Object.values(row).some(value => normalizeValue(value)));
     if (rows.length === 0) {
-      setParseError('CSV vazio ou sem cabecalho reconhecido.');
+      setParseError('Arquivo vazio ou sem cabeçalho reconhecido.');
+      return;
+    }
+    if (rows.length > MAX_IMPORT_ROWS) {
+      setParseError(`Arquivo com muitas linhas. O limite atual é de ${MAX_IMPORT_ROWS.toLocaleString('pt-BR')} linhas por importação.`);
       return;
     }
 
@@ -472,15 +526,15 @@ export default function ProspectionManager() {
           className="flex h-10 items-center justify-center gap-2 rounded-lg bg-[#a4240e] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#8a1f0c]"
         >
           <Upload className="h-4 w-4" />
-          Importar CSV
+          Importar CSV/XLSX
         </button>
-        <input ref={fileRef} type="file" accept=".csv,.txt" onChange={handleCSVUpload} className="hidden" />
+        <input ref={fileRef} type="file" accept=".csv,.txt,.xlsx,.xls" onChange={handleProspectFileUpload} className="hidden" />
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white p-5">
         <div className="mb-4 flex items-center gap-2">
           <FileText className="h-5 w-5 text-[#a4240e]" />
-          <h4 className="font-semibold text-gray-900">Nova lista por CSV</h4>
+          <h4 className="font-semibold text-gray-900">Nova lista por CSV/XLSX</h4>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
@@ -542,9 +596,9 @@ export default function ProspectionManager() {
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
           <p className="font-semibold">Colunas aceitas</p>
           <p className="mt-1 font-mono text-[11px]">
-            nome_empresa, razao_social, nome_fantasia, categoryName, categories/0, categories, category, categoria, tipo,
-            segmento, cnpj, cpf, endereco, numero, bairro, cidade, estado, cep, telefone, whatsapp, email, site, latitude,
-            longitude
+            title, name, nome_empresa, companyName, businessName, categoryName, categories/0, categories/1, categories,
+            address, street, city, state, postalCode, location/lat, location/lng, phone, phones/0, email, emails/0,
+            website, instagramUrl, facebookUrl
           </p>
         </div>
 
