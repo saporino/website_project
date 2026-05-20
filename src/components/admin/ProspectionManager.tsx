@@ -1007,7 +1007,7 @@ export default function ProspectionManager() {
 
       if (error) {
         setSavingAudit(false);
-        toast.error('Não foi possível salvar a auditoria do site.');
+      toast.error('Não foi possível salvar a edição do site.');
         return;
       }
 
@@ -1018,7 +1018,7 @@ export default function ProspectionManager() {
 
     setSavingAudit(false);
     setAuditTarget(null);
-    toast.success('Auditoria do site salva.');
+    toast.success('Edição do site salva.');
   }
   function getActiveFilterLabel() {
     const parts = [
@@ -1489,7 +1489,7 @@ export default function ProspectionManager() {
       {auditTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl">
-            <h4 className="text-lg font-semibold text-gray-900">Auditar site</h4>
+            <h4 className="text-lg font-semibold text-gray-900">Editar site</h4>
             <p className="mt-1 text-sm text-gray-500">{auditTarget.lead.trade_name || auditTarget.lead.company_name}</p>
 
             <label className="mt-4 block text-xs font-medium text-gray-600">Situação</label>
@@ -1533,7 +1533,7 @@ export default function ProspectionManager() {
                 disabled={savingAudit}
                 className="rounded-lg bg-[#a4240e] px-4 py-2 text-sm font-semibold text-white hover:bg-[#8a1f0c] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {savingAudit ? 'Salvando...' : 'Salvar auditoria'}
+                {savingAudit ? 'Salvando...' : 'Salvar edição'}
               </button>
             </div>
           </div>
@@ -1571,7 +1571,7 @@ function PreviewLeadCard({ lead, onAudit, stored = false }: { lead: ParsedLead |
             onClick={() => onAudit(stored ? { type: 'stored', lead: lead as StoredProspectLead } : { type: 'preview', lead: lead as ParsedLead })}
             className="rounded-full border border-gray-200 px-2 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-50"
           >
-            Auditar
+            Editar
           </button>
         </div>
       </div>
