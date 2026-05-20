@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Papa from 'papaparse';
-import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, ExternalLink, FileText, Mail, MapPin, MessageCircle, Phone, Trash2, Upload } from 'lucide-react';
+import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, ExternalLink, FileText, Mail, MessageCircle, Phone, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -79,6 +79,57 @@ interface ParsedLead {
 const MAX_IMPORT_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const MAX_IMPORT_ROWS = 5000;
 const DANGEROUS_RAW_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const PREVIEW_PAGE_SIZE = 100;
+
+const APIFY_DEFAULT_CATEGORIES = [
+  'padaria',
+  'padaria e confeitaria',
+  'panificadora',
+  'padaria artesanal',
+  'padaria gourmet',
+  'cafetaria',
+  'cafetaria artesanal',
+  'café especial',
+  'specialty coffee',
+  'coffee shop',
+  'restaurante',
+  'restaurante por quilo',
+  'lanchonete',
+  'bistrot',
+  'buffet',
+  'self service',
+  'almoço executivo',
+  'hotel',
+  'pousada',
+  'resort',
+  'hotel fazenda',
+  'cozinha industrial',
+  'refeitório',
+  'alimentação coletiva',
+  'empresa de alimentação',
+  'food service',
+  'distribuidora de alimentos',
+  'distribuidora de café',
+  'atacado de alimentos',
+  'distribuidora food service',
+  'distribuidora de produtos para padaria',
+  'empório',
+  'supermercado atacado',
+  'cash and carry',
+  'confeitaria',
+  'doceria',
+  'bolo artesanal',
+  'mercado',
+  'mini mercado',
+  'conveniência',
+  'posto de gasolina',
+  'academia',
+  'mercadinho de condomínio',
+  'pizzaria',
+  'hospital',
+  'churrascaria',
+  'coworking',
+];
 
 const STATUS_LABEL: Record<string, string> = {
   draft: 'Rascunho',
@@ -221,6 +272,14 @@ function normalizeUrl(value: string | null) {
   return `https://${text}`;
 }
 
+function getUrlKind(url: string | null) {
+  if (!url) return null;
+  const lower = url.toLowerCase();
+  if (lower.includes('instagram.com')) return 'instagram';
+  if (lower.includes('facebook.com') || lower.includes('fb.com')) return 'facebook';
+  return 'site';
+}
+
 function parseNumber(value: unknown) {
   const text = normalizeValue(value);
   if (!text) return null;
@@ -321,18 +380,34 @@ function isLeadAssignable(lead: Pick<ParsedLead, 'isValid' | 'duplicate_of_clien
 }
 
 function getContactLinks(lead: Pick<ParsedLead, 'phone' | 'whatsapp' | 'email' | 'website' | 'raw_data'>) {
-  const phoneDigits = cleanPhone(lead.whatsapp) || cleanPhone(lead.phone) || cleanPhone(getRawValue(lead.raw_data, ['phone', 'phones/0', 'telefone', 'tel', 'mobile']));
+  const whatsappDigits = cleanPhone(lead.whatsapp) || cleanPhone(getRawValue(lead.raw_data, ['whatsapp', 'whats', 'mobile', 'celular']));
+  const phoneDigits = cleanPhone(lead.phone) || cleanPhone(getRawValue(lead.raw_data, ['phone', 'phones/0', 'telefone', 'tel']));
   const email = lead.email || getRawValue(lead.raw_data, ['email', 'emails/0', 'e_mail']);
-  const site = normalizeUrl(lead.website || getRawValue(lead.raw_data, ['website', 'site', 'url']));
-  const instagram = normalizeUrl(getRawValue(lead.raw_data, ['instagram', 'instagramUrl', 'instagram_url', 'socialLinks/instagram', 'sociallinks_instagram']));
-  const facebook = normalizeUrl(getRawValue(lead.raw_data, ['facebook', 'facebookUrl', 'facebook_url', 'socialLinks/facebook', 'sociallinks_facebook']));
+  const urlCandidates = [
+    normalizeUrl(lead.website),
+    normalizeUrl(getRawValue(lead.raw_data, ['website', 'site', 'url'])),
+    normalizeUrl(getRawValue(lead.raw_data, ['instagram', 'instagramUrl', 'instagram_url', 'socialLinks/instagram', 'sociallinks_instagram'])),
+    normalizeUrl(getRawValue(lead.raw_data, ['facebook', 'facebookUrl', 'facebook_url', 'socialLinks/facebook', 'sociallinks_facebook'])),
+  ].filter(Boolean) as string[];
+
+  const links = urlCandidates.reduce<{ instagram: string | null; facebook: string | null; site: string | null }>(
+    (acc, url) => {
+      const kind = getUrlKind(url);
+      if (kind === 'instagram' && !acc.instagram) acc.instagram = url;
+      if (kind === 'facebook' && !acc.facebook) acc.facebook = url;
+      if (kind === 'site' && !acc.site) acc.site = url;
+      return acc;
+    },
+    { instagram: null, facebook: null, site: null }
+  );
 
   return {
+    whatsappDigits,
     phoneDigits,
     email,
-    site,
-    instagram,
-    facebook,
+    site: links.site,
+    instagram: links.instagram,
+    facebook: links.facebook,
   };
 }
 
@@ -429,6 +504,8 @@ export default function ProspectionManager() {
   const [segment, setSegment] = useState('');
   const [selectedRep, setSelectedRep] = useState('');
   const [parseError, setParseError] = useState('');
+  const [importCategoryFilter, setImportCategoryFilter] = useState('');
+  const [importSegmentFilter, setImportSegmentFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [segmentFilter, setSegmentFilter] = useState('');
   const [showAcceptedColumns, setShowAcceptedColumns] = useState(false);
@@ -438,10 +515,15 @@ export default function ProspectionManager() {
   const [assigningListId, setAssigningListId] = useState<string | null>(null);
   const [assigningFilteredKey, setAssigningFilteredKey] = useState<string | null>(null);
   const [deletingListId, setDeletingListId] = useState<string | null>(null);
+  const [previewVisibleCount, setPreviewVisibleCount] = useState(PREVIEW_PAGE_SIZE);
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    setPreviewVisibleCount(PREVIEW_PAGE_SIZE);
+  }, [importCategoryFilter, importSegmentFilter, parsedLeads.length]);
 
   async function fetchData() {
     setLoading(true);
@@ -476,16 +558,8 @@ export default function ProspectionManager() {
     setLoading(false);
   }
 
-  const validLeads = useMemo(() => parsedLeads.filter(lead => lead.isValid), [parsedLeads]);
-  const invalidLeads = useMemo(() => parsedLeads.filter(lead => !lead.isValid), [parsedLeads]);
-  const duplicateLeads = useMemo(() => validLeads.filter(lead => lead.duplicate_of_client_id), [validLeads]);
-  const assignableLeads = useMemo(() => validLeads.filter(isLeadAssignable), [validLeads]);
-  const leadsWithCoords = useMemo(
-    () => validLeads.filter(lead => lead.lat !== null && lead.lng !== null).length,
-    [validLeads]
-  );
   const categoryOptions = useMemo(
-    () => Array.from(new Set(Object.values(listCategories).flat())).sort(),
+    () => Array.from(new Set([...APIFY_DEFAULT_CATEGORIES, ...Object.values(listCategories).flat()])).sort(),
     [listCategories]
   );
   const segmentOptions = useMemo(
@@ -500,6 +574,36 @@ export default function ProspectionManager() {
         return matchesCategory && matchesSegment;
       }),
     [categoryFilter, listCategories, listSegments, lists, segmentFilter]
+  );
+  const importCategoryOptions = useMemo(
+    () => Array.from(new Set([...APIFY_DEFAULT_CATEGORIES, ...(parsedLeads.map(lead => lead.category).filter(Boolean) as string[])])).sort(),
+    [parsedLeads]
+  );
+  const importSegmentOptions = useMemo(
+    () => Array.from(new Set(parsedLeads.map(lead => lead.segment).filter(Boolean) as string[])).sort(),
+    [parsedLeads]
+  );
+  const filteredParsedLeads = useMemo(
+    () =>
+      parsedLeads.filter(lead => {
+        const matchesCategory = importCategoryFilter ? lead.category === importCategoryFilter : true;
+        const matchesSegment = importSegmentFilter ? lead.segment === importSegmentFilter : true;
+        return matchesCategory && matchesSegment;
+      }),
+    [importCategoryFilter, importSegmentFilter, parsedLeads]
+  );
+  const filteredValidLeads = useMemo(() => filteredParsedLeads.filter(lead => lead.isValid), [filteredParsedLeads]);
+  const filteredInvalidLeads = useMemo(() => filteredParsedLeads.filter(lead => !lead.isValid), [filteredParsedLeads]);
+  const filteredDuplicateLeads = useMemo(() => filteredValidLeads.filter(lead => lead.duplicate_of_client_id), [filteredValidLeads]);
+  const filteredAssignableLeads = useMemo(() => filteredValidLeads.filter(isLeadAssignable), [filteredValidLeads]);
+  const filteredLeadsWithCoords = useMemo(
+    () => filteredValidLeads.filter(lead => lead.lat !== null && lead.lng !== null).length,
+    [filteredValidLeads]
+  );
+  const hasImportFilter = Boolean(importCategoryFilter || importSegmentFilter);
+  const visiblePreviewLeads = useMemo(
+    () => filteredParsedLeads.slice(0, previewVisibleCount),
+    [filteredParsedLeads, previewVisibleCount]
   );
 
   async function fetchExistingClients() {
@@ -552,16 +656,16 @@ export default function ProspectionManager() {
       toast.error('Informe um nome para a lista.');
       return;
     }
-    if (validLeads.length === 0) {
+    if (filteredValidLeads.length === 0) {
       toast.error('Importe um arquivo com pelo menos uma linha válida.');
       return;
     }
 
     setSaving(true);
-    const hasNonAssignableLeads = validLeads.some(lead => !isLeadAssignable(lead));
+    const hasNonAssignableLeads = filteredValidLeads.some(lead => !isLeadAssignable(lead));
     const canAssignByList = Boolean(selectedRep && !hasNonAssignableLeads);
-    const listStatus = selectedRep && assignableLeads.length > 0 ? 'assigned' : 'imported';
-    const uniqueSegments = Array.from(new Set(validLeads.map(lead => lead.segment).filter(Boolean)));
+    const listStatus = selectedRep && filteredAssignableLeads.length > 0 ? 'assigned' : 'imported';
+    const uniqueSegments = Array.from(new Set(filteredValidLeads.map(lead => lead.segment).filter(Boolean)));
     const listSegment = segment || (uniqueSegments.length === 1 ? uniqueSegments[0] : null);
     const { data: list, error: listError } = await supabase
       .from('prospect_lists')
@@ -573,10 +677,10 @@ export default function ProspectionManager() {
         source_name: selectedFileName || null,
         status: listStatus,
         assigned_representative_id: canAssignByList ? selectedRep : null,
-        total_count: parsedLeads.length,
-        pending_count: assignableLeads.length,
-        duplicate_count: duplicateLeads.length,
-        invalid_count: invalidLeads.length,
+        total_count: filteredParsedLeads.length,
+        pending_count: filteredAssignableLeads.length,
+        duplicate_count: filteredDuplicateLeads.length,
+        invalid_count: filteredInvalidLeads.length,
         created_by: user?.id || null,
       })
       .select('id')
@@ -588,7 +692,7 @@ export default function ProspectionManager() {
       return;
     }
 
-    const payload = validLeads.map(lead => ({
+    const payload = filteredValidLeads.map(lead => ({
       prospect_list_id: list.id,
       representative_id: selectedRep && isLeadAssignable(lead) ? selectedRep : null,
       company_name: lead.company_name,
@@ -630,9 +734,19 @@ export default function ProspectionManager() {
       return;
     }
 
-    toast.success(`Lista criada com ${assignableLeads.length} lead${assignableLeads.length !== 1 ? 's' : ''} para visita${duplicateLeads.length ? ` e ${duplicateLeads.length} já cliente/duplicado` : ''}.`);
+    toast.success(`Lista criada com ${filteredAssignableLeads.length} lead${filteredAssignableLeads.length !== 1 ? 's' : ''} para visita${filteredDuplicateLeads.length ? ` e ${filteredDuplicateLeads.length} já cliente/duplicado` : ''}.`);
     setSaving(false);
-    resetImportForm();
+    if (hasImportFilter) {
+      const createdRows = new Set(filteredParsedLeads.map(lead => lead.rowNumber));
+      setParsedLeads(current => current.filter(lead => !createdRows.has(lead.rowNumber)));
+      setImportCategoryFilter('');
+      setImportSegmentFilter('');
+      setListName('');
+      setDescription('');
+      setSelectedRep('');
+    } else {
+      resetImportForm();
+    }
     fetchData();
   }
 
@@ -771,6 +885,8 @@ export default function ProspectionManager() {
     setSegment('');
     setSelectedRep('');
     setParseError('');
+    setImportCategoryFilter('');
+    setImportSegmentFilter('');
     if (fileRef.current) fileRef.current.value = '';
   }
 
@@ -891,70 +1007,97 @@ export default function ProspectionManager() {
 
         {parsedLeads.length > 0 && (
           <div className="mt-5 space-y-4">
-            <div className="grid gap-3 sm:grid-cols-4">
-              <Metric label="Linhas" value={parsedLeads.length} />
-              <Metric label="Válidas" value={validLeads.length} tone="green" />
-              <Metric label="Inválidas" value={invalidLeads.length} tone={invalidLeads.length > 0 ? 'red' : 'gray'} />
-              <Metric label="Com coordenada" value={leadsWithCoords} />
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Filtro para criar esta lista</p>
+                  <p className="text-xs text-gray-500">Use categoria e segmento para criar uma lista menor a partir do mesmo arquivo.</p>
+                </div>
+                {hasImportFilter && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImportCategoryFilter('');
+                      setImportSegmentFilter('');
+                    }}
+                    className="text-xs font-semibold text-[#a4240e] hover:underline"
+                  >
+                    Limpar filtros
+                  </button>
+                )}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Categoria do arquivo</label>
+                  <select
+                    value={importCategoryFilter}
+                    onChange={event => setImportCategoryFilter(event.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#a4240e]"
+                  >
+                    <option value="">Todas as categorias</option>
+                    {importCategoryOptions.map(category => (
+                      <option key={category} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Segmento normalizado</label>
+                  <select
+                    value={importSegmentFilter}
+                    onChange={event => setImportSegmentFilter(event.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#a4240e]"
+                  >
+                    <option value="">Todos os segmentos</option>
+                    {importSegmentOptions.map(segmentValue => (
+                      <option key={segmentValue} value={segmentValue}>
+                        {PROSPECT_SEGMENT_LABEL[segmentValue] || SEGMENT_LABEL[segmentValue] || segmentValue}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
 
-            <div className="overflow-hidden rounded-lg border border-gray-200">
-              <div className="max-h-80 overflow-auto">
-                <table className="w-full min-w-[1120px] text-sm">
-                  <thead className="sticky top-0 bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                    <tr>
-                      <th className="px-3 py-2 text-left">Linha</th>
-                      <th className="px-3 py-2 text-left">Empresa</th>
-                      <th className="px-3 py-2 text-left">Categoria</th>
-                      <th className="px-3 py-2 text-left">Segmento</th>
-                      <th className="px-3 py-2 text-left">CNPJ/CPF</th>
-                      <th className="px-3 py-2 text-left">Cidade</th>
-                      <th className="px-3 py-2 text-left">Contato</th>
-                      <th className="px-3 py-2 text-left">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100 bg-white">
-                    {parsedLeads.slice(0, 50).map(lead => (
-                      <tr key={lead.rowNumber}>
-                        <td className="px-3 py-2 text-xs text-gray-500">{lead.rowNumber}</td>
-                        <td className="px-3 py-2">
-                          <p className="font-medium text-gray-900">{lead.company_name || '-'}</p>
-                          {lead.trade_name && <p className="text-xs text-gray-500">{lead.trade_name}</p>}
-                        </td>
-                        <td className="px-3 py-2 text-xs text-gray-600">{lead.category || '-'}</td>
-                        <td className="px-3 py-2 text-xs text-gray-600">
-                          {lead.segment ? PROSPECT_SEGMENT_LABEL[lead.segment] || SEGMENT_LABEL[lead.segment] || lead.segment : '-'}
-                        </td>
-                        <td className="px-3 py-2 text-xs text-gray-600">{lead.cnpj || lead.cpf || '-'}</td>
-                        <td className="px-3 py-2 text-xs text-gray-600">{lead.city || '-'}</td>
-                        <td className="px-3 py-2 text-xs text-gray-600"><ContactPreview lead={lead} /></td>
-                        <td className="px-3 py-2">
-                          {!lead.isValid ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-700">
-                              <AlertCircle className="h-3 w-3" />
-                              {lead.error}
-                            </span>
-                          ) : lead.duplicate_of_client_id ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-700" title={lead.duplicateReason || undefined}>
-                              <AlertCircle className="h-3 w-3" />
-                              Já é cliente
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
-                              <CheckCircle className="h-3 w-3" />
-                              Para visita
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {parsedLeads.length > 50 && (
-                <p className="border-t border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-500">
-                  Mostrando 50 de {parsedLeads.length} linhas no preview.
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <Metric label="No filtro" value={filteredParsedLeads.length} />
+              <Metric label="Para visita" value={filteredAssignableLeads.length} tone="green" />
+              <Metric label="Já clientes" value={filteredDuplicateLeads.length} tone={filteredDuplicateLeads.length > 0 ? 'amber' : 'gray'} />
+              <Metric label="Inválidas" value={filteredInvalidLeads.length} tone={filteredInvalidLeads.length > 0 ? 'red' : 'gray'} />
+              <Metric label="Com coordenada" value={filteredLeadsWithCoords} />
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                <p className="text-sm font-semibold text-gray-900">Preview dos leads</p>
+                <p className="text-xs text-gray-500">
+                  Mostrando {Math.min(visiblePreviewLeads.length, filteredParsedLeads.length)} de {filteredParsedLeads.length} registros filtrados
                 </p>
+              </div>
+
+              {visiblePreviewLeads.length === 0 ? (
+                <div className="rounded-lg border border-gray-200 bg-white py-10 text-center text-sm text-gray-500">
+                  Nenhum lead encontrado para este filtro.
+                </div>
+              ) : (
+                <div className="grid gap-3 xl:grid-cols-2">
+                  {visiblePreviewLeads.map(lead => (
+                    <PreviewLeadCard key={lead.rowNumber} lead={lead} />
+                  ))}
+                </div>
+              )}
+
+              {filteredParsedLeads.length > previewVisibleCount && (
+                <div className="flex justify-center pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewVisibleCount(current => current + PREVIEW_PAGE_SIZE)}
+                    className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    Mostrar mais {Math.min(PREVIEW_PAGE_SIZE, filteredParsedLeads.length - previewVisibleCount)}
+                  </button>
+                </div>
               )}
             </div>
 
@@ -967,10 +1110,10 @@ export default function ProspectionManager() {
               </button>
               <button
                 onClick={handleCreateList}
-                disabled={saving || validLeads.length === 0}
+                disabled={saving || filteredValidLeads.length === 0}
                 className="rounded-lg bg-[#a4240e] px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#8a1f0c] disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {saving ? 'Criando...' : `Criar lista com ${assignableLeads.length} para visita`}
+                {saving ? 'Criando...' : `Criar lista com ${filteredAssignableLeads.length} para visita`}
               </button>
             </div>
           </div>
@@ -1077,7 +1220,7 @@ export default function ProspectionManager() {
                           disabled={assigningListId === list.id}
                           className="rounded-lg border border-[#a4240e] px-3 py-1.5 text-xs font-semibold text-[#a4240e] hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                          {assigningListId === list.id ? 'Atribuindo...' : 'Atribuir lista'}
+                          {assigningListId === list.id ? 'Atribuindo...' : 'Atribuir lista inteira'}
                         </button>
                       </div>
                       <div className="mt-2 flex flex-wrap gap-2">
@@ -1101,7 +1244,7 @@ export default function ProspectionManager() {
                               className="rounded-lg bg-[#a4240e] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#8a1f0c] disabled:cursor-not-allowed disabled:opacity-50"
                               title={`Aplicar em leads filtrados por ${getActiveFilterLabel()}`}
                             >
-                              {assigningFilteredKey === `${list.id}-assign` ? 'Atribuindo...' : 'Atribuir leads filtrados'}
+                              {assigningFilteredKey === `${list.id}-assign` ? 'Atribuindo...' : 'Atribuir filtro atual'}
                             </button>
                             <button
                               onClick={() => handleAssignFilteredLeads(list, true)}
@@ -1109,7 +1252,7 @@ export default function ProspectionManager() {
                               className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                               title={`Remover dos leads filtrados por ${getActiveFilterLabel()}`}
                             >
-                              {assigningFilteredKey === `${list.id}-remove` ? 'Removendo...' : 'Remover dos filtrados'}
+                              {assigningFilteredKey === `${list.id}-remove` ? 'Removendo...' : 'Remover representante do filtro'}
                             </button>
                           </>
                         )}
@@ -1150,33 +1293,74 @@ export default function ProspectionManager() {
   );
 }
 
+function PreviewLeadCard({ lead }: { lead: ParsedLead }) {
+  const status = !lead.isValid
+    ? { label: lead.error || 'Inválida', className: 'bg-red-100 text-red-700', icon: <AlertCircle className="h-3.5 w-3.5" /> }
+    : lead.duplicate_of_client_id
+      ? { label: 'Já é cliente', className: 'bg-amber-100 text-amber-700', icon: <AlertCircle className="h-3.5 w-3.5" /> }
+      : { label: 'Para visita', className: 'bg-green-100 text-green-700', icon: <CheckCircle className="h-3.5 w-3.5" /> };
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold text-gray-900">{lead.company_name || '-'}</p>
+            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold ${status.className}`} title={lead.duplicateReason || undefined}>
+              {status.icon}
+              {status.label}
+            </span>
+          </div>
+          {lead.trade_name && <p className="mt-0.5 text-xs text-gray-500">{lead.trade_name}</p>}
+          {(lead.cnpj || lead.cpf) && <p className="mt-1 text-xs text-gray-500">{lead.cnpj || lead.cpf}</p>}
+        </div>
+        <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-500">Linha {lead.rowNumber}</span>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {lead.category && <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">{lead.category}</span>}
+        <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+          {lead.segment ? PROSPECT_SEGMENT_LABEL[lead.segment] || SEGMENT_LABEL[lead.segment] || lead.segment : 'Sem segmento'}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1.1fr]">
+        <div>
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Endereço</p>
+          <AddressPreview lead={lead} />
+        </div>
+        <div>
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Contatos</p>
+          <ContactPreview lead={lead} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ContactPreview({ lead }: { lead: ParsedLead }) {
   const links = getContactLinks(lead);
-  const address = [lead.address, lead.number, lead.district, lead.city, lead.state].filter(Boolean).join(', ');
 
-  if (!links.phoneDigits && !links.email && !links.site && !links.instagram && !links.facebook && !address) {
+  if (!links.whatsappDigits && !links.phoneDigits && !links.email && !links.site && !links.instagram && !links.facebook) {
     return <span>-</span>;
   }
 
   return (
-    <div className="flex max-w-xs flex-wrap gap-1">
-      {links.phoneDigits && (
-        <>
-          <a href={`https://wa.me/${toBrazilPhone(links.phoneDigits)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded border border-green-200 bg-green-50 px-1.5 py-0.5 text-green-700">
-            <MessageCircle className="h-3 w-3" />
-            WhatsApp
-          </a>
-          <a href={`tel:${links.phoneDigits}`} className="inline-flex items-center gap-1 rounded border border-gray-200 px-1.5 py-0.5 text-gray-600">
-            <Phone className="h-3 w-3" />
-            Telefone
-          </a>
-          <a href={`sms:${links.phoneDigits}`} className="rounded border border-gray-200 px-1.5 py-0.5 text-gray-600">
-            SMS
-          </a>
-        </>
+    <div className="flex max-w-sm flex-wrap gap-1.5">
+      {links.whatsappDigits && (
+        <a href={`https://wa.me/${toBrazilPhone(links.whatsappDigits)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-green-200 bg-green-50 px-2 py-1 text-green-700">
+          <MessageCircle className="h-3 w-3" />
+          WhatsApp
+        </a>
+      )}
+      {links.phoneDigits && links.phoneDigits !== links.whatsappDigits && (
+        <a href={`tel:${links.phoneDigits}`} className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-gray-600">
+          <Phone className="h-3 w-3" />
+          Telefone
+        </a>
       )}
       {links.email && (
-        <a href={`mailto:${links.email}`} className="inline-flex items-center gap-1 rounded border border-gray-200 px-1.5 py-0.5 text-gray-600">
+        <a href={`mailto:${links.email}`} className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-gray-600">
           <Mail className="h-3 w-3" />
           Email
         </a>
@@ -1184,19 +1368,28 @@ function ContactPreview({ lead }: { lead: ParsedLead }) {
       {links.instagram && <ExternalContactLink href={links.instagram} label="Instagram" />}
       {links.facebook && <ExternalContactLink href={links.facebook} label="Facebook" />}
       {links.site && <ExternalContactLink href={links.site} label="Site" />}
-      {address && (
-        <span title={address} className="inline-flex items-center gap-1 rounded border border-gray-200 px-1.5 py-0.5 text-gray-600">
-          <MapPin className="h-3 w-3" />
-          Endereço
-        </span>
-      )}
+    </div>
+  );
+}
+
+function AddressPreview({ lead }: { lead: ParsedLead }) {
+  const address = [lead.address, lead.number, lead.district].filter(Boolean).join(', ');
+  const city = [lead.city, lead.state].filter(Boolean).join('/');
+  const zipCode = lead.zip_code ? `CEP ${lead.zip_code}` : null;
+
+  if (!address && !city && !zipCode) return <span>-</span>;
+
+  return (
+    <div className="max-w-xs leading-snug">
+      {address && <p className="text-gray-700">{address}</p>}
+      {(city || zipCode) && <p className="text-gray-500">{[city, zipCode].filter(Boolean).join(' - ')}</p>}
     </div>
   );
 }
 
 function ExternalContactLink({ href, label }: { href: string; label: string }) {
   return (
-    <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded border border-gray-200 px-1.5 py-0.5 text-gray-600">
+    <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-gray-600">
       <ExternalLink className="h-3 w-3" />
       {label}
     </a>
