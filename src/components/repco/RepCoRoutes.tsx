@@ -86,7 +86,7 @@ export default function RepCoRoutes({ representativeId, currentLat, currentLng, 
   }
 
   async function updateStatus(stopId: string, status: VisitStatus, notes?: string) {
-    if (previewMode) return;
+    if (previewMode) { alert('Ação desativada no espelho.'); return; }
     setUpdating(stopId);
     const updates: any = { visit_status: status, visit_notes: notes };
     if (status === 'in_progress' && !stops.find(s => s.id === stopId)?.arrival_at) updates.arrival_at = new Date().toISOString();
@@ -98,7 +98,7 @@ export default function RepCoRoutes({ representativeId, currentLat, currentLng, 
   }
 
   async function uploadPhoto(stopId: string, file: File) {
-    if (previewMode) return;
+    if (previewMode) { alert('Ação desativada no espelho.'); return; }
     setUploading(stopId);
     const path = `visits/${representativeId}/${stopId}/${Date.now()}.jpg`;
     const { error } = await supabase.storage.from('visit-photos').upload(path, file, { upsert: true });
@@ -131,7 +131,7 @@ export default function RepCoRoutes({ representativeId, currentLat, currentLng, 
   }
 
   async function finalizeDay() {
-    if (previewMode) return;
+    if (previewMode) { alert('Ação desativada no espelho.'); return; }
     if (!sel) return;
     setFinalizing(true);
     const completed = stops.filter(s => s.visit_status === 'completed').length;
@@ -149,7 +149,7 @@ export default function RepCoRoutes({ representativeId, currentLat, currentLng, 
   }
 
   async function convertToClient(stop: Stop) {
-    if (previewMode) return;
+    if (previewMode) { alert('Ação desativada no espelho.'); return; }
     const cnpj = prompt('CNPJ do cliente (somente números):');
     if (!cnpj) return;
     const { error } = await supabase.from('representative_clients').insert({ representative_id: representativeId, cnpj: cnpj.replace(/\D/g, ''), razao_social: stop.company_name, endereco_completo: stop.address, whatsapp_comprador: stop.phone || null, segment: stop.segment || null, status: 'active', is_active_client: true });
@@ -259,8 +259,8 @@ export default function RepCoRoutes({ representativeId, currentLat, currentLng, 
                       <p className="text-xs text-gray-500 font-medium mb-2">Atualizar status:</p>
                       <div className="grid grid-cols-2 gap-2">
                         {(Object.entries(STATUS_CFG) as [VisitStatus, typeof STATUS_CFG.pending][]).map(([key, c]) => (
-                          <button key={key} onClick={() => updateStatus(stop.id, key)} disabled={previewMode || updating === stop.id} title={previewMode ? 'Bloqueado no preview' : undefined}
-                            className="text-xs py-2 px-3 rounded-lg border font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                          <button key={key} onClick={() => updateStatus(stop.id, key)} disabled={updating === stop.id}
+                            className="text-xs py-2 px-3 rounded-lg border font-medium transition-colors disabled:opacity-50"
                             style={{ background: stop.visit_status === key ? c.color : c.bg, color: stop.visit_status === key ? '#fff' : c.tc, borderColor: c.color }}>
                             {c.label}
                           </button>
@@ -276,15 +276,15 @@ export default function RepCoRoutes({ representativeId, currentLat, currentLng, 
                             {stop.proof_photo_at && <p className="text-xs text-gray-400">📍 {new Date(stop.proof_photo_at).toLocaleString('pt-BR')}</p>}
                           </div>
                         ) : (
-                          <button onClick={() => { if (previewMode) return; pendingStop.current = stop.id; photoRef.current?.click(); }} disabled={previewMode || uploading === stop.id}
-                            className="w-full flex items-center justify-center gap-2 text-xs bg-amber-50 border border-amber-200 text-amber-700 px-3 py-2.5 rounded-lg hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50">
-                            {previewMode ? 'Bloqueado no preview' : uploading === stop.id ? 'Enviando...' : '📷 Tirar foto de comprovante'}
+                          <button onClick={() => { if (previewMode) { alert('Ação desativada no espelho.'); return; } pendingStop.current = stop.id; photoRef.current?.click(); }} disabled={uploading === stop.id}
+                            className="w-full flex items-center justify-center gap-2 text-xs bg-amber-50 border border-amber-200 text-amber-700 px-3 py-2.5 rounded-lg hover:bg-amber-100 disabled:opacity-50">
+                            {uploading === stop.id ? 'Enviando...' : '📷 Tirar foto de comprovante'}
                           </button>
                         )}
                       </div>
                     )}
                     {(stop.visit_status === 'completed' || stop.visit_status === 'in_progress') && !stop.representative_client_id && (
-                      <button onClick={() => convertToClient(stop)} disabled={previewMode} title={previewMode ? 'Bloqueado no preview' : undefined} className="w-full text-xs bg-[#8B2214] text-white py-2 rounded-lg hover:bg-[#6d1a10] disabled:cursor-not-allowed disabled:opacity-50">{previewMode ? 'Bloqueado no preview' : '🔄 Converter em cliente'}</button>
+                      <button onClick={() => convertToClient(stop)} className="w-full text-xs bg-[#8B2214] text-white py-2 rounded-lg hover:bg-[#6d1a10]">🔄 Converter em cliente</button>
                     )}
                     {stop.segment && <p className="text-xs text-gray-400">Segmento: {SEGMENT_LABEL[stop.segment] ?? stop.segment}</p>}
                   </div>
@@ -305,11 +305,11 @@ export default function RepCoRoutes({ representativeId, currentLat, currentLng, 
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => setShowFinalize(false)} className="flex-1 text-xs border border-gray-300 text-gray-600 py-2 rounded-lg">Cancelar</button>
-                    <button onClick={finalizeDay} disabled={previewMode || finalizing} className="flex-1 text-xs bg-[#8B2214] text-white py-2 rounded-lg disabled:cursor-not-allowed disabled:opacity-50">{previewMode ? 'Bloqueado no preview' : finalizing ? 'Finalizando...' : '🏁 Confirmar'}</button>
+                    <button onClick={finalizeDay} disabled={finalizing} className="flex-1 text-xs bg-[#8B2214] text-white py-2 rounded-lg disabled:opacity-50">{finalizing ? 'Finalizando...' : '🏁 Confirmar'}</button>
                   </div>
                 </div>
               ) : (
-                <button onClick={() => setShowFinalize(true)} disabled={previewMode} title={previewMode ? 'Bloqueado no preview' : undefined} className="w-full bg-gray-800 text-white py-3 rounded-xl text-sm font-medium hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-50">{previewMode ? 'Bloqueado no preview' : '🏁 Finalizar dia'}</button>
+                <button onClick={() => setShowFinalize(true)} className="w-full bg-gray-800 text-white py-3 rounded-xl text-sm font-medium hover:bg-gray-900">🏁 Finalizar dia</button>
               )}
             </div>
           )}

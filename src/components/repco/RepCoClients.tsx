@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { CLIENT_SEGMENTS, SEGMENT_LABEL } from '../../constants/segments';
 import type { ClientSegment } from '../../constants/segments';
 interface RepCoClient {
-  id: string; representative_id: string; cnpj: string; cpf: string | null;
+  id: string; representative_id: string; cnpj: string | null; cpf: string | null;
   nome_completo: string | null; razao_social: string | null; nome_fantasia: string | null;
   situacao_receita: string | null; endereco_completo: string | null; email_comprador: string | null;
   email_xml: string | null; nome_comprador: string | null; whatsapp_comprador: string | null;
@@ -53,7 +53,7 @@ export default function RepCoClients({ representativeId, previewMode = false }: 
   }
   function openDetail(c:RepCoClient){setSel(c);setView('detail');fetchHist(c.id);}
   function openEdit(c:RepCoClient){
-    if (previewMode) return;
+    if (previewMode) { alert('Ação desativada no espelho.'); return; }
     setSel(c);
     setForm({cnpj:c.cnpj||'',cpf:c.cpf||'',nome_completo:c.nome_completo||'',razao_social:c.razao_social||'',
       nome_fantasia:c.nome_fantasia||'',situacao_receita:c.situacao_receita||'',endereco_completo:c.endereco_completo||'',
@@ -63,7 +63,7 @@ export default function RepCoClients({ representativeId, previewMode = false }: 
       segment:c.segment||'',inscricao_estadual:c.inscricao_estadual||'',is_pj:!c.cpf});
     setView('edit');setErr('');
   }
-  function openNew(){if (previewMode) return; setForm(emptyForm);setView('new');setErr('');}
+  function openNew(){if (previewMode) { alert('Ação desativada no espelho.'); return; } setForm(emptyForm);setView('new');setErr('');}
   async function searchCNPJ(){
     const cnpj=form.cnpj.replace(/\D/g,'');
     if(cnpj.length!==14){setErr('CNPJ deve ter 14 dígitos.');return;}
@@ -79,13 +79,13 @@ export default function RepCoClients({ representativeId, previewMode = false }: 
     setSearching(false);
   }
   async function handleSave(){
-    if (previewMode) { setErr('Bloqueado no preview.'); return; }
+    if (previewMode) { setErr('Ação desativada no espelho.'); return; }
     if(form.is_pj&&!form.cnpj){setErr('CNPJ obrigatório.');return;}
     if(!form.is_pj&&!form.cpf){setErr('CPF obrigatório.');return;}
     if(!form.segment){setErr('Selecione o segmento.');return;}
     setSaving(true);setErr('');
     const p={representative_id:representativeId,
-      cnpj:form.is_pj?form.cnpj.replace(/\D/g,''):'00000000000000',
+      cnpj:form.is_pj?form.cnpj.replace(/\D/g,''):null,
       cpf:!form.is_pj?form.cpf.replace(/\D/g,''):null,
       nome_completo:!form.is_pj?form.nome_completo:null,
       razao_social:form.razao_social||form.nome_completo||null,nome_fantasia:form.nome_fantasia||null,
@@ -201,7 +201,7 @@ export default function RepCoClients({ representativeId, previewMode = false }: 
             <h3 className="text-lg font-semibold text-gray-800">{sel.nome_fantasia||sel.razao_social||sel.nome_completo}</h3>
             {sel.segment&&<span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{SEGMENT_LABEL[sel.segment]}</span>}
           </div>
-          <button onClick={()=>openEdit(sel)} disabled={previewMode} title={previewMode ? 'Bloqueado no preview' : undefined} className="text-sm bg-[#8B2214] text-white px-3 py-1.5 rounded-lg hover:bg-[#6d1a10] disabled:cursor-not-allowed disabled:opacity-50">{previewMode ? 'Bloqueado no preview' : 'Editar'}</button>
+          <button onClick={()=>openEdit(sel)} className="text-sm bg-[#8B2214] text-white px-3 py-1.5 rounded-lg hover:bg-[#6d1a10]">Editar</button>
         </div>
         {d>=7&&<div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-3">
           <div className="flex-1">
@@ -221,7 +221,7 @@ export default function RepCoClients({ representativeId, previewMode = false }: 
         </div>
         <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Dados cadastrais</p>
-          {sel.cnpj&&sel.cnpj!=='00000000000000'&&<div className="flex justify-between text-sm"><span className="text-gray-500">CNPJ</span><span>{fmtCNPJ(sel.cnpj)}</span></div>}
+          {sel.cnpj&&<div className="flex justify-between text-sm"><span className="text-gray-500">CNPJ</span><span>{fmtCNPJ(sel.cnpj)}</span></div>}
           {sel.cpf&&<div className="flex justify-between text-sm"><span className="text-gray-500">CPF</span><span>{fmtCPF(sel.cpf)}</span></div>}
           {sel.inscricao_estadual&&<div className="flex justify-between text-sm"><span className="text-gray-500">Insc. Estadual</span><span>{sel.inscricao_estadual}</span></div>}
           {sel.nome_comprador&&<div className="flex justify-between text-sm"><span className="text-gray-500">Comprador</span><span>{sel.nome_comprador}</span></div>}
@@ -269,7 +269,7 @@ export default function RepCoClients({ representativeId, previewMode = false }: 
           <h3 className="text-lg font-semibold text-gray-800">Meus Clientes</h3>
           <p className="text-sm text-gray-500">{clients.filter(c=>c.is_active_client).length} ativos · {clients.filter(c=>!c.is_active_client).length} inativos</p>
         </div>
-        <button onClick={openNew} disabled={previewMode} title={previewMode ? 'Bloqueado no preview' : undefined} className="flex items-center gap-2 bg-[#8B2214] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#6d1a10] disabled:cursor-not-allowed disabled:opacity-50">{previewMode ? 'Bloqueado' : '+ Novo Cliente'}</button>
+        <button onClick={openNew} className="flex items-center gap-2 bg-[#8B2214] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#6d1a10]">+ Novo Cliente</button>
       </div>
       <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar por nome, CNPJ ou comprador..."
         className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"/>
@@ -300,7 +300,7 @@ export default function RepCoClients({ representativeId, previewMode = false }: 
                     {c.snooze_admin_alert&&<span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">Atenção</span>}
                   </div>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    {c.cnpj&&c.cnpj!=='00000000000000'?fmtCNPJ(c.cnpj):c.cpf?fmtCPF(c.cpf):''}
+                    {c.cnpj?fmtCNPJ(c.cnpj):c.cpf?fmtCPF(c.cpf):''}
                     {c.nome_comprador&&` · ${c.nome_comprador}`}
                   </p>
                 </div>

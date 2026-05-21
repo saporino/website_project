@@ -97,7 +97,10 @@ export default function RepCoHome({ representativeId, onNavigateToRoute, onNavig
   }
 
   async function snoozeClient(clientId: string) {
-    if (previewMode) return;
+    if (previewMode) {
+      alert('Ação desativada no espelho.');
+      return;
+    }
     setSnoozingClient(clientId);
     const snoozeUntil = new Date(); snoozeUntil.setDate(snoozeUntil.getDate() + 2);
     await supabase.from('representative_clients').update({ inactivity_snoozed_until: snoozeUntil.toISOString() }).eq('id', clientId);
@@ -106,7 +109,10 @@ export default function RepCoHome({ representativeId, onNavigateToRoute, onNavig
   }
 
   async function enableGPS() {
-    if (previewMode) return;
+    if (previewMode) {
+      alert('Ação desativada no espelho.');
+      return;
+    }
     if (permission !== 'granted') await requestPermission();
     setGeoEnabled(true);
   }
@@ -153,7 +159,7 @@ export default function RepCoHome({ representativeId, onNavigateToRoute, onNavig
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-gray-700">Próximas visitas (48h)</p>
           {!geoEnabled
-            ? <button onClick={enableGPS} disabled={previewMode} title={previewMode ? 'Bloqueado no preview' : undefined} className="flex items-center gap-1.5 text-xs bg-[#f5f0ef] border border-[#ddd0cc] text-[#8B2214] px-3 py-1.5 rounded-lg font-medium hover:bg-[#ede5e3] disabled:cursor-not-allowed disabled:opacity-50">📍 {previewMode ? 'GPS bloqueado' : 'Ativar GPS'}</button>
+            ? <button onClick={enableGPS} className="flex items-center gap-1.5 text-xs bg-[#f5f0ef] border border-[#ddd0cc] text-[#8B2214] px-3 py-1.5 rounded-lg font-medium hover:bg-[#ede5e3]">📍 Ativar GPS</button>
             : <span className="flex items-center gap-1.5 text-xs text-green-600 font-medium"><span className="w-2 h-2 rounded-full bg-green-500"/>GPS ativo{coords && <span className="text-gray-400 ml-1">±{Math.round(coords.accuracy)}m</span>}</span>
           }
         </div>
@@ -186,7 +192,7 @@ export default function RepCoHome({ representativeId, onNavigateToRoute, onNavig
               </div>
               <div className="flex gap-1.5 flex-shrink-0">
                 {onNavigateToClient && <button onClick={() => onNavigateToClient(client.id)} className="text-xs bg-[#a4240e] text-white px-2.5 py-1.5 rounded-lg hover:bg-[#8a1f0c]">Pedido</button>}
-                <button onClick={() => snoozeClient(client.id)} disabled={previewMode || snoozingClient === client.id} className="text-xs bg-white border border-red-200 text-red-600 px-2.5 py-1.5 rounded-lg hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50" title={previewMode ? 'Bloqueado no preview' : 'Adiar 2 dias'}>{previewMode ? 'Bloqueado' : snoozingClient === client.id ? '...' : '+2d'}</button>
+                <button onClick={() => snoozeClient(client.id)} disabled={snoozingClient === client.id} className="text-xs bg-white border border-red-200 text-red-600 px-2.5 py-1.5 rounded-lg hover:bg-red-50 disabled:opacity-50" title="Adiar 2 dias">{snoozingClient === client.id ? '...' : '+2d'}</button>
               </div>
             </div>
           ))}
