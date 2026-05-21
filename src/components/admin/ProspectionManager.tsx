@@ -457,10 +457,6 @@ function titleCase(value: string) {
     .join(' ');
 }
 
-function normalizeFilterLabel(value: string | null) {
-  return normalizeComparableText(value).replace(/_/g, ' ');
-}
-
 async function parseProspectFile(file: File) {
   const extension = file.name.split('.').pop()?.toLowerCase();
 
@@ -552,16 +548,12 @@ export default function ProspectionManager() {
   const [listName, setListName] = useState('');
   const [listNameEdited, setListNameEdited] = useState(false);
   const [description, setDescription] = useState('');
-  const [segment, setSegment] = useState('');
   const [selectedRep, setSelectedRep] = useState('');
   const [parseError, setParseError] = useState('');
   const [importCategoryFilter, setImportCategoryFilter] = useState('');
-  const [importSegmentFilter, setImportSegmentFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [segmentFilter, setSegmentFilter] = useState('');
   const [showAcceptedColumns, setShowAcceptedColumns] = useState(false);
   const [listCategories, setListCategories] = useState<Record<string, string[]>>({});
-  const [listSegments, setListSegments] = useState<Record<string, string[]>>({});
   const [assignmentDraft, setAssignmentDraft] = useState<Record<string, string>>({});
   const [assigningListId, setAssigningListId] = useState<string | null>(null);
   const [assigningFilteredKey, setAssigningFilteredKey] = useState<string | null>(null);
@@ -581,13 +573,13 @@ export default function ProspectionManager() {
 
   useEffect(() => {
     setPreviewVisibleCount(PREVIEW_PAGE_SIZE);
-  }, [importCategoryFilter, importSegmentFilter, parsedLeads.length]);
+  }, [importCategoryFilter, parsedLeads.length]);
 
   useEffect(() => {
     if (!parsedLeads.length || listNameEdited) return;
     const suggested = getSuggestedListName();
     if (suggested) setListName(suggested);
-  }, [importCategoryFilter, importSegmentFilter, parsedLeads.length, selectedFileName, listNameEdited]);
+  }, [importCategoryFilter, parsedLeads.length, selectedFileName, listNameEdited]);
 
   async function fetchData() {
     setLoading(true);
@@ -607,17 +599,8 @@ export default function ProspectionManager() {
       acc[lead.prospect_list_id].add(lead.category);
       return acc;
     }, {});
-    const segmentsByList = ((leadCategories || []) as ProspectLeadCategory[]).reduce<Record<string, Set<string>>>((acc, lead) => {
-      if (!lead.segment) return acc;
-      if (!acc[lead.prospect_list_id]) acc[lead.prospect_list_id] = new Set<string>();
-      acc[lead.prospect_list_id].add(lead.segment);
-      return acc;
-    }, {});
     setListCategories(
       Object.fromEntries(Object.entries(categoriesByList).map(([listId, categories]) => [listId, Array.from(categories).sort()]))
-    );
-    setListSegments(
-      Object.fromEntries(Object.entries(segmentsByList).map(([listId, segments]) => [listId, Array.from(segments).sort()]))
     );
     setLoading(false);
   }
@@ -626,35 +609,25 @@ export default function ProspectionManager() {
     () => Array.from(new Set([...APIFY_DEFAULT_CATEGORIES, ...Object.values(listCategories).flat()])).sort(),
     [listCategories]
   );
-  const segmentOptions = useMemo(
-    () => Array.from(new Set(Object.values(listSegments).flat())).sort(),
-    [listSegments]
-  );
   const filteredLists = useMemo(
     () =>
       lists.filter(list => {
         const matchesCategory = categoryFilter ? (listCategories[list.id] || []).includes(categoryFilter) : true;
-        const matchesSegment = segmentFilter ? (listSegments[list.id] || []).includes(segmentFilter) : true;
-        return matchesCategory && matchesSegment;
+        return matchesCategory;
       }),
-    [categoryFilter, listCategories, listSegments, lists, segmentFilter]
+    [categoryFilter, listCategories, lists]
   );
   const importCategoryOptions = useMemo(
     () => Array.from(new Set([...APIFY_DEFAULT_CATEGORIES, ...(parsedLeads.map(lead => lead.category).filter(Boolean) as string[])])).sort(),
-    [parsedLeads]
-  );
-  const importSegmentOptions = useMemo(
-    () => Array.from(new Set(parsedLeads.map(lead => lead.segment).filter(Boolean) as string[])).sort(),
     [parsedLeads]
   );
   const filteredParsedLeads = useMemo(
     () =>
       parsedLeads.filter(lead => {
         const matchesCategory = importCategoryFilter ? lead.category === importCategoryFilter : true;
-        const matchesSegment = importSegmentFilter ? lead.segment === importSegmentFilter : true;
-        return matchesCategory && matchesSegment;
+        return matchesCategory;
       }),
-    [importCategoryFilter, importSegmentFilter, parsedLeads]
+    [importCategoryFilter, parsedLeads]
   );
   const filteredValidLeads = useMemo(() => filteredParsedLeads.filter(lead => lead.isValid), [filteredParsedLeads]);
   const filteredInvalidLeads = useMemo(() => filteredParsedLeads.filter(lead => !lead.isValid), [filteredParsedLeads]);
@@ -664,7 +637,7 @@ export default function ProspectionManager() {
     () => filteredValidLeads.filter(lead => lead.lat !== null && lead.lng !== null).length,
     [filteredValidLeads]
   );
-  const hasImportFilter = Boolean(importCategoryFilter || importSegmentFilter);
+  const hasImportFilter = Boolean(importCategoryFilter);
   const visiblePreviewLeads = useMemo(
     () => filteredParsedLeads.slice(0, previewVisibleCount),
     [filteredParsedLeads, previewVisibleCount]
@@ -673,13 +646,7 @@ export default function ProspectionManager() {
   function getSuggestedListName() {
     const baseName = getBaseFileName(selectedFileName || listName).replace(/[-_]+/g, ' ').trim();
     const categoryLabel = importCategoryFilter || null;
-    const segmentLabel = importSegmentFilter
-      ? PROSPECT_SEGMENT_LABEL[importSegmentFilter] || SEGMENT_LABEL[importSegmentFilter] || importSegmentFilter
-      : null;
-    const filterLabel =
-      categoryLabel && segmentLabel && normalizeFilterLabel(categoryLabel) === normalizeFilterLabel(segmentLabel)
-        ? categoryLabel
-        : [categoryLabel, segmentLabel].filter(Boolean).join(' - ');
+    const filterLabel = categoryLabel;
 
     if (!filterLabel) return baseName;
     return [baseName, titleCase(filterLabel)].filter(Boolean).join(' - ');
@@ -728,7 +695,7 @@ export default function ProspectionManager() {
     }
 
     const clients = await fetchExistingClients();
-    setParsedLeads(rows.map((row, index) => markExistingClient(normalizeRow(row, index + 2, segment), clients)));
+    setParsedLeads(rows.map((row, index) => markExistingClient(normalizeRow(row, index + 2, ''), clients)));
   }
 
   async function handleCreateList() {
@@ -746,7 +713,7 @@ export default function ProspectionManager() {
     const canAssignByList = Boolean(selectedRep && !hasNonAssignableLeads);
     const listStatus = selectedRep && filteredAssignableLeads.length > 0 ? 'assigned' : 'imported';
     const uniqueSegments = Array.from(new Set(filteredValidLeads.map(lead => lead.segment).filter(Boolean)));
-    const listSegment = segment || (uniqueSegments.length === 1 ? uniqueSegments[0] : null);
+    const listSegment = uniqueSegments.length === 1 ? uniqueSegments[0] : null;
     const { data: list, error: listError } = await supabase
       .from('prospect_lists')
       .insert({
@@ -820,7 +787,6 @@ export default function ProspectionManager() {
       const createdRows = new Set(filteredParsedLeads.map(lead => lead.rowNumber));
       setParsedLeads(current => current.filter(lead => !createdRows.has(lead.rowNumber)));
       setImportCategoryFilter('');
-      setImportSegmentFilter('');
       setListName('');
       setListNameEdited(false);
       setDescription('');
@@ -897,8 +863,8 @@ export default function ProspectionManager() {
   }
 
   async function handleAssignFilteredLeads(list: ProspectList, remove = false) {
-    if (!categoryFilter && !segmentFilter) {
-      toast.error('Escolha uma categoria ou segmento para aplicar nos leads filtrados.');
+    if (!categoryFilter) {
+      toast.error('Escolha uma categoria para aplicar nos leads filtrados.');
       return;
     }
 
@@ -921,7 +887,6 @@ export default function ProspectionManager() {
     query = query.eq('prospect_list_id', list.id);
 
     if (categoryFilter) query = query.eq('category', categoryFilter);
-    if (segmentFilter) query = query.eq('segment', segmentFilter);
 
     const { error } = await query;
     setAssigningFilteredKey(null);
@@ -1023,7 +988,6 @@ export default function ProspectionManager() {
   function getActiveFilterLabel() {
     const parts = [
       categoryFilter ? `categoria ${categoryFilter}` : null,
-      segmentFilter ? `segmento ${PROSPECT_SEGMENT_LABEL[segmentFilter] || SEGMENT_LABEL[segmentFilter] || segmentFilter}` : null,
     ].filter(Boolean);
     return parts.length > 0 ? parts.join(' + ') : '';
   }
@@ -1034,11 +998,9 @@ export default function ProspectionManager() {
     setListName('');
     setListNameEdited(false);
     setDescription('');
-    setSegment('');
     setSelectedRep('');
     setParseError('');
     setImportCategoryFilter('');
-    setImportSegmentFilter('');
     if (fileRef.current) fileRef.current.value = '';
   }
 
@@ -1101,27 +1063,7 @@ export default function ProspectionManager() {
               ))}
             </select>
           </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">Setor / segmento</label>
-            <select
-              value={segment}
-              onChange={event => {
-                setSegment(event.target.value);
-                setParsedLeads(current =>
-                  current.map(lead => ({ ...lead, segment: normalizeCategorySegment(lead.category, event.target.value) }))
-                );
-              }}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#a4240e]"
-            >
-              <option value="">Não definido</option>
-              {Object.entries(PROSPECT_SEGMENT_LABEL).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
+          <div className="lg:col-span-2">
             <label className="mb-1 block text-xs font-medium text-gray-600">Descrição</label>
             <input
               value={description}
@@ -1166,14 +1108,13 @@ export default function ProspectionManager() {
               <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold text-gray-900">Filtro para criar esta lista</p>
-                  <p className="text-xs text-gray-500">Use categoria e segmento para criar uma lista menor a partir do mesmo arquivo.</p>
+                  <p className="text-xs text-gray-500">Use a categoria do arquivo para criar uma lista menor a partir do mesmo arquivo.</p>
                 </div>
                 {hasImportFilter && (
                   <button
                     type="button"
                     onClick={() => {
                       setImportCategoryFilter('');
-                      setImportSegmentFilter('');
                     }}
                     className="text-xs font-semibold text-[#a4240e] hover:underline"
                   >
@@ -1193,21 +1134,6 @@ export default function ProspectionManager() {
                     {importCategoryOptions.map(category => (
                       <option key={category} value={category}>
                         {category}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-600">Segmento normalizado</label>
-                  <select
-                    value={importSegmentFilter}
-                    onChange={event => setImportSegmentFilter(event.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#a4240e]"
-                  >
-                    <option value="">Todos os segmentos</option>
-                    {importSegmentOptions.map(segmentValue => (
-                      <option key={segmentValue} value={segmentValue}>
-                        {PROSPECT_SEGMENT_LABEL[segmentValue] || SEGMENT_LABEL[segmentValue] || segmentValue}
                       </option>
                     ))}
                   </select>
@@ -1281,7 +1207,7 @@ export default function ProspectionManager() {
             <h4 className="font-semibold text-gray-900">Listas de prospecção</h4>
             <p className="text-xs text-gray-500">{filteredLists.length} de {lists.length} lista{lists.length !== 1 ? 's' : ''}</p>
           </div>
-          <div className="grid w-full gap-3 sm:grid-cols-2 lg:w-[560px]">
+          <div className="grid w-full gap-3 sm:grid-cols-1 lg:w-[280px]">
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">Filtrar por categoria</label>
               <select
@@ -1293,21 +1219,6 @@ export default function ProspectionManager() {
                 {categoryOptions.map(category => (
                   <option key={category} value={category}>
                     {category}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-gray-600">Filtrar por segmento</label>
-              <select
-                value={segmentFilter}
-                onChange={event => setSegmentFilter(event.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#a4240e]"
-              >
-                <option value="">Todos os segmentos</option>
-                {segmentOptions.map(segmentValue => (
-                  <option key={segmentValue} value={segmentValue}>
-                    {PROSPECT_SEGMENT_LABEL[segmentValue] || SEGMENT_LABEL[segmentValue] || segmentValue}
                   </option>
                 ))}
               </select>
@@ -1398,7 +1309,7 @@ export default function ProspectionManager() {
                             Remover representante da lista
                           </button>
                         )}
-                        {(categoryFilter || segmentFilter) && (
+                        {categoryFilter && (
                           <>
                             <button
                               onClick={() => handleAssignFilteredLeads(list)}
