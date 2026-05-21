@@ -37,6 +37,7 @@ interface Props {
   representativeId: string;
   currentLat?: number;
   currentLng?: number;
+  previewMode?: boolean;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -230,7 +231,7 @@ function normalizeLeadRelation(lead: any): ProspectLead {
   return { ...lead, prospect_lists: list || null } as ProspectLead;
 }
 
-export default function RepCoProspection({ representativeId, currentLat, currentLng }: Props) {
+export default function RepCoProspection({ representativeId, currentLat, currentLng, previewMode = false }: Props) {
   const [leads, setLeads] = useState<ProspectLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -270,6 +271,10 @@ export default function RepCoProspection({ representativeId, currentLat, current
   }
 
   async function updateLead(lead: ProspectLead, updates: Partial<ProspectLead>) {
+    if (previewMode) {
+      toast.info('Bloqueado no preview.');
+      return;
+    }
     setUpdatingId(lead.id);
     const { error } = await supabase.from('prospect_leads').update(updates).eq('id', lead.id);
     setUpdatingId(null);
@@ -460,17 +465,17 @@ export default function RepCoProspection({ representativeId, currentLat, current
                       <MapPin className="h-3.5 w-3.5" />
                       Waze
                     </button>
-                    <button onClick={() => handleCheckIn(lead)} disabled={updatingId === lead.id} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-100 disabled:opacity-50">
+                    <button onClick={() => handleCheckIn(lead)} disabled={previewMode || updatingId === lead.id} title={previewMode ? 'Bloqueado no preview' : undefined} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-green-50 px-3 py-2 text-xs font-semibold text-green-700 hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50">
                       <CheckCircle className="h-3.5 w-3.5" />
-                      Fazer check-in
+                      {previewMode ? 'Bloqueado no preview' : 'Fazer check-in'}
                     </button>
-                    <button onClick={() => handleReject(lead)} disabled={updatingId === lead.id} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50">
+                    <button onClick={() => handleReject(lead)} disabled={previewMode || updatingId === lead.id} title={previewMode ? 'Bloqueado no preview' : undefined} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50">
                       <AlertCircle className="h-3.5 w-3.5" />
-                      Não deu certo
+                      {previewMode ? 'Bloqueado no preview' : 'Não deu certo'}
                     </button>
-                    <button onClick={() => handleReturnLater(lead)} disabled={updatingId === lead.id} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-purple-50 px-3 py-2 text-xs font-semibold text-purple-700 hover:bg-purple-100 disabled:opacity-50">
+                    <button onClick={() => handleReturnLater(lead)} disabled={previewMode || updatingId === lead.id} title={previewMode ? 'Bloqueado no preview' : undefined} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-purple-50 px-3 py-2 text-xs font-semibold text-purple-700 hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-50">
                       <RotateCcw className="h-3.5 w-3.5" />
-                      Voltar depois
+                      {previewMode ? 'Bloqueado no preview' : 'Voltar depois'}
                     </button>
                   </div>
                 </div>

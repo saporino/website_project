@@ -27,7 +27,7 @@ type ViewMode = 'list'|'detail'|'edit'|'new';
 function fmtCNPJ(v:string){return v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5');}
 function fmtCPF(v:string){return v.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/,'$1.$2.$3-$4');}
 function days(d:string|null){if(!d)return 999;return Math.floor((Date.now()-new Date(d).getTime())/86400000);}
-export default function RepCoClients({ representativeId }: { representativeId: string }) {
+export default function RepCoClients({ representativeId, previewMode = false }: { representativeId: string; previewMode?: boolean }) {
   const [clients,setClients]=useState<RepCoClient[]>([]);
   const [loading,setLoading]=useState(true);
   const [view,setView]=useState<ViewMode>('list');
@@ -53,6 +53,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
   }
   function openDetail(c:RepCoClient){setSel(c);setView('detail');fetchHist(c.id);}
   function openEdit(c:RepCoClient){
+    if (previewMode) return;
     setSel(c);
     setForm({cnpj:c.cnpj||'',cpf:c.cpf||'',nome_completo:c.nome_completo||'',razao_social:c.razao_social||'',
       nome_fantasia:c.nome_fantasia||'',situacao_receita:c.situacao_receita||'',endereco_completo:c.endereco_completo||'',
@@ -62,7 +63,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
       segment:c.segment||'',inscricao_estadual:c.inscricao_estadual||'',is_pj:!c.cpf});
     setView('edit');setErr('');
   }
-  function openNew(){setForm(emptyForm);setView('new');setErr('');}
+  function openNew(){if (previewMode) return; setForm(emptyForm);setView('new');setErr('');}
   async function searchCNPJ(){
     const cnpj=form.cnpj.replace(/\D/g,'');
     if(cnpj.length!==14){setErr('CNPJ deve ter 14 dígitos.');return;}
@@ -78,6 +79,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
     setSearching(false);
   }
   async function handleSave(){
+    if (previewMode) { setErr('Bloqueado no preview.'); return; }
     if(form.is_pj&&!form.cnpj){setErr('CNPJ obrigatório.');return;}
     if(!form.is_pj&&!form.cpf){setErr('CPF obrigatório.');return;}
     if(!form.segment){setErr('Selecione o segmento.');return;}
@@ -199,7 +201,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
             <h3 className="text-lg font-semibold text-gray-800">{sel.nome_fantasia||sel.razao_social||sel.nome_completo}</h3>
             {sel.segment&&<span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{SEGMENT_LABEL[sel.segment]}</span>}
           </div>
-          <button onClick={()=>openEdit(sel)} className="text-sm bg-[#8B2214] text-white px-3 py-1.5 rounded-lg hover:bg-[#6d1a10]">Editar</button>
+          <button onClick={()=>openEdit(sel)} disabled={previewMode} title={previewMode ? 'Bloqueado no preview' : undefined} className="text-sm bg-[#8B2214] text-white px-3 py-1.5 rounded-lg hover:bg-[#6d1a10] disabled:cursor-not-allowed disabled:opacity-50">{previewMode ? 'Bloqueado no preview' : 'Editar'}</button>
         </div>
         {d>=7&&<div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-3">
           <div className="flex-1">
@@ -267,7 +269,7 @@ export default function RepCoClients({ representativeId }: { representativeId: s
           <h3 className="text-lg font-semibold text-gray-800">Meus Clientes</h3>
           <p className="text-sm text-gray-500">{clients.filter(c=>c.is_active_client).length} ativos · {clients.filter(c=>!c.is_active_client).length} inativos</p>
         </div>
-        <button onClick={openNew} className="flex items-center gap-2 bg-[#8B2214] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#6d1a10]">+ Novo Cliente</button>
+        <button onClick={openNew} disabled={previewMode} title={previewMode ? 'Bloqueado no preview' : undefined} className="flex items-center gap-2 bg-[#8B2214] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#6d1a10] disabled:cursor-not-allowed disabled:opacity-50">{previewMode ? 'Bloqueado' : '+ Novo Cliente'}</button>
       </div>
       <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar por nome, CNPJ ou comprador..."
         className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"/>

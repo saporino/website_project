@@ -1,5 +1,5 @@
 import { useState, useEffect, Suspense, lazy, useMemo } from 'react';
-import { CheckCircle, XCircle, Eye, Plus, Upload, Download, Phone, Mail, Map, Search } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, Plus, Upload, Download, Phone, Mail, Map, Search, Smartphone } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -8,6 +8,7 @@ import RouteManager from './RouteManager';
 import RepCoOrdersManager from './RepCoOrdersManager';
 import RepCoCommissionsManager from './RepCoCommissionsManager';
 import ProspectionManager from './ProspectionManager';
+import RepCoMobilePreview from './RepCoMobilePreview';
 
 const RepCoLiveMap = lazy(() => import('./RepCoLiveMap'));
 
@@ -81,6 +82,7 @@ export function RepCoManagement() {
   });
   const [nfFile, setNfFile] = useState<File | null>(null);
   const [clients, setClients] = useState<{ id: string; razao_social: string; cnpj: string }[]>([]);
+  const [showMobilePreview, setShowMobilePreview] = useState(false);
 
   // Product selector for order form
   interface OrderProduct { id: string; name: string; price: number; image_url: string | null; stock: number; in_stock: boolean; }
@@ -327,6 +329,9 @@ export function RepCoManagement() {
             </div>
           </div>
           <div className="flex gap-2">
+            <button onClick={() => setShowMobilePreview(true)} className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors">
+              <Smartphone className="w-4 h-4" /> Ver como representante
+            </button>
             {selectedRep.status === 'pending' && (
               <button onClick={() => handleApprove(selectedRep)} className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-colors">
                 <CheckCircle className="w-4 h-4" /> Aprovar
@@ -568,6 +573,13 @@ export function RepCoManagement() {
         {detailTab === 'comissoes' && (
           <RepCoCommissionsManager representativeId={selectedRep?.id} />
         )}
+        {showMobilePreview && (
+          <RepCoMobilePreview
+            representatives={reps}
+            initialRepresentativeId={selectedRep.id}
+            onClose={() => setShowMobilePreview(false)}
+          />
+        )}
       </div>
     );
   }
@@ -631,6 +643,11 @@ export function RepCoManagement() {
             className="h-9 px-4 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
             <Upload className="w-4 h-4" />
             Prospecção
+          </button>
+          <button onClick={() => setShowMobilePreview(true)}
+            className="h-9 px-4 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
+            <Smartphone className="w-4 h-4" />
+            Ver como representante
           </button>
           {isAdmin && (
             <button onClick={() => window.location.href = '/repco'}
@@ -699,6 +716,14 @@ export function RepCoManagement() {
         <Suspense fallback={<div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-600"/></div>}>
           <RepCoLiveMap />
         </Suspense>
+      )}
+
+      {showMobilePreview && (
+        <RepCoMobilePreview
+          representatives={reps}
+          initialRepresentativeId={selectedRep?.id}
+          onClose={() => setShowMobilePreview(false)}
+        />
       )}
 
       {loading ? (
