@@ -540,10 +540,10 @@ export default function RepCoProspection({ representativeId, currentLat, current
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div>
-        <h3 className="text-lg font-semibold text-gray-800">Minha Prospecção</h3>
-        <p className="text-sm text-gray-500">{leads.length} lead{leads.length !== 1 ? 's' : ''} atribuídos para visita.</p>
+        <h3 className="text-base font-semibold text-gray-800">Minha Prospecção</h3>
+        <p className="text-xs text-gray-500">{leads.length} lead{leads.length !== 1 ? 's' : ''} atribuídos para visita.</p>
       </div>
 
       {leads.length === 0 ? (
@@ -552,7 +552,7 @@ export default function RepCoProspection({ representativeId, currentLat, current
           <p className="mt-1 text-sm text-gray-400">Quando o admin enviar uma lista, ela aparecerá aqui.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {sortedLeads.map(lead => {
             const address = buildAddress(lead);
             const distance =
@@ -565,49 +565,49 @@ export default function RepCoProspection({ representativeId, currentLat, current
             const email = getLeadEmail(lead);
 
             return (
-              <div key={lead.id} className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
+              <div key={lead.id} className="rounded-xl border border-gray-200 bg-white p-2.5 shadow-sm">
                 <div className="min-w-0">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="min-w-0 flex-1 text-sm font-semibold text-gray-900">{lead.trade_name || lead.company_name}</h4>
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${statusClass}`}>
+                      <h4 className="min-w-0 flex-1 text-[13px] font-semibold text-gray-900">{lead.trade_name || lead.company_name}</h4>
+                      <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${statusClass}`}>
                         {STATUS_LABEL[lead.status] || lead.status}
                       </span>
-                      {distance !== null && <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-700">{formatDistance(distance)}</span>}
+                      {distance !== null && <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">{formatDistance(distance)}</span>}
                     </div>
                     {lead.trade_name && <p className="truncate text-xs text-gray-500">{lead.company_name}</p>}
-                    <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
-                      {lead.category && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-700">{lead.category}</span>}
-                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-gray-700">{getSegmentLabel(lead.segment)}</span>
-                      {lead.prospect_lists?.name && <span className="max-w-full truncate rounded-full bg-gray-100 px-2 py-0.5 text-gray-700">Lista: {lead.prospect_lists.name}</span>}
+                    <div className="mt-1.5 flex flex-wrap gap-1 text-[10px]">
+                      {lead.category && <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-gray-700">{lead.category}</span>}
+                      <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-gray-700">{getSegmentLabel(lead.segment)}</span>
+                      {lead.prospect_lists?.name && <span className="max-w-full truncate rounded-full bg-gray-100 px-1.5 py-0.5 text-gray-700">Lista: {lead.prospect_lists.name}</span>}
                     </div>
                     {address && (
-                      <p className="mt-3 flex items-start gap-2 text-xs leading-relaxed text-gray-600">
+                      <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-relaxed text-gray-600">
                         <MapPin className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-gray-400" />
                         <span>{address}</span>
                       </p>
                     )}
-                    <div className="mt-3 flex flex-wrap gap-1.5 text-[11px]">
+                    <div className="mt-2 flex flex-wrap gap-1 text-[10px]">
                       {phoneDigits && (
                         <>
-                          <a href={`https://wa.me/${toBrazilPhone(phoneDigits)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-green-200 bg-green-50 px-2 py-1 text-green-700 hover:bg-green-100">
+                          <a href={`https://wa.me/${toBrazilPhone(phoneDigits)}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-green-200 bg-green-50 px-1.5 py-0.5 text-green-700 hover:bg-green-100">
                             <MessageCircle className="h-3 w-3" />
                             WhatsApp
                           </a>
-                          <a href={`tel:${phoneDigits}`} className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50">
+                          <a href={`tel:${phoneDigits}`} className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-1.5 py-0.5 text-gray-600 hover:bg-gray-50">
                             <Phone className="h-3 w-3" />
                             Ligar
                           </a>
                         </>
                       )}
-                      {email && <a href={`mailto:${email}`} className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-gray-600 hover:bg-gray-50"><Mail className="h-3 w-3" />Email</a>}
+                      {email && <a href={`mailto:${email}`} className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-1.5 py-0.5 text-gray-600 hover:bg-gray-50"><Mail className="h-3 w-3" />Email</a>}
                       {contactLinks.map(link => (
                         <a
                           key={link.kind}
                           href={link.href}
                           target="_blank"
                           rel="noreferrer"
-                          className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 hover:bg-gray-50 ${
+                          className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 hover:bg-gray-50 ${
                             link.kind === 'instagram'
                               ? 'border-pink-200 bg-pink-50 text-pink-700'
                               : link.kind === 'facebook'
@@ -622,31 +622,31 @@ export default function RepCoProspection({ representativeId, currentLat, current
                     </div>
                   </div>
 
-                  <div className="mt-3 space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <button onClick={() => openDirections(lead, 'google')} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-2 text-[11px] font-semibold text-blue-700 hover:bg-blue-100">
+                  <div className="mt-2.5 space-y-1.5">
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button onClick={() => openDirections(lead, 'google')} className="inline-flex items-center justify-center gap-1 rounded-md bg-blue-50 px-2 py-1.5 text-[10px] font-semibold text-blue-700 hover:bg-blue-100">
                         <MapPin className="h-3.5 w-3.5" />
                         Google Maps
                       </button>
-                      <button onClick={() => openDirections(lead, 'waze')} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-sky-50 px-2.5 py-2 text-[11px] font-semibold text-sky-700 hover:bg-sky-100">
+                      <button onClick={() => openDirections(lead, 'waze')} className="inline-flex items-center justify-center gap-1 rounded-md bg-sky-50 px-2 py-1.5 text-[10px] font-semibold text-sky-700 hover:bg-sky-100">
                         <MapPin className="h-3.5 w-3.5" />
                         Waze
                       </button>
-                      <button onClick={() => handleCheckIn(lead)} disabled={updatingId === lead.id} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-green-50 px-2.5 py-2 text-[11px] font-semibold text-green-700 hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50">
+                      <button onClick={() => handleCheckIn(lead)} disabled={updatingId === lead.id} className="inline-flex items-center justify-center gap-1 rounded-md bg-green-50 px-2 py-1.5 text-[10px] font-semibold text-green-700 hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50">
                         <CheckCircle className="h-3.5 w-3.5" />
                         Fazer check-in
                       </button>
-                      <button onClick={() => openConvertModal(lead)} disabled={updatingId === lead.id || lead.status === 'converted'} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#8B2214] px-2.5 py-2 text-[11px] font-semibold text-white hover:bg-[#6d1a10] disabled:cursor-not-allowed disabled:opacity-50">
+                      <button onClick={() => openConvertModal(lead)} disabled={updatingId === lead.id || lead.status === 'converted'} className="inline-flex items-center justify-center gap-1 rounded-md bg-[#8B2214] px-2 py-1.5 text-[10px] font-semibold leading-tight text-white hover:bg-[#6d1a10] disabled:cursor-not-allowed disabled:opacity-50">
                         <UserPlus className="h-3.5 w-3.5" />
                         Converter em cliente
                       </button>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button onClick={() => handleReject(lead)} disabled={updatingId === lead.id} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-red-50 px-2.5 py-2 text-[11px] font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50">
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button onClick={() => handleReject(lead)} disabled={updatingId === lead.id} className="inline-flex items-center justify-center gap-1 rounded-md bg-red-50 px-2 py-1.5 text-[10px] font-semibold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50">
                         <AlertCircle className="h-3.5 w-3.5" />
                         Não deu certo
                       </button>
-                      <button onClick={() => handleReturnLater(lead)} disabled={updatingId === lead.id} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-purple-50 px-2.5 py-2 text-[11px] font-semibold text-purple-700 hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-50">
+                      <button onClick={() => handleReturnLater(lead)} disabled={updatingId === lead.id} className="inline-flex items-center justify-center gap-1 rounded-md bg-purple-50 px-2 py-1.5 text-[10px] font-semibold text-purple-700 hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-50">
                         <RotateCcw className="h-3.5 w-3.5" />
                         Voltar depois
                       </button>

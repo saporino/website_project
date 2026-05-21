@@ -36,6 +36,7 @@ export default function RepCoClients({ representativeId, previewMode = false }: 
   const [loadHist,setLoadHist]=useState(false);
   const [form,setForm]=useState(emptyForm);
   const [saving,setSaving]=useState(false);
+  const [deleting,setDeleting]=useState(false);
   const [searching,setSearching]=useState(false);
   const [err,setErr]=useState('');
   const [ok,setOk]=useState('');
@@ -51,7 +52,7 @@ export default function RepCoClients({ representativeId, previewMode = false }: 
     const{data}=await supabase.from('client_sales_history').select('*').eq('client_id',clientId).not('order_id','is',null).order('order_date',{ascending:false});
     setHist((data||[]) as SalesHistory[]);setLoadHist(false);
   }
-  function openDetail(c:RepCoClient){setSel(c);setView('detail');fetchHist(c.id);}
+  function openDetail(c:RepCoClient){setErr('');setSel(c);setView('detail');fetchHist(c.id);}
   function openEdit(c:RepCoClient){
     if (previewMode) { alert('Ação desativada no espelho.'); return; }
     setSel(c);
@@ -101,6 +102,46 @@ export default function RepCoClients({ representativeId, previewMode = false }: 
     if(error){setErr('Erro: '+error.message);}
     else{setOk(view==='edit'?'Atualizado!':'Cadastrado!');fetchClients();setView('list');setTimeout(()=>setOk(''),3000);}
     setSaving(false);
+  }
+  async function handleDeleteClient(client: RepCoClient){
+    if (previewMode) { alert('Ação desativada no espelho.'); return; }
+    const name=client.nome_fantasia||client.razao_social||client.nome_completo||'este cliente';
+    if(!confirm(`Excluir "${name}"?\n\nSe ele veio da prospecção, o lead volta para a lista atribuída ao representante. Clientes com pedidos não podem ser excluídos.`))return;
+    setDeleting(true);setErr('');
+    const { count: orderCount, error: ordersError } = await supabase
+      .from('representative_orders')
+      .select('id', { count: 'exact', head: true })
+      .eq('representative_client_id', client.id);
+    if(ordersError){setErr('Não foi possível verificar pedidos vinculados.');setDeleting(false);return;}
+    if((orderCount||0)>0){setErr('Este cliente tem pedido vinculado e não pode ser excluído.');setDeleting(false);return;}
+
+    const { data: linkedLeads, error: linkedLeadsError } = await supabase
+      .from('prospect_leads')
+      .select('id')
+      .eq('representative_client_id', client.id);
+    if(linkedLeadsError){setErr('Não foi possível localizar leads vinculados. Nenhum cliente foi excluído.');setDeleting(false);return;}
+
+    const { data: deletedClient, error: deleteError } = await supabase
+      .from('representative_clients')
+      .delete()
+      .eq('id',client.id)
+      .eq('representative_id',representativeId)
+      .select('id')
+      .maybeSingle();
+    if(deleteError||!deletedClient){setErr(deleteError?.message?`Não foi possível excluir o cliente: ${deleteError.message}`:'Não foi possível excluir o cliente. Verifique a permissão da policy e se ele pertence ao representante.');setDeleting(false);return;}
+
+    const leadIds=(linkedLeads||[]).map(lead=>lead.id);
+    if(leadIds.length>0){
+      const { error: leadError } = await supabase
+        .from('prospect_leads')
+        .update({ representative_client_id:null, status:'assigned', converted_at:null })
+        .in('id', leadIds);
+      if(leadError){setClients(current=>current.filter(c=>c.id!==client.id));setSel(null);setHist([]);setView('list');setErr('Cliente excluído, mas não foi possível atualizar o lead de prospecção.');setDeleting(false);return;}
+    }
+    setOk('Cliente excluído. Se havia lead convertido, ele voltou para a prospecção.');
+    setClients(current=>current.filter(c=>c.id!==client.id));
+    setSel(null);setHist([]);setView('list');setDeleting(false);
+    setTimeout(()=>setOk(''),4000);
   }
   const filtered=clients.filter(c=>{
     if(!search)return true;
@@ -195,13 +236,18 @@ export default function RepCoClients({ representativeId, previewMode = false }: 
     const total=hist.reduce((s,o)=>s+(o.total_amount||0),0);
     return(
       <div className="space-y-4">
+        {err&&<div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{err}</div>}
+        {ok&&<div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">{ok}</div>}
         <div className="flex items-center gap-3">
           <button onClick={()=>setView('list')} className="text-sm text-gray-400 hover:text-gray-600">Voltar</button>
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-gray-800">{sel.nome_fantasia||sel.razao_social||sel.nome_completo}</h3>
             {sel.segment&&<span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{SEGMENT_LABEL[sel.segment]}</span>}
           </div>
-          <button onClick={()=>openEdit(sel)} className="text-sm bg-[#8B2214] text-white px-3 py-1.5 rounded-lg hover:bg-[#6d1a10]">Editar</button>
+          <div className="flex items-center gap-2">
+            <button onClick={()=>openEdit(sel)} className="text-sm bg-[#8B2214] text-white px-3 py-1.5 rounded-lg hover:bg-[#6d1a10]">Editar</button>
+            <button onClick={()=>handleDeleteClient(sel)} disabled={deleting} className="text-sm border border-red-200 bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100 disabled:opacity-50">{deleting?'Excluindo...':'Excluir'}</button>
+          </div>
         </div>
         {d>=7&&<div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-3">
           <div className="flex-1">
@@ -264,6 +310,7 @@ export default function RepCoClients({ representativeId, previewMode = false }: 
   return(
     <div className="space-y-4">
       {ok&&<div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">{ok}</div>}
+      {err&&<div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{err}</div>}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-800">Meus Clientes</h3>

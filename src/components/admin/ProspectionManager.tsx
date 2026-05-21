@@ -268,6 +268,29 @@ function normalizeComparableText(value: unknown) {
     .replace(/\s+/g, ' ');
 }
 
+function getFilterTokens(value: unknown) {
+  const key = normalizeKey(String(value || ''));
+  if (!key) return new Set<string>();
+  const tokens = new Set<string>([key]);
+  const mappedSegment = CATEGORY_SEGMENT_MAP[key];
+  if (mappedSegment) tokens.add(mappedSegment);
+  const prospectLabel = PROSPECT_SEGMENT_LABEL[key];
+  if (prospectLabel) tokens.add(normalizeKey(prospectLabel));
+  const segmentLabel = SEGMENT_LABEL[key];
+  if (segmentLabel) tokens.add(normalizeKey(segmentLabel));
+  return tokens;
+}
+
+function matchesCategoryOrSegment(filterValue: string, values: Array<string | null | undefined>) {
+  if (!filterValue) return true;
+  const filterTokens = getFilterTokens(filterValue);
+  const valueTokens = values.reduce<Set<string>>((acc, value) => {
+    getFilterTokens(value).forEach(token => acc.add(token));
+    return acc;
+  }, new Set<string>());
+  return Array.from(filterTokens).some(token => valueTokens.has(token));
+}
+
 function cleanPhone(value: string | null) {
   if (!value) return null;
   const digits = value.replace(/\D/g, '');
@@ -554,6 +577,7 @@ export default function ProspectionManager() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [showAcceptedColumns, setShowAcceptedColumns] = useState(false);
   const [listCategories, setListCategories] = useState<Record<string, string[]>>({});
+  const [listFilterValues, setListFilterValues] = useState<Record<string, string[]>>({});
   const [assignmentDraft, setAssignmentDraft] = useState<Record<string, string>>({});
   const [assigningListId, setAssigningListId] = useState<string | null>(null);
   const [assigningFilteredKey, setAssigningFilteredKey] = useState<string | null>(null);
@@ -599,8 +623,18 @@ export default function ProspectionManager() {
       acc[lead.prospect_list_id].add(lead.category);
       return acc;
     }, {});
+    const filterValuesByList = ((leadCategories || []) as ProspectLeadCategory[]).reduce<Record<string, Set<string>>>((acc, lead) => {
+      if (!acc[lead.prospect_list_id]) acc[lead.prospect_list_id] = new Set<string>();
+      [lead.category, lead.segment, lead.segment ? PROSPECT_SEGMENT_LABEL[lead.segment] || SEGMENT_LABEL[lead.segment] : null]
+        .filter(Boolean)
+        .forEach(value => acc[lead.prospect_list_id].add(value as string));
+      return acc;
+    }, {});
     setListCategories(
       Object.fromEntries(Object.entries(categoriesByList).map(([listId, categories]) => [listId, Array.from(categories).sort()]))
+    );
+    setListFilterValues(
+      Object.fromEntries(Object.entries(filterValuesByList).map(([listId, values]) => [listId, Array.from(values).sort()]))
     );
     setLoading(false);
   }
@@ -612,10 +646,10 @@ export default function ProspectionManager() {
   const filteredLists = useMemo(
     () =>
       lists.filter(list => {
-        const matchesCategory = categoryFilter ? (listCategories[list.id] || []).includes(categoryFilter) : true;
+        const matchesCategory = categoryFilter ? matchesCategoryOrSegment(categoryFilter, listFilterValues[list.id] || []) : true;
         return matchesCategory;
       }),
-    [categoryFilter, listCategories, lists]
+    [categoryFilter, listFilterValues, lists]
   );
   const importCategoryOptions = useMemo(
     () => Array.from(new Set([...APIFY_DEFAULT_CATEGORIES, ...(parsedLeads.map(lead => lead.category).filter(Boolean) as string[])])).sort(),
@@ -624,7 +658,7 @@ export default function ProspectionManager() {
   const filteredParsedLeads = useMemo(
     () =>
       parsedLeads.filter(lead => {
-        const matchesCategory = importCategoryFilter ? lead.category === importCategoryFilter : true;
+        const matchesCategory = importCategoryFilter ? matchesCategoryOrSegment(importCategoryFilter, [lead.category, lead.segment]) : true;
         return matchesCategory;
       }),
     [importCategoryFilter, parsedLeads]

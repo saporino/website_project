@@ -206,29 +206,29 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
         </div>
 
         <div className="flex flex-1 items-center justify-center overflow-auto px-4 py-6">
-          <div className="rounded-[2.4rem] border-[8px] border-gray-950 bg-gray-950 p-1 shadow-2xl">
-            <div className="relative h-[812px] w-[390px] max-h-[calc(100vh-7rem)] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1.85rem] bg-[#f5f3ee]">
-              <div className="flex items-center justify-between bg-[#8B2214] px-5 pb-1 pt-3 text-[10px] font-semibold text-white/90">
+          <div className="rounded-[2.25rem] border-[7px] border-gray-950 bg-gray-950 p-1 shadow-2xl">
+            <div className="relative h-[780px] w-[380px] max-h-[calc(100vh-7rem)] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1.75rem] bg-[#f5f3ee]">
+              <div className="flex items-center justify-between bg-[#8B2214] px-5 pb-0.5 pt-2.5 text-[10px] font-semibold text-white/90">
                 <span>9:41</span>
                 <span>●●●</span>
               </div>
 
-              <header className="bg-[#8B2214] px-4 pb-3 pt-2 text-white">
+              <header className="bg-[#8B2214] px-3.5 pb-2.5 pt-1.5 text-white">
                 <div className="flex items-center justify-between gap-3">
                   <div className="inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1 shadow-sm">
-                    <img src="/saporino-logo.png" alt="Saporino" className="h-5 w-auto object-contain" />
+                    <img src="/saporino-logo.png" alt="Saporino" className="h-[18px] w-auto object-contain" />
                     <span className="text-[11px] font-bold text-[#8B2214]">RepCo</span>
                   </div>
                   <span className="rounded-full bg-white/15 px-2 py-1 text-[10px] font-semibold">Preview</span>
                 </div>
-                <div className="mt-2 min-w-0">
-                  <p className="truncate text-sm font-semibold">{selectedRep?.full_name || 'Selecione um representante'}</p>
+                <div className="mt-1.5 min-w-0">
+                  <p className="truncate text-[13px] font-semibold">{selectedRep?.full_name || 'Selecione um representante'}</p>
                   <p className="text-[11px] text-white/75">Espelho mobile seguro</p>
                 </div>
                 <select
                   value={representativeId}
                   onChange={event => setRepresentativeId(event.target.value)}
-                  className="mt-3 w-full rounded-xl border border-white/20 bg-white/95 px-3 py-2 text-xs font-medium text-gray-700 outline-none focus:ring-2 focus:ring-white/60"
+                  className="mt-2 w-full rounded-lg border border-white/20 bg-white/95 px-3 py-1.5 text-xs font-medium text-gray-700 outline-none focus:ring-2 focus:ring-white/60"
                 >
                   {availableReps.length === 0 && <option value="">Nenhum representante ativo</option>}
                   {availableReps.map(rep => (
@@ -239,7 +239,7 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
                 </select>
               </header>
 
-              <nav className="flex gap-1 overflow-x-auto border-b border-gray-200 bg-white px-3 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <nav className="flex gap-1 overflow-x-auto border-b border-gray-200 bg-white px-2.5 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {TABS.map(tab => {
                   const Icon = tab.icon;
                   return (
@@ -247,7 +247,7 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
                       key={tab.id}
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex min-w-max items-center gap-1.5 border-b-2 px-2.5 py-2 text-[11px] font-semibold transition-colors ${
+                      className={`flex min-w-max items-center gap-1.5 border-b-2 px-2 py-1.5 text-[11px] font-semibold transition-colors ${
                         activeTab === tab.id ? 'border-[#8B2214] text-[#8B2214]' : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}
                     >
@@ -258,7 +258,7 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
                 })}
               </nav>
 
-              <main className="h-[calc(100%-165px)] overflow-y-auto overflow-x-hidden px-3 py-3">
+              <main className="h-[calc(100%-145px)] overflow-y-auto overflow-x-hidden px-2.5 py-2.5">
                 {renderContent()}
               </main>
             </div>
