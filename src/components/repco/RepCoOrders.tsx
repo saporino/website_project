@@ -144,6 +144,7 @@ export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
         <div className="space-y-3">
           {filtered.map(order => {
             const st = STATUS_LABELS[order.status] || { label: order.status, color: 'bg-gray-100 text-gray-600' };
+            const hasInvoicePdf = Boolean(getInvoicePath(order));
             return (
               <div key={order.id} className="bg-white border border-gray-200 rounded-xl p-5">
                 <div className="flex items-start justify-between">
@@ -162,7 +163,7 @@ export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
                   </div>
                 </div>
 
-                {order.invoice_pdf_url && (
+                {hasInvoicePdf && (
                   <div className="mt-4 flex items-center gap-3 pt-4 border-t border-gray-100">
                     <span className="text-xs font-medium text-gray-500">Nota Fiscal:</span>
                     <button onClick={() => openInvoice(order)}

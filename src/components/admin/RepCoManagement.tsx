@@ -210,8 +210,9 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     };
   }, [selectedRep]);
 
-  function notifyRepCoUpdated() {
+  function notifyRepCoUpdated(representativeId = selectedRep?.id) {
     window.dispatchEvent(new CustomEvent('admin:repco-updated'));
+    window.dispatchEvent(new CustomEvent('repco:orders-updated', { detail: { representativeId } }));
   }
 
   const [snoozedClients, setSnoozedClients] = useState<any[]>([]);
@@ -301,7 +302,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     if (error) { toast.error('Erro ao aprovar'); return; }
     toast.success(`${rep.full_name} aprovado!`);
     fetchReps();
-    notifyRepCoUpdated();
+    notifyRepCoUpdated(rep.id);
     if (selectedRep?.id === rep.id) setSelectedRep({ ...rep, status: 'active' });
   };
 
@@ -314,7 +315,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     if (error) { toast.error('Erro ao bloquear'); return; }
     toast.success(`${rep.full_name} bloqueado.`);
     fetchReps();
-    notifyRepCoUpdated();
+    notifyRepCoUpdated(rep.id);
   };
 
   const handleCreateOrder = async () => {
@@ -387,12 +388,21 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     const currentOrder = orders.find(order => order.id === orderId);
     const previousRef = extension === 'xml' ? currentOrder?.invoice_xml_url : currentOrder?.invoice_pdf_url;
     const { error: upErr } = await supabase.storage.from('invoices').upload(path, file, { upsert: true });
-    if (upErr) { toast.error('Erro no upload da NF'); return; }
+    if (upErr) { toast.error('Erro no upload da NF'); return false; }
     await removeInvoiceFileIfPossible(previousRef || null);
-    await supabase.from('representative_orders').update({
+    const field = extension === 'xml' ? 'invoice_xml_url' : 'invoice_pdf_url';
+    const { data: updatedOrder, error: updateErr } = await supabase.from('representative_orders').update({
       [extension === 'xml' ? 'invoice_xml_url' : 'invoice_pdf_url']: path,
       invoice_number: file.name,
-    }).eq('id', orderId);
+    }).eq('id', orderId).select('id, invoice_pdf_url, invoice_xml_url, invoice_number').single();
+    if (updateErr || !updatedOrder) {
+      toast.error(updateErr?.message || 'Erro ao vincular NF ao pedido');
+      return false;
+    }
+    setOrders(current => current.map(order => (
+      order.id === orderId ? { ...order, [field]: path, invoice_number: file.name } : order
+    )));
+    return true;
   };
 
   async function openStoredInvoice(fileRef: string | null) {
@@ -406,20 +416,32 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
 
   async function removeOrderInvoice(order: RepOrder, type: 'pdf' | 'xml') {
     const label = type === 'pdf' ? 'PDF' : 'XML';
+    if (order.status === 'completed') {
+      toast.error('Pedido concluído precisa manter a nota fiscal anexada.');
+      return;
+    }
     if (!window.confirm(`Remover a NF ${label} deste pedido?`)) return;
     const field = type === 'pdf' ? 'invoice_pdf_url' : 'invoice_xml_url';
     await removeInvoiceFileIfPossible(order[field]);
-    const { error } = await supabase.from('representative_orders').update({ [field]: null }).eq('id', order.id);
-    if (error) { toast.error(`Erro ao remover NF ${label}`); return; }
+    const { data: updatedOrder, error } = await supabase.from('representative_orders')
+      .update({ [field]: null })
+      .eq('id', order.id)
+      .select('id, invoice_pdf_url, invoice_xml_url')
+      .single();
+    if (error || !updatedOrder) { toast.error(error?.message || `Erro ao remover NF ${label}`); return; }
+    setOrders(current => current.map(item => (
+      item.id === order.id ? { ...item, [field]: null } : item
+    )));
     toast.success(`NF ${label} removida`);
-    if (selectedRep) fetchRepDetail(selectedRep);
+    if (selectedRep) await fetchRepDetail(selectedRep);
     notifyRepCoUpdated();
   }
 
   const handleUploadNFExisting = async (order: RepOrder, file: File) => {
-    await uploadNF(order.id, file);
+    const uploaded = await uploadNF(order.id, file);
+    if (!uploaded) return;
     toast.success('NF enviada!');
-    if (selectedRep) fetchRepDetail(selectedRep);
+    if (selectedRep) await fetchRepDetail(selectedRep);
     notifyRepCoUpdated();
   };
 
@@ -436,6 +458,10 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   void handleMarkCommissionPaid;
 
   const handleCompleteOrder = async (order: RepOrder) => {
+    if (!getInvoicePathFromRef(order.invoice_pdf_url)) {
+      toast.error('Anexe a nota fiscal antes de concluir o pedido.');
+      return;
+    }
     const { error } = await supabase.from('representative_orders').update({ status: 'completed' }).eq('id', order.id);
     if (error) { toast.error('Erro ao concluir pedido'); return; }
     await removeCommissionIfDisabled(order.id);
