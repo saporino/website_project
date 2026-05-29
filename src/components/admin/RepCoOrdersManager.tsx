@@ -98,6 +98,14 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
 
   async function markCompleted(orderId: string) {
     await supabase.from('representative_orders').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', orderId);
+    const order = orders.find(o => o.id === orderId);
+    if (String(order?.notes || '').toUpperCase().includes('SEM COMISS')) {
+      await supabase
+        .from('representative_commissions')
+        .delete()
+        .eq('order_id', orderId)
+        .eq('status', 'pending');
+    }
     fetchOrders();
     notifyOrdersUpdated();
   }

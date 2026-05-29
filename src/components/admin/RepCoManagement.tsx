@@ -1,5 +1,5 @@
 import { useState, useEffect, Suspense, lazy, useMemo } from 'react';
-import { CheckCircle, XCircle, Eye, Plus, Upload, Download, Phone, Mail, Map, Search, Smartphone } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, Plus, Upload, Download, Phone, Mail, Map, Search, Smartphone, ArrowRightLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -55,13 +55,25 @@ interface RepCommission {
 }
 
 type AdminTab = 'list' | 'detail';
+type RepClient = {
+  id: string;
+  razao_social: string | null;
+  nome_fantasia?: string | null;
+  nome_completo?: string | null;
+  cnpj: string | null;
+  cpf?: string | null;
+  segment?: string | null;
+  status?: string | null;
+};
+
+const NO_COMMISSION_NOTE = 'SEM COMISSÃO - admin marcou como não-comissionável';
 
 export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   const { profile } = useAuth();
   const isAdmin = profile?.is_admin === true;
   const [adminTab, setAdminTab] = useState<AdminTab>('list');
   const [adminView, setAdminView] = useState<'list' | 'map' | 'price-list' | 'prospection'>('list');
-  const [detailTab, setDetailTab] = useState<'pedidos' | 'comissoes' | 'precos' | 'rotas'>('pedidos');
+  const [detailTab, setDetailTab] = useState<'pedidos' | 'clientes' | 'comissoes' | 'precos' | 'rotas'>('pedidos');
   const [reps, setReps] = useState<Representative[]>([]);
   const [selectedRep, setSelectedRep] = useState<Representative | null>(null);
   const [orders, setOrders] = useState<RepOrder[]>([]);
@@ -81,7 +93,11 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     representative_client_id: '',
   });
   const [nfFile, setNfFile] = useState<File | null>(null);
-  const [clients, setClients] = useState<{ id: string; razao_social: string; cnpj: string }[]>([]);
+  const [clients, setClients] = useState<RepClient[]>([]);
+  const [orderRepresentativeId, setOrderRepresentativeId] = useState('');
+  const [orderClients, setOrderClients] = useState<RepClient[]>([]);
+  const [transferClientId, setTransferClientId] = useState<string | null>(null);
+  const [transferRepresentativeId, setTransferRepresentativeId] = useState('');
   const [showMobilePreview, setShowMobilePreview] = useState(false);
 
   // Product selector for order form
@@ -133,6 +149,42 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     });
   }
 
+  function getClientName(client: RepClient) {
+    return client.nome_fantasia || client.razao_social || client.nome_completo || 'Cliente sem nome';
+  }
+
+  function getClientDocument(client: RepClient) {
+    return client.cnpj || client.cpf || 'sem documento';
+  }
+
+  function openNewOrderForm() {
+    const repId = selectedRep?.id || activeReps[0]?.id || '';
+    setOrderRepresentativeId(repId);
+    setOrderForm(f => ({ ...f, representative_client_id: '' }));
+    setShowNewOrder(prev => !prev);
+  }
+
+  async function removeCommissionIfDisabled(orderId: string) {
+    const { data: order } = await supabase
+      .from('representative_orders')
+      .select('notes')
+      .eq('id', orderId)
+      .single();
+
+    const note = String(order?.notes || '').toUpperCase();
+    if (!note.includes('SEM COMISS')) return;
+
+    const { error } = await supabase
+      .from('representative_commissions')
+      .delete()
+      .eq('order_id', orderId)
+      .eq('status', 'pending');
+
+    if (error) {
+      toast.error('Pedido concluído, mas não foi possível remover a comissão automática.');
+    }
+  }
+
   useEffect(() => { fetchReps(); fetchSnoozedClients(); }, [refreshKey]);
 
   useEffect(() => {
@@ -181,6 +233,38 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     setLoading(false);
   };
 
+  const activeReps = useMemo(() => reps.filter(rep => rep.status === 'active'), [reps]);
+  const orderSelectableReps = useMemo(() => {
+    if (!selectedRep || selectedRep.status === 'active') return activeReps;
+    return [selectedRep, ...activeReps.filter(rep => rep.id !== selectedRep.id)];
+  }, [activeReps, selectedRep]);
+
+  const fetchOrderClients = async (representativeId: string) => {
+    if (!representativeId) {
+      setOrderClients([]);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('representative_clients')
+      .select('id, razao_social, nome_fantasia, nome_completo, cnpj, cpf, segment, status')
+      .eq('representative_id', representativeId)
+      .eq('status', 'active')
+      .order('razao_social', { ascending: true });
+
+    if (error) {
+      toast.error('Erro ao carregar clientes do representante');
+      setOrderClients([]);
+      return;
+    }
+
+    setOrderClients(data || []);
+  };
+
+  useEffect(() => {
+    if (showNewOrder) fetchOrderClients(orderRepresentativeId || selectedRep?.id || '');
+  }, [showNewOrder, orderRepresentativeId, selectedRep?.id]);
+
   const fetchRepDetail = async (rep: Representative) => {
     setSelectedRep(rep);
     setAdminTab('detail');
@@ -195,14 +279,16 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
         .eq('representative_id', rep.id)
         .order('created_at', { ascending: false }),
       supabase.from('representative_clients')
-        .select('id, razao_social, cnpj')
+        .select('id, razao_social, nome_fantasia, nome_completo, cnpj, cpf, segment, status')
         .eq('representative_id', rep.id)
-        .eq('status', 'active'),
+        .eq('status', 'active')
+        .order('razao_social', { ascending: true }),
     ]);
 
     setOrders(ordersRes.data || []);
     setCommissions(commissionsRes.data || []);
     setClients(clientsRes.data || []);
+    setOrderRepresentativeId(rep.id);
   };
 
   const handleApprove = async (rep: Representative) => {
@@ -232,7 +318,12 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
 
   const handleCreateOrder = async () => {
     const cartItems = Object.entries(orderCart).filter(([, qty]) => qty > 0);
-    if (!selectedRep || cartItems.length === 0) {
+    const representativeId = orderRepresentativeId || selectedRep?.id || '';
+    if (!representativeId) {
+      toast.error('Selecione o representante do pedido');
+      return;
+    }
+    if (cartItems.length === 0) {
       toast.error('Selecione pelo menos um produto');
       return;
     }
@@ -240,7 +331,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     const total = orderCartTotal;
 
     const { data: order, error } = await supabase.from('representative_orders').insert({
-      representative_id: selectedRep.id,
+      representative_id: representativeId,
       representative_client_id: orderForm.representative_client_id || null,
       description,
       total_amount: total,
@@ -256,7 +347,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
 
     // If pay_commission is false, we mark a note (the trigger will still create but admin can cancel)
     if (!payCommission) {
-      await supabase.from('representative_orders').update({ notes: 'SEM COMISSÃO - admin marcou como não-comissionável' }).eq('id', order.id);
+      await supabase.from('representative_orders').update({ notes: NO_COMMISSION_NOTE }).eq('id', order.id);
     }
 
     if (nfFile) await uploadNF(order.id, nfFile);
@@ -269,7 +360,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     setManualPixBonus(false);
     setPayCommission(true);
     setNfFile(null);
-    fetchRepDetail(selectedRep);
+    if (selectedRep) fetchRepDetail(selectedRep);
     notifyRepCoUpdated();
   };
 
@@ -306,7 +397,35 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   const handleCompleteOrder = async (order: RepOrder) => {
     const { error } = await supabase.from('representative_orders').update({ status: 'completed' }).eq('id', order.id);
     if (error) { toast.error('Erro ao concluir pedido'); return; }
+    await removeCommissionIfDisabled(order.id);
     toast.success('Pedido concluído! Comissão calculada automaticamente.');
+    if (selectedRep) fetchRepDetail(selectedRep);
+    notifyRepCoUpdated();
+  };
+
+  const handleTransferClient = async (client: RepClient) => {
+    if (!transferRepresentativeId || transferRepresentativeId === selectedRep?.id) {
+      toast.error('Selecione outro representante ativo');
+      return;
+    }
+
+    const nextRep = reps.find(rep => rep.id === transferRepresentativeId);
+    const confirmed = window.confirm(`Transferir ${getClientName(client)} para ${nextRep?.full_name || 'outro representante'}?\n\nOs pedidos antigos continuam no representante original.`);
+    if (!confirmed) return;
+
+    const { error } = await supabase
+      .from('representative_clients')
+      .update({ representative_id: transferRepresentativeId })
+      .eq('id', client.id);
+
+    if (error) {
+      toast.error('Erro ao transferir cliente');
+      return;
+    }
+
+    toast.success('Cliente transferido');
+    setTransferClientId(null);
+    setTransferRepresentativeId('');
     if (selectedRep) fetchRepDetail(selectedRep);
     notifyRepCoUpdated();
   };
@@ -402,17 +521,90 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
                 {tab.label}
               </button>
             ))}
+            <button onClick={()=>setDetailTab('clientes')}
+              className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${detailTab==='clientes'?'border-[#a4240e] text-[#a4240e]':'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              Clientes
+            </button>
           </div>
         </div>
 
         {detailTab === 'precos' && <PriceListManager fixedSegment={selectedRep ? undefined : undefined} refreshKey={refreshKey} />}
         {detailTab === 'rotas' && <RouteManager />}
 
+        {detailTab === 'clientes' && (
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h3 className="font-bold text-gray-900">Clientes do representante</h3>
+              <p className="text-sm text-gray-500 mt-1">Transfira clientes sem alterar pedidos antigos nem histórico de comissão.</p>
+            </div>
+
+            {clients.length === 0 ? (
+              <div className="text-center py-10 text-gray-500 text-sm">Nenhum cliente ativo para este representante.</div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {clients.map(client => {
+                  const isTransferring = transferClientId === client.id;
+                  return (
+                    <div key={client.id} className="px-6 py-4">
+                      <div className="flex flex-col lg:flex-row lg:items-center gap-3 lg:justify-between">
+                        <div>
+                          <p className="font-semibold text-gray-900">{getClientName(client)}</p>
+                          <div className="flex flex-wrap gap-2 mt-1 text-xs text-gray-500">
+                            <span>{getClientDocument(client)}</span>
+                            {client.segment && <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full">{client.segment}</span>}
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                          {isTransferring ? (
+                            <>
+                              <select
+                                value={transferRepresentativeId}
+                                onChange={e => setTransferRepresentativeId(e.target.value)}
+                                className="h-9 px-3 text-sm border border-gray-300 rounded-lg bg-white"
+                              >
+                                <option value="">Escolher novo representante</option>
+                                {activeReps
+                                  .filter(rep => rep.id !== selectedRep.id)
+                                  .map(rep => <option key={rep.id} value={rep.id}>{rep.full_name}</option>)}
+                              </select>
+                              <button
+                                onClick={() => handleTransferClient(client)}
+                                className="h-9 px-3 rounded-lg text-sm font-semibold bg-[#a4240e] text-white hover:bg-[#8a1f0c]"
+                              >
+                                Confirmar transferência
+                              </button>
+                              <button
+                                onClick={() => { setTransferClientId(null); setTransferRepresentativeId(''); }}
+                                className="h-9 px-3 rounded-lg text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50"
+                              >
+                                Cancelar
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => { setTransferClientId(client.id); setTransferRepresentativeId(''); }}
+                              className="h-9 px-3 rounded-lg text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 flex items-center gap-1.5"
+                            >
+                              <ArrowRightLeft className="w-4 h-4" />
+                              Transferir cliente
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {detailTab === 'pedidos' && (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <h3 className="font-bold text-gray-900">Pedidos</h3>
-            <button onClick={() => setShowNewOrder(!showNewOrder)}
+            <button onClick={openNewOrderForm}
               className="flex items-center gap-1.5 px-3 py-2 bg-[#a4240e] text-white text-sm font-semibold rounded-lg hover:bg-[#8a1f0c] transition-colors">
               <Plus className="w-4 h-4" /> Lançar Pedido
             </button>
@@ -423,13 +615,29 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
             <div className="p-6 bg-[#f8f7f5] border-b border-gray-200">
               <h4 className="font-semibold text-gray-900 mb-4">Novo Pedido RepCo</h4>
               <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Representante do pedido</label>
+                  <select
+                    value={orderRepresentativeId}
+                    onChange={e => {
+                      setOrderRepresentativeId(e.target.value);
+                      setOrderForm(f => ({ ...f, representative_client_id: '' }));
+                    }}
+                    className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"
+                  >
+                    <option value="">Selecionar representante</option>
+                    {orderSelectableReps.map(rep => <option key={rep.id} value={rep.id}>{rep.full_name}</option>)}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">O pedido e a comissão serão vinculados ao representante escolhido.</p>
+                </div>
                 {/* Cliente */}
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Cliente</label>
                   <select value={orderForm.representative_client_id} onChange={e => setOrderForm(f => ({ ...f, representative_client_id: e.target.value }))}
-                    className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded">
+                    disabled={!orderRepresentativeId}
+                    className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded disabled:bg-gray-100 disabled:text-gray-400">
                     <option value="">— Selecionar cliente —</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.razao_social} ({c.cnpj})</option>)}
+                    {orderClients.map(c => <option key={c.id} value={c.id}>{getClientName(c)} ({getClientDocument(c)})</option>)}
                   </select>
                 </div>
 
