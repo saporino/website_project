@@ -2,11 +2,28 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { SEGMENT_LABEL } from '../../constants/segments';
 
-interface Client { id: string; razao_social: string | null; nome_fantasia: string | null; cnpj: string; segment: string | null; forma_pagamento: string | null; }
+type FiscalOrderType = 'resale' | 'taxpayer_consumer' | 'non_taxpayer_consumer';
+
+interface Client {
+  id: string;
+  razao_social: string | null;
+  nome_fantasia: string | null;
+  cnpj: string | null;
+  cpf: string | null;
+  segment: string | null;
+  forma_pagamento: string | null;
+  default_fiscal_order_type: FiscalOrderType | null;
+}
 interface Product { id: string; name: string; image_url: string | null; stock: number; in_stock: boolean; }
 interface PriceEntry { product_id: string; segment: string; price: number; volume_discount: number; volume_min_qty: number; }
 interface OrderItem { product: Product; price: PriceEntry; quantity: number; }
 interface Props { representativeId: string; onOrderCreated?: () => void; preSelectedClientId?: string | null; }
+
+const FISCAL_ORDER_LABEL: Record<FiscalOrderType, string> = {
+  resale: 'Revenda',
+  taxpayer_consumer: 'Consumidor contribuinte',
+  non_taxpayer_consumer: 'Consumidor não contribuinte',
+};
 
 function StockIndicator({ stock, inStock }: { stock: number; inStock: boolean }) {
   if (!inStock || stock === 0) return <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"/><span className="text-xs text-red-500 font-medium">Esgotado</span></span>;
@@ -34,6 +51,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   const [paymentTerm, setPaymentTerm] = useState(0);
   const [discountPercentage, setDiscountPercentage] = useState(0);
   const [paymentTerms, setPaymentTerms] = useState<number[]>([0,7,14,21,28,30]);
+  const [fiscalOrderType, setFiscalOrderType] = useState<FiscalOrderType>('non_taxpayer_consumer');
 
   useEffect(() => { fetchClients(); }, [representativeId]);
   useEffect(() => {
@@ -44,7 +62,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   }, [preSelectedClientId, clients]);
 
   async function fetchClients() {
-    const { data } = await supabase.from('representative_clients').select('id,razao_social,nome_fantasia,cnpj,segment,forma_pagamento').eq('representative_id', representativeId).eq('status','active').order('razao_social');
+    const { data } = await supabase.from('representative_clients').select('id,razao_social,nome_fantasia,cnpj,cpf,segment,forma_pagamento,default_fiscal_order_type').eq('representative_id', representativeId).eq('status','active').order('razao_social');
     if (data) setClients(data);
   }
 
@@ -63,6 +81,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
 
   function selectClient(client: Client) {
     setSelectedClient(client); setPaymentMethod(client.forma_pagamento || 'pix'); setItems([]);
+    setFiscalOrderType(client.default_fiscal_order_type || (client.cnpj ? 'resale' : 'non_taxpayer_consumer'));
     if (client.segment) fetchProductsAndPrices(client.segment);
     setStep('products');
   }
@@ -86,19 +105,27 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
 
   const calcTotal = () => items.reduce((s, item) => s + effectivePrice(item.price, item.quantity) * item.quantity, 0);
   const fmt = (v: string) => v.replace(/\D/g,'').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5');
+  const hasCnpj = (client: Client) => Boolean(client.cnpj?.replace(/\D/g, ''));
 
   async function handleSubmit() {
     if (items.length === 0) { setError('Adicione pelo menos um produto.'); return; }
     if (!selectedClient) return;
+    if (fiscalOrderType === 'resale' && !hasCnpj(selectedClient)) {
+      setError('Pedidos de revenda exigem CNPJ. Preencha o CNPJ do cliente antes de enviar este pedido.');
+      return;
+    }
+
+    const fiscalLabel = FISCAL_ORDER_LABEL[fiscalOrderType];
+    const confirmed = window.confirm(
+      `Confirmar envio do pedido como "${fiscalLabel}"?\n\nEssa escolha será salva como padrão para o próximo pedido deste cliente.`
+    );
+    if (!confirmed) return;
+
     setSubmitting(true); setError('');
     const originalAmount = calcTotal();
     const finalAmount = originalAmount * (1 - discountPercentage / 100);
     const description = items.map(i => `${i.product.name} x${i.quantity} (R$ ${effectivePrice(i.price, i.quantity).toFixed(2)})`).join(', ');
 
-    // Optimistic update — mostra sucesso imediatamente
-    setSuccess(true); setSubmitting(false); onOrderCreated?.();
-
-    // Insert em background
     const { error: err } = await supabase.from('representative_orders').insert({
       representative_id: representativeId,
       representative_client_id: selectedClient.id,
@@ -114,13 +141,31 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
       pix_bonus_eligible: paymentTerm === 0,
       channel: 'repco',
       status: 'new',
+      fiscal_order_type: fiscalOrderType,
       notes: notes || null,
     });
     if (err) {
-      // Se falhou, volta para revisão com erro
-      setSuccess(false); setStep('review');
+      setSubmitting(false);
       setError('Erro ao enviar pedido. Tente novamente.');
+      return;
     }
+
+    const { error: defaultErr } = await supabase.rpc('set_repco_client_default_fiscal_order_type', {
+      p_client_id: selectedClient.id,
+      p_fiscal_order_type: fiscalOrderType,
+    });
+
+    if (defaultErr) {
+      setSubmitting(false);
+      setError('Pedido criado, mas não foi possível salvar a preferência fiscal do cliente.');
+      return;
+    }
+
+    setClients(prev => prev.map(client => client.id === selectedClient.id ? { ...client, default_fiscal_order_type: fiscalOrderType } : client));
+    setSelectedClient(prev => prev ? { ...prev, default_fiscal_order_type: fiscalOrderType } : prev);
+    setSuccess(true);
+    setSubmitting(false);
+    onOrderCreated?.();
   }
 
   if (success) return (
@@ -128,7 +173,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
       <div className="text-5xl">✓</div>
       <h3 className="text-lg font-semibold text-gray-800">Pedido enviado!</h3>
       <p className="text-sm text-gray-500">Registrado e aguardando processamento.</p>
-      <button onClick={() => { setSuccess(false); setStep('client'); setSelectedClient(null); setItems([]); setNotes(''); }}
+      <button onClick={() => { setSuccess(false); setStep('client'); setSelectedClient(null); setItems([]); setNotes(''); setFiscalOrderType('non_taxpayer_consumer'); }}
         className="bg-[#a4240e] text-white px-6 py-2 rounded-xl text-sm font-semibold hover:bg-[#8a1f0c]">Novo Pedido</button>
     </div>
   );
@@ -161,7 +206,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
             : clients.map(c => (
               <div key={c.id} onClick={()=>selectClient(c)} className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-[#a4240e]/40 hover:shadow-sm transition-all">
                 <div className="flex items-center justify-between">
-                  <div><p className="font-semibold text-gray-900 text-sm">{c.nome_fantasia||c.razao_social}</p><p className="text-xs text-gray-400">{fmt(c.cnpj)}</p></div>
+                  <div><p className="font-semibold text-gray-900 text-sm">{c.nome_fantasia||c.razao_social}</p><p className="text-xs text-gray-400">{c.cnpj ? fmt(c.cnpj) : c.cpf}</p></div>
                   {c.segment&&<span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{SEGMENT_LABEL[c.segment]??c.segment}</span>}
                 </div>
               </div>
@@ -270,6 +315,31 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                   <option key={term} value={term}>{term===0?'À vista / PIX (0 dias)':`${term} dias`}</option>
                 ))}
               </select>
+            </div>
+            {/* Tipo fiscal/comercial */}
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Tipo fiscal/comercial do pedido</label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                {(Object.keys(FISCAL_ORDER_LABEL) as FiscalOrderType[]).map(type => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setFiscalOrderType(type)}
+                    className={`rounded-lg border px-3 py-2 text-left text-xs font-semibold transition-colors ${
+                      fiscalOrderType === type
+                        ? 'border-[#a4240e] bg-red-50 text-[#a4240e]'
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                    }`}
+                  >
+                    {FISCAL_ORDER_LABEL[type]}
+                  </button>
+                ))}
+              </div>
+              {fiscalOrderType === 'resale' && selectedClient && !hasCnpj(selectedClient) && (
+                <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+                  Revenda exige CNPJ. Preencha o CNPJ do cliente antes de enviar.
+                </p>
+              )}
             </div>
             {/* Desconto */}
             <div>
