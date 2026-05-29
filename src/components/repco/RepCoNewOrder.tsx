@@ -68,6 +68,9 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
 
   async function fetchProductsAndPrices(segment: string) {
     setLoading(true);
+    setError('');
+    setProducts([]);
+    setPrices([]);
     const [{ data: prods }, { data: priceData }, { data: termsData }] = await Promise.all([
       supabase.from('products').select('id,name,image_url,stock,in_stock').eq('is_active', true).order('name'),
       supabase.from('price_lists').select('product_id,segment,price,volume_discount,volume_min_qty').eq('segment', segment).eq('is_active', true),
@@ -75,25 +78,40 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
     ]);
     if (prods) setProducts(prods);
     if (priceData) setPrices(priceData);
+    if (prods?.length && (!priceData || priceData.length === 0)) {
+      setError(`Nenhum preço encontrado para o segmento ${SEGMENT_LABEL[segment] ?? segment}. Ajuste a Tabela de Preços Global antes de criar o pedido.`);
+    }
     if ((termsData as any)?.payment_terms) setPaymentTerms((termsData as any).payment_terms);
     setLoading(false);
   }
 
   function selectClient(client: Client) {
-    setSelectedClient(client); setPaymentMethod(client.forma_pagamento || 'pix'); setItems([]);
-    setFiscalOrderType(client.default_fiscal_order_type || (client.cnpj ? 'resale' : 'non_taxpayer_consumer'));
-    if (client.segment) fetchProductsAndPrices(client.segment);
+    setError('');
+    setItems([]);
+    setProducts([]);
+    setPrices([]);
+    if (!client.segment) {
+      setSelectedClient(null);
+      setError('Este cliente não tem segmento definido. Edite o cadastro do cliente e selecione um segmento antes de criar pedido.');
+      return;
+    }
+    setSelectedClient(client); setPaymentMethod(client.forma_pagamento || 'pix');
+    setFiscalOrderType(client.default_fiscal_order_type || (hasValidCnpj(client) ? 'resale' : 'non_taxpayer_consumer'));
+    fetchProductsAndPrices(client.segment);
     setStep('products');
   }
 
-  const getPrice = (pid: string) => prices.find(p => p.product_id === pid);
+  const getPrice = (pid: string) => prices.find(p => p.product_id === pid && p.segment === selectedClient?.segment);
   const getQty = (pid: string) => items.find(i => i.product.id === pid)?.quantity ?? 0;
   const effectivePrice = (pe: PriceEntry, qty: number) => pe.volume_discount > 0 && qty >= pe.volume_min_qty ? pe.price * (1 - pe.volume_discount / 100) : pe.price;
 
   function updateQty(product: Product, delta: number) {
     if (!product.in_stock || product.stock === 0) return;
     const pe = getPrice(product.id);
-    if (!pe) return;
+    if (!pe) {
+      setError('Este produto não tem preço para o segmento do cliente na Tabela de Preços Global.');
+      return;
+    }
     setItems(prev => {
       const existing = prev.find(i => i.product.id === product.id);
       const newQty = Math.max(0, Math.min((existing?.quantity ?? 0) + delta, product.stock));
@@ -105,12 +123,17 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
 
   const calcTotal = () => items.reduce((s, item) => s + effectivePrice(item.price, item.quantity) * item.quantity, 0);
   const fmt = (v: string) => v.replace(/\D/g,'').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5');
-  const hasCnpj = (client: Client) => Boolean(client.cnpj?.replace(/\D/g, ''));
+  const getDigits = (value: string | null | undefined) => value?.replace(/\D/g, '') ?? '';
+  const hasValidCnpj = (client: Client) => getDigits(client.cnpj).length === 14;
 
   async function handleSubmit() {
     if (items.length === 0) { setError('Adicione pelo menos um produto.'); return; }
     if (!selectedClient) return;
-    if (fiscalOrderType === 'resale' && !hasCnpj(selectedClient)) {
+    if (!selectedClient.segment) {
+      setError('Este cliente não tem segmento definido. Edite o cadastro do cliente e selecione um segmento antes de enviar o pedido.');
+      return;
+    }
+    if (fiscalOrderType === 'resale' && !hasValidCnpj(selectedClient)) {
       setError('Pedidos de revenda exigem CNPJ. Preencha o CNPJ do cliente antes de enviar este pedido.');
       return;
     }
@@ -240,7 +263,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                           <p className="text-sm font-semibold text-gray-900 truncate">{product.name}</p>
                           <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                             {pe ? <span className={`text-xs font-medium ${hasDisc?'text-green-600':'text-[#a4240e]'}`}>R$ {ep?.toFixed(2)}{hasDisc&&<span className="ml-1 bg-green-50 px-1 rounded">-{pe.volume_discount}%</span>}</span>
-                              : <span className="text-xs text-gray-400">Sem preço p/ este segmento</span>}
+                              : <span className="text-xs text-red-500">Sem preço para {selectedClient.segment ? SEGMENT_LABEL[selectedClient.segment] ?? selectedClient.segment : 'este segmento'}</span>}
                             <StockIndicator stock={product.stock} inStock={product.in_stock} />
                           </div>
                         </div>
@@ -250,7 +273,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                             <span className="w-6 text-center text-sm font-bold">{qty}</span>
                             <button onClick={()=>updateQty(product,1)} disabled={qty>=product.stock} className="w-7 h-7 rounded-full bg-[#a4240e] text-white flex items-center justify-center hover:bg-[#8a1f0c] disabled:opacity-30">+</button>
                           </>) : (
-                            <button onClick={()=>!isOut&&pe&&updateQty(product,1)} disabled={isOut||!pe}
+                            <button onClick={()=>!isOut&&updateQty(product,1)} disabled={isOut||!pe}
                               className="px-3 py-1.5 bg-[#a4240e] text-white rounded-lg text-xs font-semibold hover:bg-[#8a1f0c] disabled:opacity-30 disabled:cursor-not-allowed">
                               {isOut?'Esgotado':'Adicionar'}
                             </button>
@@ -335,7 +358,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                   </button>
                 ))}
               </div>
-              {fiscalOrderType === 'resale' && selectedClient && !hasCnpj(selectedClient) && (
+              {fiscalOrderType === 'resale' && selectedClient && !hasValidCnpj(selectedClient) && (
                 <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
                   Revenda exige CNPJ. Preencha o CNPJ do cliente antes de enviar.
                 </p>
