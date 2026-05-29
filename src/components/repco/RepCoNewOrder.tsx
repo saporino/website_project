@@ -125,6 +125,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   const fmt = (v: string) => v.replace(/\D/g,'').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5');
   const getDigits = (value: string | null | undefined) => value?.replace(/\D/g, '') ?? '';
   const hasValidCnpj = (client: Client) => getDigits(client.cnpj).length === 14;
+  const fiscalTypeRequiresCnpj = (type: FiscalOrderType) => type === 'resale' || type === 'taxpayer_consumer';
 
   async function handleSubmit() {
     if (items.length === 0) { setError('Adicione pelo menos um produto.'); return; }
@@ -133,8 +134,8 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
       setError('Este cliente não tem segmento definido. Edite o cadastro do cliente e selecione um segmento antes de enviar o pedido.');
       return;
     }
-    if (fiscalOrderType === 'resale' && !hasValidCnpj(selectedClient)) {
-      setError('Pedidos de revenda exigem CNPJ. Preencha o CNPJ do cliente antes de enviar este pedido.');
+    if (fiscalTypeRequiresCnpj(fiscalOrderType) && !hasValidCnpj(selectedClient)) {
+      setError('Revenda e Consumidor contribuinte exigem CNPJ. Para cliente CPF, use Consumidor não contribuinte.');
       return;
     }
 
@@ -360,9 +361,9 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                   </button>
                 ))}
               </div>
-              {fiscalOrderType === 'resale' && selectedClient && !hasValidCnpj(selectedClient) && (
+              {fiscalTypeRequiresCnpj(fiscalOrderType) && selectedClient && !hasValidCnpj(selectedClient) && (
                 <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
-                  Revenda exige CNPJ. Preencha o CNPJ do cliente antes de enviar.
+                  Revenda e Consumidor contribuinte exigem CNPJ. Para cliente CPF, use Consumidor não contribuinte.
                 </p>
               )}
             </div>
