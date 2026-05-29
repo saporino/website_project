@@ -27,7 +27,7 @@ const EMPTY_CONTACT = { company_id:"", name:"", role:"", email:"", phone:"", wha
 const STATUS_LABELS:Record<string,string> = { active:"Ativo", consumed:"Consumido", reserved:"Reservado", cancelled:"Cancelado" };
 const STATUS_COLORS:Record<string,string> = { active:"bg-green-100 text-green-800", consumed:"bg-gray-100 text-gray-600", reserved:"bg-amber-100 text-amber-800", cancelled:"bg-red-100 text-red-800" };
 const ROLES = ["Diretor","Torra Master","Gerente Comercial","Coordenador Logistico","Financeiro","Fiscal","Controle de Qualidade","Outros"];
-export default function BatchManagement() {
+export default function BatchManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   const [tab, setTab] = useState<"batches"|"companies">("batches");
   const [batches, setBatches] = useState<Batch[]>([]);
   const [companies, setCompanies] = useState<RoastingCompany[]>([]);
@@ -73,7 +73,18 @@ export default function BatchManagement() {
     setPackagingForm((prev:any) => ({ ...prev, quantity_packages: pacotesCalc }));
   }, [packagingForm.packaged_kg, editingBatch?.product_id, products]);
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => { loadAll(); }, [refreshKey]);
+  useEffect(() => {
+    function handleRefresh() {
+      loadAll();
+    }
+    window.addEventListener('admin:inventory-updated', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
+    return () => {
+      window.removeEventListener('admin:inventory-updated', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
+    };
+  }, []);
 
   // Preview batch_number client-side when roasting_company changes
   useEffect(() => {

@@ -559,7 +559,7 @@ function normalizeRow(row: Record<string, unknown>, rowNumber: number, fallbackS
   };
 }
 
-export default function ProspectionManager() {
+export default function ProspectionManager({ refreshKey = 0 }: { refreshKey?: number }) {
   const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const [lists, setLists] = useState<ProspectList[]>([]);
@@ -593,7 +593,28 @@ export default function ProspectionManager() {
 
   useEffect(() => {
     fetchData();
+  }, [refreshKey]);
+
+  useEffect(() => {
+    function handleRefresh() {
+      fetchData();
+    }
+    window.addEventListener('admin:prospection-updated', handleRefresh);
+    window.addEventListener('repco:prospection-updated', handleRefresh);
+    window.addEventListener('repco:clients-updated', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
+    return () => {
+      window.removeEventListener('admin:prospection-updated', handleRefresh);
+      window.removeEventListener('repco:prospection-updated', handleRefresh);
+      window.removeEventListener('repco:clients-updated', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
+    };
   }, []);
+
+  function notifyProspectionUpdated() {
+    window.dispatchEvent(new CustomEvent('admin:prospection-updated'));
+    window.dispatchEvent(new CustomEvent('repco:prospection-updated'));
+  }
 
   useEffect(() => {
     setPreviewVisibleCount(PREVIEW_PAGE_SIZE);
@@ -829,6 +850,7 @@ export default function ProspectionManager() {
       resetImportForm();
     }
     fetchData();
+    notifyProspectionUpdated();
   }
 
   async function handleAssignList(list: ProspectList, overrideRepresentativeId?: string) {
@@ -855,6 +877,7 @@ export default function ProspectionManager() {
 
       toast.success('Atribuição removida da lista e dos leads.');
       fetchData();
+      notifyProspectionUpdated();
       return;
     }
 
@@ -894,6 +917,7 @@ export default function ProspectionManager() {
 
     toast.success(safeToAssignByList ? 'Lista atribuída ao representante.' : 'Leads elegíveis atribuídos. Já clientes/duplicados não foram enviados para visita.');
     fetchData();
+    notifyProspectionUpdated();
   }
 
   async function handleAssignFilteredLeads(list: ProspectList, remove = false) {
@@ -932,6 +956,7 @@ export default function ProspectionManager() {
 
     toast.success(remove ? 'Representante removido dos leads filtrados.' : 'Leads filtrados atribuídos ao representante. Já clientes/duplicados ficaram fora da visita.');
     fetchData();
+    notifyProspectionUpdated();
   }
   async function handleDeleteList(list: ProspectList) {
     const confirmed = window.confirm(`Deletar a lista "${list.name}"? Os leads de prospecção serão removidos, mas clientes reais não serão apagados.`);
@@ -952,6 +977,7 @@ export default function ProspectionManager() {
       setOpenedListLeads([]);
     }
     fetchData();
+    notifyProspectionUpdated();
   }
   async function handleOpenList(list: ProspectList) {
     setOpenedList(list);
@@ -1017,6 +1043,7 @@ export default function ProspectionManager() {
 
     setSavingAudit(false);
     setAuditTarget(null);
+    if (auditTarget.type === 'stored') notifyProspectionUpdated();
     toast.success('Edição do site salva.');
   }
   function getActiveFilterLabel() {

@@ -11,7 +11,7 @@ interface Commission {
   rep_name?: string; order_number?: string; client_name?: string;
 }
 
-export default function RepCoCommissionsManager({ representativeId }: { representativeId?: string }) {
+export default function RepCoCommissionsManager({ representativeId, refreshKey = 0 }: { representativeId?: string; refreshKey?: number }) {
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all'|'pending'|'paid'>('pending');
@@ -20,7 +20,20 @@ export default function RepCoCommissionsManager({ representativeId }: { represen
   const fileRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string|null>(null);
 
-  useEffect(() => { fetchCommissions(); }, [representativeId, filter, paymentFilter]);
+  useEffect(() => { fetchCommissions(); }, [representativeId, filter, paymentFilter, refreshKey]);
+  useEffect(() => {
+    function handleRefresh() {
+      fetchCommissions();
+    }
+    window.addEventListener('admin:repco-updated', handleRefresh);
+    window.addEventListener('repco:orders-updated', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
+    return () => {
+      window.removeEventListener('admin:repco-updated', handleRefresh);
+      window.removeEventListener('repco:orders-updated', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
+    };
+  }, [representativeId]);
 
   async function fetchCommissions() {
     setLoading(true);
@@ -52,6 +65,7 @@ export default function RepCoCommissionsManager({ representativeId }: { represen
         proof_url: url.publicUrl, status: 'paid', paid_at: new Date().toISOString(),
       }).eq('id', commissionId);
       fetchCommissions();
+      window.dispatchEvent(new CustomEvent('admin:repco-updated'));
     }
     setUploading(null);
   }

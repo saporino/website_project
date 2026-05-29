@@ -4,9 +4,9 @@ import { CLIENT_SEGMENTS, MARKETPLACE_SEGMENTS, SEGMENT_LABEL } from '../../cons
 
 interface Product { id: string; name: string; image_url: string | null; price: number; is_active: boolean; }
 interface PriceListEntry { id: string; product_id: string; segment: string; price: number; volume_discount: number; volume_min_qty: number; is_active: boolean; }
-interface Props { fixedSegment?: string; }
+interface Props { fixedSegment?: string; refreshKey?: number; }
 
-export default function PriceListManager({ fixedSegment }: Props) {
+export default function PriceListManager({ fixedSegment, refreshKey = 0 }: Props) {
   const [products, setProducts] = useState<Product[]>([]);
   const [priceLists, setPriceLists] = useState<PriceListEntry[]>([]);
   const [selectedSegment, setSelectedSegment] = useState(fixedSegment ?? CLIENT_SEGMENTS[0].value);
@@ -17,7 +17,18 @@ export default function PriceListManager({ fixedSegment }: Props) {
 
   // If fixedSegment changes from parent, sync it
   useEffect(() => { if (fixedSegment) setSelectedSegment(fixedSegment); }, [fixedSegment]);
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { fetchData(); }, [refreshKey]);
+  useEffect(() => {
+    function handleRefresh() {
+      fetchData();
+    }
+    window.addEventListener('admin:price-list-updated', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
+    return () => {
+      window.removeEventListener('admin:price-list-updated', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
+    };
+  }, []);
 
   async function fetchData() {
     setLoading(true);
@@ -55,6 +66,7 @@ export default function PriceListManager({ fixedSegment }: Props) {
     if (existing) await supabase.from('price_lists').update(payload).eq('id', existing.id);
     else await supabase.from('price_lists').insert({ product_id: pid, segment: seg, ...payload });
     await fetchData();
+    window.dispatchEvent(new CustomEvent('admin:price-list-updated'));
     setSaving(null); setSaved(k); setTimeout(() => setSaved(null), 2000);
   }
 

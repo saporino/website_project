@@ -56,7 +56,7 @@ interface RepCommission {
 
 type AdminTab = 'list' | 'detail';
 
-export function RepCoManagement() {
+export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   const { profile } = useAuth();
   const isAdmin = profile?.is_admin === true;
   const [adminTab, setAdminTab] = useState<AdminTab>('list');
@@ -133,7 +133,33 @@ export function RepCoManagement() {
     });
   }
 
-  useEffect(() => { fetchReps(); fetchSnoozedClients(); }, []);
+  useEffect(() => { fetchReps(); fetchSnoozedClients(); }, [refreshKey]);
+
+  useEffect(() => {
+    function handleRefresh() {
+      fetchReps();
+      fetchSnoozedClients();
+      if (selectedRep) fetchRepDetail(selectedRep);
+    }
+    window.addEventListener('admin:repco-updated', handleRefresh);
+    window.addEventListener('admin:prospection-updated', handleRefresh);
+    window.addEventListener('admin:price-list-updated', handleRefresh);
+    window.addEventListener('repco:orders-updated', handleRefresh);
+    window.addEventListener('repco:clients-updated', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
+    return () => {
+      window.removeEventListener('admin:repco-updated', handleRefresh);
+      window.removeEventListener('admin:prospection-updated', handleRefresh);
+      window.removeEventListener('admin:price-list-updated', handleRefresh);
+      window.removeEventListener('repco:orders-updated', handleRefresh);
+      window.removeEventListener('repco:clients-updated', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
+    };
+  }, [selectedRep]);
+
+  function notifyRepCoUpdated() {
+    window.dispatchEvent(new CustomEvent('admin:repco-updated'));
+  }
 
   const [snoozedClients, setSnoozedClients] = useState<any[]>([]);
   async function fetchSnoozedClients() {
@@ -188,6 +214,7 @@ export function RepCoManagement() {
     if (error) { toast.error('Erro ao aprovar'); return; }
     toast.success(`${rep.full_name} aprovado!`);
     fetchReps();
+    notifyRepCoUpdated();
     if (selectedRep?.id === rep.id) setSelectedRep({ ...rep, status: 'active' });
   };
 
@@ -200,6 +227,7 @@ export function RepCoManagement() {
     if (error) { toast.error('Erro ao bloquear'); return; }
     toast.success(`${rep.full_name} bloqueado.`);
     fetchReps();
+    notifyRepCoUpdated();
   };
 
   const handleCreateOrder = async () => {
@@ -242,6 +270,7 @@ export function RepCoManagement() {
     setPayCommission(true);
     setNfFile(null);
     fetchRepDetail(selectedRep);
+    notifyRepCoUpdated();
   };
 
   const uploadNF = async (orderId: string, file: File) => {
@@ -259,6 +288,7 @@ export function RepCoManagement() {
     await uploadNF(order.id, file);
     toast.success('NF enviada!');
     if (selectedRep) fetchRepDetail(selectedRep);
+    notifyRepCoUpdated();
   };
 
   const handleMarkCommissionPaid = async (commission: RepCommission) => {
@@ -269,6 +299,7 @@ export function RepCoManagement() {
     if (error) { toast.error('Erro'); return; }
     toast.success('Comissão marcada como paga!');
     if (selectedRep) fetchRepDetail(selectedRep);
+    notifyRepCoUpdated();
   };
   void handleMarkCommissionPaid;
 
@@ -277,6 +308,7 @@ export function RepCoManagement() {
     if (error) { toast.error('Erro ao concluir pedido'); return; }
     toast.success('Pedido concluído! Comissão calculada automaticamente.');
     if (selectedRep) fetchRepDetail(selectedRep);
+    notifyRepCoUpdated();
   };
 
   const statusBadge = (status: string) => {
@@ -373,7 +405,7 @@ export function RepCoManagement() {
           </div>
         </div>
 
-        {detailTab === 'precos' && <PriceListManager fixedSegment={selectedRep ? undefined : undefined} />}
+        {detailTab === 'precos' && <PriceListManager fixedSegment={selectedRep ? undefined : undefined} refreshKey={refreshKey} />}
         {detailTab === 'rotas' && <RouteManager />}
 
         {detailTab === 'pedidos' && (
@@ -567,11 +599,11 @@ export function RepCoManagement() {
         )}
 
         {detailTab === 'pedidos' && (
-          <RepCoOrdersManager representativeId={selectedRep?.id} />
+          <RepCoOrdersManager representativeId={selectedRep?.id} refreshKey={refreshKey} />
         )}
 
         {detailTab === 'comissoes' && (
-          <RepCoCommissionsManager representativeId={selectedRep?.id} />
+          <RepCoCommissionsManager representativeId={selectedRep?.id} refreshKey={refreshKey} />
         )}
         {showMobilePreview && (
           <RepCoMobilePreview
@@ -599,7 +631,7 @@ export function RepCoManagement() {
           </div>
         </div>
         <div className="bg-white border border-gray-200 rounded-xl p-6">
-          <PriceListManager />
+          <PriceListManager refreshKey={refreshKey} />
         </div>
       </div>
     );
@@ -618,7 +650,7 @@ export function RepCoManagement() {
             <p className="text-sm text-gray-500">Listas CSV e leads de prospecção para representantes</p>
           </div>
         </div>
-        <ProspectionManager />
+        <ProspectionManager refreshKey={refreshKey} />
       </div>
     );
   }

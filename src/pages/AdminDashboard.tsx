@@ -16,15 +16,40 @@ type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 
 export function AdminDashboard() {
   const { user, profile, signOut, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+  const [refreshVersion, setRefreshVersion] = useState<Record<TabType, number>>({
+    dashboard: 0,
+    orders: 0,
+    products: 0,
+    customers: 0,
+    shipping: 0,
+    settings: 0,
+    repco: 0,
+    inventory: 0,
+  });
 
   // Deep-link: if another page stored a target tab in localStorage, activate it
   useEffect(() => {
     const target = localStorage.getItem('admin-initial-tab') as TabType | null;
     if (target) {
-      setActiveTab(target);
+      openTab(target);
       localStorage.removeItem('admin-initial-tab');
     }
   }, []);
+
+  function refreshTabs(...tabsToRefresh: TabType[]) {
+    setRefreshVersion(current => {
+      const next = { ...current };
+      tabsToRefresh.forEach(tab => {
+        next[tab] += 1;
+      });
+      return next;
+    });
+  }
+
+  function openTab(tab: TabType) {
+    setActiveTab(tab);
+    refreshTabs(tab);
+  }
 
   // Aguarda o Supabase restaurar a sessão antes de verificar permissões
   // Sem isso, F5 mostra "Acesso Negado" porque user=null enquanto carrega
@@ -71,7 +96,7 @@ export function AdminDashboard() {
               <p className="text-sm text-gray-500">Café Saporino</p>
             </div>
             <div className="flex items-center space-x-3">
-              <AdminNotificationBell onNavigate={(tab) => setActiveTab(tab as TabType)} />
+              <AdminNotificationBell onNavigate={(tab) => openTab(tab as TabType)} />
               <button
                 onClick={() => {
                   window.history.pushState({}, '', '/');
@@ -108,7 +133,7 @@ export function AdminDashboard() {
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => openTab(tab.id)}
                   className={`flex-1 px-2 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap text-center ${
                     activeTab === tab.id
                       ? 'bg-[#a4240e] text-white shadow-md'
@@ -123,12 +148,12 @@ export function AdminDashboard() {
 
           <div className="p-8">
             {activeTab === 'dashboard' && <Dashboard />}
-            {activeTab === 'orders' && <OrdersManagement />}
+            {activeTab === 'orders' && <OrdersManagement refreshKey={refreshVersion.orders} />}
             {activeTab === 'products' && <ProductsManagement />}
-            {activeTab === 'customers' && <CustomersManagement />}
+            {activeTab === 'customers' && <CustomersManagement refreshKey={refreshVersion.customers} />}
             {activeTab === 'shipping' && <ShippingManagement />}
-            {activeTab === 'repco' && <RepCoManagement />}
-            {activeTab === 'inventory' && <BatchManagement />}
+            {activeTab === 'repco' && <RepCoManagement refreshKey={refreshVersion.repco} />}
+            {activeTab === 'inventory' && <BatchManagement refreshKey={refreshVersion.inventory} />}
             {activeTab === 'settings' && <StoreSettings />}
           </div>
         </div>

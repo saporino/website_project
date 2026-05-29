@@ -98,7 +98,7 @@ function getStatusInfo(statusKey: string) {
   return ORDER_STATUSES.find(s => s.key === statusKey) || ORDER_STATUSES[0];
 }
 
-export function OrdersManagement() {
+export function OrdersManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -107,7 +107,19 @@ export function OrdersManagement() {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<Record<string, string>>({});
 
-  useEffect(() => { loadOrders(); }, []);
+  useEffect(() => { loadOrders(); }, [refreshKey]);
+
+  useEffect(() => {
+    function handleRefresh() {
+      loadOrders();
+    }
+    window.addEventListener('admin:orders-updated', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
+    return () => {
+      window.removeEventListener('admin:orders-updated', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
+    };
+  }, []);
 
   const loadOrders = async () => {
     try {
@@ -222,7 +234,10 @@ export function OrdersManagement() {
               section={activeSection[order.id] || 'overview'}
               onToggle={() => toggleExpand(order.id)}
               onSetSection={(s: string) => setSection(order.id, s)}
-              onRefresh={loadOrders}
+              onRefresh={() => {
+                loadOrders();
+                window.dispatchEvent(new CustomEvent('admin:orders-updated'));
+              }}
             />
           ))}
         </div>

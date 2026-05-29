@@ -18,7 +18,7 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }>
   cancelled: { label: 'Cancelado', bg: 'bg-red-100',    text: 'text-red-700'    },
 };
 
-export default function RepCoOrdersManager({ representativeId }: { representativeId?: string }) {
+export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }: { representativeId?: string; refreshKey?: number }) {
   const [orders, setOrders] = useState<RepCoOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [channelFilter, setChannelFilter] = useState<'all' | 'pix' | 'boleto'>('all');
@@ -29,7 +29,25 @@ export default function RepCoOrdersManager({ representativeId }: { representativ
   const nfRef = useRef<HTMLInputElement>(null);
   const proofRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { fetchOrders(); }, [representativeId, channelFilter, statusFilter]);
+  useEffect(() => { fetchOrders(); }, [representativeId, channelFilter, statusFilter, refreshKey]);
+  useEffect(() => {
+    function handleRefresh() {
+      fetchOrders();
+    }
+    window.addEventListener('admin:repco-updated', handleRefresh);
+    window.addEventListener('repco:orders-updated', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
+    return () => {
+      window.removeEventListener('admin:repco-updated', handleRefresh);
+      window.removeEventListener('repco:orders-updated', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
+    };
+  }, [representativeId]);
+
+  function notifyOrdersUpdated() {
+    window.dispatchEvent(new CustomEvent('admin:repco-updated'));
+    window.dispatchEvent(new CustomEvent('repco:orders-updated', { detail: { representativeId } }));
+  }
 
   async function fetchOrders() {
     setLoading(true);
@@ -58,6 +76,7 @@ export default function RepCoOrdersManager({ representativeId }: { representativ
       const field = type === 'pdf' ? 'invoice_pdf_url' : 'invoice_xml_url';
       await supabase.from('representative_orders').update({ [field]: url.publicUrl, status: 'pending' }).eq('id', orderId);
       fetchOrders();
+      notifyOrdersUpdated();
     }
     setUploadingNF(null);
   }
@@ -72,6 +91,7 @@ export default function RepCoOrdersManager({ representativeId }: { representativ
         proof_url: url.publicUrl, status: 'paid', paid_at: new Date().toISOString(),
       }).eq('order_id', orderId);
       fetchOrders();
+      notifyOrdersUpdated();
     }
     setUploadingProof(null);
   }
@@ -79,6 +99,7 @@ export default function RepCoOrdersManager({ representativeId }: { representativ
   async function markCompleted(orderId: string) {
     await supabase.from('representative_orders').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', orderId);
     fetchOrders();
+    notifyOrdersUpdated();
   }
 
   const totalPIX = orders.filter(o => ['pix','a_vista'].includes(o.payment_method||'')).reduce((s,o)=>s+o.total_amount,0);

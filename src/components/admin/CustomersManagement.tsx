@@ -32,7 +32,7 @@ interface Customer {
   shipping_cep?: string;
 }
 
-export const CustomersManagement = () => {
+export const CustomersManagement = ({ refreshKey = 0 }: { refreshKey?: number }) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -110,6 +110,18 @@ export const CustomersManagement = () => {
   useEffect(() => {
     console.log('CustomersManagement: Loading customers...');
     loadCustomers();
+  }, [refreshKey]);
+
+  useEffect(() => {
+    function handleRefresh() {
+      loadCustomers();
+    }
+    window.addEventListener('admin:customers-updated', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
+    return () => {
+      window.removeEventListener('admin:customers-updated', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
+    };
   }, []);
 
   const loadCustomers = async () => {
