@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Download, Printer, MessageCircle, Mail, FileText } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Order { id: string; order_number: string; description: string; total_amount: number; payment_method: string; is_personal_delivery: boolean; invoice_pdf_url: string | null; invoice_key: string | null; status: string; created_at: string; representative_clients: { razao_social: string } | null; }
 interface Props { repId: string; refreshKey?: number; }
@@ -51,6 +52,74 @@ export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
     window.open(`https://wa.me/55${whatsapp.replace(/\D/g,'')}?text=${msg}`, '_blank');
   };
 
+  void handleSendWhatsApp;
+
+  function getInvoicePath(order: Order) {
+    const value = order.invoice_pdf_url?.trim();
+    if (!value) return null;
+    if (value.includes('/storage/v1/object/public/representative-docs/')) return null;
+    if (!/^https?:\/\//i.test(value)) return value.replace(/^\/+/, '');
+
+    const marker = '/storage/v1/object/';
+    const markerIndex = value.indexOf(marker);
+    if (markerIndex < 0) return value;
+
+    const objectPart = value.slice(markerIndex + marker.length);
+    const withoutMode = objectPart.replace(/^(public|sign)\//, '');
+    const withoutBucket = withoutMode.replace(/^invoices\//, '');
+    return withoutBucket.split('?')[0] || null;
+  }
+
+  async function getInvoiceAccessUrl(order: Order) {
+    const value = order.invoice_pdf_url?.trim();
+    const path = getInvoicePath(order);
+    if (!path) return null;
+
+    if (value && /^https?:\/\//i.test(value) && !value.includes('/storage/v1/object/')) {
+      return value;
+    }
+
+    const { data, error } = await supabase.storage.from('invoices').createSignedUrl(path, 60 * 60);
+    if (error || !data?.signedUrl) return null;
+    return data.signedUrl;
+  }
+
+  function warnInvalidInvoice() {
+    toast.error('Nota fiscal sem acesso válido. Peça ao admin para reenviar a NF.');
+  }
+
+  async function openInvoice(order: Order) {
+    const url = await getInvoiceAccessUrl(order);
+    if (!url) { warnInvalidInvoice(); return; }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  async function printInvoice(order: Order) {
+    const url = await getInvoiceAccessUrl(order);
+    if (!url) { warnInvalidInvoice(); return; }
+    const printWindow = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!printWindow) {
+      toast.error('Não foi possível abrir o PDF da NF para impressão.');
+      return;
+    }
+    setTimeout(() => printWindow.print(), 1200);
+  }
+
+  const shareInvoiceWhatsApp = async (order: Order) => {
+    const url = await getInvoiceAccessUrl(order);
+    if (!url) { warnInvalidInvoice(); return; }
+    const msg = encodeURIComponent(`Olá! Acesse a nota fiscal do pedido ${order.order_number}: ${url}`);
+    window.open(`https://wa.me/?text=${msg}`, '_blank', 'noopener,noreferrer');
+  };
+
+  async function shareInvoiceEmail(order: Order) {
+    const url = await getInvoiceAccessUrl(order);
+    if (!url) { warnInvalidInvoice(); return; }
+    const subject = encodeURIComponent(`Nota Fiscal ${order.order_number}`);
+    const body = encodeURIComponent(`Olá!\n\nAcesse a nota fiscal do pedido ${order.order_number}: ${url}`);
+    window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+  }
+
   const filtered = filter === 'all' ? orders : orders.filter(o => o.status === filter);
 
   return (
@@ -96,22 +165,23 @@ export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
                 {order.invoice_pdf_url && (
                   <div className="mt-4 flex items-center gap-3 pt-4 border-t border-gray-100">
                     <span className="text-xs font-medium text-gray-500">Nota Fiscal:</span>
-                    <a href={order.invoice_pdf_url} target="_blank" rel="noopener noreferrer"
+                    <button onClick={() => openInvoice(order)}
                       className="flex items-center gap-1.5 text-xs font-medium text-[#a4240e] hover:underline">
                       <Download className="w-3.5 h-3.5" /> Baixar NF
-                    </a>
-                    <button onClick={() => window.print()}
+                    </button>
+                    <button onClick={() => printInvoice(order)}
                       className="flex items-center gap-1.5 text-xs font-medium text-gray-600 hover:text-gray-900">
                       <Printer className="w-3.5 h-3.5" /> Imprimir
                     </button>
-                    <button onClick={() => handleSendWhatsApp(order, '')}
+                    <button onClick={() => shareInvoiceWhatsApp(order)}
                       className="flex items-center gap-1.5 text-xs font-medium text-green-600 hover:text-green-700">
                       <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
                     </button>
-                    <a href={`mailto:?subject=Nota Fiscal ${order.order_number}&body=Acesse: ${order.invoice_pdf_url}`}
+                    <button
+                      onClick={() => shareInvoiceEmail(order)}
                       className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700">
                       <Mail className="w-3.5 h-3.5" /> Email
-                    </a>
+                    </button>
                   </div>
                 )}
               </div>

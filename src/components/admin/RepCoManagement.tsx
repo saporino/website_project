@@ -365,15 +365,29 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   };
 
   const uploadNF = async (orderId: string, file: File) => {
-    const path = `nf/${orderId}/${file.name}`;
-    const { error: upErr } = await supabase.storage.from('representative-docs').upload(path, file, { upsert: true });
+    const extension = file.name.toLowerCase().endsWith('.xml') ? 'xml' : 'pdf';
+    const path = `nf/${orderId}/${extension}-${Date.now()}.${extension}`;
+    const { error: upErr } = await supabase.storage.from('invoices').upload(path, file, { upsert: true });
     if (upErr) { toast.error('Erro no upload da NF'); return; }
-    const { data: urlData } = supabase.storage.from('representative-docs').getPublicUrl(path);
     await supabase.from('representative_orders').update({
-      invoice_pdf_url: urlData.publicUrl,
+      [extension === 'xml' ? 'invoice_xml_url' : 'invoice_pdf_url']: path,
       invoice_number: file.name,
     }).eq('id', orderId);
   };
+
+  async function openStoredInvoice(fileRef: string | null) {
+    if (!fileRef) { toast.error('NF sem arquivo vinculado'); return; }
+    const value = fileRef.trim();
+    if (value.includes('/representative-docs/')) { toast.error('Link antigo da NF. Reenvie a nota pelo bucket invoices.'); return; }
+    const marker = '/storage/v1/object/';
+    const path = /^https?:\/\//i.test(value) && value.includes(marker)
+      ? value.slice(value.indexOf(marker) + marker.length).replace(/^(public|sign)\//, '').replace(/^invoices\//, '').split('?')[0]
+      : value.replace(/^\/+/, '');
+    if (!path) { toast.error('NF sem caminho válido'); return; }
+    const { data, error } = await supabase.storage.from('invoices').createSignedUrl(path, 60 * 60);
+    if (error || !data?.signedUrl) { toast.error('Erro ao abrir NF'); return; }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+  }
 
   const handleUploadNFExisting = async (order: RepOrder, file: File) => {
     await uploadNF(order.id, file);
@@ -781,10 +795,10 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
                   {/* NF section */}
                   <div className="mt-3 flex items-center gap-3">
                     {order.invoice_pdf_url ? (
-                      <a href={order.invoice_pdf_url} target="_blank" rel="noopener noreferrer"
+                      <button onClick={() => openStoredInvoice(order.invoice_pdf_url)}
                         className="flex items-center gap-1.5 text-xs font-medium text-[#a4240e] hover:underline">
                         <Download className="w-3.5 h-3.5" /> Baixar NF
-                      </a>
+                      </button>
                     ) : (
                       <label className="flex items-center gap-1.5 text-xs font-medium text-amber-600 cursor-pointer hover:text-amber-700">
                         <Upload className="w-3.5 h-3.5" /> Enviar NF

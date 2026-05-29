@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
+import { toast } from 'sonner';
 
 interface RepCoOrder {
   id: string; order_number: string; representative_id: string;
@@ -72,9 +73,8 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
     const path = `nf/${orderId}/${type}-${Date.now()}.${type}`;
     const { data, error } = await supabase.storage.from('invoices').upload(path, file, { upsert: true });
     if (!error && data) {
-      const { data: url } = supabase.storage.from('invoices').getPublicUrl(path);
       const field = type === 'pdf' ? 'invoice_pdf_url' : 'invoice_xml_url';
-      await supabase.from('representative_orders').update({ [field]: url.publicUrl, status: 'pending' }).eq('id', orderId);
+      await supabase.from('representative_orders').update({ [field]: path, status: 'pending' }).eq('id', orderId);
       fetchOrders();
       notifyOrdersUpdated();
     }
@@ -86,9 +86,9 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
     const path = `commissions/${orderId}/proof-${Date.now()}.${file.name.split('.').pop()}`;
     const { data, error } = await supabase.storage.from('invoices').upload(path, file, { upsert: true });
     if (!error && data) {
-      const { data: url } = supabase.storage.from('invoices').getPublicUrl(path);
+      const { data: url } = await supabase.storage.from('invoices').createSignedUrl(path, 60 * 60 * 24 * 365);
       await supabase.from('representative_commissions').update({
-        proof_url: url.publicUrl, status: 'paid', paid_at: new Date().toISOString(),
+        proof_url: url?.signedUrl, status: 'paid', paid_at: new Date().toISOString(),
       }).eq('order_id', orderId);
       fetchOrders();
       notifyOrdersUpdated();
@@ -108,6 +108,22 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
     }
     fetchOrders();
     notifyOrdersUpdated();
+  }
+
+  async function openStoredInvoice(fileRef: string | null) {
+    if (!fileRef) { toast.error('NF sem arquivo vinculado'); return; }
+    const value = fileRef.trim();
+    if (value.includes('/representative-docs/')) {
+      toast.error('Link antigo da NF. Reenvie a nota pelo bucket invoices.');
+      return;
+    }
+    const marker = '/storage/v1/object/';
+    const path = /^https?:\/\//i.test(value) && value.includes(marker)
+      ? value.slice(value.indexOf(marker) + marker.length).replace(/^(public|sign)\//, '').replace(/^invoices\//, '').split('?')[0]
+      : value.replace(/^\/+/, '');
+    const { data, error } = await supabase.storage.from('invoices').createSignedUrl(path, 60 * 60);
+    if (error || !data?.signedUrl) { toast.error('Erro ao abrir NF'); return; }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
   }
 
   const totalPIX = orders.filter(o => ['pix','a_vista'].includes(o.payment_method||'')).reduce((s,o)=>s+o.total_amount,0);
@@ -196,7 +212,7 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
                       <p className="text-xs font-medium text-gray-600">Nota fiscal:</p>
                       <div className="flex flex-wrap gap-2">
                         {order.invoice_pdf_url?(
-                          <a href={order.invoice_pdf_url} target="_blank" rel="noreferrer" className="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-lg">✓ Ver NF PDF</a>
+                          <button onClick={()=>openStoredInvoice(order.invoice_pdf_url)} className="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-lg">✓ Ver NF PDF</button>
                         ):(
                           <button onClick={()=>nfRef.current?.click()} disabled={uploadingNF===order.id}
                             className="text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 disabled:opacity-50">
@@ -204,7 +220,7 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
                           </button>
                         )}
                         {order.invoice_xml_url?(
-                          <a href={order.invoice_xml_url} target="_blank" rel="noreferrer" className="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-lg">✓ Ver XML</a>
+                          <button onClick={()=>openStoredInvoice(order.invoice_xml_url)} className="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-lg">✓ Ver XML</button>
                         ):(
                           <button onClick={()=>nfRef.current?.click()} className="text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">+ Upload XML</button>
                         )}
