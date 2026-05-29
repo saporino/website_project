@@ -42,6 +42,9 @@ export default function RepCoClients({ representativeId, previewMode = false }: 
   const [ok,setOk]=useState('');
   const [search,setSearch]=useState('');
   useEffect(()=>{fetchClients();},[representativeId]);
+  function notifyProspectionUpdated(leadIds:string[]){
+    window.dispatchEvent(new CustomEvent('repco:prospection-updated',{detail:{representativeId,leadIds}}));
+  }
   async function fetchClients(){
     setLoading(true);
     const{data}=await supabase.from('representative_clients').select('*').eq('representative_id',representativeId).order('razao_social',{ascending:true});
@@ -140,6 +143,8 @@ export default function RepCoClients({ representativeId, previewMode = false }: 
     }
     setOk('Cliente excluído. Se havia lead convertido, ele voltou para a prospecção.');
     setClients(current=>current.filter(c=>c.id!==client.id));
+    notifyProspectionUpdated(leadIds);
+    fetchClients();
     setSel(null);setHist([]);setView('list');setDeleting(false);
     setTimeout(()=>setOk(''),4000);
   }

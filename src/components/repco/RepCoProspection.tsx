@@ -292,6 +292,22 @@ export default function RepCoProspection({ representativeId, currentLat, current
     fetchLeads();
   }, [representativeId]);
 
+  useEffect(() => {
+    function handleProspectionUpdated(event: Event) {
+      const detail = (event as CustomEvent<{ representativeId?: string }>).detail;
+      if (!detail?.representativeId || detail.representativeId === representativeId) {
+        fetchLeads();
+      }
+    }
+
+    window.addEventListener('repco:prospection-updated', handleProspectionUpdated);
+    window.addEventListener('focus', handleProspectionUpdated);
+    return () => {
+      window.removeEventListener('repco:prospection-updated', handleProspectionUpdated);
+      window.removeEventListener('focus', handleProspectionUpdated);
+    };
+  }, [representativeId]);
+
   async function fetchLeads() {
     setLoading(true);
     const [{ data: directLeads, error: directError }, { data: listLeads, error: listError }] = await Promise.all([
@@ -638,7 +654,7 @@ export default function RepCoProspection({ representativeId, currentLat, current
                       </button>
                       <button onClick={() => openConvertModal(lead)} disabled={updatingId === lead.id || lead.status === 'converted'} className="inline-flex items-center justify-center gap-1 rounded-md bg-[#8B2214] px-2 py-1.5 text-[10px] font-semibold leading-tight text-white hover:bg-[#6d1a10] disabled:cursor-not-allowed disabled:opacity-50">
                         <UserPlus className="h-3.5 w-3.5" />
-                        Converter em cliente
+                        {lead.status === 'converted' ? 'Cliente criado' : 'Converter em cliente'}
                       </button>
                     </div>
                     <div className="grid grid-cols-2 gap-1.5">
