@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 
@@ -11,6 +11,15 @@ interface RepCoOrder {
   status: string; notes: string | null; created_at: string; completed_at: string | null;
   pix_bonus_eligible: boolean; client_name?: string; rep_name?: string;
 }
+
+type NFUploadStatus = {
+  kind: 'info' | 'success' | 'error';
+  message: string;
+  fileName?: string;
+  storagePath?: string;
+  invoicePdfUrl?: string | null;
+  invoiceXmlUrl?: string | null;
+};
 
 const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
   new:       { label: 'Novo',      bg: 'bg-blue-100',   text: 'text-blue-700'   },
@@ -26,7 +35,7 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState<RepCoOrder | null>(null);
   const [uploadingNF, setUploadingNF] = useState<string | null>(null);
-  const [nfUploadStatus, setNfUploadStatus] = useState<Record<string, { kind: 'info' | 'success' | 'error'; message: string }>>({});
+  const [nfUploadStatus, setNfUploadStatus] = useState<Record<string, NFUploadStatus>>({});
   const [uploadingProof, setUploadingProof] = useState<string | null>(null);
   const proofRef = useRef<HTMLInputElement>(null);
 
@@ -69,18 +78,44 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
   }
 
   async function uploadNF(orderId: string, file: File, type: 'pdf' | 'xml') {
+    console.log('invoice upload handler invoked', { fileName: file?.name, orderId, type });
+    if (!orderId) {
+      const message = 'Pedido sem ID. Não foi possível anexar a NF.';
+      setNfUploadStatus(current => ({ ...current, unknown: { kind: 'error', message, fileName: file?.name } }));
+      toast.error(message);
+      return;
+    }
+    if (!file) {
+      const message = 'Nenhum arquivo foi selecionado para upload.';
+      setNfUploadStatus(current => ({ ...current, [orderId]: { kind: 'error', message } }));
+      toast.error(message);
+      return;
+    }
     setUploadingNF(orderId);
-    setNfUploadStatus(current => ({ ...current, [orderId]: { kind: 'info', message: `Enviando NF ${type.toUpperCase()}...` } }));
+    setNfUploadStatus(current => ({
+      ...current,
+      [orderId]: { kind: 'info', message: `Arquivo selecionado: ${file.name}. Enviando NF ${type.toUpperCase()}...`, fileName: file.name },
+    }));
     const path = `nf/${orderId}/${type}-${Date.now()}.${type}`;
     const currentOrder = orders.find(order => order.id === orderId);
     const previousRef = type === 'pdf' ? currentOrder?.invoice_pdf_url : currentOrder?.invoice_xml_url;
     const { data, error } = await supabase.storage.from('invoices').upload(path, file, { upsert: true });
     if (!error && data) {
+      const storagePath = data.path || path;
+      setNfUploadStatus(current => ({
+        ...current,
+        [orderId]: {
+          kind: 'info',
+          message: `Upload concluído. Atualizando pedido ${orderId}...`,
+          fileName: file.name,
+          storagePath,
+        },
+      }));
       await removeInvoiceFileIfPossible(previousRef || null);
       const field = type === 'pdf' ? 'invoice_pdf_url' : 'invoice_xml_url';
       const { data: updatedOrder, error: updateError } = await supabase
         .from('representative_orders')
-        .update({ [field]: path })
+        .update({ [field]: storagePath })
         .eq('id', orderId)
         .select('id, invoice_pdf_url, invoice_xml_url')
         .single();
@@ -92,9 +127,19 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
         return;
       }
       setOrders(current => current.map(order => (
-        order.id === orderId ? { ...order, [field]: path } : order
+        order.id === orderId ? { ...order, [field]: storagePath } : order
       )));
-      setNfUploadStatus(current => ({ ...current, [orderId]: { kind: 'success', message: 'NF anexada com sucesso' } }));
+      setNfUploadStatus(current => ({
+        ...current,
+        [orderId]: {
+          kind: 'success',
+          message: 'NF anexada com sucesso',
+          fileName: file.name,
+          storagePath,
+          invoicePdfUrl: updatedOrder.invoice_pdf_url,
+          invoiceXmlUrl: updatedOrder.invoice_xml_url,
+        },
+      }));
       toast.success(`NF ${type.toUpperCase()} salva`);
       fetchOrders();
       notifyOrdersUpdated();
@@ -102,8 +147,33 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
       const message = error.message || 'Erro ao enviar NF';
       setNfUploadStatus(current => ({ ...current, [orderId]: { kind: 'error', message } }));
       toast.error(message);
+    } else {
+      const message = 'Upload da NF não retornou confirmação do Storage';
+      setNfUploadStatus(current => ({ ...current, [orderId]: { kind: 'error', message, fileName: file.name } }));
+      toast.error(message);
     }
     setUploadingNF(null);
+  }
+
+  function handleInvoiceFileChange(event: ChangeEvent<HTMLInputElement>, order: RepCoOrder, type: 'pdf' | 'xml') {
+    const file = event.target.files?.[0] || null;
+    console.log('invoice upload onChange invoked', { fileName: file?.name || null, orderId: order?.id, type });
+    event.currentTarget.value = '';
+
+    if (!order?.id) {
+      const message = 'Pedido sem ID. Não foi possível iniciar o upload da NF.';
+      setNfUploadStatus(current => ({ ...current, unknown: { kind: 'error', message, fileName: file?.name || undefined } }));
+      toast.error(message);
+      return;
+    }
+
+    if (!file) {
+      const message = 'Nenhum arquivo foi selecionado.';
+      setNfUploadStatus(current => ({ ...current, [order.id]: { kind: 'error', message } }));
+      return;
+    }
+
+    void uploadNF(order.id, file, type);
   }
 
   async function uploadPaymentProof(orderId: string, file: File) {
@@ -273,52 +343,60 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
                     <div className="space-y-2">
                       <p className="text-xs font-medium text-gray-600">Nota fiscal:</p>
                       {nfUploadStatus[order.id] && (
-                        <p className={`text-xs font-medium ${
-                          nfUploadStatus[order.id].kind === 'error' ? 'text-red-700' :
-                          nfUploadStatus[order.id].kind === 'success' ? 'text-green-700' :
-                          'text-amber-700'
+                        <div className={`rounded-lg border px-3 py-2 text-xs ${
+                          nfUploadStatus[order.id].kind === 'error' ? 'border-red-200 bg-red-50 text-red-700' :
+                          nfUploadStatus[order.id].kind === 'success' ? 'border-green-200 bg-green-50 text-green-700' :
+                          'border-amber-200 bg-amber-50 text-amber-700'
                         }`}>
-                          {nfUploadStatus[order.id].message}
-                        </p>
+                          <p className="font-semibold">{nfUploadStatus[order.id].message}</p>
+                          {nfUploadStatus[order.id].fileName && <p className="mt-1">Arquivo: {nfUploadStatus[order.id].fileName}</p>}
+                          {nfUploadStatus[order.id].storagePath && <p className="mt-1 break-all">Storage path: {nfUploadStatus[order.id].storagePath}</p>}
+                          {nfUploadStatus[order.id].invoicePdfUrl && <p className="mt-1 break-all">invoice_pdf_url: {nfUploadStatus[order.id].invoicePdfUrl}</p>}
+                          {nfUploadStatus[order.id].invoiceXmlUrl && <p className="mt-1 break-all">invoice_xml_url: {nfUploadStatus[order.id].invoiceXmlUrl}</p>}
+                        </div>
                       )}
                       <div className="flex flex-wrap gap-2">
                         {order.invoice_pdf_url?(
                           <>
                             <button onClick={()=>openStoredInvoice(order.invoice_pdf_url)} className="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-lg">Ver NF PDF</button>
-                            <label className="text-xs bg-white border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-50 cursor-pointer">
+                            <label htmlFor={`repco-nf-pdf-${order.id}`} className="text-xs bg-white border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-50 cursor-pointer">
                               {uploadingNF===order.id?'Enviando...':'Substituir PDF'}
-                              <input type="file" accept=".pdf" className="hidden"
-                                onChange={e=>{const f=e.target.files?.[0];if(f)uploadNF(order.id,f,'pdf');e.currentTarget.value='';}}/>
                             </label>
+                            <input id={`repco-nf-pdf-${order.id}`} type="file" accept="application/pdf,.pdf" className="hidden"
+                              onChange={e=>handleInvoiceFileChange(e, order, 'pdf')}/>
                             <button onClick={()=>removeOrderInvoice(order, 'pdf')} className="text-xs bg-white border border-red-200 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50">
                               Remover PDF
                             </button>
                           </>
                         ):(
-                          <label className="text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer">
-                            {uploadingNF===order.id?'Enviando...':'+ Upload NF PDF'}
-                            <input type="file" accept=".pdf" className="hidden"
-                              onChange={e=>{const f=e.target.files?.[0];if(f)uploadNF(order.id,f,'pdf');e.currentTarget.value='';}}/>
-                          </label>
+                          <>
+                            <label htmlFor={`repco-nf-pdf-${order.id}`} className="text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer">
+                              {uploadingNF===order.id?'Enviando...':'+ Upload NF PDF'}
+                            </label>
+                            <input id={`repco-nf-pdf-${order.id}`} type="file" accept="application/pdf,.pdf" className="hidden"
+                              onChange={e=>handleInvoiceFileChange(e, order, 'pdf')}/>
+                          </>
                         )}
                         {order.invoice_xml_url?(
                           <>
                             <button onClick={()=>openStoredInvoice(order.invoice_xml_url)} className="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-lg">Ver XML</button>
-                            <label className="text-xs bg-white border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-50 cursor-pointer">
+                            <label htmlFor={`repco-nf-xml-${order.id}`} className="text-xs bg-white border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-50 cursor-pointer">
                               {uploadingNF===order.id?'Enviando...':'Substituir XML'}
-                              <input type="file" accept=".xml" className="hidden"
-                                onChange={e=>{const f=e.target.files?.[0];if(f)uploadNF(order.id,f,'xml');e.currentTarget.value='';}}/>
                             </label>
+                            <input id={`repco-nf-xml-${order.id}`} type="file" accept="application/xml,text/xml,.xml" className="hidden"
+                              onChange={e=>handleInvoiceFileChange(e, order, 'xml')}/>
                             <button onClick={()=>removeOrderInvoice(order, 'xml')} className="text-xs bg-white border border-red-200 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50">
                               Remover XML
                             </button>
                           </>
                         ):(
-                          <label className="text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer">
-                            + Upload XML
-                            <input type="file" accept=".xml" className="hidden"
-                              onChange={e=>{const f=e.target.files?.[0];if(f)uploadNF(order.id,f,'xml');e.currentTarget.value='';}}/>
-                          </label>
+                          <>
+                            <label htmlFor={`repco-nf-xml-${order.id}`} className="text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer">
+                              + Upload XML
+                            </label>
+                            <input id={`repco-nf-xml-${order.id}`} type="file" accept="application/xml,text/xml,.xml" className="hidden"
+                              onChange={e=>handleInvoiceFileChange(e, order, 'xml')}/>
+                          </>
                         )}
                       </div>
                     </div>
