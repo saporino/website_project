@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { Download, Printer, MessageCircle, Mail, FileText } from 'lucide-react';
 
 interface Order { id: string; order_number: string; description: string; total_amount: number; payment_method: string; is_personal_delivery: boolean; invoice_pdf_url: string | null; invoice_key: string | null; status: string; created_at: string; representative_clients: { razao_social: string } | null; }
-interface Props { repId: string; }
+interface Props { repId: string; refreshKey?: number; }
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   new: { label: 'Novo', color: 'bg-blue-100 text-blue-700' },
@@ -14,22 +14,36 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 
 type Filter = 'all' | 'new' | 'pending' | 'completed';
 
-export function RepCoOrders({ repId }: Props) {
+export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
   const [loading, setLoading] = useState(true);
 
+  async function fetchOrders() {
+    setLoading(true);
+    const { data } = await supabase.from('representative_orders')
+      .select('*, representative_clients(razao_social)')
+      .eq('representative_id', repId)
+      .order('created_at', { ascending: false });
+    setOrders(data || []);
+    setLoading(false);
+  }
+
   useEffect(() => {
-    const fetch = async () => {
-      setLoading(true);
-      const { data } = await supabase.from('representative_orders')
-        .select('*, representative_clients(razao_social)')
-        .eq('representative_id', repId)
-        .order('created_at', { ascending: false });
-      setOrders(data || []);
-      setLoading(false);
+    fetchOrders();
+  }, [repId, refreshKey]);
+
+  useEffect(() => {
+    function handleRefresh(event: Event) {
+      const detail = (event as CustomEvent<{ representativeId?: string }>).detail;
+      if (!detail?.representativeId || detail.representativeId === repId) fetchOrders();
+    }
+    window.addEventListener('repco:orders-updated', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
+    return () => {
+      window.removeEventListener('repco:orders-updated', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
     };
-    fetch();
   }, [repId]);
 
   const handleSendWhatsApp = (order: Order, whatsapp: string) => {

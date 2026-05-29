@@ -27,7 +27,7 @@ type ViewMode = 'list'|'detail'|'edit'|'new';
 function fmtCNPJ(v:string){return v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5');}
 function fmtCPF(v:string){return v.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/,'$1.$2.$3-$4');}
 function days(d:string|null){if(!d)return 999;return Math.floor((Date.now()-new Date(d).getTime())/86400000);}
-export default function RepCoClients({ representativeId, previewMode = false }: { representativeId: string; previewMode?: boolean }) {
+export default function RepCoClients({ representativeId, previewMode = false, refreshKey = 0 }: { representativeId: string; previewMode?: boolean; refreshKey?: number }) {
   const [clients,setClients]=useState<RepCoClient[]>([]);
   const [loading,setLoading]=useState(true);
   const [view,setView]=useState<ViewMode>('list');
@@ -41,9 +41,26 @@ export default function RepCoClients({ representativeId, previewMode = false }: 
   const [err,setErr]=useState('');
   const [ok,setOk]=useState('');
   const [search,setSearch]=useState('');
-  useEffect(()=>{fetchClients();},[representativeId]);
+  useEffect(()=>{fetchClients();},[representativeId,refreshKey]);
+  useEffect(()=>{
+    function handleRefresh(event: Event){
+      const detail=(event as CustomEvent<{representativeId?:string}>).detail;
+      if(!detail?.representativeId||detail.representativeId===representativeId)fetchClients();
+    }
+    window.addEventListener('repco:clients-updated',handleRefresh);
+    window.addEventListener('repco:orders-updated',handleRefresh);
+    window.addEventListener('focus',handleRefresh);
+    return()=>{
+      window.removeEventListener('repco:clients-updated',handleRefresh);
+      window.removeEventListener('repco:orders-updated',handleRefresh);
+      window.removeEventListener('focus',handleRefresh);
+    };
+  },[representativeId]);
   function notifyProspectionUpdated(leadIds:string[]){
     window.dispatchEvent(new CustomEvent('repco:prospection-updated',{detail:{representativeId,leadIds}}));
+  }
+  function notifyClientsUpdated(){
+    window.dispatchEvent(new CustomEvent('repco:clients-updated',{detail:{representativeId}}));
   }
   async function fetchClients(){
     setLoading(true);
@@ -103,7 +120,7 @@ export default function RepCoClients({ representativeId, previewMode = false }: 
       ? await supabase.from('representative_clients').update(p).eq('id',sel.id)
       : await supabase.from('representative_clients').insert(p);
     if(error){setErr('Erro: '+error.message);}
-    else{setOk(view==='edit'?'Atualizado!':'Cadastrado!');fetchClients();setView('list');setTimeout(()=>setOk(''),3000);}
+    else{setOk(view==='edit'?'Atualizado!':'Cadastrado!');fetchClients();notifyClientsUpdated();setView('list');setTimeout(()=>setOk(''),3000);}
     setSaving(false);
   }
   async function handleDeleteClient(client: RepCoClient){
@@ -143,6 +160,7 @@ export default function RepCoClients({ representativeId, previewMode = false }: 
     }
     setOk('Cliente excluído. Se havia lead convertido, ele voltou para a prospecção.');
     setClients(current=>current.filter(c=>c.id!==client.id));
+    notifyClientsUpdated();
     notifyProspectionUpdated(leadIds);
     fetchClients();
     setSel(null);setHist([]);setView('list');setDeleting(false);

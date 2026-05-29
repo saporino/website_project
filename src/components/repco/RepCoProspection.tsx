@@ -42,6 +42,7 @@ interface Props {
   currentLat?: number;
   currentLng?: number;
   previewMode?: boolean;
+  refreshKey?: number;
 }
 
 interface ConvertForm {
@@ -277,7 +278,7 @@ function classifyDocument(value: string) {
   return { type: null, cnpj: '', cpf: '', digits };
 }
 
-export default function RepCoProspection({ representativeId, currentLat, currentLng, previewMode = false }: Props) {
+export default function RepCoProspection({ representativeId, currentLat, currentLng, previewMode = false, refreshKey = 0 }: Props) {
   const [leads, setLeads] = useState<ProspectLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -290,7 +291,7 @@ export default function RepCoProspection({ representativeId, currentLat, current
 
   useEffect(() => {
     fetchLeads();
-  }, [representativeId]);
+  }, [representativeId, refreshKey]);
 
   useEffect(() => {
     function handleProspectionUpdated(event: Event) {
@@ -350,6 +351,7 @@ export default function RepCoProspection({ representativeId, currentLat, current
     }
 
     setLeads(current => current.map(item => (item.id === lead.id ? { ...item, ...updates } : item)));
+    window.dispatchEvent(new CustomEvent('repco:prospection-updated', { detail: { representativeId, leadIds: [lead.id] } }));
     toast.success('Lead atualizado.');
   }
 
@@ -527,6 +529,8 @@ export default function RepCoProspection({ representativeId, currentLat, current
             : lead
         )
       );
+      window.dispatchEvent(new CustomEvent('repco:clients-updated', { detail: { representativeId } }));
+      window.dispatchEvent(new CustomEvent('repco:prospection-updated', { detail: { representativeId, leadIds: [convertingLead.id] } }));
       toast.success('Lead convertido em cliente.');
       setConvertingLead(null);
       setConvertForm(null);

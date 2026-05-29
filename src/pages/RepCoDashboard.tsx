@@ -34,6 +34,17 @@ export function RepCoDashboard() {
   const [rep, setRep] = useState<Representative | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<RepCoTab>('inicio');
+  const [refreshVersion, setRefreshVersion] = useState<Record<RepCoTab, number>>({
+    inicio: 0,
+    profile: 0,
+    clients: 0,
+    orders: 0,
+    commissions: 0,
+    performance: 0,
+    novo_pedido: 0,
+    rotas: 0,
+    prospection: 0,
+  });
   const [preSelectedClientId, setPreSelectedClientId] = useState<string | null>(null);
   const [showRegForm, setShowRegForm] = useState(false);
   const [regForm, setRegForm] = useState({ full_name: profile?.full_name || '', cpf: '', phone: '', cnpj: '' });
@@ -51,6 +62,21 @@ export function RepCoDashboard() {
   });
 
   useEffect(() => { if (user) fetchRep(); }, [user]);
+
+  function refreshTabs(...tabsToRefresh: RepCoTab[]) {
+    setRefreshVersion(current => {
+      const next = { ...current };
+      tabsToRefresh.forEach(tab => {
+        next[tab] += 1;
+      });
+      return next;
+    });
+  }
+
+  function openTab(tab: RepCoTab) {
+    setActiveTab(tab);
+    refreshTabs(tab);
+  }
 
   const fetchRep = async () => {
     setLoading(true);
@@ -247,7 +273,7 @@ export function RepCoDashboard() {
             {tabs.map(tab => {
               const Icon = tab.icon;
               return (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                <button key={tab.id} onClick={() => openTab(tab.id)}
                   className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-all ${
                     activeTab === tab.id ? 'bg-[#a4240e] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
                   }`}>
@@ -261,31 +287,36 @@ export function RepCoDashboard() {
             {activeTab === 'inicio' && (
               <RepCoHome
                 representativeId={rep!.id}
-                onNavigateToRoute={() => setActiveTab('rotas')}
-                onNavigateToClient={(clientId) => { setPreSelectedClientId(clientId); setActiveTab('novo_pedido'); }}
+                refreshKey={refreshVersion.inicio}
+                onNavigateToRoute={() => openTab('rotas')}
+                onNavigateToClient={(clientId) => { setPreSelectedClientId(clientId); openTab('novo_pedido'); }}
               />
             )}
             {activeTab === 'profile' && <RepCoProfile rep={rep!} onUpdate={fetchRep} />}
-            {activeTab === 'clients' && <RepCoClients representativeId={rep!.id} />}
+            {activeTab === 'clients' && <RepCoClients representativeId={rep!.id} refreshKey={refreshVersion.clients} />}
             {activeTab === 'novo_pedido' && (
               <RepCoNewOrder
                 representativeId={rep!.id}
                 preSelectedClientId={preSelectedClientId}
-                onOrderCreated={() => { setPreSelectedClientId(null); setActiveTab('orders'); }}
+                onOrderCreated={() => {
+                  setPreSelectedClientId(null);
+                  refreshTabs('inicio', 'clients', 'orders');
+                  openTab('orders');
+                }}
               />
             )}
-            {activeTab === 'orders' && <RepCoOrders repId={rep!.id} />}
+            {activeTab === 'orders' && <RepCoOrders repId={rep!.id} refreshKey={refreshVersion.orders} />}
             {activeTab === 'rotas' && (
               <Suspense fallback={<div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#a4240e]"/></div>}>
                 <RepCoRoutes
                   representativeId={rep!.id}
                   currentLat={coords?.lat}
                   currentLng={coords?.lng}
-                  onNavigateToOrder={(clientId) => { setPreSelectedClientId(clientId); setActiveTab('novo_pedido'); }}
+                  onNavigateToOrder={(clientId) => { setPreSelectedClientId(clientId); openTab('novo_pedido'); }}
                 />
               </Suspense>
             )}
-            {activeTab === 'prospection' && <RepCoProspection representativeId={rep!.id} currentLat={coords?.lat} currentLng={coords?.lng} />}
+            {activeTab === 'prospection' && <RepCoProspection representativeId={rep!.id} currentLat={coords?.lat} currentLng={coords?.lng} refreshKey={refreshVersion.prospection} />}
             {activeTab === 'commissions' && <RepCoCommissions repId={rep!.id} />}
             {activeTab === 'performance' && <RepCoPerformance repId={rep!.id} />}
           </div>

@@ -186,6 +186,8 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
 
     setClients(prev => prev.map(client => client.id === selectedClient.id ? { ...client, default_fiscal_order_type: fiscalOrderType } : client));
     setSelectedClient(prev => prev ? { ...prev, default_fiscal_order_type: fiscalOrderType } : prev);
+    window.dispatchEvent(new CustomEvent('repco:orders-updated', { detail: { representativeId } }));
+    window.dispatchEvent(new CustomEvent('repco:clients-updated', { detail: { representativeId } }));
     setSuccess(true);
     setSubmitting(false);
     onOrderCreated?.();

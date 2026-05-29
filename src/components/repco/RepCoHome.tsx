@@ -9,13 +9,13 @@ interface InactiveClient { id: string; nome_fantasia: string | null; razao_socia
 interface UpcomingStop { id: string; company_name: string; address: string | null; city: string | null; scheduled_at: string; visit_status: string; lat: number; lng: number; route_name?: string; }
 interface RecentOrder { id: string; order_number: string; total_amount: number; status: string; created_at: string; client_name: string; }
 interface ProximityAlert { stopId: string; stopName: string; distanceMeters: number; }
-interface Props { representativeId: string; onNavigateToRoute?: () => void; onNavigateToClient?: (clientId: string) => void; previewMode?: boolean; }
+interface Props { representativeId: string; onNavigateToRoute?: () => void; onNavigateToClient?: (clientId: string) => void; previewMode?: boolean; refreshKey?: number; }
 
 const INACTIVITY_DAYS = 7;
 const STATUS_COLORS: Record<string, string> = { new: 'bg-blue-100 text-blue-700', pending: 'bg-yellow-100 text-yellow-700', completed: 'bg-green-100 text-green-700', cancelled: 'bg-red-100 text-red-700' };
 const STATUS_LABELS: Record<string, string> = { new: 'Novo', pending: 'Pendente', completed: 'Concluído', cancelled: 'Cancelado' };
 
-export default function RepCoHome({ representativeId, onNavigateToRoute, onNavigateToClient, previewMode = false }: Props) {
+export default function RepCoHome({ representativeId, onNavigateToRoute, onNavigateToClient, previewMode = false, refreshKey = 0 }: Props) {
   const [stats, setStats] = useState<Stats>({ ordersThisMonth: 0, revenueThisMonth: 0, pendingCommission: 0, activeClients: 0, monthGoal: 8000 });
   const [inactiveClients, setInactiveClients] = useState<InactiveClient[]>([]);
   const [upcomingStops, setUpcomingStops] = useState<UpcomingStop[]>([]);
@@ -40,7 +40,23 @@ export default function RepCoHome({ representativeId, onNavigateToRoute, onNavig
     onProximityAlert: handleProximityAlert,
   });
 
-  useEffect(() => { fetchAll(); }, [representativeId]);
+  useEffect(() => { fetchAll(); }, [representativeId, refreshKey]);
+
+  useEffect(() => {
+    function handleRefresh() {
+      fetchAll();
+    }
+    window.addEventListener('repco:clients-updated', handleRefresh);
+    window.addEventListener('repco:orders-updated', handleRefresh);
+    window.addEventListener('repco:prospection-updated', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
+    return () => {
+      window.removeEventListener('repco:clients-updated', handleRefresh);
+      window.removeEventListener('repco:orders-updated', handleRefresh);
+      window.removeEventListener('repco:prospection-updated', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
+    };
+  }, [representativeId]);
 
   async function fetchAll() {
     setLoading(true);
@@ -105,6 +121,7 @@ export default function RepCoHome({ representativeId, onNavigateToRoute, onNavig
     const snoozeUntil = new Date(); snoozeUntil.setDate(snoozeUntil.getDate() + 2);
     await supabase.from('representative_clients').update({ inactivity_snoozed_until: snoozeUntil.toISOString() }).eq('id', clientId);
     setInactiveClients(prev => prev.filter(c => c.id !== clientId));
+    window.dispatchEvent(new CustomEvent('repco:clients-updated', { detail: { representativeId } }));
     setSnoozingClient(null);
   }
 
