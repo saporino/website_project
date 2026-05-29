@@ -37,6 +37,7 @@ interface RepOrder {
   payment_method: string;
   is_personal_delivery: boolean;
   invoice_pdf_url: string | null;
+  invoice_xml_url: string | null;
   invoice_key: string | null;
   status: string;
   created_at: string;
@@ -364,11 +365,30 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     notifyRepCoUpdated();
   };
 
+  function getInvoicePathFromRef(fileRef: string | null) {
+    if (!fileRef) return null;
+    const value = fileRef.trim();
+    if (!value || value.includes('/representative-docs/')) return null;
+    const marker = '/storage/v1/object/';
+    const path = /^https?:\/\//i.test(value) && value.includes(marker)
+      ? value.slice(value.indexOf(marker) + marker.length).replace(/^(public|sign)\//, '').replace(/^invoices\//, '').split('?')[0]
+      : value.replace(/^\/+/, '');
+    return path || null;
+  }
+
+  async function removeInvoiceFileIfPossible(fileRef: string | null) {
+    const path = getInvoicePathFromRef(fileRef);
+    if (path) await supabase.storage.from('invoices').remove([path]);
+  }
+
   const uploadNF = async (orderId: string, file: File) => {
     const extension = file.name.toLowerCase().endsWith('.xml') ? 'xml' : 'pdf';
     const path = `nf/${orderId}/${extension}-${Date.now()}.${extension}`;
+    const currentOrder = orders.find(order => order.id === orderId);
+    const previousRef = extension === 'xml' ? currentOrder?.invoice_xml_url : currentOrder?.invoice_pdf_url;
     const { error: upErr } = await supabase.storage.from('invoices').upload(path, file, { upsert: true });
     if (upErr) { toast.error('Erro no upload da NF'); return; }
+    await removeInvoiceFileIfPossible(previousRef || null);
     await supabase.from('representative_orders').update({
       [extension === 'xml' ? 'invoice_xml_url' : 'invoice_pdf_url']: path,
       invoice_number: file.name,
@@ -377,16 +397,23 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
 
   async function openStoredInvoice(fileRef: string | null) {
     if (!fileRef) { toast.error('NF sem arquivo vinculado'); return; }
-    const value = fileRef.trim();
-    if (value.includes('/representative-docs/')) { toast.error('Link antigo da NF. Reenvie a nota pelo bucket invoices.'); return; }
-    const marker = '/storage/v1/object/';
-    const path = /^https?:\/\//i.test(value) && value.includes(marker)
-      ? value.slice(value.indexOf(marker) + marker.length).replace(/^(public|sign)\//, '').replace(/^invoices\//, '').split('?')[0]
-      : value.replace(/^\/+/, '');
-    if (!path) { toast.error('NF sem caminho válido'); return; }
+    const path = getInvoicePathFromRef(fileRef);
+    if (!path) { toast.error('Link antigo ou inválido da NF. Reenvie a nota pelo bucket invoices.'); return; }
     const { data, error } = await supabase.storage.from('invoices').createSignedUrl(path, 60 * 60);
     if (error || !data?.signedUrl) { toast.error('Erro ao abrir NF'); return; }
     window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+  }
+
+  async function removeOrderInvoice(order: RepOrder, type: 'pdf' | 'xml') {
+    const label = type === 'pdf' ? 'PDF' : 'XML';
+    if (!window.confirm(`Remover a NF ${label} deste pedido?`)) return;
+    const field = type === 'pdf' ? 'invoice_pdf_url' : 'invoice_xml_url';
+    await removeInvoiceFileIfPossible(order[field]);
+    const { error } = await supabase.from('representative_orders').update({ [field]: null }).eq('id', order.id);
+    if (error) { toast.error(`Erro ao remover NF ${label}`); return; }
+    toast.success(`NF ${label} removida`);
+    if (selectedRep) fetchRepDetail(selectedRep);
+    notifyRepCoUpdated();
   }
 
   const handleUploadNFExisting = async (order: RepOrder, file: File) => {
@@ -793,17 +820,44 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
                   </div>
 
                   {/* NF section */}
-                  <div className="mt-3 flex items-center gap-3">
-                    {order.invoice_pdf_url ? (
-                      <button onClick={() => openStoredInvoice(order.invoice_pdf_url)}
-                        className="flex items-center gap-1.5 text-xs font-medium text-[#a4240e] hover:underline">
-                        <Download className="w-3.5 h-3.5" /> Baixar NF
-                      </button>
-                    ) : (
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    {order.invoice_pdf_url && (
+                      <>
+                        <button onClick={() => openStoredInvoice(order.invoice_pdf_url)}
+                          className="flex items-center gap-1.5 text-xs font-medium text-[#a4240e] hover:underline">
+                          <Download className="w-3.5 h-3.5" /> Baixar NF PDF
+                        </button>
+                        <label className="flex items-center gap-1.5 text-xs font-medium text-amber-600 cursor-pointer hover:text-amber-700">
+                          <Upload className="w-3.5 h-3.5" /> Substituir PDF
+                          <input type="file" accept=".pdf" className="hidden"
+                            onChange={e => { if (e.target.files?.[0]) handleUploadNFExisting(order, e.target.files[0]); e.currentTarget.value = ''; }} />
+                        </label>
+                        <button onClick={() => removeOrderInvoice(order, 'pdf')} className="text-xs font-medium text-red-600 hover:text-red-700">
+                          Remover PDF
+                        </button>
+                      </>
+                    )}
+                    {order.invoice_xml_url && (
+                      <>
+                        <button onClick={() => openStoredInvoice(order.invoice_xml_url)}
+                          className="flex items-center gap-1.5 text-xs font-medium text-[#a4240e] hover:underline">
+                          <Download className="w-3.5 h-3.5" /> Baixar XML
+                        </button>
+                        <label className="flex items-center gap-1.5 text-xs font-medium text-amber-600 cursor-pointer hover:text-amber-700">
+                          <Upload className="w-3.5 h-3.5" /> Substituir XML
+                          <input type="file" accept=".xml" className="hidden"
+                            onChange={e => { if (e.target.files?.[0]) handleUploadNFExisting(order, e.target.files[0]); e.currentTarget.value = ''; }} />
+                        </label>
+                        <button onClick={() => removeOrderInvoice(order, 'xml')} className="text-xs font-medium text-red-600 hover:text-red-700">
+                          Remover XML
+                        </button>
+                      </>
+                    )}
+                    {!order.invoice_pdf_url && !order.invoice_xml_url && (
                       <label className="flex items-center gap-1.5 text-xs font-medium text-amber-600 cursor-pointer hover:text-amber-700">
                         <Upload className="w-3.5 h-3.5" /> Enviar NF
                         <input type="file" accept=".pdf,.xml" className="hidden"
-                          onChange={e => { if (e.target.files?.[0]) handleUploadNFExisting(order, e.target.files[0]); }} />
+                          onChange={e => { if (e.target.files?.[0]) handleUploadNFExisting(order, e.target.files[0]); e.currentTarget.value = ''; }} />
                       </label>
                     )}
                     {order.status === 'new' || order.status === 'pending' ? (
