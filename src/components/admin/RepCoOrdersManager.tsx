@@ -26,6 +26,7 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState<RepCoOrder | null>(null);
   const [uploadingNF, setUploadingNF] = useState<string | null>(null);
+  const [nfUploadStatus, setNfUploadStatus] = useState<Record<string, { kind: 'info' | 'success' | 'error'; message: string }>>({});
   const [uploadingProof, setUploadingProof] = useState<string | null>(null);
   const proofRef = useRef<HTMLInputElement>(null);
 
@@ -69,6 +70,7 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
 
   async function uploadNF(orderId: string, file: File, type: 'pdf' | 'xml') {
     setUploadingNF(orderId);
+    setNfUploadStatus(current => ({ ...current, [orderId]: { kind: 'info', message: `Enviando NF ${type.toUpperCase()}...` } }));
     const path = `nf/${orderId}/${type}-${Date.now()}.${type}`;
     const currentOrder = orders.find(order => order.id === orderId);
     const previousRef = type === 'pdf' ? currentOrder?.invoice_pdf_url : currentOrder?.invoice_xml_url;
@@ -83,18 +85,23 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
         .select('id, invoice_pdf_url, invoice_xml_url')
         .single();
       if (updateError || !updatedOrder) {
-        toast.error(updateError?.message || 'Erro ao vincular NF ao pedido');
+        const message = updateError?.message || 'Erro ao vincular NF ao pedido';
+        setNfUploadStatus(current => ({ ...current, [orderId]: { kind: 'error', message } }));
+        toast.error(message);
         setUploadingNF(null);
         return;
       }
       setOrders(current => current.map(order => (
         order.id === orderId ? { ...order, [field]: path } : order
       )));
+      setNfUploadStatus(current => ({ ...current, [orderId]: { kind: 'success', message: 'NF anexada com sucesso' } }));
       toast.success(`NF ${type.toUpperCase()} salva`);
       fetchOrders();
       notifyOrdersUpdated();
     } else if (error) {
-      toast.error('Erro ao enviar NF');
+      const message = error.message || 'Erro ao enviar NF';
+      setNfUploadStatus(current => ({ ...current, [orderId]: { kind: 'error', message } }));
+      toast.error(message);
     }
     setUploadingNF(null);
   }
@@ -265,6 +272,15 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
                     {order.notes&&<p className="text-xs text-gray-500 bg-white border border-gray-100 rounded-lg px-3 py-2">{order.notes}</p>}
                     <div className="space-y-2">
                       <p className="text-xs font-medium text-gray-600">Nota fiscal:</p>
+                      {nfUploadStatus[order.id] && (
+                        <p className={`text-xs font-medium ${
+                          nfUploadStatus[order.id].kind === 'error' ? 'text-red-700' :
+                          nfUploadStatus[order.id].kind === 'success' ? 'text-green-700' :
+                          'text-amber-700'
+                        }`}>
+                          {nfUploadStatus[order.id].message}
+                        </p>
+                      )}
                       <div className="flex flex-wrap gap-2">
                         {order.invoice_pdf_url?(
                           <>

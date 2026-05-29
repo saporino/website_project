@@ -1,5 +1,5 @@
 import { useState, useEffect, Suspense, lazy, useMemo } from 'react';
-import { CheckCircle, XCircle, Eye, Plus, Upload, Download, Phone, Mail, Map, Search, Smartphone, ArrowRightLeft } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, Plus, Upload, Phone, Mail, Map, Search, Smartphone, ArrowRightLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -163,27 +163,6 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     setOrderRepresentativeId(repId);
     setOrderForm(f => ({ ...f, representative_client_id: '' }));
     setShowNewOrder(prev => !prev);
-  }
-
-  async function removeCommissionIfDisabled(orderId: string) {
-    const { data: order } = await supabase
-      .from('representative_orders')
-      .select('notes')
-      .eq('id', orderId)
-      .single();
-
-    const note = String(order?.notes || '').toUpperCase();
-    if (!note.includes('SEM COMISS')) return;
-
-    const { error } = await supabase
-      .from('representative_commissions')
-      .delete()
-      .eq('order_id', orderId)
-      .eq('status', 'pending');
-
-    if (error) {
-      toast.error('Pedido concluído, mas não foi possível remover a comissão automática.');
-    }
   }
 
   useEffect(() => { fetchReps(); fetchSnoozedClients(); }, [refreshKey]);
@@ -405,46 +384,6 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     return true;
   };
 
-  async function openStoredInvoice(fileRef: string | null) {
-    if (!fileRef) { toast.error('NF sem arquivo vinculado'); return; }
-    const path = getInvoicePathFromRef(fileRef);
-    if (!path) { toast.error('Link antigo ou inválido da NF. Reenvie a nota pelo bucket invoices.'); return; }
-    const { data, error } = await supabase.storage.from('invoices').createSignedUrl(path, 60 * 60);
-    if (error || !data?.signedUrl) { toast.error('Erro ao abrir NF'); return; }
-    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
-  }
-
-  async function removeOrderInvoice(order: RepOrder, type: 'pdf' | 'xml') {
-    const label = type === 'pdf' ? 'PDF' : 'XML';
-    if (order.status === 'completed') {
-      toast.error('Pedido concluído precisa manter a nota fiscal anexada.');
-      return;
-    }
-    if (!window.confirm(`Remover a NF ${label} deste pedido?`)) return;
-    const field = type === 'pdf' ? 'invoice_pdf_url' : 'invoice_xml_url';
-    await removeInvoiceFileIfPossible(order[field]);
-    const { data: updatedOrder, error } = await supabase.from('representative_orders')
-      .update({ [field]: null })
-      .eq('id', order.id)
-      .select('id, invoice_pdf_url, invoice_xml_url')
-      .single();
-    if (error || !updatedOrder) { toast.error(error?.message || `Erro ao remover NF ${label}`); return; }
-    setOrders(current => current.map(item => (
-      item.id === order.id ? { ...item, [field]: null } : item
-    )));
-    toast.success(`NF ${label} removida`);
-    if (selectedRep) await fetchRepDetail(selectedRep);
-    notifyRepCoUpdated();
-  }
-
-  const handleUploadNFExisting = async (order: RepOrder, file: File) => {
-    const uploaded = await uploadNF(order.id, file);
-    if (!uploaded) return;
-    toast.success('NF enviada!');
-    if (selectedRep) await fetchRepDetail(selectedRep);
-    notifyRepCoUpdated();
-  };
-
   const handleMarkCommissionPaid = async (commission: RepCommission) => {
     const { error } = await supabase.from('representative_commissions').update({
       status: 'paid',
@@ -456,19 +395,6 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     notifyRepCoUpdated();
   };
   void handleMarkCommissionPaid;
-
-  const handleCompleteOrder = async (order: RepOrder) => {
-    if (!getInvoicePathFromRef(order.invoice_pdf_url)) {
-      toast.error('Anexe a nota fiscal antes de concluir o pedido.');
-      return;
-    }
-    const { error } = await supabase.from('representative_orders').update({ status: 'completed' }).eq('id', order.id);
-    if (error) { toast.error('Erro ao concluir pedido'); return; }
-    await removeCommissionIfDisabled(order.id);
-    toast.success('Pedido concluído! Comissão calculada automaticamente.');
-    if (selectedRep) fetchRepDetail(selectedRep);
-    notifyRepCoUpdated();
-  };
 
   const handleTransferClient = async (client: RepClient) => {
     if (!transferRepresentativeId || transferRepresentativeId === selectedRep?.id) {
@@ -821,82 +747,6 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
             </div>
           )}
 
-          {/* Orders list */}
-          {orders.length === 0 ? (
-            <div className="text-center py-10 text-gray-500 text-sm">Nenhum pedido ainda</div>
-          ) : (
-            <div className="divide-y divide-gray-100">
-              {orders.map(order => (
-                <div key={order.id} className="px-6 py-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-gray-900 text-sm">{order.order_number}</span>
-                        {statusBadge(order.status)}
-                        {order.payment_method === 'pix' && <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-medium">PIX</span>}
-                        {order.is_personal_delivery && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-medium">Entrega Pessoal</span>}
-                      </div>
-                      <p className="text-sm text-gray-600 mt-0.5">{order.description}</p>
-                      {order.representative_clients && <p className="text-xs text-gray-400 mt-0.5">{order.representative_clients.razao_social}</p>}
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-gray-900">R$ {order.total_amount.toFixed(2)}</p>
-                      <p className="text-xs text-gray-400">{new Date(order.created_at).toLocaleDateString('pt-BR')}</p>
-                    </div>
-                  </div>
-
-                  {/* NF section */}
-                  <div className="mt-3 flex flex-wrap items-center gap-3">
-                    {order.invoice_pdf_url && (
-                      <>
-                        <button onClick={() => openStoredInvoice(order.invoice_pdf_url)}
-                          className="flex items-center gap-1.5 text-xs font-medium text-[#a4240e] hover:underline">
-                          <Download className="w-3.5 h-3.5" /> Baixar NF PDF
-                        </button>
-                        <label className="flex items-center gap-1.5 text-xs font-medium text-amber-600 cursor-pointer hover:text-amber-700">
-                          <Upload className="w-3.5 h-3.5" /> Substituir PDF
-                          <input type="file" accept=".pdf" className="hidden"
-                            onChange={e => { if (e.target.files?.[0]) handleUploadNFExisting(order, e.target.files[0]); e.currentTarget.value = ''; }} />
-                        </label>
-                        <button onClick={() => removeOrderInvoice(order, 'pdf')} className="text-xs font-medium text-red-600 hover:text-red-700">
-                          Remover PDF
-                        </button>
-                      </>
-                    )}
-                    {order.invoice_xml_url && (
-                      <>
-                        <button onClick={() => openStoredInvoice(order.invoice_xml_url)}
-                          className="flex items-center gap-1.5 text-xs font-medium text-[#a4240e] hover:underline">
-                          <Download className="w-3.5 h-3.5" /> Baixar XML
-                        </button>
-                        <label className="flex items-center gap-1.5 text-xs font-medium text-amber-600 cursor-pointer hover:text-amber-700">
-                          <Upload className="w-3.5 h-3.5" /> Substituir XML
-                          <input type="file" accept=".xml" className="hidden"
-                            onChange={e => { if (e.target.files?.[0]) handleUploadNFExisting(order, e.target.files[0]); e.currentTarget.value = ''; }} />
-                        </label>
-                        <button onClick={() => removeOrderInvoice(order, 'xml')} className="text-xs font-medium text-red-600 hover:text-red-700">
-                          Remover XML
-                        </button>
-                      </>
-                    )}
-                    {!order.invoice_pdf_url && !order.invoice_xml_url && (
-                      <label className="flex items-center gap-1.5 text-xs font-medium text-amber-600 cursor-pointer hover:text-amber-700">
-                        <Upload className="w-3.5 h-3.5" /> Enviar NF
-                        <input type="file" accept=".pdf,.xml" className="hidden"
-                          onChange={e => { if (e.target.files?.[0]) handleUploadNFExisting(order, e.target.files[0]); e.currentTarget.value = ''; }} />
-                      </label>
-                    )}
-                    {order.status === 'new' || order.status === 'pending' ? (
-                      <button onClick={() => handleCompleteOrder(order)}
-                        className="text-xs font-medium text-green-700 hover:text-green-800 flex items-center gap-1">
-                        <CheckCircle className="w-3.5 h-3.5" /> Marcar Concluído
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
         )}
 
