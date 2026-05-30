@@ -161,8 +161,10 @@ export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${st.color}`}>{st.label}</span>
                       {order.payment_method === 'pix' && <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-medium">PIX</span>}
                     </div>
-                    <p className="text-sm text-gray-700">{order.description}</p>
-                    {order.representative_clients && <p className="text-xs text-gray-400 mt-0.5">{order.representative_clients.razao_social}</p>}
+                    {order.representative_clients && (
+                      <p className="text-base font-semibold text-gray-900 mt-1">{order.representative_clients.razao_social}</p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-0.5">{order.description}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-xl font-bold text-gray-900">

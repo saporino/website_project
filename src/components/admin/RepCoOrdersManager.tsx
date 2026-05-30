@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 
@@ -38,7 +38,6 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
   const [uploadingNF, setUploadingNF] = useState<string | null>(null);
   const [nfUploadStatus, setNfUploadStatus] = useState<Record<string, NFUploadStatus>>({});
   const [uploadingProof, setUploadingProof] = useState<string | null>(null);
-  const invoiceInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => { fetchOrders(); }, [representativeId, channelFilter, statusFilter, refreshKey]);
   useEffect(() => {
@@ -172,6 +171,7 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
   }
 
   async function uploadPaymentProof(orderId: string, file: File) {
+    console.log('payment proof handler invoked', { orderId, fileName: file?.name });
     setUploadingProof(orderId);
     const path = `commissions/${orderId}/proof-${Date.now()}.${file.name.split('.').pop()}`;
     const { data, error } = await supabase.storage.from('invoices').upload(path, file, { upsert: true });
@@ -187,6 +187,49 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
       notifyOrdersUpdated();
     }
     setUploadingProof(null);
+  }
+
+  function openPaymentProofPicker(order: RepCoOrder) {
+    console.log('payment proof button clicked', { orderId: order.id });
+
+    if (!order.id) {
+      toast.error('Pedido sem ID. N\u00e3o foi poss\u00edvel iniciar upload.');
+      return;
+    }
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/pdf,.pdf,image/jpeg,image/png,.jpg,.jpeg,.png';
+    input.style.display = 'none';
+
+    const cleanup = () => {
+      window.removeEventListener('focus', focusHandler);
+      try { input.remove(); } catch {}
+    };
+
+    const focusHandler = () => {
+      setTimeout(() => {
+        if (!input.files || input.files.length === 0) {
+          setUploadingProof(null);
+          cleanup();
+        }
+      }, 500);
+    };
+
+    input.addEventListener('change', () => {
+      console.log('payment proof onChange invoked', { orderId: order.id, fileName: input.files?.[0]?.name });
+      const file = input.files?.[0];
+      if (file) {
+        void uploadPaymentProof(order.id, file);
+      } else {
+        setUploadingProof(null);
+      }
+      cleanup();
+    });
+
+    document.body.appendChild(input);
+    window.addEventListener('focus', focusHandler, { once: true });
+    input.click();
   }
 
   async function markCompleted(orderId: string) {
@@ -411,13 +454,11 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
                         <button onClick={()=>markCompleted(order.id)} className="text-xs bg-[#8B2214] text-white px-3 py-1.5 rounded-lg hover:bg-[#6d1a10]">Marcar como concluído</button>
                       )}
                       {order.status==='completed'&&(
-                        <button onClick={()=>{ invoiceInputRefs.current[`${order.id}:proof`]?.click(); }} disabled={uploadingProof===order.id}
+                        <button onClick={() => openPaymentProofPicker(order)} disabled={uploadingProof===order.id}
                           className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 disabled:opacity-50">
                           {uploadingProof===order.id?'Enviando...':'+ Comprovante de pagamento'}
                         </button>
                       )}
-                      <input ref={el=>{ invoiceInputRefs.current[`${order.id}:proof`]=el; }} type="file" accept=".pdf,.png,.jpg" className="hidden"
-                        onChange={e=>{const f=e.target.files?.[0];if(f)uploadPaymentProof(order.id,f);}}/>
                     </div>
                   </div>
                 )}
