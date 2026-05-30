@@ -17,6 +17,7 @@ interface Order {
   invoice_xml_filename: string | null;
   payment_proof_filename: string | null;
   invoice_key: string | null;
+  client_order_number: string | null;
   status: string;
   created_at: string;
   representative_clients: { razao_social: string } | null;
