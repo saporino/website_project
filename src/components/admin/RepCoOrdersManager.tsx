@@ -37,6 +37,7 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
   const [uploadingNF, setUploadingNF] = useState<string | null>(null);
   const [nfUploadStatus, setNfUploadStatus] = useState<Record<string, NFUploadStatus>>({});
   const [uploadingProof, setUploadingProof] = useState<string | null>(null);
+  const invoiceInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const proofRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { fetchOrders(); }, [representativeId, channelFilter, statusFilter, refreshKey]);
@@ -174,6 +175,29 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
     }
 
     void uploadNF(order.id, file, type);
+  }
+
+  function getInvoiceInputKey(orderId: string, type: 'pdf' | 'xml') {
+    return `${orderId}:${type}`;
+  }
+
+  function openInvoiceFilePicker(order: RepCoOrder, type: 'pdf' | 'xml') {
+    const key = getInvoiceInputKey(order.id, type);
+    const input = invoiceInputRefs.current[key];
+    console.log('invoice upload button clicked', { orderId: order.id, type, hasInput: Boolean(input) });
+
+    if (!input) {
+      const message = 'Input de upload da NF não foi encontrado para este pedido.';
+      setNfUploadStatus(current => ({ ...current, [order.id]: { kind: 'error', message } }));
+      toast.error(message);
+      return;
+    }
+
+    setNfUploadStatus(current => ({
+      ...current,
+      [order.id]: { kind: 'info', message: `Seletor de arquivo aberto para NF ${type.toUpperCase()}...` },
+    }));
+    input.click();
   }
 
   async function uploadPaymentProof(orderId: string, file: File) {
@@ -359,10 +383,11 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
                         {order.invoice_pdf_url?(
                           <>
                             <button onClick={()=>openStoredInvoice(order.invoice_pdf_url)} className="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-lg">Ver NF PDF</button>
-                            <label htmlFor={`repco-nf-pdf-${order.id}`} className="text-xs bg-white border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-50 cursor-pointer">
+                            <button type="button" onClick={() => openInvoiceFilePicker(order, 'pdf')} className="text-xs bg-white border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-50">
                               {uploadingNF===order.id?'Enviando...':'Substituir PDF'}
-                            </label>
+                            </button>
                             <input id={`repco-nf-pdf-${order.id}`} type="file" accept="application/pdf,.pdf" className="hidden"
+                              ref={el => { invoiceInputRefs.current[getInvoiceInputKey(order.id, 'pdf')] = el; }}
                               onChange={e=>handleInvoiceFileChange(e, order, 'pdf')}/>
                             <button onClick={()=>removeOrderInvoice(order, 'pdf')} className="text-xs bg-white border border-red-200 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50">
                               Remover PDF
@@ -370,20 +395,22 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
                           </>
                         ):(
                           <>
-                            <label htmlFor={`repco-nf-pdf-${order.id}`} className="text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <button type="button" onClick={() => openInvoiceFilePicker(order, 'pdf')} className="text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">
                               {uploadingNF===order.id?'Enviando...':'+ Upload NF PDF'}
-                            </label>
+                            </button>
                             <input id={`repco-nf-pdf-${order.id}`} type="file" accept="application/pdf,.pdf" className="hidden"
+                              ref={el => { invoiceInputRefs.current[getInvoiceInputKey(order.id, 'pdf')] = el; }}
                               onChange={e=>handleInvoiceFileChange(e, order, 'pdf')}/>
                           </>
                         )}
                         {order.invoice_xml_url?(
                           <>
                             <button onClick={()=>openStoredInvoice(order.invoice_xml_url)} className="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-lg">Ver XML</button>
-                            <label htmlFor={`repco-nf-xml-${order.id}`} className="text-xs bg-white border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-50 cursor-pointer">
+                            <button type="button" onClick={() => openInvoiceFilePicker(order, 'xml')} className="text-xs bg-white border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-50">
                               {uploadingNF===order.id?'Enviando...':'Substituir XML'}
-                            </label>
+                            </button>
                             <input id={`repco-nf-xml-${order.id}`} type="file" accept="application/xml,text/xml,.xml" className="hidden"
+                              ref={el => { invoiceInputRefs.current[getInvoiceInputKey(order.id, 'xml')] = el; }}
                               onChange={e=>handleInvoiceFileChange(e, order, 'xml')}/>
                             <button onClick={()=>removeOrderInvoice(order, 'xml')} className="text-xs bg-white border border-red-200 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50">
                               Remover XML
@@ -391,10 +418,11 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
                           </>
                         ):(
                           <>
-                            <label htmlFor={`repco-nf-xml-${order.id}`} className="text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <button type="button" onClick={() => openInvoiceFilePicker(order, 'xml')} className="text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">
                               + Upload XML
-                            </label>
+                            </button>
                             <input id={`repco-nf-xml-${order.id}`} type="file" accept="application/xml,text/xml,.xml" className="hidden"
+                              ref={el => { invoiceInputRefs.current[getInvoiceInputKey(order.id, 'xml')] = el; }}
                               onChange={e=>handleInvoiceFileChange(e, order, 'xml')}/>
                           </>
                         )}
