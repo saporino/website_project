@@ -38,7 +38,6 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
   const [nfUploadStatus, setNfUploadStatus] = useState<Record<string, NFUploadStatus>>({});
   const [uploadingProof, setUploadingProof] = useState<string | null>(null);
   const invoiceInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  const proofRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { fetchOrders(); }, [representativeId, channelFilter, statusFilter, refreshKey]);
   useEffect(() => {
@@ -433,12 +432,12 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
                         <button onClick={()=>markCompleted(order.id)} className="text-xs bg-[#8B2214] text-white px-3 py-1.5 rounded-lg hover:bg-[#6d1a10]">Marcar como concluído</button>
                       )}
                       {order.status==='completed'&&(
-                        <button onClick={()=>proofRef.current?.click()} disabled={uploadingProof===order.id}
+                        <button onClick={()=>{ invoiceInputRefs.current[`${order.id}:proof`]?.click(); }} disabled={uploadingProof===order.id}
                           className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 disabled:opacity-50">
                           {uploadingProof===order.id?'Enviando...':'+ Comprovante de pagamento'}
                         </button>
                       )}
-                      <input ref={proofRef} type="file" accept=".pdf,.png,.jpg" className="hidden"
+                      <input ref={el=>{ invoiceInputRefs.current[`${order.id}:proof`]=el; }} type="file" accept=".pdf,.png,.jpg" className="hidden"
                         onChange={e=>{const f=e.target.files?.[0];if(f)uploadPaymentProof(order.id,f);}}/>
                     </div>
                   </div>
