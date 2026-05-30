@@ -8,6 +8,7 @@ interface RepCoOrder {
   payment_method: string | null; payment_term: number | null; is_personal_delivery: boolean;
   client_order_number: string | null; has_client_order_number: boolean;
   invoice_pdf_url: string | null; invoice_xml_url: string | null; invoice_number: string | null;
+  invoice_pdf_filename: string | null; invoice_xml_filename: string | null; payment_proof_filename: string | null;
   status: string; notes: string | null; created_at: string; completed_at: string | null;
   pix_bonus_eligible: boolean; client_name?: string; rep_name?: string;
 }
@@ -78,7 +79,6 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
   }
 
   async function uploadNF(orderId: string, file: File, type: 'pdf' | 'xml') {
-    console.log('invoice upload handler invoked', { fileName: file?.name, orderId, type });
     if (!orderId) {
       const message = 'Pedido sem ID. Não foi possível anexar a NF.';
       setNfUploadStatus(current => ({ ...current, unknown: { kind: 'error', message, fileName: file?.name } }));
@@ -94,7 +94,7 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
     setUploadingNF(orderId);
     setNfUploadStatus(current => ({
       ...current,
-      [orderId]: { kind: 'info', message: `Arquivo selecionado: ${file.name}. Enviando NF ${type.toUpperCase()}...`, fileName: file.name },
+      [orderId]: { kind: 'info', message: `Enviando NF ${type.toUpperCase()}...`, fileName: file.name },
     }));
     const path = `nf/${orderId}/${type}-${Date.now()}.${type}`;
     const currentOrder = orders.find(order => order.id === orderId);
@@ -102,22 +102,14 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
     const { data, error } = await supabase.storage.from('invoices').upload(path, file, { upsert: true });
     if (!error && data) {
       const storagePath = data.path || path;
-      setNfUploadStatus(current => ({
-        ...current,
-        [orderId]: {
-          kind: 'info',
-          message: `Upload concluído. Atualizando pedido ${orderId}...`,
-          fileName: file.name,
-          storagePath,
-        },
-      }));
       await removeInvoiceFileIfPossible(previousRef || null);
       const field = type === 'pdf' ? 'invoice_pdf_url' : 'invoice_xml_url';
+      const filenameField = type === 'pdf' ? 'invoice_pdf_filename' : 'invoice_xml_filename';
       const { data: updatedOrder, error: updateError } = await supabase
         .from('representative_orders')
-        .update({ [field]: storagePath })
+        .update({ [field]: storagePath, [filenameField]: file.name })
         .eq('id', orderId)
-        .select('id, invoice_pdf_url, invoice_xml_url')
+        .select('id, invoice_pdf_url, invoice_xml_url, invoice_pdf_filename, invoice_xml_filename')
         .single();
       if (updateError || !updatedOrder) {
         const message = updateError?.message || 'Erro ao vincular NF ao pedido';
@@ -127,18 +119,11 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
         return;
       }
       setOrders(current => current.map(order => (
-        order.id === orderId ? { ...order, [field]: storagePath } : order
+        order.id === orderId ? { ...order, [field]: storagePath, [filenameField]: file.name } : order
       )));
       setNfUploadStatus(current => ({
         ...current,
-        [orderId]: {
-          kind: 'success',
-          message: 'NF anexada com sucesso',
-          fileName: file.name,
-          storagePath,
-          invoicePdfUrl: updatedOrder.invoice_pdf_url,
-          invoiceXmlUrl: updatedOrder.invoice_xml_url,
-        },
+        [orderId]: { kind: 'success', message: 'NF anexada com sucesso', fileName: file.name },
       }));
       toast.success(`NF ${type.toUpperCase()} salva`);
       fetchOrders();
@@ -156,8 +141,6 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
   }
 
   function openInvoiceFilePicker(order: RepCoOrder, type: 'pdf' | 'xml') {
-    console.log('invoice upload button clicked', { orderId: order.id, type });
-
     if (!order.id) {
       const message = 'Pedido sem ID. Não foi possível iniciar upload da NF.';
       setNfUploadStatus(current => ({ ...current, unknown: { kind: 'error', message } }));
@@ -197,6 +180,9 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
       await supabase.from('representative_commissions').update({
         proof_url: url?.signedUrl, status: 'paid', paid_at: new Date().toISOString(),
       }).eq('order_id', orderId);
+      await supabase.from('representative_orders').update({
+        payment_proof_filename: file.name,
+      }).eq('id', orderId);
       fetchOrders();
       notifyOrdersUpdated();
     }
@@ -361,12 +347,32 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
                           'border-amber-200 bg-amber-50 text-amber-700'
                         }`}>
                           <p className="font-semibold">{nfUploadStatus[order.id].message}</p>
-                          {nfUploadStatus[order.id].fileName && <p className="mt-1">Arquivo: {nfUploadStatus[order.id].fileName}</p>}
-                          {nfUploadStatus[order.id].storagePath && <p className="mt-1 break-all">Storage path: {nfUploadStatus[order.id].storagePath}</p>}
-                          {nfUploadStatus[order.id].invoicePdfUrl && <p className="mt-1 break-all">invoice_pdf_url: {nfUploadStatus[order.id].invoicePdfUrl}</p>}
-                          {nfUploadStatus[order.id].invoiceXmlUrl && <p className="mt-1 break-all">invoice_xml_url: {nfUploadStatus[order.id].invoiceXmlUrl}</p>}
+                          {nfUploadStatus[order.id].fileName && <p className="mt-1">📄 {nfUploadStatus[order.id].fileName}</p>}
                         </div>
                       )}
+                      <div className="space-y-1 mb-1">
+                        {order.invoice_pdf_url && (
+                          <p className="text-xs text-green-700 flex items-center gap-1">
+                            <span>📄</span>
+                            <span className="font-medium">NF PDF:</span>
+                            <span className="truncate max-w-[200px]">{order.invoice_pdf_filename || 'Arquivo anexado'}</span>
+                          </p>
+                        )}
+                        {order.invoice_xml_url && (
+                          <p className="text-xs text-green-700 flex items-center gap-1">
+                            <span>📄</span>
+                            <span className="font-medium">XML:</span>
+                            <span className="truncate max-w-[200px]">{order.invoice_xml_filename || 'Arquivo anexado'}</span>
+                          </p>
+                        )}
+                        {order.payment_proof_filename && (
+                          <p className="text-xs text-green-700 flex items-center gap-1">
+                            <span>💳</span>
+                            <span className="font-medium">Comprovante:</span>
+                            <span className="truncate max-w-[200px]">{order.payment_proof_filename}</span>
+                          </p>
+                        )}
+                      </div>
                       <div className="flex flex-wrap gap-2">
                         {order.invoice_pdf_url?(
                           <>
