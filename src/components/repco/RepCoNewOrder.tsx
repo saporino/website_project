@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { SEGMENT_LABEL } from '../../constants/segments';
+import BoletoCombinationPicker from './BoletoCombinationPicker';
 
 type FiscalOrderType = 'resale' | 'taxpayer_consumer' | 'non_taxpayer_consumer';
 
@@ -51,6 +52,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   const [paymentTerm, setPaymentTerm] = useState(0);
   const [discountPercentage, setDiscountPercentage] = useState(0);
   const [paymentTerms, setPaymentTerms] = useState<number[]>([0,7,14,21,28,30]);
+  const [boletoOffsets, setBoletoOffsets] = useState<number[]>([]);
   const [fiscalOrderType, setFiscalOrderType] = useState<FiscalOrderType>('non_taxpayer_consumer');
 
   useEffect(() => { fetchClients(); }, [representativeId]);
@@ -150,7 +152,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
     const finalAmount = originalAmount * (1 - discountPercentage / 100);
     const description = items.map(i => `${i.product.name} x${i.quantity} (R$ ${effectivePrice(i.price, i.quantity).toFixed(2)})`).join(', ');
 
-    const { error: err } = await supabase.from('representative_orders').insert({
+    const { data: createdOrder, error: err } = await supabase.from('representative_orders').insert({
       representative_id: representativeId,
       representative_client_id: selectedClient.id,
       description,
@@ -167,11 +169,25 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
       status: 'new',
       fiscal_order_type: fiscalOrderType,
       notes: notes || null,
-    });
-    if (err) {
+    }).select('id').single();
+    if (err || !createdOrder) {
       setSubmitting(false);
       setError('Erro ao enviar pedido. Tente novamente.');
       return;
+    }
+    if (paymentTerm > 0 && createdOrder.id) {
+      const offsets = boletoOffsets.length ? boletoOffsets : [paymentTerm];
+      const cents = Math.round(finalAmount * 100);
+      const base = Math.floor(cents / offsets.length);
+      const t0 = Date.now();
+      const rows = offsets.map((off, idx) => ({
+        order_id: createdOrder.id,
+        installment_number: idx + 1,
+        amount: (idx === offsets.length - 1 ? cents - base * (offsets.length - 1) : base) / 100,
+        due_date: new Date(t0 + off * 86400000).toISOString().slice(0, 10),
+        status: 'pending',
+      }));
+      await supabase.from('representative_order_installments').insert(rows);
     }
 
     const { error: defaultErr } = await supabase.rpc('set_repco_client_default_fiscal_order_type', {
@@ -342,6 +358,9 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                 ))}
               </select>
             </div>
+            {paymentTerm > 0 && (
+              <BoletoCombinationPicker baseTerm={paymentTerm} onChange={setBoletoOffsets} />
+            )}
             {/* Tipo fiscal/comercial */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Tipo fiscal/comercial do pedido</label>

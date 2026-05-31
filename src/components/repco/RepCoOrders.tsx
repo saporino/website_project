@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { Download, Printer, MessageCircle, Mail, FileText, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { buildInvoiceShareUrls, extractStoragePath } from '../../utils/invoiceShare';
+import OrderInstallmentsView from './OrderInstallmentsView';
 
 interface Order {
   id: string;
@@ -238,6 +239,7 @@ export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
                     )}
                   </div>
                 )}
+                {order.payment_method === 'boleto' && <OrderInstallmentsView orderId={order.id} />}
               </div>
             );
           })}

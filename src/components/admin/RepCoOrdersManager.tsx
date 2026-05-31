@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
+import OrderInstallmentsPanel from './OrderInstallmentsPanel';
 
 interface RepCoOrder {
   id: string; order_number: string; representative_id: string;
@@ -449,6 +450,11 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
                         )}
                       </div>
                     </div>
+                    {order.payment_method==='boleto' && (
+                      <div className="pt-2 border-t border-gray-100">
+                        <OrderInstallmentsPanel orderId={order.id} onChanged={fetchOrders} />
+                      </div>
+                    )}
                     <div className="flex flex-wrap gap-2">
                       {order.status==='new'&&order.invoice_pdf_url&&(
                         <button onClick={()=>markCompleted(order.id)} className="text-xs bg-[#8B2214] text-white px-3 py-1.5 rounded-lg hover:bg-[#6d1a10]">Marcar como concluído</button>
