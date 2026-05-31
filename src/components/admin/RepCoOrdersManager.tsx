@@ -183,6 +183,7 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
       }).eq('order_id', orderId);
       await supabase.from('representative_orders').update({
         payment_proof_filename: file.name,
+        payment_proof_url: data.path || path,
       }).eq('id', orderId);
       fetchOrders();
       notifyOrdersUpdated();

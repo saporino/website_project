@@ -17,6 +17,7 @@ interface Order {
   invoice_xml_url: string | null;
   invoice_xml_filename: string | null;
   payment_proof_filename: string | null;
+  payment_proof_url: string | null;
   invoice_key: string | null;
   client_order_number: string | null;
   status: string;
@@ -125,6 +126,12 @@ export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
     triggerDownload(url, order.invoice_xml_filename || `NF-${order.order_number}.xml`);
   }
 
+  async function handleViewProof(order: Order) {
+    const url = await resolveSignedUrl(order.payment_proof_url);
+    if (!url) { toast.error('Comprovante sem acesso válido. Solicite ao admin que reenvie.'); return; }
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
   const filtered = filter === 'all' ? orders : orders.filter(o => o.status === filter);
 
   return (
@@ -231,10 +238,18 @@ export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
                     {hasProof && (
                       <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
                         <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
-                        <p className="text-xs text-green-700 font-medium">
-                          Pagamento confirmado:
-                          <span className="font-normal ml-1 truncate">{order.payment_proof_filename}</span>
-                        </p>
+                        <div className="min-w-0">
+                          <p className="text-xs text-green-700 font-medium truncate">
+                            Pagamento confirmado:
+                            <span className="font-normal ml-1">{order.payment_proof_filename}</span>
+                          </p>
+                          {order.payment_proof_url && (
+                            <button onClick={() => handleViewProof(order)}
+                              className="mt-1 flex items-center gap-1.5 text-xs font-medium text-[#a4240e] hover:underline">
+                              <FileText className="w-3.5 h-3.5" /> Ver comprovante
+                            </button>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
