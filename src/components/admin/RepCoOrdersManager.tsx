@@ -9,7 +9,7 @@ interface RepCoOrder {
   payment_method: string | null; payment_term: number | null; is_personal_delivery: boolean;
   client_order_number: string | null; has_client_order_number: boolean;
   invoice_pdf_url: string | null; invoice_xml_url: string | null; invoice_number: string | null;
-  invoice_pdf_filename: string | null; invoice_xml_filename: string | null; payment_proof_filename: string | null;
+  invoice_pdf_filename: string | null; invoice_xml_filename: string | null; payment_proof_filename: string | null; payment_proof_url: string | null;
   status: string; notes: string | null; created_at: string; completed_at: string | null;
   pix_bonus_eligible: boolean; client_name?: string; rep_name?: string;
 }
@@ -279,11 +279,7 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
 
   async function removeOrderInvoice(order: RepCoOrder, type: 'pdf' | 'xml') {
     const label = type === 'pdf' ? 'PDF' : 'XML';
-    if (order.status === 'completed') {
-      toast.error('Pedido concluído precisa manter a nota fiscal anexada.');
-      return;
-    }
-    if (!window.confirm(`Remover a NF ${label} deste pedido?`)) return;
+    if (!window.confirm(`Remover a NF ${label} deste pedido? (admin pode corrigir mesmo concluído)`)) return;
     const field = type === 'pdf' ? 'invoice_pdf_url' : 'invoice_xml_url';
     await removeInvoiceFileIfPossible(order[field]);
     const { data: updatedOrder, error } = await supabase
@@ -297,6 +293,24 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
       item.id === order.id ? { ...item, [field]: null } : item
     )));
     toast.success(`NF ${label} removida`);
+    fetchOrders();
+    notifyOrdersUpdated();
+  }
+
+  async function viewPaymentProofAdmin(order: RepCoOrder) {
+    const ref = order.payment_proof_url;
+    if (!ref) { toast.error('Sem comprovante anexado'); return; }
+    const { data, error } = await supabase.storage.from('invoices').createSignedUrl(ref, 60 * 60);
+    if (error || !data?.signedUrl) { toast.error('Erro ao abrir comprovante'); return; }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+  }
+
+  async function removePaymentProof(order: RepCoOrder) {
+    if (!window.confirm('Remover o comprovante de pagamento deste pedido?')) return;
+    if (order.payment_proof_url) { try { await supabase.storage.from('invoices').remove([order.payment_proof_url]); } catch {} }
+    await supabase.from('representative_orders').update({ payment_proof_filename: null, payment_proof_url: null }).eq('id', order.id);
+    await supabase.from('representative_commissions').update({ proof_url: null, status: 'pending', paid_at: null }).eq('order_id', order.id);
+    toast.success('Comprovante removido');
     fetchOrders();
     notifyOrdersUpdated();
   }
@@ -460,11 +474,18 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
                       {order.status==='new'&&order.invoice_pdf_url&&(
                         <button onClick={()=>markCompleted(order.id)} className="text-xs bg-[#8B2214] text-white px-3 py-1.5 rounded-lg hover:bg-[#6d1a10]">Marcar como concluído</button>
                       )}
-                      {order.status==='completed'&&(
+                      {order.status==='completed' && !order.payment_proof_url && (
                         <button onClick={() => openPaymentProofPicker(order)} disabled={uploadingProof===order.id}
                           className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 disabled:opacity-50">
                           {uploadingProof===order.id?'Enviando...':'+ Comprovante de pagamento'}
                         </button>
+                      )}
+                      {order.status==='completed' && order.payment_proof_url && (
+                        <>
+                          <button onClick={() => viewPaymentProofAdmin(order)} className="text-xs bg-green-50 border border-green-200 text-green-700 px-3 py-1.5 rounded-lg">Ver comprovante</button>
+                          <button onClick={() => openPaymentProofPicker(order)} disabled={uploadingProof===order.id} className="text-xs bg-white border border-amber-200 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-50">{uploadingProof===order.id?'Enviando...':'Substituir comprovante'}</button>
+                          <button onClick={() => removePaymentProof(order)} className="text-xs bg-white border border-red-200 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50">Remover comprovante</button>
+                        </>
                       )}
                     </div>
                   </div>

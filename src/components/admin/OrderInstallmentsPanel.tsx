@@ -122,6 +122,23 @@ export default function OrderInstallmentsPanel({ orderId, onChanged }: Props) {
     window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
   }
 
+  async function removeInstallmentFile(instId: string, kind: 'boleto' | 'proof') {
+    const inst = installments.find(i => i.id === instId);
+    if (!inst) return;
+    const label = kind === 'boleto' ? 'boleto' : 'comprovante';
+    if (!window.confirm(`Remover o ${label} desta parcela?`)) return;
+    const ref = kind === 'boleto' ? inst.boleto_url : inst.proof_url;
+    if (ref) { try { await supabase.storage.from('invoices').remove([ref]); } catch {} }
+    const updates: Partial<Installment> = kind === 'boleto'
+      ? { boleto_url: null, boleto_filename: null }
+      : { proof_url: null, proof_filename: null, status: 'pending', paid_at: null };
+    const { error } = await supabase.from('representative_order_installments').update(updates).eq('id', instId);
+    if (error) { toast.error('Erro ao remover: ' + error.message); return; }
+    toast.success(kind === 'boleto' ? 'Boleto removido' : 'Comprovante removido');
+    fetchInstallments();
+    onChanged?.();
+  }
+
   if (loading) return (
     <div className="space-y-1 py-1">
       {[1, 2].map(i => (
@@ -202,6 +219,12 @@ export default function OrderInstallmentsPanel({ orderId, onChanged }: Props) {
                   >
                     {uploading === bKey ? 'Enviando...' : 'Substituir'}
                   </button>
+                  <button
+                    onClick={() => removeInstallmentFile(inst.id, 'boleto')}
+                    className="text-xs text-red-600 hover:underline"
+                  >
+                    Remover
+                  </button>
                 </>
               ) : (
                 <button
@@ -232,6 +255,12 @@ export default function OrderInstallmentsPanel({ orderId, onChanged }: Props) {
                     className="text-xs text-amber-600 hover:underline disabled:opacity-50"
                   >
                     {uploading === pKey ? 'Enviando...' : 'Substituir'}
+                  </button>
+                  <button
+                    onClick={() => removeInstallmentFile(inst.id, 'proof')}
+                    className="text-xs text-red-600 hover:underline"
+                  >
+                    Remover
                   </button>
                 </>
               ) : (
