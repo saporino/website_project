@@ -51,7 +51,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   const [hasClientOrderNumber, setHasClientOrderNumber] = useState(true);
   const [paymentTerm, setPaymentTerm] = useState(0);
   const [discountPercentage, setDiscountPercentage] = useState(0);
-  const [paymentTerms, setPaymentTerms] = useState<number[]>([0,7,14,21,28,30]);
+  const [, setPaymentTerms] = useState<number[]>([0,7,14,21,28,30]);
   const [boletoOffsets, setBoletoOffsets] = useState<number[]>([]);
   const [fiscalOrderType, setFiscalOrderType] = useState<FiscalOrderType>('non_taxpayer_consumer');
 
@@ -348,19 +348,14 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                 <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg">Pedido será encaminhado ao fiscal sem número do cliente</p>
               )}
             </div>
-            {/* Prazo de pagamento */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Prazo de pagamento</label>
-              <select value={paymentTerm} onChange={e=>{const t=parseInt(e.target.value);setPaymentTerm(t);if(t===0)setPaymentMethod('pix');}}
-                className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded focus:outline-none">
-                {paymentTerms.map(term=>(
-                  <option key={term} value={term}>{term===0?'À vista / PIX (0 dias)':`${term} dias`}</option>
-                ))}
-              </select>
-            </div>
-            {paymentTerm > 0 && (
-              <BoletoCombinationPicker baseTerm={paymentTerm} onChange={setBoletoOffsets} />
-            )}
+            {/* Condicao de pagamento (a vista / boleto, estilo ERP) */}
+            <BoletoCombinationPicker
+              onChange={(offs) => {
+                setBoletoOffsets(offs);
+                setPaymentTerm(offs.length ? offs[offs.length - 1] : 0);
+                setPaymentMethod(offs.length ? 'boleto' : 'pix');
+              }}
+            />
             {/* Tipo fiscal/comercial */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Tipo fiscal/comercial do pedido</label>

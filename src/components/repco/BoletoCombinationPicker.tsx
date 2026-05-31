@@ -1,92 +1,111 @@
 import { useState } from 'react';
 
-const PRESETS: { label: string; offsets: number[] }[] = [
-  { label: '\u00c0 vista / PIX',    offsets: [] },
-  { label: '1x',                  offsets: [30] },
-  { label: '2x (30/60)',          offsets: [30, 60] },
-  { label: '2x (14/28)',          offsets: [14, 28] },
-  { label: '3x (30/60/90)',       offsets: [30, 60, 90] },
-  { label: '4x (30/60/90/120)',   offsets: [30, 60, 90, 120] },
-  { label: '5x (30/60/90/120/150)', offsets: [30, 60, 90, 120, 150] },
-  { label: '1x7d',                offsets: [7] },
-  { label: '1x14d',               offsets: [14] },
-  { label: '1x28d',               offsets: [28] },
-  { label: 'Personalizado',       offsets: [] },
+const SINGLE = [5, 7, 10, 14, 15, 21, 25, 28, 30, 35, 42, 45, 60, 90];
+
+const COMBOS: { label: string; offsets: number[] }[] = [
+  { label: '14/28', offsets: [14, 28] },
+  { label: '21/28', offsets: [21, 28] },
+  { label: '15/30', offsets: [15, 30] },
+  { label: '5/30', offsets: [5, 30] },
+  { label: '20/40', offsets: [20, 40] },
+  { label: '30/35', offsets: [30, 35] },
+  { label: '30/40', offsets: [30, 40] },
+  { label: '28/42', offsets: [28, 42] },
+  { label: '30/45', offsets: [30, 45] },
+  { label: '30/60', offsets: [30, 60] },
+  { label: '20/40/60', offsets: [20, 40, 60] },
+  { label: '30/45/60', offsets: [30, 45, 60] },
+  { label: '30/60/90', offsets: [30, 60, 90] },
 ];
 
-interface Props {
-  baseTerm: number;
-  onChange: (offsets: number[]) => void;
+function parseCustom(s: string): number[] {
+  return s
+    .split(/[^0-9]+/)
+    .map((x) => parseInt(x, 10))
+    .filter((n) => Number.isFinite(n) && n > 0);
 }
 
-export default function BoletoCombinationPicker({ baseTerm, onChange }: Props) {
-  const [selected, setSelected] = useState<number | null>(null);
-  const [custom, setCustom] = useState<string>('');
-  const isCustom = selected !== null && PRESETS[selected]?.label === 'Personalizado';
+function offsetsFor(key: string, custom: string): number[] {
+  if (key === 'avista') return [];
+  if (key === 'custom') return parseCustom(custom);
+  if (key[0] === 's') return [parseInt(key.slice(1), 10)];
+  if (key[0] === 'c') return COMBOS[parseInt(key.slice(1), 10)].offsets;
+  return [];
+}
 
-  function select(idx: number) {
-    setSelected(idx);
-    const preset = PRESETS[idx];
-    if (preset.label === 'Personalizado') {
-      const parsed = parseCustom(custom);
-      onChange(parsed);
-    } else {
-      onChange(preset.offsets.length ? preset.offsets : [baseTerm]);
-    }
+type Props = {
+  onChange: (offsets: number[]) => void;
+  baseTerm?: number; // compatibilidade — não utilizado
+};
+
+export function BoletoCombinationPicker({ onChange }: Props) {
+  const [sel, setSel] = useState('avista');
+  const [custom, setCustom] = useState('');
+
+  const offsets = offsetsFor(sel, custom);
+
+  function pick(key: string) {
+    setSel(key);
+    onChange(offsetsFor(key, custom));
   }
 
-  function parseCustom(raw: string): number[] {
-    return raw
-      .split(/[,\s\/]+/)
-      .map(s => parseInt(s.trim()))
-      .filter(n => !isNaN(n) && n > 0 && n <= 365)
-      .slice(0, 5);
-  }
-
-  function handleCustomChange(val: string) {
-    setCustom(val);
-    onChange(parseCustom(val));
+  function typeCustom(value: string) {
+    setCustom(value);
+    if (sel === 'custom') onChange(parseCustom(value));
   }
 
   return (
-    <div className="space-y-2">
-      <p className="text-xs font-medium text-gray-600">Combina\u00e7\u00e3o de vencimentos (dias a partir de hoje)</p>
-      <div className="flex flex-wrap gap-1.5">
-        {PRESETS.filter(p => p.label !== '\u00c0 vista / PIX').map((p, idx) => (
-          <button
-            key={p.label}
-            type="button"
-            onClick={() => select(idx + 1)}
-            className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors ${
-              selected === idx + 1
-                ? 'border-[#a4240e] bg-red-50 text-[#a4240e]'
-                : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-      {isCustom && (
-        <div className="space-y-1">
+    <div>
+      <label className="block text-xs font-medium text-gray-600 mb-1">Condição de pagamento</label>
+      <select
+        value={sel}
+        onChange={(e) => pick(e.target.value)}
+        className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded focus:outline-none"
+      >
+        <optgroup label="À vista">
+          <option value="avista">À vista / PIX</option>
+        </optgroup>
+        <optgroup label="Boleto — parcela única">
+          {SINGLE.map((n) => (
+            <option key={'s' + n} value={'s' + n}>
+              {n} dias
+            </option>
+          ))}
+        </optgroup>
+        <optgroup label="Boleto — parcelado">
+          {COMBOS.map((c, i) => (
+            <option key={'c' + i} value={'c' + i}>
+              {c.label} dias
+            </option>
+          ))}
+        </optgroup>
+        <optgroup label="Outro">
+          <option value="custom">Personalizado…</option>
+        </optgroup>
+      </select>
+
+      {sel === 'custom' && (
+        <div className="mt-2">
           <input
             type="text"
             value={custom}
-            onChange={e => handleCustomChange(e.target.value)}
-            placeholder="Ex: 30, 60, 90  (dias separados por v\u00edrgula, m\u00e1x 5)"
-            className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-[#a4240e]"
+            onChange={(e) => typeCustom(e.target.value)}
+            placeholder="Ex: 30, 60, 90"
+            className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded focus:outline-none"
           />
-          <p className="text-xs text-gray-400">
-            Dias de vencimento separados por v\u00edrgula (ex: 30, 60 = 2 boletos)
-          </p>
+          <p className="mt-1 text-[11px] text-gray-500">Dias de vencimento separados por vírgula.</p>
         </div>
       )}
-      {selected !== null && !isCustom && PRESETS[selected]?.offsets.length > 0 && (
-        <p className="text-xs text-gray-500">
-          {PRESETS[selected].offsets.length} boleto{PRESETS[selected].offsets.length > 1 ? 's' : ''}: vencimentos em{' '}
-          {PRESETS[selected].offsets.map(d => `D+${d}`).join(', ')}
-        </p>
-      )}
+
+      <p className="mt-1 text-[11px] text-gray-600">
+        {offsets.length === 0
+          ? 'À vista no PIX (sem boleto).'
+          : offsets.length === 1
+          ? `1 boleto: vencimento em D+${offsets[0]}.`
+          : `${offsets.length} boletos: vencimentos em ${offsets.map((o) => 'D+' + o).join(', ')}.`}
+      </p>
     </div>
   );
 }
+
+export default BoletoCombinationPicker;

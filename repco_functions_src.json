@@ -1,0 +1,22 @@
+﻿[
+    {
+        "prosrc":  "\nDECLARE\n  v_rep         public.representatives%ROWTYPE;\n  v_base_rate   DECIMAL := 5.00;\n  v_pix_bonus   DECIMAL := 0;\n  v_del_bonus   DECIMAL := 0;\n  v_total_rate  DECIMAL;\n  v_amount      DECIMAL;\n  v_days_exp    INTEGER;\nBEGIN\n  -- Only trigger when status changes TO \u0027completed\u0027\n  IF OLD.status = NEW.status OR NEW.status != \u0027completed\u0027 THEN\n    RETURN NEW;\n  END IF;\n\n  -- Get representative info\n  SELECT * INTO v_rep FROM public.representatives WHERE id = NEW.representative_id;\n\n  -- PIX bonus\n  IF NEW.payment_method = \u0027pix\u0027 THEN\n    v_pix_bonus := 0.50;\n  END IF;\n\n  -- Personal delivery bonus (only after 90 days experience)\n  IF NEW.is_personal_delivery AND v_rep.experience_start_date IS NOT NULL THEN\n    v_days_exp := (CURRENT_DATE - v_rep.experience_start_date);\n    IF v_days_exp \u003e= 90 THEN\n      v_del_bonus := 2.50;\n    END IF;\n  END IF;\n\n  -- Cap at 8%\n  v_total_rate := LEAST(v_base_rate + v_pix_bonus + v_del_bonus, 8.00);\n  v_amount := ROUND((NEW.total_amount * v_total_rate / 100), 2);\n\n  -- Insert commission record\n  INSERT INTO public.representative_commissions (\n    representative_id, order_id, order_amount,\n    base_rate, pix_bonus, delivery_bonus,\n    total_rate, commission_amount, status\n  ) VALUES (\n    NEW.representative_id, NEW.id, NEW.total_amount,\n    v_base_rate, v_pix_bonus, v_del_bonus,\n    v_total_rate, v_amount, \u0027pending\u0027\n  )\n  ON CONFLICT DO NOTHING;\n\n  -- Set completed_at timestamp\n  NEW.completed_at := now();\n\n  RETURN NEW;\nEND;\n",
+        "proname":  "calculate_repco_commission"
+    },
+    {
+        "prosrc":  "\nBEGIN\n  IF NEW.order_number IS NULL OR NEW.order_number = \u0027\u0027 THEN\n    NEW.order_number := \u0027RC-\u0027 || LPAD(nextval(\u0027repco_order_seq\u0027)::TEXT, 5, \u00270\u0027);\n  END IF;\n  RETURN NEW;\nEND;\n",
+        "proname":  "generate_repco_order_number"
+    },
+    {
+        "prosrc":  "\nBEGIN\n  IF NEW.representative_client_id IS NOT NULL THEN\n    UPDATE public.representative_clients\n    SET snooze_count = 0,\n        snooze_admin_alert = FALSE,\n        inactivity_snoozed_until = NULL,\n        inactivity_alert_dismissed = FALSE,\n        last_order_at = NOW()\n    WHERE id = NEW.representative_client_id;\n  END IF;\n  RETURN NEW;\nEND;\n",
+        "proname":  "reset_client_snooze_on_order"
+    },
+    {
+        "prosrc":  "\nBEGIN\n  IF NEW.order_number IS NULL OR NEW.order_number = \u0027\u0027 THEN\n    NEW.order_number := \u0027RC\u0027 || LPAD(nextval(\u0027repco_order_seq\u0027)::TEXT, 6, \u00270\u0027);\n  END IF;\n  RETURN NEW;\nEND;\n",
+        "proname":  "set_rep_order_number"
+    },
+    {
+        "prosrc":  "\nBEGIN\n  UPDATE public.representative_clients\n  SET last_order_at = NOW(),\n      inactivity_alert_dismissed = FALSE,\n      inactivity_snoozed_until = NULL\n  WHERE id = NEW.representative_client_id;\n  RETURN NEW;\nEND;\n",
+        "proname":  "update_client_last_order"
+    }
+]
