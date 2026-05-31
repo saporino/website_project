@@ -324,11 +324,22 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
           <div className="space-y-2">
             {items.map(item => { const ep=effectivePrice(item.price,item.quantity); return (
               <div key={item.product.id} className="flex items-center justify-between bg-white border border-gray-100 rounded-lg px-3 py-2">
-                <div><p className="text-sm text-gray-800">{item.product.name}</p><p className="text-xs text-gray-400">R$ {ep.toFixed(2)} × {item.quantity}</p></div>
-                <p className="text-sm font-semibold">R$ {(ep*item.quantity).toFixed(2)}</p>
+                <div className="min-w-0 mr-2">
+                  <p className="text-sm text-gray-800">{item.product.name}</p>
+                  <p className="text-xs text-gray-400">R$ {ep.toFixed(2)} × {item.quantity}</p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={()=>updateQty(item.product,-1)} className="w-7 h-7 rounded-full border border-gray-300 text-gray-600 flex items-center justify-center hover:bg-gray-100">−</button>
+                    <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
+                    <button type="button" onClick={()=>updateQty(item.product,1)} disabled={item.quantity>=item.product.stock} className="w-7 h-7 rounded-full bg-[#a4240e] text-white flex items-center justify-center disabled:opacity-40">+</button>
+                  </div>
+                  <p className="text-sm font-semibold w-20 text-right">R$ {(ep*item.quantity).toFixed(2)}</p>
+                </div>
               </div>
             );})}
             <div className="flex justify-between border-t border-gray-200 pt-2 font-bold"><span>Total</span><span className="text-[#a4240e]">R$ {calcTotal().toFixed(2)}</span></div>
+            <button type="button" onClick={()=>setStep('products')} className="text-xs text-[#a4240e] font-medium hover:underline">+ Adicionar mais produtos</button>
           </div>
           <div className="space-y-3">
             {/* Número do pedido do cliente */}
