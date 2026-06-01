@@ -7,6 +7,7 @@ import PriceListManager from './PriceListManager';
 import RouteManager from './RouteManager';
 import RepCoOrdersManager from './RepCoOrdersManager';
 import RepCoCommissionsManager from './RepCoCommissionsManager';
+import RepCoPayoutBlocks from './RepCoPayoutBlocks';
 import ProspectionManager from './ProspectionManager';
 import RepCoMobilePreview from './RepCoMobilePreview';
 
@@ -753,6 +754,8 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
         {detailTab === 'pedidos' && (
           <RepCoOrdersManager representativeId={selectedRep?.id} refreshKey={refreshKey} />
         )}
+
+        {detailTab === 'comissoes' && <RepCoPayoutBlocks representativeId={selectedRep?.id} refreshKey={refreshKey} />}
 
         {detailTab === 'comissoes' && (
           <RepCoCommissionsManager representativeId={selectedRep?.id} refreshKey={refreshKey} />
