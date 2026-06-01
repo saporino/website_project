@@ -138,12 +138,16 @@ export const CustomersManagement = ({ refreshKey = 0 }: { refreshKey?: number })
 
       if (profilesError) throw profilesError;
 
-      const customersWithEmails = (profiles || []).map(profile => {
-        return {
-          ...profile,
-          email: profile.email_xml || 'N/A',
-        };
-      });
+      const { data: reps } = await supabase.from('representatives').select('user_id');
+      const repUserIds = new Set<string>((reps || []).map(r => r.user_id).filter(Boolean));
+      const customersWithEmails = (profiles || [])
+        .filter(p => !p.is_admin && !repUserIds.has(p.id))
+        .map(profile => {
+          return {
+            ...profile,
+            email: profile.email_xml || 'N/A',
+          };
+        });
 
       setCustomers(customersWithEmails);
       console.log('loadCustomers: SUCCESS, customers set:', customersWithEmails.length);
