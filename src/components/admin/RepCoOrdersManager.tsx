@@ -252,6 +252,19 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
     notifyOrdersUpdated();
   }
 
+  async function deleteOrder(order: RepCoOrder) {
+    if (!window.confirm(`Excluir o pedido ${order.order_number}? Esta ação não pode ser desfeita. O estoque dos itens volta e os arquivos anexados são apagados.`)) return;
+    const { data: paths, error } = await supabase.rpc('repco_delete_order', { p_order_id: order.id });
+    if (error) { toast.error('Erro ao excluir o pedido.'); return; }
+    if (Array.isArray(paths) && paths.length) {
+      const storagePaths = (paths as string[]).map(getInvoicePathFromRef).filter((p): p is string => !!p);
+      if (storagePaths.length) { try { await supabase.storage.from('invoices').remove(storagePaths); } catch { /* arquivos podem ja nao existir */ } }
+    }
+    setOrders(current => current.filter(o => o.id !== order.id));
+    notifyOrdersUpdated();
+    toast.success('Pedido excluído.');
+  }
+
   function getInvoicePathFromRef(fileRef: string | null) {
     if (!fileRef) return null;
     const value = fileRef.trim();
@@ -487,6 +500,7 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
                           <button onClick={() => removePaymentProof(order)} className="text-xs bg-white border border-red-200 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-50">Remover comprovante</button>
                         </>
                       )}
+                      <button onClick={()=>deleteOrder(order)} className="text-xs px-2 py-1 rounded border border-red-200 text-red-600 hover:bg-red-50">Excluir pedido</button>
                     </div>
                   </div>
                 )}
