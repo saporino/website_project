@@ -389,7 +389,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
               )}
             </div>
             {/* Condicao de pagamento (a vista / boleto, estilo ERP) */}
-            <BoletoCombinationPicker
+            <BoletoCombinationPicker key={selectedClient?.id ?? 'none'}
               initialOffsets={boletoOffsets}
               onChange={(offs) => {
                 setBoletoOffsets(offs);
