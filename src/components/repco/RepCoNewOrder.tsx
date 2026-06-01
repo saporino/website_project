@@ -175,6 +175,20 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
       setError('Erro ao enviar pedido. Tente novamente.');
       return;
     }
+    const itemRows = items.map(i => ({
+      order_id: createdOrder.id,
+      product_id: i.product.id,
+      representative_id: representativeId,
+      quantity: i.quantity,
+      unit: 'pacote',
+      unit_price: effectivePrice(i.price, i.quantity),
+    }));
+    const { error: itemsErr } = await supabase.from('representative_order_items').insert(itemRows);
+    if (itemsErr) {
+      setSubmitting(false);
+      setError('Pedido criado, mas houve erro ao registrar os itens.');
+      return;
+    }
     if (paymentTerm > 0 && createdOrder.id) {
       const offsets = boletoOffsets.length ? boletoOffsets : [paymentTerm];
       const cents = Math.round(finalAmount * 100);
