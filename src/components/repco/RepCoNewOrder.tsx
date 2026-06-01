@@ -17,7 +17,7 @@ interface Client {
 }
 interface Product { id: string; name: string; image_url: string | null; stock: number; in_stock: boolean; }
 interface PriceEntry { product_id: string; segment: string; price: number; volume_discount: number; volume_min_qty: number; }
-interface OrderItem { product: Product; price: PriceEntry; quantity: number; }
+interface OrderItem { product: Product; price: PriceEntry; quantity: number; unit: 'pacote' | 'fardo'; }
 interface Props { representativeId: string; onOrderCreated?: () => void; preSelectedClientId?: string | null; }
 
 const FISCAL_ORDER_LABEL: Record<FiscalOrderType, string> = {
@@ -107,7 +107,12 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   const getQty = (pid: string) => items.find(i => i.product.id === pid)?.quantity ?? 0;
   const effectivePrice = (pe: PriceEntry, qty: number) => pe.volume_discount > 0 && qty >= pe.volume_min_qty ? pe.price * (1 - pe.volume_discount / 100) : pe.price;
 
-  function updateQty(product: Product, delta: number) {
+  const UNITS_PER_BUNDLE = 10;
+  const [unitByProduct, setUnitByProduct] = useState<Record<string, 'pacote' | 'fardo'>>({});
+  const cartUnit = (p: Product): 'pacote' | 'fardo' => items.find(i => i.product.id === p.id)?.unit ?? unitByProduct[p.id] ?? 'pacote';
+  const stepOf = (p: Product) => (cartUnit(p) === 'fardo' ? UNITS_PER_BUNDLE : 1);
+  const plusDisabled = (p: Product) => { const qn = getQty(p.id); return cartUnit(p) === 'fardo' ? (qn + UNITS_PER_BUNDLE > p.stock) : (qn >= p.stock); };
+  function updateQty(product: Product, delta: number, unit: 'pacote' | 'fardo' = 'pacote') {
     if (!product.in_stock || product.stock === 0) return;
     const pe = getPrice(product.id);
     if (!pe) {
@@ -119,7 +124,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
       const newQty = Math.max(0, Math.min((existing?.quantity ?? 0) + delta, product.stock));
       if (newQty <= 0) return prev.filter(i => i.product.id !== product.id);
       if (existing) return prev.map(i => i.product.id === product.id ? { ...i, quantity: newQty } : i);
-      return [...prev, { product, price: pe, quantity: 1 }];
+      return [...prev, { product, price: pe, quantity: newQty, unit }];
     });
   }
 
@@ -180,7 +185,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
       product_id: i.product.id,
       representative_id: representativeId,
       quantity: i.quantity,
-      unit: 'pacote',
+      unit: i.unit,
       unit_price: effectivePrice(i.price, i.quantity),
     }));
     const { error: itemsErr } = await supabase.from('representative_order_items').insert(itemRows);
@@ -298,17 +303,21 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                             {pe ? <span className={`text-xs font-medium ${hasDisc?'text-green-600':'text-[#a4240e]'}`}>R$ {ep?.toFixed(2)}{hasDisc&&<span className="ml-1 bg-green-50 px-1 rounded">-{pe.volume_discount}%</span>}</span>
                               : <span className="text-xs text-red-500">Sem preço para {selectedClient.segment ? SEGMENT_LABEL[selectedClient.segment] ?? selectedClient.segment : 'este segmento'}</span>}
                             <StockIndicator stock={product.stock} inStock={product.in_stock} />
+                          <div className="flex items-center gap-1 text-[10px]">
+                            <button type="button" onClick={()=>setUnitByProduct(m=>({...m,[product.id]:'pacote'}))} disabled={qty>0} className={`px-1.5 py-0.5 rounded ${cartUnit(product)==='pacote'?'bg-[#a4240e] text-white':'bg-gray-100 text-gray-600'} ${qty>0?'opacity-50':''}`}>Pacote</button>
+                            <button type="button" onClick={()=>setUnitByProduct(m=>({...m,[product.id]:'fardo'}))} disabled={qty>0||product.stock<UNITS_PER_BUNDLE} className={`px-1.5 py-0.5 rounded ${cartUnit(product)==='fardo'?'bg-[#a4240e] text-white':'bg-gray-100 text-gray-600'} ${(qty>0||product.stock<UNITS_PER_BUNDLE)?'opacity-50':''}`}>Fardo (10)</button>
+                          </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           {qty>0 ? (<>
-                            <button onClick={()=>updateQty(product,-1)} className="w-7 h-7 rounded-full border border-gray-300 text-gray-600 flex items-center justify-center hover:bg-gray-100">−</button>
-                            <span className="w-6 text-center text-sm font-bold">{qty}</span>
-                            <button onClick={()=>updateQty(product,1)} disabled={qty>=product.stock} className="w-7 h-7 rounded-full bg-[#a4240e] text-white flex items-center justify-center hover:bg-[#8a1f0c] disabled:opacity-30">+</button>
+                            <button onClick={()=>updateQty(product,-stepOf(product))} className="w-7 h-7 rounded-full border border-gray-300 text-gray-600 flex items-center justify-center hover:bg-gray-100">−</button>
+                            <span className="w-6 text-center text-sm font-bold">{cartUnit(product)==='fardo'?qty/UNITS_PER_BUNDLE:qty}</span>
+                            <button onClick={()=>updateQty(product,stepOf(product))} disabled={plusDisabled(product)} className="w-7 h-7 rounded-full bg-[#a4240e] text-white flex items-center justify-center hover:bg-[#8a1f0c] disabled:opacity-30">+</button>
                           </>) : (
-                            <button onClick={()=>!isOut&&updateQty(product,1)} disabled={isOut||!pe}
+                            <button onClick={()=>!isOut&&updateQty(product,stepOf(product),cartUnit(product))} disabled={isOut||!pe||(cartUnit(product)==='fardo'&&product.stock<UNITS_PER_BUNDLE)}
                               className="px-3 py-1.5 bg-[#a4240e] text-white rounded-lg text-xs font-semibold hover:bg-[#8a1f0c] disabled:opacity-30 disabled:cursor-not-allowed">
-                              {isOut?'Esgotado':'Adicionar'}
+                              {isOut?'Esgotado':(cartUnit(product)==='fardo'?'Adicionar fardo':'Adicionar')}
                             </button>
                           )}
                         </div>
@@ -340,13 +349,13 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
               <div key={item.product.id} className="flex items-center justify-between bg-white border border-gray-100 rounded-lg px-3 py-2">
                 <div className="min-w-0 mr-2">
                   <p className="text-sm text-gray-800">{item.product.name}</p>
-                  <p className="text-xs text-gray-400">R$ {ep.toFixed(2)} × {item.quantity}</p>
+                  <p className="text-xs text-gray-400">R$ {ep.toFixed(2)} × {item.unit==='fardo' ? (item.quantity/10)+' fardo(s) ('+item.quantity+' pct)' : item.quantity+' pacote(s)'}</p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="flex items-center gap-2">
-                    <button type="button" onClick={()=>updateQty(item.product,-1)} className="w-7 h-7 rounded-full border border-gray-300 text-gray-600 flex items-center justify-center hover:bg-gray-100">−</button>
-                    <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
-                    <button type="button" onClick={()=>updateQty(item.product,1)} disabled={item.quantity>=item.product.stock} className="w-7 h-7 rounded-full bg-[#a4240e] text-white flex items-center justify-center disabled:opacity-40">+</button>
+                    <button type="button" onClick={()=>updateQty(item.product,item.unit==='fardo'?-UNITS_PER_BUNDLE:-1)} className="w-7 h-7 rounded-full border border-gray-300 text-gray-600 flex items-center justify-center hover:bg-gray-100">−</button>
+                    <span className="text-sm font-medium w-6 text-center">{item.unit==='fardo'?item.quantity/UNITS_PER_BUNDLE:item.quantity}</span>
+                    <button type="button" onClick={()=>updateQty(item.product,item.unit==='fardo'?UNITS_PER_BUNDLE:1)} disabled={item.unit==='fardo'?item.quantity+UNITS_PER_BUNDLE>item.product.stock:item.quantity>=item.product.stock} className="w-7 h-7 rounded-full bg-[#a4240e] text-white flex items-center justify-center disabled:opacity-40">+</button>
                   </div>
                   <p className="text-sm font-semibold w-20 text-right">R$ {(ep*item.quantity).toFixed(2)}</p>
                 </div>
