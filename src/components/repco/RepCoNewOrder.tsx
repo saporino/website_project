@@ -98,6 +98,12 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
       return;
     }
     setSelectedClient(client); setPaymentMethod(client.forma_pagamento || 'pix');
+    const _prazo: string = ((client as any).prazo_pagamento as string) || '';
+    const _prazoNums = (client.forma_pagamento || '').toLowerCase() === 'boleto'
+      ? (_prazo.match(/\d+/g)?.map(Number).filter((n: number) => n > 0) || [])
+      : [];
+    setBoletoOffsets(_prazoNums);
+    setPaymentTerm(_prazoNums.length ? _prazoNums[_prazoNums.length - 1] : 0);
     setFiscalOrderType(client.default_fiscal_order_type || (hasValidCnpj(client) ? 'resale' : 'non_taxpayer_consumer'));
     fetchProductsAndPrices(client.segment);
     setStep('products');
@@ -384,6 +390,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
             </div>
             {/* Condicao de pagamento (a vista / boleto, estilo ERP) */}
             <BoletoCombinationPicker
+              initialOffsets={boletoOffsets}
               onChange={(offs) => {
                 setBoletoOffsets(offs);
                 setPaymentTerm(offs.length ? offs[offs.length - 1] : 0);

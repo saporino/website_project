@@ -33,14 +33,24 @@ function offsetsFor(key: string, custom: string): number[] {
   return [];
 }
 
+function keyForOffsets(offs: number[]): { key: string; custom: string } {
+  if (!offs || offs.length === 0) return { key: 'avista', custom: '' };
+  if (offs.length === 1 && SINGLE.includes(offs[0])) return { key: 's' + offs[0], custom: '' };
+  const ci = COMBOS.findIndex(c => c.offsets.length === offs.length && c.offsets.every((v, i) => v === offs[i]));
+  if (ci >= 0) return { key: 'c' + ci, custom: '' };
+  return { key: 'custom', custom: offs.join(', ') };
+}
+
 type Props = {
   onChange: (offsets: number[]) => void;
   baseTerm?: number; // compatibilidade — não utilizado
+  initialOffsets?: number[];
 };
 
-export function BoletoCombinationPicker({ onChange }: Props) {
-  const [sel, setSel] = useState('avista');
-  const [custom, setCustom] = useState('');
+export function BoletoCombinationPicker({ onChange, initialOffsets }: Props) {
+  const _init = keyForOffsets(initialOffsets || []);
+  const [sel, setSel] = useState(_init.key);
+  const [custom, setCustom] = useState(_init.custom);
 
   const offsets = offsetsFor(sel, custom);
 
