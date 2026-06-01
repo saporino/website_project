@@ -64,7 +64,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   }, [preSelectedClientId, clients]);
 
   async function fetchClients() {
-    const { data } = await supabase.from('representative_clients').select('id,razao_social,nome_fantasia,cnpj,cpf,segment,forma_pagamento,default_fiscal_order_type').eq('representative_id', representativeId).eq('status','active').order('razao_social');
+    const { data } = await supabase.from('representative_clients').select('id,razao_social,nome_fantasia,cnpj,cpf,segment,forma_pagamento,prazo_pagamento,default_fiscal_order_type').eq('representative_id', representativeId).eq('status','active').order('razao_social');
     if (data) setClients(data);
   }
 
