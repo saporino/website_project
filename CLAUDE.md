@@ -16,7 +16,7 @@ React 18 + TypeScript + Vite + Tailwind + Supabase (Postgres + Auth + Storage + 
 
 ## 3. Regras de execução (IMPORTANTES)
 - Sempre validar com `npm run typecheck` **e** `npm run build` antes de commitar. Só commitar se ambos passarem.
-- **Não dar `git push` por conta própria.** Vlademir testa e dá push. Ele testa no site **publicado**, então mudança só aparece após `push` + `Ctrl+Shift+R`.
+- **Push autorizado (desde 02/06/2026):** Vlademir liberou push direto ("não precisa ficar pedindo, faz"). Pode `git push origin main` após `typecheck`+`build` OK. (Push = deploy automático na Vercel; mudança aparece no site publicado após `push` + `Ctrl+Shift+R`.) Tirar dúvida só em ação destrutiva (ex.: zerar dados teste→live).
 - `typecheck`/`build` **NÃO** pegam bugs de runtime ou de dados (ex.: uma coluna que ficou fora de um `.select()` compila e passa, mas não funciona). Ao mexer em comportamento, **subir o dev server e verificar na tela**, rastreando o dado de ponta a ponta: **banco → query/select → estado → componente**.
 - Edições atômicas e idempotentes; preferir mudanças pequenas e verificáveis.
 
