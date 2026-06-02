@@ -12,23 +12,5 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
-      // Desregistra qualquer Service Worker existente para evitar cache antigo
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-          for (let registration of registrations) {
-            registration.unregister();
-          }
-        });
-        // Limpa caches antigos do SW
-        if ('caches' in window) {
-          caches.keys().then(function(names) {
-            for (let name of names) {
-              caches.delete(name);
-            }
-          });
-        }
-      }
-    </script>
   </body>
 </html>
