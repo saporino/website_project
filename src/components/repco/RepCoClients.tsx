@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { CLIENT_SEGMENTS, SEGMENT_LABEL } from '../../constants/segments';
 import type { ClientSegment } from '../../constants/segments';
+import BoletoCombinationPicker from './BoletoCombinationPicker';
 interface RepCoClient {
   id: string; representative_id: string; cnpj: string | null; cpf: string | null;
   nome_completo: string | null; razao_social: string | null; nome_fantasia: string | null;
@@ -27,6 +28,7 @@ type ViewMode = 'list'|'detail'|'edit'|'new';
 function fmtCNPJ(v:string){return v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5');}
 function fmtCPF(v:string){return v.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/,'$1.$2.$3-$4');}
 function days(d:string|null){if(!d)return 999;return Math.floor((Date.now()-new Date(d).getTime())/86400000);}
+function parsePrazoOffsets(prazo:string|null):number[]{return (prazo||'').match(/\d+/g)?.map(Number).filter(n=>n>0)||[];}
 export default function RepCoClients({ representativeId, previewMode = false, refreshKey = 0 }: { representativeId: string; previewMode?: boolean; refreshKey?: number }) {
   const [clients,setClients]=useState<RepCoClient[]>([]);
   const [loading,setLoading]=useState(true);
@@ -234,11 +236,12 @@ export default function RepCoClients({ representativeId, previewMode = false, re
             <input type="email" value={form.email_comprador} onChange={e=>setForm(p=>({...p,email_comprador:e.target.value}))} className={inp}/></div>
           <div><label className={lbl}>Email XML (NF-e)</label>
             <input type="email" value={form.email_xml} onChange={e=>setForm(p=>({...p,email_xml:e.target.value}))} className={inp}/></div>
-          <div><label className={lbl}>Forma de Pagamento</label>
-            <select value={form.forma_pagamento} onChange={e=>setForm(p=>({...p,forma_pagamento:e.target.value}))} className={inp}>
-              <option value="">Selecione...</option>
-              <option value="pix">PIX</option><option value="boleto">Boleto</option><option value="a_vista">À Vista</option>
-            </select>
+          <div>
+            <BoletoCombinationPicker
+              key={`${view}-${sel?.id ?? 'new'}`}
+              initialOffsets={parsePrazoOffsets(form.prazo_pagamento)}
+              onChange={offs=>setForm(p=>({...p,prazo_pagamento:offs.join('/'),forma_pagamento:offs.length?'boleto':'pix'}))}
+            />
           </div>
           <div><label className={lbl}>Limite de Crédito (R$)</label>
             <input type="number" value={form.limite_credito} onChange={e=>setForm(p=>({...p,limite_credito:parseFloat(e.target.value)||0}))} min="0" step="100" className={inp}/></div>
