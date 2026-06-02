@@ -1,5 +1,5 @@
 import { useState, useEffect, Suspense, lazy, useMemo } from 'react';
-import { CheckCircle, XCircle, Eye, Plus, Upload, Phone, Mail, Map, Search, Smartphone, ArrowRightLeft } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, Plus, Upload, Phone, Mail, Map, Search, Smartphone, ArrowRightLeft, Tag, ExternalLink } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -823,32 +823,37 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button onClick={() => setAdminView('price-list')}
-            className="h-9 px-4 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
+            className="h-9 px-3.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
+            <Tag className="w-4 h-4" />
             Tabela de Preços
           </button>
           <button onClick={() => setAdminView('prospection')}
-            className="h-9 px-4 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
+            className="h-9 px-3.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
             <Upload className="w-4 h-4" />
             Prospecção
           </button>
           <button onClick={() => setShowMobilePreview(true)}
-            className="h-9 px-4 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
+            className="h-9 px-3.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
             <Smartphone className="w-4 h-4" />
             Ver como representante
           </button>
-          {isAdmin && (
-            <button onClick={() => window.location.href = '/repco'}
-              className="h-9 px-4 rounded-lg text-sm font-medium bg-[#8B2214] text-white hover:bg-[#6d1a10] transition-colors flex items-center gap-1.5">
-              Abrir Portal RepCo
-            </button>
-          )}
           <button onClick={() => setAdminView(v => v === 'map' ? 'list' : 'map')}
-            className={`h-9 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
-              adminView === 'map' ? 'bg-[#8B2214] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+            className={`h-9 px-3.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 border ${
+              adminView === 'map' ? 'bg-red-50 border-[#8B2214] text-[#8B2214]' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
             }`}>
             <Map className="w-4 h-4" />
             {adminView === 'map' ? 'Ver lista' : 'Mapa ao vivo'}
           </button>
+          {isAdmin && (
+            <>
+              <div className="hidden sm:block w-px h-6 bg-gray-200 mx-1" />
+              <button onClick={() => window.location.href = '/repco'}
+                className="h-9 px-4 rounded-lg text-sm font-semibold bg-[#8B2214] text-white hover:bg-[#6d1a10] transition-colors flex items-center gap-1.5 shadow-sm">
+                <ExternalLink className="w-4 h-4" />
+                Abrir Portal RepCo
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -865,7 +870,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
         <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-semibold">
           {(['all','pending','active','blocked'] as const).map((s, idx) => (
             <button key={s} onClick={() => setStatusFilter(s)}
-              className={`h-9 px-4 border-r border-gray-200 last:border-0 transition-all ${idx === 0 ? 'rounded-l-xl' : idx === 3 ? 'rounded-r-xl' : ''} ${statusFilter === s ? 'bg-[#a4240e] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+              className={`h-9 px-4 border-r border-gray-200 last:border-0 transition-all ${idx === 0 ? 'rounded-l-xl' : idx === 3 ? 'rounded-r-xl' : ''} ${statusFilter === s ? 'bg-[#8B2214] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
               {s === 'all' ? 'Todos' : s === 'pending' ? 'Pendentes' : s === 'active' ? 'Ativos' : 'Bloqueados'}
             </button>
           ))}
