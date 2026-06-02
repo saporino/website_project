@@ -19,9 +19,11 @@
 - [x] Toolbar do admin reorganizada
 - [x] CLAUDE.md como fonte única + blueprint salvo
 
-## 🟡 Em construção agora (Claude continua sem parar)
-- [ ] Editar produtos do pedido só antes da NF + audit log
-- [ ] Heatmap geográfico no mapa (geocodificar lat/lng dos clientes)
+## 🟢 Feito hoje (continuação)
+- [x] Heatmap geográfico no mapa (Leaflet, círculo por faturamento) — clientes geocodificados
+
+## 🟠 Precisa de 1 decisão sua
+- [ ] Editar produtos do pedido só antes da NF + audit log — **como a comissão recalcula quando muda item?** (decide e eu construo)
 
 ## 🔵 Validação do Vlademir (testar na tela)
 - [ ] Testar Performance / Inteligência / Score / Trava / Observações
