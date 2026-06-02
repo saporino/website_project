@@ -32,8 +32,11 @@ Rep cadastra clientes → lança pedido em 3 passos: **Cliente → Produtos → 
 - `representative_orders` — pedidos. `order_number` (RC-XXXXX) gerado por trigger; `invoice_pdf_url`/`invoice_xml_url`/`payment_proof_url` etc.
 - `representative_commissions` — comissão por pedido (ADMIN lê/edita). `status` pending/paid, `payment_cycle_start/end`, `scheduled_payment_date`.
 - `representative_commission_payouts` — livro-caixa que o REP lê em "Pagas". `amount`, `payment_method`, `cycle_start/end`, `scheduled_payment_date`, `status` scheduled→paid, `proof_url`, `proof_filename`.
+- `representative_order_installments` — parcelas do boleto. `installment_number`, `amount`, `due_date`, `boleto_url`, `proof_url`, `status` (vira `paid` quando o comprovante é anexado → gatilho cria o payout proporcional).
 - `price_lists` — preço por segmento B2B (R$/pacote). UNIQUE(product_id, segment).
-- `product_batches`, `roasting_companies` — lotes/torrefadoras.
+- `product_batches`, `batch_photos`, `roasting_companies` — lotes/torrefadoras.
+- **Rotas/Logística:** `routes`, `route_stops`, `route_assignments`, `delivery_proofs`, `client_route_links` — RouteManager (admin) + RepCoRoutes (mapa Leaflet/OSM, geofencing 500m, GPS, nav Waze/Maps, POD foto+texto). `RepCoLiveMap` = presença ao vivo dos reps.
+- **Sistema:** `presence_sessions` (presença online), `notifications` (alertas do admin).
 
 ## 7. Regras de negócio confirmadas
 - **Numeração de pedido:** trigger `generate_repco_order_number` → `'RC-' || LPAD(nextval('repco_order_seq'),5,'0')`. Acima de 99999 vira `RC-100000` automaticamente (LPAD não trunca). **Nunca resetar em produção** (só em fase de teste, e só com a tabela vazia).
@@ -49,7 +52,7 @@ Rep cadastra clientes → lança pedido em 3 passos: **Cliente → Produtos → 
 ## 8. Estado — feito / em aberto
 **Feito (recente):** excluir pedido; venda em fardo; esconder admins/reps da aba Clientes; `RepCoPayoutBlocks` (pagar bloco); `prazo_pagamento` adicionado ao select de clientes; reset da numeração de teste; `key` por cliente no picker de pagamento; **pré-preenchimento boleto na Revisão validado na tela** (CAFE SAPORINO boleto/7d → Revisão abre em Boleto/7 dias — ver §9).
 
-**Em aberto / faltando:** reserva de carrinho 5 min; realtime; deletar cliente → prospecção; limpeza de storage ao deletar (test vs live); ligar RLS multi-tenant; transição test → live; revisar Manual do Representante; **e-mail Resend (BLOQUEADO — esperando novo Google Workspace @cafesaporino.com.br)**; integrações de marketplace; publicação Google Play via PWABuilder.
+**Em aberto / faltando:** reserva de carrinho 5 min; realtime; deletar cliente → prospecção; limpeza de storage ao deletar (test vs live); ligar RLS multi-tenant; transição test → live; revisar Manual do Representante; **e-mail Resend (BLOQUEADO — esperando novo Google Workspace @cafesaporino.com.br)**; integrações de marketplace; **PWA (reativar — hoje desativado) → instalar via link (Add to Home Screen) → depois Google Play via PWABuilder**; revisar webhook Mercado Pago (`supabase/functions/mercadopago-webhook`).
 
 ## 9. ✅ RESOLVIDO (01/06/2026) — pré-preenchimento da condição de pagamento
 **Sintoma (era):** na Revisão do Novo Pedido (`src/components/repco/RepCoNewOrder.tsx`), a "Condição de pagamento" abria em **"À vista/PIX"** mesmo quando o cliente tinha `forma_pagamento='boleto'` e `prazo_pagamento` (ex. '7d'). Deveria abrir em **Boleto / 7 dias**.
@@ -94,9 +97,10 @@ Rep cadastra clientes → lança pedido em 3 passos: **Cliente → Produtos → 
 - **Pedido auditável:** notas livres e anexo de PDF do pedido sempre liberados; editar produtos/qtd só enquanto `invoice_pdf_url IS NULL` (após NF anexada, trava; cada alteração gera audit log).
 
 ## 13. Empresa, sócios e contatos
-- **Café Saporino Ltda** — CNPJ 61.109.694/0001-94, Simples Nacional. Site: https://www.cafesaporino.com.br · Repo: https://github.com/saporino/website_project
-- **Sócios (50/50):** Vlademir Medeiros De Santi (administrador, ponto de contato técnico) · Eunice & Michael Jakobson (juntos, baseados nos EUA). *Honorina Rosa De Santi não é mais sócia.*
-- **Vlademir:** região metropolitana de SP; PT-BR, conciso, não-dev (instruções passo a passo). Lease comercial em Várzea Paulista/SP (30 meses desde abr/2026). Outra renda: Carra Indústria de Bebidas (separada do Saporino). Telegram/WhatsApp pessoal p/ alertas: +55 11 91771-9798.
+- **Café Saporino Ltda** — CNPJ 61.109.694/0001-94 (situação ATIVA), nome fantasia "CAFE SAPORINO", Simples Nacional. Site: https://www.cafesaporino.com.br · Repo: https://github.com/saporino/website_project
+- **Sede (Receita):** Alameda Rio Negro, 503, Sala 2005 — Alphaville Centro Industrial e Empresarial — Barueri/SP — CEP 06454-000.
+- **Sócios (estrutura atual):** Vlademir M. De Santi — Diretor Sócio Administrador · Michael Jakobson — Diretor Sócio Financeiro · Eunice Jakobson — Diretora Sócia Financeira (Jakobsons baseados nos EUA).
+- **Vlademir:** região metropolitana de SP; PT-BR, conciso, não-dev (instruções passo a passo). Operação/lease comercial em Várzea Paulista/SP (30 meses desde abr/2026; distinto da sede em Barueri). Outra renda: Carra Indústria de Bebidas (separada do Saporino). Telegram/WhatsApp pessoal p/ alertas: +55 11 91771-9798.
 - **Contador:** Leonardo Ferrareis (Ferrareis Soluções Contábeis).
 - ⚠️ Diretório local está dentro do OneDrive — mover pra fora num futuro próximo.
 
