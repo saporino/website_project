@@ -48,6 +48,7 @@ Rep cadastra clientes → lança pedido em 3 passos: **Cliente → Produtos → 
 - **Multi-tenant:** `company_id` nas tabelas core, backfill p/ Saporino. RLS estruturada mas **policies ainda não ligadas** — ligar antes do go-live.
 - **Deletar pedido/cliente de teste:** o código precisa listar e deletar também os arquivos no Supabase **Storage** (ON DELETE CASCADE não remove arquivos de storage).
 - **PDFs (contratos/formulários):** sempre AcroForm (campos preenchíveis), sem underscores visuais; linhas de assinatura manual permanecem como linhas visuais.
+- **Linhas de produto (`products.product_line`):** campo **aberto/extensível** por produto (admin define; não é enum fixo). De-para atual: `Tropeiro Paulista Extra Forte` e `Tropeiro Paulista Tradicional` (homônimos); `Café Saporino Tradicional` → **Saporino Clássico**. `Café Especial Arábica`, `Café Gourmet Patrocinense`, `Café Premium Gourmet` = **produtos de teste** (não serão lançados). "Saporino Temporadas" = linha sazonal sem produto ativo. Usado pela Camada 1 (inteligência por linha) — ver §15.
 
 ## 8. Estado — feito / em aberto
 **Feito (recente):** excluir pedido; venda em fardo; esconder admins/reps da aba Clientes; `RepCoPayoutBlocks` (pagar bloco); `prazo_pagamento` adicionado ao select de clientes; reset da numeração de teste; `key` por cliente no picker de pagamento; **pré-preenchimento boleto na Revisão validado na tela** (CAFE SAPORINO boleto/7d → Revisão abre em Boleto/7 dias — ver §9).
