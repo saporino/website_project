@@ -59,3 +59,53 @@ Rep cadastra clientes → lança pedido em 3 passos: **Cliente → Produtos → 
 **Causa raiz e fix (já em produção):** `useState` não relê `initialOffsets` em re-render. Resolvido por dois mecanismos combinados: (1) `key={selectedClient?.id}` força remontagem ao trocar de cliente (commit `f4a0a1e`); (2) o picker fica atrás de `step==='review'`, então sempre desmonta/remonta ao entrar na Revisão, relendo `boletoOffsets`. O elo do banco também foi corrigido incluindo `prazo_pagamento` no select (commit `f7e9dfb`).
 
 **Validado NA TELA (não só compila):** banco confirmado via `exec_select` (CAFE SAPORINO LTDA = `boleto`/`7d`); fluxo Cliente→Revisão reproduzido no dev server partindo de `boletoOffsets=[]` → o `<select>` abre em `value='s7'` / label **"7 dias"** com "1 boleto: vencimento em D+7." `typecheck` + `build` OK.
+
+---
+*Seções §10-§14 consolidadas dos antigos docs de contexto/handoff (movidos para `docs/_legacy/`). Mantêm apenas o que é evergreen; snapshots datados (contagem de linhas, listas de commit, status de blocos de maio/2026) foram descartados.*
+
+## 10. Design system Saporino
+| Token | Valor | Uso |
+|---|---|---|
+| Primário | `#8B2214` | Botões principais, ícones de cards, destaques |
+| Primário hover | `#6d1a10` | Hover de botões |
+| Primário legacy | `#a4240e` | Componentes antigos (ex. RepCoNewOrder) — migrar gradualmente p/ `#8B2214` |
+| Fundo página | `#f8f7f5` | `min-h-screen` em todas as páginas admin/repco (nunca `bg-gray-50`) |
+| Fundo ícone card | `#f5f0ef` | Background dos ícones nos stat cards |
+| Cards | `#ffffff` | branco com `border border-gray-200` |
+| Borda sutil | `#ddd0cc` | bordas contextuais no tom Saporino |
+
+**Regras:** sem gradientes coloridos nem pastéis (blue-50/purple-50/green-50/yellow-50) em stat cards. Badges de **status de pedido** mantêm cor semântica (verde=pago, amarelo=pendente). Alertas de erro/sucesso mantêm `bg-red-50`/`bg-green-50`. Stat card padrão: `bg-white border border-gray-200 rounded-xl p-4`, ícone em `w-9 h-9 rounded-lg bg-[#f5f0ef] text-[#8B2214]`; card de total leva `border-l-4 border-l-[#8B2214]`.
+
+## 11. Arquitetura frontend & gotchas de deploy
+- **Router custom** em `src/App.tsx`: lê `window.location.pathname` + escuta `popstate`. **NÃO usa react-router-dom** (está em `package.json` mas não é usado no App). Navegar = `window.history.pushState({}, '', '/rota')` seguido de `window.dispatchEvent(new PopStateEvent('popstate'))`.
+- **`vercel.json` (crítico, não alterar sem entender):** usa `routes` (não `rewrites`). Estáticos (img/js/css/fontes) e `/assets`, `/icons` passam ANTES do catchall `/(.*) → /index.html`. Sem isso, F5 em `/admin` retorna página em branco.
+- **PWA desativado:** `vite-plugin-pwa` está comentado no `vite.config.ts` (SW causava branco no F5). `index.html` tem script que desregistra SWs antigos + limpa caches. Reativar futuramente com `navigateFallback: '/index.html'` + `skipWaiting: true` (ver §8 backlog Google Play).
+- **Auth race condition:** AdminDashboard/RepCoDashboard devem aguardar `loading` do `useAuth` antes de checar permissão; senão F5 mostra "Acesso Negado" enquanto a sessão restaura.
+- **Optimistic update** no `RepCoNewOrder`: mostra sucesso na hora e insere em background; em falha, reverte para a revisão com erro.
+- **Keep-alive Supabase:** `App.tsx` faz ping a cada 4 dias (evita pausa do plano free).
+- **Imagens** em `/public` (servidas na raiz), sempre kebab-case — nome com espaço vira 404 no Vercel. Fallback de produto: `/saporino-logo.png`.
+- **Deep-link admin:** `localStorage.setItem('admin-initial-tab', '<aba>')` antes de navegar p/ `/admin`.
+
+## 12. Roadmap RepCo — regras já especificadas (a implementar)
+- **Score do cliente (Serasa interno, 0-1000):** admin anexa PDF do print Serasa + score inicial ao cadastrar. Evolui por boleto: pago em dia +20; 1-3d atraso −30; 4-7d −50; >7d não pago −100; 3 boletos seguidos em dia +30. **PIX/à vista não afeta o score.** Faixas: 0-300 ruim, 300-500 regular, 500-700 bom, 700-900 ótimo, 900-1000 excelente.
+- **Trava por boleto vencido:** D+1 do vencimento sem pagamento → cliente trava (não recebe novos pedidos; rep vê "Cliente bloqueado — boleto vencido em DD/MM"). Destrava: automática ao anexar comprovante, ou manual pelo admin.
+- **Sininho de notificações (admin):** vermelho piscando = pedido novo do rep (abre perfil do rep + pedido); amarelo + nº = pedido alterado pelo rep (abre com diff); azul = boleto vencendo/vencido (abre o cliente). Canais de alerta pessoal: sininho → Telegram bot (gratuito, prioritário) → PWA Push → e-mail (Resend, bloqueado).
+- **Boletos múltiplos:** até **5 boletos por pedido** + comprovantes correspondentes; combos comuns (1x7/14/28/30, 2x30/60, 3x30/60/90) + "Personalizado". Vencimento digitado manual (OCR Google Vision é melhoria futura — boleto/NF/Serasa).
+- **Pedido auditável:** notas livres e anexo de PDF do pedido sempre liberados; editar produtos/qtd só enquanto `invoice_pdf_url IS NULL` (após NF anexada, trava; cada alteração gera audit log).
+
+## 13. Empresa, sócios e contatos
+- **Café Saporino Ltda** — CNPJ 61.109.694/0001-94, Simples Nacional. Site: https://www.cafesaporino.com.br · Repo: https://github.com/saporino/website_project
+- **Sócios (50/50):** Vlademir Medeiros De Santi (administrador, ponto de contato técnico) · Eunice & Michael Jakobson (juntos, baseados nos EUA). *Honorina Rosa De Santi não é mais sócia.*
+- **Vlademir:** região metropolitana de SP; PT-BR, conciso, não-dev (instruções passo a passo). Lease comercial em Várzea Paulista/SP (30 meses desde abr/2026). Outra renda: Carra Indústria de Bebidas (separada do Saporino). Telegram/WhatsApp pessoal p/ alertas: +55 11 91771-9798.
+- **Contador:** Leonardo Ferrareis (Ferrareis Soluções Contábeis).
+- ⚠️ Diretório local está dentro do OneDrive — mover pra fora num futuro próximo.
+
+## 14. Glossário
+| Termo | Significado |
+|---|---|
+| **RC-XXXXX** | Nº de pedido RepCo (trigger `generate_repco_order_number`). Numeração por canal no e-commerce: `PF-`/`PJ-`/`ML-`/`SH-`/`AZ-`/`TK-` |
+| **Pedido Cliente Nº** | Nº que o cliente fornece (PO/ordem) — opcional |
+| **Admin Force** | Perfil de testes (representa rep ou admin durante o dev) |
+| **Cliente de teste** | CAFE SAPORINO LTDA (boleto/7d, segmento distribuidora) — verificado em 01/06/2026 |
+| **Segmentos** | distribuidora e marketplaces `ML/SH/AZ/TK` (ML=Mercado Livre, SH=Shopee, AZ=Amazon, TK=TikTok) |
+| **Lotes / BatchManagement** | Gestão de estoque de café verde (`product_batches` + `batch_photos`; UI ainda pendente) |
