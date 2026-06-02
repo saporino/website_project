@@ -109,3 +109,12 @@ Rep cadastra clientes → lança pedido em 3 passos: **Cliente → Produtos → 
 | **Cliente de teste** | CAFE SAPORINO LTDA (boleto/7d, segmento distribuidora) — verificado em 01/06/2026 |
 | **Segmentos** | distribuidora e marketplaces `ML/SH/AZ/TK` (ML=Mercado Livre, SH=Shopee, AZ=Amazon, TK=TikTok) |
 | **Lotes / BatchManagement** | Gestão de estoque de café verde (`product_batches` + `batch_photos`; UI ainda pendente) |
+| **Linhas de produto** | Saporino Clássico, Tropeiro Paulista Tradicional, Tropeiro Paulista Extra Forte, Grão Gourmet, Saporino Temporadas |
+
+## 15. Norte estratégico — RepCo como SaaS de inteligência de dados
+O RepCo não é só portal de pedidos: é o **motor de inteligência de dados** e o **produto SaaS** da Saporino. Blueprint completo em [`docs/RepCo_Inteligencia_de_Dados_Blueprint.md`](docs/RepCo_Inteligencia_de_Dados_Blueprint.md) — **ler antes de planejar features de RepCo**. Resumo: a camada de dados é a fundação (cada pedido nasce estruturado), em 3 camadas construídas em ordem (não paralelizar):
+1. **Inteligência comercial (director/admin):** dimensões em cada pedido (`product_line`, geo do cliente, `channel`, `payment_type/cycle`, `confirmed_at`) → views de agregação no banco → RLS papel `director` por `company_id` → rota `/repco/inteligencia` (visão geral, **mapa de calor por área**, ranking de reps, preço praticado).
+2. **Prospecção B2B com dado público:** `prospects_b2b` + ETL da base CNPJ (OpenCNPJ) por CNAE+UF → mapa de prospecção e de buracos de cobertura.
+3. **Multi-tenant como produto:** enforce RLS multi-tenant, isolamento entre empresas, onboarding/billing.
+
+O **heatmap geográfico** e o redesenho da **Performance** que estão no backlog são a Camada 1.4 e dependem da Camada 1.1 (hoje o cliente só tem `endereco_completo` em texto — falta geo estruturado). Não usar NielsenIQ/Scanntech nem ler NF de concorrente.
