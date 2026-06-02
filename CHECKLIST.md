@@ -23,6 +23,11 @@
 - [x] Heatmap geográfico no mapa (Leaflet, círculo por faturamento) — clientes geocodificados
 - [x] Fix navegação: clicar aba RepCo volta pra lista de representantes
 - [x] Espelho ("Ver como rep") agora é **janela flutuante** (arrasta, minimiza, mexe no site atrás)
+- [x] Múltiplas telas de espelho + "Ver todos" (até 6 janelas)
+- [x] **Modo Treinamento ao vivo — Etapa 1**: botão "Treinar" no espelho → trava a tela do rep e ela segue sua demonstração (Realtime, sem escrita, off por padrão)
+
+## 🟡 Próxima etapa (treinamento)
+- [ ] Treinamento Etapa 2: espelhar o **conteúdo exato** da sua tela (não só a navegação) — testar com 1 rep no celular primeiro
 
 ## 🟠 Precisa de 1 decisão sua
 - [ ] Editar produtos do pedido só antes da NF + audit log — **como a comissão recalcula quando muda item?** (decide e eu construo)

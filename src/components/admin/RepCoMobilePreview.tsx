@@ -1,5 +1,6 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ElementType } from 'react';
-import { Home, ClipboardList, Users, ShoppingBag, Map, RefreshCw, X, FileText, Minus, GripHorizontal } from 'lucide-react';
+import { Home, ClipboardList, Users, ShoppingBag, Map, RefreshCw, X, FileText, Minus, GripHorizontal, Radio } from 'lucide-react';
+import { useTrainingBroadcast } from '../../lib/training';
 import RepCoHome from '../repco/RepCoHome';
 import RepCoProspection from '../repco/RepCoProspection';
 import RepCoClients from '../repco/RepCoClients';
@@ -153,6 +154,18 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
   }, []);
   function startDrag(e: React.MouseEvent) { dragRef.current = { dx: e.clientX - pos.x, dy: e.clientY - pos.y }; }
 
+  // Modo Treinamento ao vivo (broadcast) — desligado por padrão
+  const sendTraining = useTrainingBroadcast();
+  const [training, setTraining] = useState(false);
+  useEffect(() => {
+    if (!training) return;
+    sendTraining({ active: true, tab: activeTab, instructor: 'Instrutor', targets: 'all' });
+    return () => sendTraining({ active: false, targets: 'all' });
+  }, [training, sendTraining]);
+  useEffect(() => {
+    if (training) sendTraining({ active: true, tab: activeTab, instructor: 'Instrutor', targets: 'all' });
+  }, [activeTab, training, sendTraining]);
+
   const selectedRep = availableReps.find(rep => rep.id === representativeId) || null;
 
   function renderContent() {
@@ -204,6 +217,10 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
           <span className="truncate text-xs font-semibold">Espelho — {selectedRep?.full_name || 'representante'}</span>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
+          <button type="button" onClick={() => setTraining(t => !t)} title={training ? 'Encerrar treinamento' : 'Ligar treinamento ao vivo (todos os reps)'}
+            className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold ${training ? 'bg-red-600 text-white animate-pulse' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}>
+            <Radio className="h-3.5 w-3.5" />{training ? 'Ao vivo' : 'Treinar'}
+          </button>
           <button type="button" onClick={() => setRefreshKey(key => key + 1)} title="Atualizar" className="rounded-lg p-1.5 text-white/70 hover:bg-white/10 hover:text-white"><RefreshCw className="h-4 w-4" /></button>
           <button type="button" onClick={() => setMinimized(m => !m)} title={minimized ? 'Expandir' : 'Minimizar'} className="rounded-lg p-1.5 text-white/70 hover:bg-white/10 hover:text-white"><Minus className="h-4 w-4" /></button>
           <button type="button" onClick={onClose} title="Fechar" className="rounded-lg p-1.5 text-white/70 hover:bg-white/10 hover:text-white"><X className="h-4 w-4" /></button>

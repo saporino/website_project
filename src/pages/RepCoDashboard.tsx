@@ -11,7 +11,8 @@ import RepCoHome from '../components/repco/RepCoHome';
 import RepCoProspection from '../components/repco/RepCoProspection';
 import { usePresence } from '../hooks/usePresence';
 import { useGeolocation } from '../hooks/useGeolocation';
-import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Map, Home, ClipboardList } from 'lucide-react';
+import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Map, Home, ClipboardList, Radio } from 'lucide-react';
+import { useTrainingListener, espelhoTabToRepTab } from '../lib/training';
 
 const RepCoRoutes = lazy(() => import('../components/repco/RepCoRoutes'));
 
@@ -60,6 +61,12 @@ export function RepCoDashboard() {
     coords: coords ?? null,
     enabled: !!rep && rep.status === 'active',
   });
+
+  // Modo Treinamento ao vivo: segue a tela do instrutor e trava a interação (só assiste).
+  const training = useTrainingListener(rep?.id);
+  useEffect(() => {
+    if (training?.active && training.tab) setActiveTab(espelhoTabToRepTab(training.tab) as RepCoTab);
+  }, [training]);
 
   useEffect(() => { if (user) fetchRep(); }, [user]);
 
@@ -231,6 +238,15 @@ export function RepCoDashboard() {
 
   return (
     <div className="min-h-screen bg-[#f8f7f5]">
+      {training?.active && (
+        <>
+          <div className="fixed inset-x-0 top-0 z-[101] flex items-center justify-center gap-2 bg-red-600 px-4 py-2 text-center text-sm font-semibold text-white">
+            <Radio className="h-4 w-4 animate-pulse" />
+            Treinamento ao vivo — acompanhe seu instrutor{training.instructor ? ` (${training.instructor})` : ''}. Sua tela está em modo demonstração.
+          </div>
+          <div className="fixed inset-0 z-[100] cursor-not-allowed" aria-hidden title="Treinamento ao vivo — tela travada" />
+        </>
+      )}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-16">
           <div className="flex items-center gap-3">
