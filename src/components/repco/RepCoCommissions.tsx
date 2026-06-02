@@ -28,6 +28,8 @@ interface Payout {
 
 interface BoletoComm {
   id: string;
+  order_id: string;
+  order_amount: number | null;
   commission_amount: number;
   total_rate: number | null;
   representative_orders: {
@@ -35,6 +37,14 @@ interface BoletoComm {
     representative_clients: { razao_social: string } | null;
   } | null;
   representative_commission_payouts: { amount: number }[];
+}
+
+interface Installment {
+  order_id: string;
+  installment_number: number;
+  amount: number;
+  due_date: string | null;
+  status: string;
 }
 
 interface Props { repId: string; }
@@ -45,11 +55,29 @@ const fmt = (v: number) =>
 const fmtDate = (d: string | null) =>
   d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') : 'A definir';
 
+const fmtShort = (d: Date) =>
+  d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+// Previsão de pagamento de um boleto: 1ª segunda após a sexta da semana do vencimento
+// (mesma regra do gatilho repco_commission_cycle: cf = vencimento + dias até sexta; +3 = segunda).
+function previsaoBoleto(due: string | null): Date | null {
+  if (!due) return null;
+  const d = new Date(due + 'T12:00:00');
+  if (isNaN(d.getTime())) return null;
+  const addFri = (5 - d.getDay() + 7) % 7;
+  const r = new Date(d);
+  r.setDate(d.getDate() + addFri + 3);
+  return r;
+}
+
 type Tab = 'avista' | 'aprazo' | 'pagas';
 
 export function RepCoCommissions({ repId }: Props) {
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [boletoComms, setBoletoComms] = useState<BoletoComm[]>([]);
+  const [instByOrder, setInstByOrder] = useState<Record<string, Installment[]>>({});
   const [tab, setTab] = useState<Tab>('avista');
   const [loading, setLoading] = useState(true);
   const [proofUrls, setProofUrls] = useState<Record<string, string>>({});
@@ -66,14 +94,30 @@ export function RepCoCommissions({ repId }: Props) {
 
       const { data: bc } = await supabase
         .from('representative_commissions')
-        .select('id, commission_amount, total_rate, representative_orders ( order_number, representative_clients ( razao_social ) ), representative_commission_payouts ( amount )')
+        .select('id, order_id, order_amount, commission_amount, total_rate, representative_orders ( order_number, representative_clients ( razao_social ) ), representative_commission_payouts ( amount )')
         .eq('representative_id', repId)
         .eq('payment_method', 'boleto')
         .order('created_at', { ascending: false });
 
+      const boleto = (bc as unknown as BoletoComm[]) || [];
+      const orderIds = Array.from(new Set(boleto.map(c => c.order_id).filter(Boolean)));
+      const instMap: Record<string, Installment[]> = {};
+      if (orderIds.length) {
+        const { data: insts } = await supabase
+          .from('representative_order_installments')
+          .select('order_id, installment_number, amount, due_date, status')
+          .in('order_id', orderIds)
+          .order('installment_number', { ascending: true });
+        (insts as Installment[] | null)?.forEach(i => {
+          if (!instMap[i.order_id]) instMap[i.order_id] = [];
+          instMap[i.order_id].push(i);
+        });
+      }
+
       if (!active) return;
       setPayouts((po as unknown as Payout[]) || []);
-      setBoletoComms((bc as unknown as BoletoComm[]) || []);
+      setBoletoComms(boleto);
+      setInstByOrder(instMap);
       setLoading(false);
     })();
     return () => { active = false; };
@@ -175,18 +219,44 @@ export function RepCoCommissions({ repId }: Props) {
                   {boletoPending.length > 0 && (
                     <div className="space-y-2">
                       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Aguardando o cliente pagar</p>
-                      {boletoPending.map(c => (
-                        <div key={c.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between">
-                          <div className="min-w-0">
-                            <p className="font-semibold text-gray-900 text-sm">{c.representative_orders?.order_number || '—'}</p>
-                            <p className="text-xs text-gray-500 truncate">{c.representative_orders?.representative_clients?.razao_social || 'Cliente'}</p>
+                      {boletoPending.map(c => {
+                        const insts = instByOrder[c.order_id] || [];
+                        const unpaid = insts.filter(i => i.status !== 'paid');
+                        const canBreak = !!c.order_amount && insts.length > 1 && unpaid.length > 0;
+                        return (
+                          <div key={c.id} className="bg-white border border-gray-200 rounded-xl px-4 py-3">
+                            <div className="flex items-center justify-between">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-gray-900 text-sm">{c.representative_orders?.order_number || '—'}</p>
+                                <p className="text-xs text-gray-500 truncate">{c.representative_orders?.representative_clients?.razao_social || 'Cliente'}</p>
+                              </div>
+                              <div className="text-right flex-shrink-0 ml-3">
+                                <p className="font-bold text-gray-700">{fmt(c.remaining)}</p>
+                                {!canBreak && <p className="text-xs text-gray-400">libera quando o boleto for pago</p>}
+                              </div>
+                            </div>
+                            {canBreak && (
+                              <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
+                                {unpaid.map(i => {
+                                  const slice = round2((c.commission_amount * i.amount) / (c.order_amount as number));
+                                  const prev = previsaoBoleto(i.due_date);
+                                  return (
+                                    <div key={i.installment_number} className="flex items-center justify-between text-xs">
+                                      <span className="text-gray-500">
+                                        Parcela {i.installment_number}/{insts.length}
+                                        {i.due_date && <> · vence {fmtShort(new Date(i.due_date + 'T12:00:00'))}</>}
+                                        {prev && <> · <span className="text-gray-600">previsão {fmtShort(prev)}</span></>}
+                                      </span>
+                                      <span className="font-medium text-gray-700 flex-shrink-0 ml-3">{fmt(slice)}</span>
+                                    </div>
+                                  );
+                                })}
+                                <p className="text-[11px] text-gray-400 pt-0.5">cada parte libera quando o respectivo boleto for pago</p>
+                              </div>
+                            )}
                           </div>
-                          <div className="text-right flex-shrink-0 ml-3">
-                            <p className="font-bold text-gray-700">{fmt(c.remaining)}</p>
-                            <p className="text-xs text-gray-400">libera quando o boleto for pago</p>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                   {aprazoScheduled.length > 0 && (
