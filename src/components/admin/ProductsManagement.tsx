@@ -16,6 +16,7 @@ interface Product {
   stock: number;
   is_active: boolean;
   category: string;
+  product_line?: string | null;
   featured: boolean;
   roast_type: string | null;
   flavor_notes: string | null;
@@ -51,6 +52,7 @@ export function ProductsManagement() {
   const [hasLots, setHasLots] = useState(false);
   const [formData, setFormData] = useState<Partial<Product>>({
     name: '',
+    product_line: '',
     description: '',
     price: 0,
     promotional_price: null,
@@ -126,6 +128,7 @@ export function ProductsManagement() {
     setIsAdding(true);
     setFormData({
       name: '',
+      product_line: '',
       description: '',
       price: 0,
       promotional_price: null,
@@ -158,6 +161,7 @@ export function ProductsManagement() {
         // stock removido — controlado exclusivamente pelos lotes ativos
         is_active: formData.is_active,
         category: formData.category || 'café',
+        product_line: (formData.product_line || '').trim() || null,
         featured: formData.featured,
         roast_type: formData.roast_type || null,
         flavor_notes: formData.flavor_notes || null,
@@ -461,6 +465,26 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
               <BarcodeDisplay value={(formData as any).barcode} />
             </div>
           )}
+        </div>
+
+        <div className="md:col-span-4">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Linha de produto</label>
+          <input
+            type="text"
+            list="product-lines"
+            value={formData.product_line || ''}
+            onChange={(e) => setFormData({ ...formData, product_line: e.target.value })}
+            placeholder="ex.: Saporino Clássico"
+            className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"
+          />
+          <datalist id="product-lines">
+            <option value="Saporino Clássico" />
+            <option value="Tropeiro Paulista Tradicional" />
+            <option value="Tropeiro Paulista Extra Forte" />
+            <option value="Grão Gourmet" />
+            <option value="Saporino Temporadas" />
+          </datalist>
+          <p className="text-[11px] text-gray-400 mt-1">Usado na inteligência de vendas por linha. Campo aberto — pode criar novas.</p>
         </div>
 
         <div className="md:col-span-4">

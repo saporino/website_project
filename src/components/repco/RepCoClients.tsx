@@ -9,6 +9,7 @@ interface RepCoClient {
   situacao_receita: string | null; endereco_completo: string | null; email_comprador: string | null;
   email_xml: string | null; nome_comprador: string | null; whatsapp_comprador: string | null;
   prazo_pagamento: string | null; forma_pagamento: string | null; limite_credito: number;
+  cep: string | null; municipio: string | null; uf: string | null; bairro: string | null;
   status: string; segment: ClientSegment | null; inscricao_estadual: string | null;
   last_order_at: string | null; inactivity_snoozed_until: string | null;
   snooze_count: number; snooze_admin_alert: boolean; is_active_client: boolean; created_at: string;
@@ -22,6 +23,7 @@ const emptyForm = {
   cnpj:'', cpf:'', nome_completo:'', razao_social:'', nome_fantasia:'', situacao_receita:'',
   endereco_completo:'', email_comprador:'', email_xml:'', nome_comprador:'', whatsapp_comprador:'',
   prazo_pagamento:'', forma_pagamento:'', limite_credito:0, segment:'' as ClientSegment|'',
+  cep:'', municipio:'', uf:'', bairro:'',
   inscricao_estadual:'', is_pj:true,
 };
 type ViewMode = 'list'|'detail'|'edit'|'new';
@@ -83,6 +85,7 @@ export default function RepCoClients({ representativeId, previewMode = false, re
       email_comprador:c.email_comprador||'',email_xml:c.email_xml||'',nome_comprador:c.nome_comprador||'',
       whatsapp_comprador:c.whatsapp_comprador||'',prazo_pagamento:c.prazo_pagamento||'',
       forma_pagamento:c.forma_pagamento||'',limite_credito:c.limite_credito||0,
+      cep:c.cep||'',municipio:c.municipio||'',uf:c.uf||'',bairro:c.bairro||'',
       segment:c.segment||'',inscricao_estadual:c.inscricao_estadual||'',is_pj:!c.cpf});
     setView('edit');setErr('');
   }
@@ -97,6 +100,7 @@ export default function RepCoClients({ representativeId, previewMode = false, re
       const d=await r.json();
       setForm(p=>({...p,razao_social:d.razao_social||'',nome_fantasia:d.nome_fantasia||'',
         situacao_receita:d.descricao_situacao_cadastral||'',
+        municipio:d.municipio||'',uf:d.uf||'',cep:d.cep||'',bairro:d.bairro||'',
         endereco_completo:[d.logradouro,d.numero,d.complemento,d.bairro,d.municipio,d.uf,d.cep].filter(Boolean).join(', ')}));
     }catch{setErr('CNPJ não encontrado. Preencha manualmente.');}
     setSearching(false);
@@ -116,6 +120,7 @@ export default function RepCoClients({ representativeId, previewMode = false, re
       email_comprador:form.email_comprador||null,email_xml:form.email_xml||null,
       nome_comprador:form.nome_comprador||null,whatsapp_comprador:form.whatsapp_comprador||null,
       prazo_pagamento:form.prazo_pagamento||null,forma_pagamento:form.forma_pagamento||null,
+      cep:form.cep||null,municipio:form.municipio||null,uf:(form.uf||null)&&form.uf.toUpperCase().slice(0,2),bairro:form.bairro||null,
       limite_credito:form.limite_credito||0,segment:form.segment||null,
       inscricao_estadual:form.inscricao_estadual||null,status:'active',is_active_client:true};
     const{error}=view==='edit'&&sel
@@ -248,6 +253,15 @@ export default function RepCoClients({ representativeId, previewMode = false, re
         </div>
         {form.endereco_completo&&<div><label className={lbl}>Endereço</label>
           <input type="text" value={form.endereco_completo} onChange={e=>setForm(p=>({...p,endereco_completo:e.target.value}))} className={inp}/></div>}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div><label className={lbl}>Cidade</label>
+            <input type="text" value={form.municipio} onChange={e=>setForm(p=>({...p,municipio:e.target.value}))} placeholder="ex.: Barueri" className={inp}/></div>
+          <div><label className={lbl}>UF</label>
+            <input type="text" value={form.uf} onChange={e=>setForm(p=>({...p,uf:e.target.value.toUpperCase().slice(0,2)}))} placeholder="SP" maxLength={2} className={inp}/></div>
+          <div><label className={lbl}>CEP</label>
+            <input type="text" value={form.cep} onChange={e=>setForm(p=>({...p,cep:e.target.value}))} placeholder="00000-000" className={inp}/></div>
+        </div>
+        <p className="text-[11px] text-gray-400 -mt-1">Cidade/UF alimentam o mapa de calor de vendas por região (preenchidos pelo CNPJ).</p>
       </div>
       <div className="flex gap-2">
         <button onClick={()=>setView('list')} className="px-4 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-100">Cancelar</button>
