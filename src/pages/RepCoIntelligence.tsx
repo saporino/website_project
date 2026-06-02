@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { DollarSign, ShoppingBag, MapPin, Coffee, Lock, ArrowLeft, TrendingUp } from 'lucide-react';
+import { MapContainer, TileLayer, CircleMarker, Tooltip } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 
 const PRIMARY = '#8B2214';
 const fmtBRL = (v: number) => `R$ ${(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
@@ -79,6 +81,21 @@ export default function RepCoIntelligence() {
   const maxLinha = Math.max(...linhaAgg.map(a => a.faturamento), 1);
   const reps = [...rep].sort((a, b) => (Number(b.faturamento) || 0) - (Number(a.faturamento) || 0));
 
+  // Mapa: agrega coords por município (média), só pontos geocodificados
+  const geoMap = new Map<string, { key: string; lat: number; lng: number; faturamento: number; pedidos: number }>();
+  area.forEach(r => {
+    if (r.lat == null || r.lng == null) return;
+    const k = `${r.municipio} / ${r.uf}`;
+    const c = geoMap.get(k) || { key: k, lat: Number(r.lat), lng: Number(r.lng), faturamento: 0, pedidos: 0 };
+    c.faturamento += Number(r.faturamento) || 0; c.pedidos += Number(r.pedidos) || 0;
+    geoMap.set(k, c);
+  });
+  const areaGeo = [...geoMap.values()];
+  const maxGeo = Math.max(...areaGeo.map(a => a.faturamento), 1);
+  const mapCenter: [number, number] = areaGeo.length
+    ? [areaGeo.reduce((s, a) => s + a.lat, 0) / areaGeo.length, areaGeo.reduce((s, a) => s + a.lng, 0) / areaGeo.length]
+    : [-15.8, -47.9];
+
   return (
     <div className="min-h-screen bg-[#f8f7f5]">
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
@@ -104,6 +121,23 @@ export default function RepCoIntelligence() {
                 <TrendingUp className="w-10 h-10 mx-auto mb-3 text-gray-300" />
                 <p>Sem vendas concluídas ainda — os painéis enchem conforme os pedidos.</p>
               </div>
+            )}
+
+            {/* Mapa de calor geográfico */}
+            {areaGeo.length > 0 && (
+              <Panel title="Mapa de calor de vendas" icon={<MapPin className="w-4 h-4" />} hint="tamanho do círculo = faturamento">
+                <div className="rounded-lg overflow-hidden border border-gray-100" style={{ height: 360 }}>
+                  <MapContainer center={mapCenter} zoom={areaGeo.length === 1 ? 9 : 5} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
+                    <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                    {areaGeo.map(a => (
+                      <CircleMarker key={a.key} center={[a.lat, a.lng]} radius={8 + (a.faturamento / maxGeo) * 22}
+                        pathOptions={{ color: PRIMARY, fillColor: PRIMARY, fillOpacity: 0.5, weight: 1 }}>
+                        <Tooltip>{a.key} · {fmtBRL(a.faturamento)} · {a.pedidos} ped.</Tooltip>
+                      </CircleMarker>
+                    ))}
+                  </MapContainer>
+                </div>
+              </Panel>
             )}
 
             {/* Vendas por região + por linha */}
