@@ -1,5 +1,5 @@
-import { useState, useEffect, Suspense, lazy, useMemo } from 'react';
-import { CheckCircle, XCircle, Eye, Plus, Upload, Phone, Mail, Map, Search, Smartphone, ArrowRightLeft, Tag, ExternalLink, BarChart3 } from 'lucide-react';
+import { useState, useEffect, Suspense, lazy, useMemo, useRef } from 'react';
+import { CheckCircle, XCircle, Eye, Plus, Upload, Phone, Mail, Map, Search, Smartphone, ArrowRightLeft, Tag, ExternalLink, BarChart3, Users } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -100,7 +100,15 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   const [orderClients, setOrderClients] = useState<RepClient[]>([]);
   const [transferClientId, setTransferClientId] = useState<string | null>(null);
   const [transferRepresentativeId, setTransferRepresentativeId] = useState('');
-  const [showMobilePreview, setShowMobilePreview] = useState(false);
+  const [previews, setPreviews] = useState<{ id: number; repId: string | null }[]>([]);
+  const previewSeq = useRef(0);
+  const openPreview = (repId: string | null = null) =>
+    setPreviews(p => (p.length >= 6 ? p : [...p, { id: ++previewSeq.current, repId }]));
+  const closePreview = (id: number) => setPreviews(p => p.filter(x => x.id !== id));
+  const openAllPreviews = () => {
+    const active = reps.filter(r => r.status === 'active');
+    setPreviews(active.slice(0, 6).map(r => ({ id: ++previewSeq.current, repId: r.id })));
+  };
 
   // Product selector for order form
   interface OrderProduct { id: string; name: string; price: number; image_url: string | null; stock: number; in_stock: boolean; }
@@ -476,7 +484,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setShowMobilePreview(true)} className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors">
+            <button onClick={() => openPreview(selectedRep.id)} className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors">
               <Smartphone className="w-4 h-4" /> Ver como representante
             </button>
             {selectedRep.status === 'pending' && (
@@ -762,13 +770,15 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
         {detailTab === 'comissoes' && (
           <RepCoCommissionsManager representativeId={selectedRep?.id} refreshKey={refreshKey} />
         )}
-        {showMobilePreview && (
+        {previews.map((pv, i) => (
           <RepCoMobilePreview
+            key={pv.id}
+            offsetIndex={i}
             representatives={reps}
-            initialRepresentativeId={selectedRep.id}
-            onClose={() => setShowMobilePreview(false)}
+            initialRepresentativeId={pv.repId ?? selectedRep.id}
+            onClose={() => closePreview(pv.id)}
           />
-        )}
+        ))}
       </div>
     );
   }
@@ -839,10 +849,15 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
             <BarChart3 className="w-4 h-4" />
             Inteligência
           </button>
-          <button onClick={() => setShowMobilePreview(true)}
+          <button onClick={() => openPreview()}
             className="h-9 px-3.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
             <Smartphone className="w-4 h-4" />
             Ver como rep
+          </button>
+          <button onClick={openAllPreviews} title="Abrir o espelho de todos os reps ativos"
+            className="h-9 px-3.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
+            <Users className="w-4 h-4" />
+            Ver todos
           </button>
           <button onClick={() => setAdminView(v => v === 'map' ? 'list' : 'map')}
             className={`h-9 px-3.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 border ${
@@ -917,13 +932,15 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
         </Suspense>
       )}
 
-      {showMobilePreview && (
+      {previews.map((pv, i) => (
         <RepCoMobilePreview
+          key={pv.id}
+          offsetIndex={i}
           representatives={reps}
-          initialRepresentativeId={selectedRep?.id}
-          onClose={() => setShowMobilePreview(false)}
+          initialRepresentativeId={pv.repId ?? selectedRep?.id}
+          onClose={() => closePreview(pv.id)}
         />
-      )}
+      ))}
 
       {loading ? (
         <div className="flex justify-center py-20">

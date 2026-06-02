@@ -17,6 +17,7 @@ interface Props {
   representatives: Representative[];
   initialRepresentativeId?: string | null;
   onClose: () => void;
+  offsetIndex?: number;
 }
 
 type PreviewTab = 'inicio' | 'prospection' | 'clients' | 'orders' | 'rotas';
@@ -122,7 +123,7 @@ function ReadOnlyOrdersPreview({ representativeId }: { representativeId: string 
   );
 }
 
-export default function RepCoMobilePreview({ representatives, initialRepresentativeId, onClose }: Props) {
+export default function RepCoMobilePreview({ representatives, initialRepresentativeId, onClose, offsetIndex = 0 }: Props) {
   const availableReps = useMemo(
     () => representatives.filter(rep => rep.status === 'active'),
     [representatives]
@@ -135,7 +136,7 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
   const [activeTab, setActiveTab] = useState<PreviewTab>('inicio');
   const [refreshKey, setRefreshKey] = useState(0);
   const [minimized, setMinimized] = useState(false);
-  const [pos, setPos] = useState(() => ({ x: Math.max(8, window.innerWidth - 392), y: 72 }));
+  const [pos, setPos] = useState(() => ({ x: Math.max(8, window.innerWidth - 392 - offsetIndex * 40), y: 72 + offsetIndex * 40 }));
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
 
   useEffect(() => {
