@@ -21,7 +21,7 @@ React 18 + TypeScript + Vite + Tailwind + Supabase (Postgres + Auth + Storage + 
 - Edições atômicas e idempotentes; preferir mudanças pequenas e verificáveis.
 
 ## 4. Banco (SQL em produção)
-SQL roda via RPCs do Supabase: `exec_migration` (DDL/DML) e `exec_select` (SELECT — **não aceita `;` no fim**). Credenciais no `.env`: `VITE_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. Funções de segurança: `public.is_admin()`, `public.my_rep_id()`.
+SQL roda via RPCs do Supabase: `exec_migration` (DDL/DML) e `exec_select` (SELECT — **não aceita `;` no fim**). Credenciais no `.env`: `VITE_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. Funções de segurança: `public.is_admin()`, `public.my_rep_id()`. **Storage buckets:** `invoices` (NF/comprovantes/boletos), `lot-documents` (docs de lote, privado), `products` (imagens).
 
 ## 5. Fluxo do RepCo
 Rep cadastra clientes → lança pedido em 3 passos: **Cliente → Produtos → Revisão** → gera o pedido. No B2B o **cliente não paga pelo site**: paga por PIX, boleto ou depósito bancário **direto na conta da empresa** (o rep registra o pedido; Vlademir aprova antes de gerar NF). Mercado Pago = só B2C. A **comissão** (empresa → rep) é um fluxo separado de como o cliente pagou.
@@ -34,7 +34,7 @@ Rep cadastra clientes → lança pedido em 3 passos: **Cliente → Produtos → 
 - `representative_commission_payouts` — livro-caixa que o REP lê em "Pagas". `amount`, `payment_method`, `cycle_start/end`, `scheduled_payment_date`, `status` scheduled→paid, `proof_url`, `proof_filename`.
 - `representative_order_installments` — parcelas do boleto. `installment_number`, `amount`, `due_date`, `boleto_url`, `proof_url`, `status` (vira `paid` quando o comprovante é anexado → gatilho cria o payout proporcional).
 - `price_lists` — preço por segmento B2B (R$/pacote). UNIQUE(product_id, segment).
-- `product_batches`, `batch_photos`, `roasting_companies` — lotes/torrefadoras.
+- **Inventário/Lotes:** `green_coffee_lots` (lote de café verde: peso/custo/status), `lot_transfers` (transferências verde/torrado), `lot_documents` (docs: compra_verde/nota_fiscal/pagamento_torra/pagamento_embalagem), `batch_photos`, `roasting_companies` (+ `roasting_company_contacts`). UI = `BatchManagement.tsx` (cadeia de custos verde→torra→embalagem→custo/kg; `products.stock` atualizado por trigger a partir dos lotes ativos).
 - **Rotas/Logística:** `routes`, `route_stops`, `route_assignments`, `delivery_proofs`, `client_route_links` — RouteManager (admin) + RepCoRoutes (mapa Leaflet/OSM, geofencing 500m, GPS, nav Waze/Maps, POD foto+texto). `RepCoLiveMap` = presença ao vivo dos reps.
 - **Sistema:** `presence_sessions` (presença online), `notifications` (alertas do admin).
 
@@ -112,7 +112,7 @@ Rep cadastra clientes → lança pedido em 3 passos: **Cliente → Produtos → 
 | **Admin Force** | Perfil de testes (representa rep ou admin durante o dev) |
 | **Cliente de teste** | CAFE SAPORINO LTDA (boleto/7d, segmento distribuidora) — verificado em 01/06/2026 |
 | **Segmentos** | distribuidora e marketplaces `ML/SH/AZ/TK` (ML=Mercado Livre, SH=Shopee, AZ=Amazon, TK=TikTok) |
-| **Lotes / BatchManagement** | Gestão de estoque de café verde (`product_batches` + `batch_photos`; UI ainda pendente) |
+| **Lotes / BatchManagement** | Gestão de estoque de café verde (`green_coffee_lots` etc.; UI `BatchManagement.tsx` já existe — cadeia de custos completa) |
 | **Linhas de produto** | Saporino Clássico, Tropeiro Paulista Tradicional, Tropeiro Paulista Extra Forte, Grão Gourmet, Saporino Temporadas |
 
 ## 15. Norte estratégico — RepCo como SaaS de inteligência de dados
