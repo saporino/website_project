@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Bell, UserCheck, FileText, ShoppingBag, X, ChevronRight } from 'lucide-react';
+import { Bell, UserCheck, FileText, ShoppingBag, X, ChevronRight, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface Notification {
   id: string;
-  type: 'repco_pending' | 'repco_order_no_nf' | 'ecommerce_pending';
+  type: 'repco_pending' | 'repco_order_no_nf' | 'repco_boleto_overdue' | 'ecommerce_pending';
   title: string;
   description: string;
   count: number;
@@ -68,6 +68,24 @@ export function AdminNotificationBell({ onNavigate }: AdminNotificationBellProps
         });
       }
 
+      // 2b. Clientes com boleto vencido (trava) — alerta azul/vermelho do RepCo
+      const { count: boletoOverdue } = await supabase
+        .from('vw_repco_clientes_bloqueados')
+        .select('*', { count: 'exact', head: true });
+
+      if (boletoOverdue && boletoOverdue > 0) {
+        items.push({
+          id: 'repco_boleto_overdue',
+          type: 'repco_boleto_overdue',
+          title: 'Boletos vencidos (cliente travado)',
+          description: `${boletoOverdue} cliente${boletoOverdue > 1 ? 's' : ''} com boleto vencido`,
+          count: boletoOverdue,
+          tab: 'repco',
+          icon: AlertTriangle,
+          color: 'text-red-600 bg-red-50',
+        });
+      }
+
       // 3. E-commerce orders pending (status column is the single source of truth)
       const { count: ecomPending } = await supabase
         .from('orders')
@@ -97,10 +115,18 @@ export function AdminNotificationBell({ onNavigate }: AdminNotificationBellProps
 
   useEffect(() => {
     fetchNotifications();
-    // Refresh every 60 seconds
+    // Realtime: re-busca quando muda pedido/parcela/representante (fallback: poll 60s)
+    const ch = supabase.channel('admin-notif')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'representative_orders' }, () => fetchNotifications())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'representative_order_installments' }, () => fetchNotifications())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'representatives' }, () => fetchNotifications())
+      .subscribe();
     const interval = setInterval(fetchNotifications, 60_000);
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); supabase.removeChannel(ch); };
   }, []);
+
+  // Pisca quando há pendência urgente (vermelho: pedido sem NF ou boleto vencido)
+  const hasUrgent = notifications.some(n => n.type === 'repco_order_no_nf' || n.type === 'repco_boleto_overdue');
 
   const handleClick = (tab: string) => {
     onNavigate(tab);
@@ -120,7 +146,7 @@ export function AdminNotificationBell({ onNavigate }: AdminNotificationBellProps
       >
         <Bell className="w-5 h-5" />
         {totalCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 bg-[#a4240e] text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-none">
+          <span className={`absolute -top-0.5 -right-0.5 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-none ${hasUrgent ? 'bg-red-600 animate-pulse' : 'bg-[#8B2214]'}`}>
             {totalCount > 99 ? '99+' : totalCount}
           </span>
         )}
