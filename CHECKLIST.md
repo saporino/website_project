@@ -21,6 +21,8 @@
 
 ## 🟢 Feito hoje (continuação)
 - [x] Heatmap geográfico no mapa (Leaflet, círculo por faturamento) — clientes geocodificados
+- [x] Fix navegação: clicar aba RepCo volta pra lista de representantes
+- [x] Espelho ("Ver como rep") agora é **janela flutuante** (arrasta, minimiza, mexe no site atrás)
 
 ## 🟠 Precisa de 1 decisão sua
 - [ ] Editar produtos do pedido só antes da NF + audit log — **como a comissão recalcula quando muda item?** (decide e eu construo)

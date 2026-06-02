@@ -1,5 +1,5 @@
-import { Suspense, lazy, useEffect, useMemo, useState, type ElementType } from 'react';
-import { Home, ClipboardList, Users, ShoppingBag, Map, RefreshCw, X, FileText } from 'lucide-react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ElementType } from 'react';
+import { Home, ClipboardList, Users, ShoppingBag, Map, RefreshCw, X, FileText, Minus, GripHorizontal } from 'lucide-react';
 import RepCoHome from '../repco/RepCoHome';
 import RepCoProspection from '../repco/RepCoProspection';
 import RepCoClients from '../repco/RepCoClients';
@@ -134,6 +134,23 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
   );
   const [activeTab, setActiveTab] = useState<PreviewTab>('inicio');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [minimized, setMinimized] = useState(false);
+  const [pos, setPos] = useState(() => ({ x: Math.max(8, window.innerWidth - 392), y: 72 }));
+  const dragRef = useRef<{ dx: number; dy: number } | null>(null);
+
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      if (!dragRef.current) return;
+      const x = Math.min(Math.max(0, e.clientX - dragRef.current.dx), window.innerWidth - 80);
+      const y = Math.min(Math.max(0, e.clientY - dragRef.current.dy), window.innerHeight - 40);
+      setPos({ x, y });
+    }
+    function onUp() { dragRef.current = null; }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+  }, []);
+  function startDrag(e: React.MouseEvent) { dragRef.current = { dx: e.clientX - pos.x, dy: e.clientY - pos.y }; }
 
   const selectedRep = availableReps.find(rep => rep.id === representativeId) || null;
 
@@ -178,36 +195,22 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-gray-950/70 backdrop-blur-sm">
-      <div className="flex h-full flex-col overflow-hidden">
-        <div className="flex items-center justify-between border-b border-white/10 bg-gray-950/80 px-5 py-3 text-white">
-          <div>
-            <p className="text-sm font-semibold">Ver como representante</p>
-            <p className="text-xs text-white/55">Preview mobile em modo seguro, sem ações de escrita</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setRefreshKey(key => key + 1)}
-              className="inline-flex items-center gap-1 rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10"
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              Atualizar preview
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg p-2 text-white/70 hover:bg-white/10 hover:text-white"
-              aria-label="Fechar preview"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
+    <div className="fixed z-[60] w-[360px] max-w-[calc(100vw-1rem)]" style={{ left: pos.x, top: pos.y }}>
+      {/* Barra de arrastar (flutuante — não bloqueia o resto do site) */}
+      <div onMouseDown={startDrag} className="flex items-center justify-between rounded-t-2xl bg-gray-950 px-3 py-2 text-white cursor-move select-none shadow-2xl">
+        <div className="flex min-w-0 items-center gap-2">
+          <GripHorizontal className="h-4 w-4 shrink-0 text-white/50" />
+          <span className="truncate text-xs font-semibold">Espelho — {selectedRep?.full_name || 'representante'}</span>
         </div>
-
-        <div className="flex flex-1 items-center justify-center overflow-auto px-4 py-6">
-          <div className="rounded-[2.25rem] border-[7px] border-gray-950 bg-gray-950 p-1 shadow-2xl">
-            <div className="relative h-[780px] w-[380px] max-h-[calc(100vh-7rem)] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[1.75rem] bg-[#f5f3ee]">
+        <div className="flex shrink-0 items-center gap-0.5">
+          <button type="button" onClick={() => setRefreshKey(key => key + 1)} title="Atualizar" className="rounded-lg p-1.5 text-white/70 hover:bg-white/10 hover:text-white"><RefreshCw className="h-4 w-4" /></button>
+          <button type="button" onClick={() => setMinimized(m => !m)} title={minimized ? 'Expandir' : 'Minimizar'} className="rounded-lg p-1.5 text-white/70 hover:bg-white/10 hover:text-white"><Minus className="h-4 w-4" /></button>
+          <button type="button" onClick={onClose} title="Fechar" className="rounded-lg p-1.5 text-white/70 hover:bg-white/10 hover:text-white"><X className="h-4 w-4" /></button>
+        </div>
+      </div>
+      {!minimized && (
+        <div className="rounded-b-2xl border-x-[6px] border-b-[6px] border-gray-950 bg-gray-950 shadow-2xl">
+            <div className="relative h-[64vh] max-h-[680px] overflow-hidden rounded-b-[1.1rem] bg-[#f5f3ee]">
               <div className="flex items-center justify-between bg-[#8B2214] px-5 pb-0.5 pt-2.5 text-[10px] font-semibold text-white/90">
                 <span>9:41</span>
                 <span>●●●</span>
@@ -258,13 +261,12 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
                 })}
               </nav>
 
-              <main className="h-[calc(100%-145px)] overflow-y-auto overflow-x-hidden px-2.5 py-2.5">
+              <main className="h-[calc(100%-150px)] overflow-y-auto overflow-x-hidden px-2.5 py-2.5">
                 {renderContent()}
               </main>
             </div>
-          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
