@@ -166,7 +166,9 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     setShowNewOrder(prev => !prev);
   }
 
-  useEffect(() => { fetchReps(); fetchSnoozedClients(); }, [refreshKey]);
+  // Ao (re)clicar na aba RepCo (refreshKey muda), volta pra lista de representantes —
+  // mesmo que estivesse na Tabela de Preços / Prospecção / detalhe de um rep.
+  useEffect(() => { setAdminView('list'); setSelectedRep(null); fetchReps(); fetchSnoozedClients(); }, [refreshKey]);
 
   useEffect(() => {
     function handleRefresh() {
