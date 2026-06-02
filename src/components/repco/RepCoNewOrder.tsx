@@ -35,6 +35,7 @@ function StockIndicator({ stock, inStock }: { stock: number; inStock: boolean })
 export default function RepCoNewOrder({ representativeId, onOrderCreated, preSelectedClientId }: Props) {
   const [step, setStep] = useState<'client'|'products'|'review'>('client');
   const [clients, setClients] = useState<Client[]>([]);
+  const [blocked, setBlocked] = useState<Record<string, string>>({});
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [prices, setPrices] = useState<PriceEntry[]>([]);
@@ -66,6 +67,10 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   async function fetchClients() {
     const { data } = await supabase.from('representative_clients').select('id,razao_social,nome_fantasia,cnpj,cpf,segment,forma_pagamento,prazo_pagamento,default_fiscal_order_type').eq('representative_id', representativeId).eq('status','active').order('razao_social');
     if (data) setClients(data);
+    const { data: blk } = await supabase.from('vw_repco_clientes_bloqueados').select('client_id,vencido_em');
+    const map: Record<string, string> = {};
+    (blk || []).forEach((b: any) => { map[b.client_id] = b.vencido_em; });
+    setBlocked(map);
   }
 
   async function fetchProductsAndPrices(segment: string) {
@@ -89,6 +94,10 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
 
   function selectClient(client: Client) {
     setError('');
+    if (blocked[client.id]) {
+      setError(`Cliente bloqueado — boleto vencido em ${new Date(blocked[client.id] + 'T12:00:00').toLocaleDateString('pt-BR')}. Anexe o comprovante de pagamento para liberar novos pedidos.`);
+      return;
+    }
     setItems([]);
     setProducts([]);
     setPrices([]);
@@ -270,14 +279,16 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
           <p className="text-sm font-medium text-gray-700">Selecione o cliente:</p>
           {clients.length===0
             ? <div className="text-center py-8 text-gray-400 text-sm">Cadastre clientes na aba "Clientes"</div>
-            : clients.map(c => (
-              <div key={c.id} onClick={()=>selectClient(c)} className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-[#a4240e]/40 hover:shadow-sm transition-all">
-                <div className="flex items-center justify-between">
+            : clients.map(c => { const isBlocked = !!blocked[c.id]; return (
+              <div key={c.id} onClick={()=>selectClient(c)} className={`border rounded-xl p-4 cursor-pointer transition-all ${isBlocked?'border-red-300 bg-red-50':'bg-white border-gray-200 hover:border-[#a4240e]/40 hover:shadow-sm'}`}>
+                <div className="flex items-center justify-between gap-2">
                   <div><p className="font-semibold text-gray-900 text-sm">{c.nome_fantasia||c.razao_social}</p><p className="text-xs text-gray-400">{c.cnpj ? fmt(c.cnpj) : c.cpf}</p></div>
-                  {c.segment&&<span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{SEGMENT_LABEL[c.segment]??c.segment}</span>}
+                  {isBlocked
+                    ? <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium whitespace-nowrap">Bloqueado · venc. {new Date(blocked[c.id]+'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                    : c.segment&&<span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{SEGMENT_LABEL[c.segment]??c.segment}</span>}
                 </div>
               </div>
-            ))}
+            ); })}
         </div>
       )}
 

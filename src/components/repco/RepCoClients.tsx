@@ -36,6 +36,7 @@ function parsePrazoOffsets(prazo:string|null):number[]{return (prazo||'').match(
 function scoreFaixa(s:number){return s<300?{label:'Ruim',cls:'bg-red-100 text-red-700'}:s<500?{label:'Regular',cls:'bg-orange-100 text-orange-700'}:s<700?{label:'Bom',cls:'bg-amber-100 text-amber-700'}:s<900?{label:'Ótimo',cls:'bg-green-100 text-green-700'}:{label:'Excelente',cls:'bg-emerald-100 text-emerald-700'};}
 export default function RepCoClients({ representativeId, previewMode = false, refreshKey = 0 }: { representativeId: string; previewMode?: boolean; refreshKey?: number }) {
   const [clients,setClients]=useState<RepCoClient[]>([]);
+  const [blocked,setBlocked]=useState<Record<string,string>>({});
   const [loading,setLoading]=useState(true);
   const [view,setView]=useState<ViewMode>('list');
   const [sel,setSel]=useState<RepCoClient|null>(null);
@@ -73,6 +74,8 @@ export default function RepCoClients({ representativeId, previewMode = false, re
     setLoading(true);
     const{data}=await supabase.from('representative_clients').select('*').eq('representative_id',representativeId).order('razao_social',{ascending:true});
     setClients((data||[]) as RepCoClient[]);setLoading(false);
+    const{data:blk}=await supabase.from('vw_repco_clientes_bloqueados').select('client_id,vencido_em');
+    const map:Record<string,string>={};(blk||[]).forEach((b:any)=>{map[b.client_id]=b.vencido_em;});setBlocked(map);
   }
   async function fetchHist(clientId:string){
     setLoadHist(true);
@@ -414,6 +417,7 @@ export default function RepCoClients({ representativeId, previewMode = false, re
                     {c.segment&&<span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{SEGMENT_LABEL[c.segment]}</span>}
                     {!c.is_active_client&&<span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Inativo</span>}
                     {c.snooze_admin_alert&&<span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">Atenção</span>}
+                    {blocked[c.id]&&<span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Bloqueado · venc. {new Date(blocked[c.id]+'T12:00:00').toLocaleDateString('pt-BR')}</span>}
                   </div>
                   <p className="text-xs text-gray-500 mt-0.5">
                     {c.cnpj?fmtCNPJ(c.cnpj):c.cpf?fmtCPF(c.cpf):''}
