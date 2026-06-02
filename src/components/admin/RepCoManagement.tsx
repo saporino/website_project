@@ -1,5 +1,5 @@
 import { useState, useEffect, Suspense, lazy, useMemo } from 'react';
-import { CheckCircle, XCircle, Eye, Plus, Upload, Phone, Mail, Map, Search, Smartphone, ArrowRightLeft, Tag, ExternalLink } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, Plus, Upload, Phone, Mail, Map, Search, Smartphone, ArrowRightLeft, Tag, ExternalLink, BarChart3 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -831,6 +831,11 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
             className="h-9 px-3.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
             <Upload className="w-4 h-4" />
             Prospecção
+          </button>
+          <button onClick={() => { window.history.pushState({}, '', '/repco/inteligencia'); window.dispatchEvent(new PopStateEvent('popstate')); }}
+            className="h-9 px-3.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
+            <BarChart3 className="w-4 h-4" />
+            Inteligência
           </button>
           <button onClick={() => setShowMobilePreview(true)}
             className="h-9 px-3.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">

@@ -18,6 +18,7 @@ import { PaymentSuccess, PaymentFailure, PaymentPending } from './pages/PaymentP
 import { TrackingPage } from './pages/TrackingPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
 import { RepCoDashboard } from './pages/RepCoDashboard';
+import RepCoIntelligence from './pages/RepCoIntelligence';
 import ProductDetail from './components/ProductDetail';
 
 const logoImage = '/saporino-logo.png';
@@ -75,6 +76,10 @@ function AppRouter() {
 
   if (currentPath === '/meu-perfil' || currentPath === '/profile') {
     return <UserProfile />;
+  }
+
+  if (currentPath === '/repco/inteligencia') {
+    return <RepCoIntelligence />;
   }
 
   if (currentPath === '/repco') {
