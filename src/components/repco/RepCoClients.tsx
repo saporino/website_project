@@ -10,6 +10,7 @@ interface RepCoClient {
   email_xml: string | null; nome_comprador: string | null; whatsapp_comprador: string | null;
   prazo_pagamento: string | null; forma_pagamento: string | null; limite_credito: number;
   cep: string | null; municipio: string | null; uf: string | null; bairro: string | null;
+  credito_score: number | null; score_serasa_pdf_url: string | null; score_serasa_pdf_filename: string | null;
   status: string; segment: ClientSegment | null; inscricao_estadual: string | null;
   last_order_at: string | null; inactivity_snoozed_until: string | null;
   snooze_count: number; snooze_admin_alert: boolean; is_active_client: boolean; created_at: string;
@@ -24,6 +25,7 @@ const emptyForm = {
   endereco_completo:'', email_comprador:'', email_xml:'', nome_comprador:'', whatsapp_comprador:'',
   prazo_pagamento:'', forma_pagamento:'', limite_credito:0, segment:'' as ClientSegment|'',
   cep:'', municipio:'', uf:'', bairro:'',
+  credito_score:'' as number|'', score_serasa_pdf_url:'', score_serasa_pdf_filename:'',
   inscricao_estadual:'', is_pj:true,
 };
 type ViewMode = 'list'|'detail'|'edit'|'new';
@@ -31,6 +33,7 @@ function fmtCNPJ(v:string){return v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2}
 function fmtCPF(v:string){return v.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/,'$1.$2.$3-$4');}
 function days(d:string|null){if(!d)return 999;return Math.floor((Date.now()-new Date(d).getTime())/86400000);}
 function parsePrazoOffsets(prazo:string|null):number[]{return (prazo||'').match(/\d+/g)?.map(Number).filter(n=>n>0)||[];}
+function scoreFaixa(s:number){return s<300?{label:'Ruim',cls:'bg-red-100 text-red-700'}:s<500?{label:'Regular',cls:'bg-orange-100 text-orange-700'}:s<700?{label:'Bom',cls:'bg-amber-100 text-amber-700'}:s<900?{label:'Ótimo',cls:'bg-green-100 text-green-700'}:{label:'Excelente',cls:'bg-emerald-100 text-emerald-700'};}
 export default function RepCoClients({ representativeId, previewMode = false, refreshKey = 0 }: { representativeId: string; previewMode?: boolean; refreshKey?: number }) {
   const [clients,setClients]=useState<RepCoClient[]>([]);
   const [loading,setLoading]=useState(true);
@@ -86,6 +89,7 @@ export default function RepCoClients({ representativeId, previewMode = false, re
       whatsapp_comprador:c.whatsapp_comprador||'',prazo_pagamento:c.prazo_pagamento||'',
       forma_pagamento:c.forma_pagamento||'',limite_credito:c.limite_credito||0,
       cep:c.cep||'',municipio:c.municipio||'',uf:c.uf||'',bairro:c.bairro||'',
+      credito_score:c.credito_score!=null?c.credito_score:'' as number|'',score_serasa_pdf_url:c.score_serasa_pdf_url||'',score_serasa_pdf_filename:c.score_serasa_pdf_filename||'',
       segment:c.segment||'',inscricao_estadual:c.inscricao_estadual||'',is_pj:!c.cpf});
     setView('edit');setErr('');
   }
@@ -105,6 +109,20 @@ export default function RepCoClients({ representativeId, previewMode = false, re
     }catch{setErr('CNPJ não encontrado. Preencha manualmente.');}
     setSearching(false);
   }
+  function uploadSerasaPdf(){
+    if (previewMode) { alert('Ação desativada no espelho.'); return; }
+    const input=document.createElement('input'); input.type='file'; input.accept='application/pdf,.pdf'; input.style.display='none';
+    input.addEventListener('change', async ()=>{
+      const file=input.files?.[0]; try{input.remove();}catch{}
+      if(!file) return;
+      const path=`serasa/${Date.now()}-${file.name}`;
+      const {data,error}=await supabase.storage.from('invoices').upload(path,file,{upsert:true});
+      if(error||!data){setErr('Erro ao enviar PDF Serasa: '+(error?.message||''));return;}
+      setForm(p=>({...p,score_serasa_pdf_url:data.path||path,score_serasa_pdf_filename:file.name}));
+      setOk('PDF Serasa anexado'); setTimeout(()=>setOk(''),2500);
+    });
+    document.body.appendChild(input); input.click();
+  }
   async function handleSave(){
     if (previewMode) { setErr('Ação desativada no espelho.'); return; }
     if(form.is_pj&&!form.cnpj){setErr('CNPJ obrigatório.');return;}
@@ -121,6 +139,8 @@ export default function RepCoClients({ representativeId, previewMode = false, re
       nome_comprador:form.nome_comprador||null,whatsapp_comprador:form.whatsapp_comprador||null,
       prazo_pagamento:form.prazo_pagamento||null,forma_pagamento:form.forma_pagamento||null,
       cep:form.cep||null,municipio:form.municipio||null,uf:(form.uf||null)&&form.uf.toUpperCase().slice(0,2),bairro:form.bairro||null,
+      credito_score:form.credito_score===''?null:Math.max(0,Math.min(1000,Number(form.credito_score))),
+      score_serasa_pdf_url:form.score_serasa_pdf_url||null,score_serasa_pdf_filename:form.score_serasa_pdf_filename||null,
       limite_credito:form.limite_credito||0,segment:form.segment||null,
       inscricao_estadual:form.inscricao_estadual||null,status:'active',is_active_client:true};
     const{error}=view==='edit'&&sel
@@ -250,6 +270,15 @@ export default function RepCoClients({ representativeId, previewMode = false, re
           </div>
           <div><label className={lbl}>Limite de Crédito (R$)</label>
             <input type="number" value={form.limite_credito} onChange={e=>setForm(p=>({...p,limite_credito:parseFloat(e.target.value)||0}))} min="0" step="100" className={inp}/></div>
+          <div><label className={lbl}>Score do cliente (0–1000)</label>
+            <input type="number" min="0" max="1000" value={form.credito_score} onChange={e=>setForm(p=>({...p,credito_score:e.target.value===''?'':Number(e.target.value)}))} placeholder="ex.: 650" className={inp}/>
+            {form.credito_score!==''&&<span className={`text-[11px] mt-1 inline-block px-2 py-0.5 rounded-full ${scoreFaixa(Number(form.credito_score)).cls}`}>{scoreFaixa(Number(form.credito_score)).label}</span>}
+          </div>
+          <div><label className={lbl}>PDF do Serasa</label>
+            <button type="button" onClick={uploadSerasaPdf} className="h-[34px] w-full px-3 text-sm border border-gray-300 rounded text-gray-600 hover:bg-gray-50 text-left truncate">
+              {form.score_serasa_pdf_filename?`📎 ${form.score_serasa_pdf_filename}`:'Anexar PDF…'}
+            </button>
+          </div>
         </div>
         {form.endereco_completo&&<div><label className={lbl}>Endereço</label>
           <input type="text" value={form.endereco_completo} onChange={e=>setForm(p=>({...p,endereco_completo:e.target.value}))} className={inp}/></div>}
@@ -391,7 +420,8 @@ export default function RepCoClients({ representativeId, previewMode = false, re
                     {c.nome_comprador&&` · ${c.nome_comprador}`}
                   </p>
                 </div>
-                <div className="text-right flex-shrink-0 ml-2">
+                <div className="text-right flex-shrink-0 ml-2 space-y-1">
+                  {c.credito_score!=null&&<span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${scoreFaixa(c.credito_score).cls}`} title={`Score: ${scoreFaixa(c.credito_score).label}`}>{c.credito_score}</span>}
                   {inactive&&c.is_active_client&&<p className="text-xs text-red-500">{d>=999?'Nunca comprou':`${d}d sem comprar`}</p>}
                   {c.last_order_at&&!inactive&&<p className="text-xs text-gray-400">{d===0?'hoje':`${d}d atrás`}</p>}
                 </div>
