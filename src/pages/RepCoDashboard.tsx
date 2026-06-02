@@ -1,5 +1,6 @@
 import { useState, useEffect, Suspense, lazy } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { AuthModal } from '../components/AuthModal';
 import { supabase } from '../lib/supabase';
 import { RepCoProfile } from '../components/repco/RepCoProfile';
 import RepCoClients from '../components/repco/RepCoClients';
@@ -50,6 +51,7 @@ export function RepCoDashboard() {
   const [showRegForm, setShowRegForm] = useState(false);
   const [regForm, setRegForm] = useState({ full_name: profile?.full_name || '', cpf: '', phone: '', cnpj: '' });
   const [submitting, setSubmitting] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
 
   const { coords } = useGeolocation({
     enabled: !!rep && rep.status === 'active',
@@ -109,12 +111,21 @@ export function RepCoDashboard() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#f8f7f5] flex items-center justify-center">
-        <div className="text-center bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
+      <div className="min-h-screen bg-[#f8f7f5] flex items-center justify-center px-4">
+        <div className="text-center bg-white p-8 rounded-2xl shadow-sm border border-gray-200 max-w-sm w-full">
           <Briefcase className="w-12 h-12 text-[#a4240e] mx-auto mb-4" />
           <h2 className="text-xl font-bold text-gray-900 mb-2">Portal RepCo</h2>
-          <p className="text-gray-500">Faça login para acessar o portal de Representante Comercial.</p>
+          <p className="text-gray-500 mb-6">Faça login para acessar o portal de Representante Comercial.</p>
+          <button onClick={() => setAuthOpen(true)}
+            className="w-full px-6 py-3 bg-[#8B2214] text-white font-semibold rounded-xl hover:bg-[#6d1a10] transition-colors">
+            Entrar
+          </button>
+          <button onClick={() => setAuthOpen(true)}
+            className="w-full mt-3 text-sm text-gray-500 hover:text-gray-700">
+            Ainda não tem conta? Criar conta
+          </button>
         </div>
+        <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} initialMode="login" />
       </div>
     );
   }
