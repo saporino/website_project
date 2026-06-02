@@ -4,6 +4,7 @@ import { Download, Printer, MessageCircle, Mail, FileText, CheckCircle } from 'l
 import { toast } from 'sonner';
 import { buildInvoiceShareUrls, extractStoragePath } from '../../utils/invoiceShare';
 import OrderInstallmentsView from './OrderInstallmentsView';
+import OrderNotes from './OrderNotes';
 
 interface Order {
   id: string;
@@ -255,6 +256,7 @@ export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
                   </div>
                 )}
                 {order.payment_method === 'boleto' && <OrderInstallmentsView orderId={order.id} />}
+                <OrderNotes orderId={order.id} />
               </div>
             );
           })}
