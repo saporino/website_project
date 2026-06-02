@@ -816,12 +816,12 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
       {/* Row 1: Title + Action buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">Representantes Comerciais</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Representantes Comerciais</h2>
           {pendingCount > 0 && (
             <p className="text-sm text-amber-600 mt-1 font-medium">{pendingCount} aguardando aprovação</p>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 overflow-x-auto [&>*]:shrink-0">
           <button onClick={() => setAdminView('price-list')}
             className="h-9 px-3.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
             <Tag className="w-4 h-4" />
@@ -835,7 +835,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
           <button onClick={() => setShowMobilePreview(true)}
             className="h-9 px-3.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
             <Smartphone className="w-4 h-4" />
-            Ver como representante
+            Ver como rep
           </button>
           <button onClick={() => setAdminView(v => v === 'map' ? 'list' : 'map')}
             className={`h-9 px-3.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 border ${
