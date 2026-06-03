@@ -23,6 +23,7 @@ interface Representative {
   cpf: string;
   phone: string;
   cnpj: string;
+  email?: string;
   status: 'pending' | 'active' | 'blocked';
   commission_rate: number;
   experience_start_date: string | null;

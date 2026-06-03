@@ -4,7 +4,7 @@ import { Upload, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 
-interface Props { rep: { id: string; full_name: string; cpf: string; phone: string; cnpj: string; commission_rate: number; has_personal_delivery: boolean; experience_start_date: string | null }; onUpdate: () => void; }
+interface Props { rep: { id: string; full_name: string; cpf: string; phone: string; cnpj: string; email?: string; commission_rate: number; has_personal_delivery: boolean; experience_start_date: string | null }; onUpdate: () => void; }
 
 const DOC_TYPES = [
   { key: 'cnh', label: 'CNH' },
@@ -14,10 +14,24 @@ const DOC_TYPES = [
   { key: 'contrato', label: 'Contrato de Representação' },
 ];
 
-export function RepCoProfile({ rep }: Props) {
+export function RepCoProfile({ rep, onUpdate }: Props) {
   const { user } = useAuth();
   const [uploading, setUploading] = useState<string | null>(null);
   const [uploaded, setUploaded] = useState<Set<string>>(new Set());
+  const [editing, setEditing] = useState(false);
+  const [savingContact, setSavingContact] = useState(false);
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+
+  async function saveContact() {
+    setSavingContact(true);
+    const { error } = await supabase.rpc('repco_update_my_contact', { p_email: email, p_phone: phone });
+    setSavingContact(false);
+    if (error) { toast.error('Erro ao salvar: ' + error.message); return; }
+    toast.success('Contato atualizado');
+    setEditing(false);
+    onUpdate?.();
+  }
 
   const handleUpload = async (docType: string, file: File) => {
     setUploading(docType);
@@ -65,14 +79,40 @@ export function RepCoProfile({ rep }: Props) {
 
       {/* Personal data */}
       <div className="bg-white border border-gray-200 rounded-xl p-6">
-        <h3 className="font-bold text-gray-900 mb-4">Dados Pessoais</h3>
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div><span className="text-gray-500">Nome:</span> <span className="font-medium ml-2">{rep.full_name}</span></div>
-          <div><span className="text-gray-500">CPF:</span> <span className="font-medium ml-2">{rep.cpf || '—'}</span></div>
-          <div><span className="text-gray-500">WhatsApp:</span> <span className="font-medium ml-2">{rep.phone || '—'}</span></div>
-          <div><span className="text-gray-500">CNPJ:</span> <span className="font-medium ml-2">{rep.cnpj || '—'}</span></div>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-gray-900">Dados Pessoais</h3>
+          {!editing && (
+            <button onClick={() => { setEmail(rep.email || ''); setPhone(rep.phone || ''); setEditing(true); }}
+              className="text-sm font-medium text-[#8B2214] hover:underline">Editar contato</button>
+          )}
         </div>
-        <p className="text-xs text-gray-400 mt-4">Para alterar seus dados, entre em contato com o administrador.</p>
+        {!editing ? (
+          <>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div><span className="text-gray-500">Nome:</span> <span className="font-medium ml-2">{rep.full_name}</span></div>
+              <div><span className="text-gray-500">CPF:</span> <span className="font-medium ml-2">{rep.cpf || '—'}</span></div>
+              <div><span className="text-gray-500">WhatsApp:</span> <span className="font-medium ml-2">{rep.phone || '—'}</span></div>
+              <div><span className="text-gray-500">CNPJ:</span> <span className="font-medium ml-2">{rep.cnpj || '—'}</span></div>
+              <div><span className="text-gray-500">E-mail:</span> <span className="font-medium ml-2">{rep.email || '—'}</span></div>
+            </div>
+            <p className="text-xs text-gray-400 mt-4">Você edita seu <b>e-mail</b> e <b>WhatsApp</b>. Nome/CPF/CNPJ são alterados pelo administrador.</p>
+          </>
+        ) : (
+          <div className="space-y-3 max-w-md">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">E-mail</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="seu@email.com" className="h-[34px] w-full rounded border border-gray-300 px-3 text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">WhatsApp / Telefone</label>
+              <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="(11) 99999-9999" className="h-[34px] w-full rounded border border-gray-300 px-3 text-sm" />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => setEditing(false)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+              <button onClick={saveContact} disabled={savingContact} className="rounded-lg bg-[#8B2214] px-5 py-2 text-sm font-semibold text-white hover:bg-[#6d1a10] disabled:opacity-50">{savingContact ? 'Salvando...' : 'Salvar'}</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Document uploads */}
