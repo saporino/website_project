@@ -8,7 +8,7 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMode?: 'login' | 'register';
-  loginContext?: 'client' | 'admin';
+  loginContext?: 'client' | 'admin' | 'rep';
 }
 
 export const AuthModal = ({ isOpen, onClose, initialMode = 'login', loginContext = 'client' }: AuthModalProps) => {
@@ -120,6 +120,26 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login', loginContext
     }
   };
 
+  const handleRepLogin = async () => {
+    if (!loginData.email || !loginData.password) {
+      setError('Por favor, preencha email e senha');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    const { error } = await signIn(loginData.email, loginData.password);
+    if (error) {
+      setError('Email ou senha incorretos');
+      setLoading(false);
+      return;
+    }
+    // Representante entra direto no portal RepCo
+    onClose();
+    setLoginData({ email: '', password: '' });
+    window.history.pushState({}, '', '/repco');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  };
+
   const handleRegisterSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -202,7 +222,7 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login', loginContext
           )}
 
           {mode === 'login' ? (
-            <form onSubmit={loginContext === 'admin' ? (e) => { e.preventDefault(); handleAdminLogin(); } : handleLoginSubmit} className="space-y-6">
+            <form onSubmit={loginContext === 'admin' ? (e) => { e.preventDefault(); handleAdminLogin(); } : loginContext === 'rep' ? (e) => { e.preventDefault(); handleRepLogin(); } : handleLoginSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   E-mail *
@@ -240,9 +260,9 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login', loginContext
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full text-white py-4 rounded-full font-semibold transition-all shadow-lg disabled:bg-gray-300 ${loginContext === 'admin' ? 'bg-gray-800 hover:bg-gray-900' : 'bg-[#a4240e] hover:bg-[#8a1f0c]'}`}
+                className={`w-full text-white py-4 rounded-full font-semibold transition-all shadow-lg disabled:bg-gray-300 ${loginContext === 'admin' ? 'bg-gray-800 hover:bg-gray-900' : loginContext === 'rep' ? 'bg-[#8B2214] hover:bg-[#6d1a10]' : 'bg-[#a4240e] hover:bg-[#8a1f0c]'}`}
               >
-                {loading ? (loginContext === 'admin' ? 'Verificando...' : 'Entrando...') : (loginContext === 'admin' ? 'Entrar como Admin' : 'Acessar')}
+                {loading ? (loginContext === 'admin' ? 'Verificando...' : 'Entrando...') : (loginContext === 'admin' ? 'Entrar como Admin' : loginContext === 'rep' ? 'Entrar no Portal RepCo' : 'Acessar')}
               </button>
 
               <div className="text-center space-y-3">
