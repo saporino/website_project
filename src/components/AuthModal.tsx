@@ -8,9 +8,10 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMode?: 'login' | 'register';
+  loginContext?: 'client' | 'admin';
 }
 
-export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }: AuthModalProps) => {
+export const AuthModal = ({ isOpen, onClose, initialMode = 'login', loginContext = 'client' }: AuthModalProps) => {
   const [mode, setMode] = useState<'login' | 'register' | 'forgot-password'>(initialMode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -201,7 +202,7 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }: AuthModalP
           )}
 
           {mode === 'login' ? (
-            <form onSubmit={handleLoginSubmit} className="space-y-6">
+            <form onSubmit={loginContext === 'admin' ? (e) => { e.preventDefault(); handleAdminLogin(); } : handleLoginSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   E-mail *
@@ -239,20 +240,12 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }: AuthModalP
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#a4240e] text-white py-4 rounded-full font-semibold hover:bg-[#8a1f0c] transition-all shadow-lg disabled:bg-gray-300"
+                className={`w-full text-white py-4 rounded-full font-semibold transition-all shadow-lg disabled:bg-gray-300 ${loginContext === 'admin' ? 'bg-gray-800 hover:bg-gray-900' : 'bg-[#a4240e] hover:bg-[#8a1f0c]'}`}
               >
-                {loading ? 'Entrando...' : 'Acessar'}
+                {loading ? (loginContext === 'admin' ? 'Verificando...' : 'Entrando...') : (loginContext === 'admin' ? 'Entrar como Admin' : 'Acessar')}
               </button>
 
               <div className="text-center space-y-3">
-                <button
-                  type="button"
-                  onClick={handleAdminLogin}
-                  disabled={loading}
-                  className="w-full bg-gray-800 text-white py-3 rounded-full font-semibold hover:bg-gray-900 transition-all disabled:bg-gray-400"
-                >
-                  {loading ? 'Verificando...' : 'Admin'}
-                </button>
                 <button
                   type="button"
                   onClick={() => setMode('forgot-password')}
@@ -260,15 +253,17 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login' }: AuthModalP
                 >
                   Esqueceu sua senha?
                 </button>
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => setMode('register')}
-                    className="text-[#a4240e] hover:text-[#8a1f0c] font-medium"
-                  >
-                    Não tem uma conta? Registre-se
-                  </button>
-                </div>
+                {loginContext !== 'admin' && (
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setMode('register')}
+                      className="text-[#a4240e] hover:text-[#8a1f0c] font-medium"
+                    >
+                      Não tem uma conta? Registre-se
+                    </button>
+                  </div>
+                )}
               </div>
             </form>
           ) : mode === 'register' ? (

@@ -119,6 +119,7 @@ function AppContent() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+  const [authLoginContext, setAuthLoginContext] = useState<'client' | 'admin'>('client');
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -160,8 +161,9 @@ function AppContent() {
     setIsMobileMenuOpen(false);
   };
 
-  const openAuth = (mode: 'login' | 'register') => {
+  const openAuth = (mode: 'login' | 'register', context: 'client' | 'admin' = 'client') => {
     setAuthModalMode(mode);
+    setAuthLoginContext(context);
     setIsAuthModalOpen(true);
   };
 
@@ -192,6 +194,7 @@ function AppContent() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         initialMode={authModalMode}
+        loginContext={authLoginContext}
       />
       <Toaster position="top-center" richColors />
     </div>
@@ -397,7 +400,7 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
                       </button>
                       <button
                         onClick={() => {
-                          onAuthOpen('login');
+                          onAuthOpen('login', 'admin');
                           setAccountDropdownOpen(false);
                         }}
                         className="w-full text-left px-4 py-3 text-gray-700 hover:bg-stone-50 transition-colors flex items-center space-x-3"
