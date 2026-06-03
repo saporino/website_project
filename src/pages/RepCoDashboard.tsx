@@ -126,7 +126,7 @@ export function RepCoDashboard() {
             Ainda não tem conta? Criar conta
           </button>
         </div>
-        <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} initialMode="login" />
+        <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} initialMode="login" loginContext="rep" />
       </div>
     );
   }
