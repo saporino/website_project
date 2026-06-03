@@ -288,6 +288,8 @@ export default function RepCoProspection({ representativeId, currentLat, current
   const [convertingLead, setConvertingLead] = useState<ProspectLead | null>(null);
   const [convertForm, setConvertForm] = useState<ConvertForm | null>(null);
   const [converting, setConverting] = useState(false);
+  const [cityFilter, setCityFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
 
   useEffect(() => {
     fetchLeads();
@@ -555,6 +557,12 @@ export default function RepCoProspection({ representativeId, currentLat, current
     });
   }, [currentLat, currentLng, leads]);
 
+  const cities = Array.from(new Set(leads.map(l => l.city).filter(Boolean))).sort() as string[];
+  const categories = Array.from(new Set(leads.map(l => l.category).filter(Boolean))).sort() as string[];
+  const visibleLeads = sortedLeads.filter(l =>
+    (!cityFilter || l.city === cityFilter) && (!categoryFilter || l.category === categoryFilter)
+  );
+
   if (loading) {
     return <div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#a4240e]" /></div>;
   }
@@ -563,8 +571,27 @@ export default function RepCoProspection({ representativeId, currentLat, current
     <div className="space-y-3">
       <div>
         <h3 className="text-base font-semibold text-gray-800">Minha Prospecção</h3>
-        <p className="text-xs text-gray-500">{leads.length} lead{leads.length !== 1 ? 's' : ''} atribuídos para visita.</p>
+        <p className="text-xs text-gray-500">
+          {visibleLeads.length} de {leads.length} lead{leads.length !== 1 ? 's' : ''}
+          {currentLat !== undefined && currentLng !== undefined ? ' · do mais perto ao mais longe' : ''}.
+        </p>
       </div>
+
+      {leads.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <select value={cityFilter} onChange={e => setCityFilter(e.target.value)} className="h-9 rounded-lg border border-gray-300 px-3 text-sm">
+            <option value="">Todas as cidades</option>
+            {cities.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="h-9 rounded-lg border border-gray-300 px-3 text-sm">
+            <option value="">Todas as categorias</option>
+            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          {(cityFilter || categoryFilter) && (
+            <button onClick={() => { setCityFilter(''); setCategoryFilter(''); }} className="h-9 rounded-lg border border-gray-300 px-3 text-sm text-gray-600 hover:bg-gray-50">Limpar</button>
+          )}
+        </div>
+      )}
 
       {leads.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white py-12 text-center">
@@ -573,7 +600,8 @@ export default function RepCoProspection({ representativeId, currentLat, current
         </div>
       ) : (
         <div className="space-y-2.5">
-          {sortedLeads.map(lead => {
+          {visibleLeads.length === 0 && <p className="rounded-xl border border-gray-200 bg-white py-8 text-center text-sm text-gray-400">Nenhum lead com esses filtros.</p>}
+          {visibleLeads.map(lead => {
             const address = buildAddress(lead);
             const distance =
               currentLat !== undefined && currentLng !== undefined && lead.lat !== null && lead.lng !== null
