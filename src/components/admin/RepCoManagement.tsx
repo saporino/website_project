@@ -1,5 +1,5 @@
 import { useState, useEffect, Suspense, lazy, useMemo, useRef } from 'react';
-import { CheckCircle, XCircle, Eye, Plus, Upload, Phone, Mail, Map, Search, Smartphone, ArrowRightLeft, Tag, ExternalLink, BarChart3, Users } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, Plus, Upload, Phone, Mail, Map, Search, Smartphone, ArrowRightLeft, Tag, ExternalLink, BarChart3, Users, Pencil } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
@@ -109,6 +109,34 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     const active = reps.filter(r => r.status === 'active');
     setPreviews(active.slice(0, 6).map(r => ({ id: ++previewSeq.current, repId: r.id })));
   };
+  // Edição dos dados do representante (admin)
+  const [editing, setEditing] = useState(false);
+  const [savingRep, setSavingRep] = useState(false);
+  const [editForm, setEditForm] = useState({ full_name: '', email: '', phone: '', cpf: '', cnpj: '', commission_rate: 5, has_personal_delivery: false });
+  function openEditRep() {
+    if (!selectedRep) return;
+    setEditForm({
+      full_name: selectedRep.full_name || '', email: selectedRep.email || '', phone: selectedRep.phone || '',
+      cpf: selectedRep.cpf || '', cnpj: selectedRep.cnpj || '',
+      commission_rate: selectedRep.commission_rate ?? 5, has_personal_delivery: !!selectedRep.has_personal_delivery,
+    });
+    setEditing(true);
+  }
+  async function handleSaveRep() {
+    if (!selectedRep) return;
+    setSavingRep(true);
+    const { error } = await supabase.from('representatives').update({
+      full_name: editForm.full_name || null, email: editForm.email || null, phone: editForm.phone || null,
+      cpf: editForm.cpf || null, cnpj: editForm.cnpj || null,
+      commission_rate: Number(editForm.commission_rate) || 0, has_personal_delivery: editForm.has_personal_delivery,
+    }).eq('id', selectedRep.id);
+    setSavingRep(false);
+    if (error) { toast.error('Erro ao salvar: ' + error.message); return; }
+    toast.success('Dados do representante atualizados');
+    setSelectedRep({ ...selectedRep, ...editForm } as Representative);
+    setEditing(false);
+    fetchReps();
+  }
 
   // Product selector for order form
   interface OrderProduct { id: string; name: string; price: number; image_url: string | null; stock: number; in_stock: boolean; }
@@ -484,6 +512,9 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
             </div>
           </div>
           <div className="flex gap-2">
+            <button onClick={openEditRep} className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors">
+              <Pencil className="w-4 h-4" /> Editar
+            </button>
             <button onClick={() => openPreview(selectedRep.id)} className="flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 transition-colors">
               <Smartphone className="w-4 h-4" /> Ver como representante
             </button>
@@ -499,6 +530,37 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
             )}
           </div>
         </div>
+
+        {editing && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setEditing(false)}>
+            <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-white" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between border-b border-gray-100 p-4">
+                <h3 className="font-bold text-gray-900">Editar representante</h3>
+                <button onClick={() => setEditing(false)} className="rounded-lg p-1.5 hover:bg-gray-100"><XCircle className="h-5 w-5 text-gray-400" /></button>
+              </div>
+              <div className="space-y-3 p-4">
+                {[{ k: 'full_name', l: 'Nome completo' }, { k: 'email', l: 'E-mail' }, { k: 'phone', l: 'WhatsApp / Telefone' }, { k: 'cpf', l: 'CPF' }, { k: 'cnpj', l: 'CNPJ' }].map(f => (
+                  <div key={f.k}>
+                    <label className="mb-1 block text-xs font-medium text-gray-600">{f.l}</label>
+                    <input value={(editForm as any)[f.k]} onChange={e => setEditForm(p => ({ ...p, [f.k]: e.target.value }))} className="h-[34px] w-full rounded border border-gray-300 px-3 text-sm" />
+                  </div>
+                ))}
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Comissão base (%)</label>
+                  <input type="number" step="0.5" value={editForm.commission_rate} onChange={e => setEditForm(p => ({ ...p, commission_rate: parseFloat(e.target.value) || 0 }))} className="h-[34px] w-full rounded border border-gray-300 px-3 text-sm" />
+                </div>
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input type="checkbox" checked={editForm.has_personal_delivery} onChange={e => setEditForm(p => ({ ...p, has_personal_delivery: e.target.checked }))} />
+                  Entrega pessoal liberada (+2,5%)
+                </label>
+              </div>
+              <div className="flex justify-end gap-2 border-t border-gray-100 p-4">
+                <button onClick={() => setEditing(false)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>
+                <button onClick={handleSaveRep} disabled={savingRep} className="rounded-lg bg-[#8B2214] px-5 py-2 text-sm font-semibold text-white hover:bg-[#6d1a10] disabled:opacity-50">{savingRep ? 'Salvando...' : 'Salvar'}</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-4">
