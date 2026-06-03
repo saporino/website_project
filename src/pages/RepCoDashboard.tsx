@@ -10,9 +10,10 @@ import { RepCoPerformance } from '../components/repco/RepCoPerformance';
 import RepCoNewOrder from '../components/repco/RepCoNewOrder';
 import RepCoHome from '../components/repco/RepCoHome';
 import RepCoProspection from '../components/repco/RepCoProspection';
+import RepCoDeliveries from '../components/repco/RepCoDeliveries';
 import { usePresence } from '../hooks/usePresence';
 import { useGeolocation } from '../hooks/useGeolocation';
-import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Map, Home, ClipboardList, Radio } from 'lucide-react';
+import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Map, Home, ClipboardList, Radio, Truck } from 'lucide-react';
 import { useTrainingListener, espelhoTabToRepTab } from '../lib/training';
 
 const RepCoRoutes = lazy(() => import('../components/repco/RepCoRoutes'));
@@ -30,7 +31,7 @@ interface Representative {
   has_personal_delivery: boolean;
 }
 
-type RepCoTab = 'inicio' | 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido' | 'rotas' | 'prospection';
+type RepCoTab = 'inicio' | 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido' | 'rotas' | 'entregas' | 'prospection';
 
 export function RepCoDashboard() {
   const { user, profile, signOut } = useAuth();
@@ -46,6 +47,7 @@ export function RepCoDashboard() {
     performance: 0,
     novo_pedido: 0,
     rotas: 0,
+    entregas: 0,
     prospection: 0,
   });
   const [preSelectedClientId, setPreSelectedClientId] = useState<string | null>(null);
@@ -243,6 +245,7 @@ export function RepCoDashboard() {
     { id: 'novo_pedido', label: 'Novo Pedido', icon: ShoppingCart },
     { id: 'orders', label: 'Pedidos', icon: ShoppingBag },
     { id: 'rotas', label: 'Rotas', icon: Map },
+    { id: 'entregas', label: 'Entregas', icon: Truck },
     { id: 'prospection', label: 'Prospecção', icon: ClipboardList },
     { id: 'commissions', label: 'Comissões', icon: DollarSign },
     { id: 'performance', label: 'Performance', icon: TrendingUp },
@@ -340,6 +343,7 @@ export function RepCoDashboard() {
                 />
               </Suspense>
             )}
+            {activeTab === 'entregas' && <RepCoDeliveries representativeId={rep!.id} currentLat={coords?.lat} currentLng={coords?.lng} refreshKey={refreshVersion.entregas} />}
             {activeTab === 'prospection' && <RepCoProspection representativeId={rep!.id} currentLat={coords?.lat} currentLng={coords?.lng} refreshKey={refreshVersion.prospection} />}
             {activeTab === 'commissions' && <RepCoCommissions repId={rep!.id} />}
             {activeTab === 'performance' && <RepCoPerformance repId={rep!.id} />}
