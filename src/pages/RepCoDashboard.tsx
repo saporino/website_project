@@ -297,19 +297,15 @@ export function RepCoDashboard() {
 
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          <nav className="flex border-b border-gray-200 p-2 gap-1">
-            {tabs.map(tab => {
-              const Icon = tab.icon;
-              return (
-                <button key={tab.id} onClick={() => openTab(tab.id)}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-sm transition-all ${
-                    activeTab === tab.id ? 'bg-[#a4240e] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
-                  }`}>
-                  <Icon className="w-4 h-4" />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
+          <nav className="flex border-b border-gray-200 p-1.5 gap-0.5">
+            {tabs.map(tab => (
+              <button key={tab.id} onClick={() => openTab(tab.id)}
+                className={`flex-1 px-2 py-2 rounded-lg font-medium text-xs text-center whitespace-nowrap transition-all ${
+                  activeTab === tab.id ? 'bg-[#a4240e] text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'
+                }`}>
+                {tab.label}
+              </button>
+            ))}
           </nav>
           <div className="p-8">
             {activeTab === 'inicio' && (
