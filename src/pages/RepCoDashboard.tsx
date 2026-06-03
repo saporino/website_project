@@ -13,7 +13,7 @@ import RepCoProspection from '../components/repco/RepCoProspection';
 import RepCoDeliveries from '../components/repco/RepCoDeliveries';
 import { usePresence } from '../hooks/usePresence';
 import { useGeolocation } from '../hooks/useGeolocation';
-import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Map, Home, ClipboardList, Radio, Truck } from 'lucide-react';
+import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Map, Home, ClipboardList, Radio, Truck, MoreHorizontal } from 'lucide-react';
 import { useTrainingListener, espelhoTabToRepTab } from '../lib/training';
 
 const RepCoRoutes = lazy(() => import('../components/repco/RepCoRoutes'));
@@ -55,6 +55,7 @@ export function RepCoDashboard() {
   const [regForm, setRegForm] = useState({ full_name: profile?.full_name || '', cpf: '', phone: '', cnpj: '' });
   const [submitting, setSubmitting] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const { coords } = useGeolocation({
     enabled: !!rep && rep.status === 'active',
@@ -250,6 +251,10 @@ export function RepCoDashboard() {
     { id: 'commissions', label: 'Comissões', icon: DollarSign },
     { id: 'performance', label: 'Performance', icon: TrendingUp },
   ];
+  // Mobile: barra inferior corporativa = 4 principais + "Mais" (o resto em sheet)
+  const MOBILE_PRIMARY: RepCoTab[] = ['inicio', 'clients', 'novo_pedido', 'entregas'];
+  const primaryTabs = tabs.filter(t => MOBILE_PRIMARY.includes(t.id));
+  const moreTabs = tabs.filter(t => !MOBILE_PRIMARY.includes(t.id));
 
   return (
     <div className="min-h-screen bg-[#f8f7f5]">
@@ -298,9 +303,9 @@ export function RepCoDashboard() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 pt-6 md:pt-8 pb-24 md:pb-8">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-          <nav className="flex border-b border-gray-200 p-1.5 gap-0.5">
+          <nav className="hidden md:flex border-b border-gray-200 p-1.5 gap-0.5">
             {tabs.map(tab => (
               <button key={tab.id} onClick={() => openTab(tab.id)}
                 className={`flex-1 px-2 py-2 rounded-lg font-medium text-xs text-center whitespace-nowrap transition-all ${
@@ -350,6 +355,44 @@ export function RepCoDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Barra de navegação inferior (mobile) — padrão corporativo */}
+      <nav className="fixed bottom-0 inset-x-0 z-30 flex border-t border-gray-200 bg-white shadow-[0_-1px_8px_rgba(0,0,0,0.06)] md:hidden">
+        {primaryTabs.map(tab => {
+          const Icon = tab.icon;
+          const on = activeTab === tab.id && !moreOpen;
+          return (
+            <button key={tab.id} onClick={() => { openTab(tab.id); setMoreOpen(false); }}
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${on ? 'text-[#a4240e]' : 'text-gray-500'}`}>
+              <Icon className="h-5 w-5" /><span className="max-w-full truncate px-0.5">{tab.label}</span>
+            </button>
+          );
+        })}
+        <button onClick={() => setMoreOpen(v => !v)}
+          className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${moreOpen ? 'text-[#a4240e]' : 'text-gray-500'}`}>
+          <MoreHorizontal className="h-5 w-5" /><span>Mais</span>
+        </button>
+      </nav>
+
+      {moreOpen && (
+        <div className="md:hidden">
+          <div className="fixed inset-0 z-30 bg-black/30" onClick={() => setMoreOpen(false)} />
+          <div className="fixed inset-x-0 bottom-[54px] z-40 rounded-t-2xl border-t border-gray-200 bg-white p-3 shadow-2xl">
+            <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Mais opções</p>
+            <div className="grid grid-cols-3 gap-2">
+              {moreTabs.map(tab => {
+                const Icon = tab.icon;
+                return (
+                  <button key={tab.id} onClick={() => { openTab(tab.id); setMoreOpen(false); }}
+                    className={`flex flex-col items-center gap-1 rounded-xl py-3 text-[11px] font-medium transition-colors ${activeTab === tab.id ? 'bg-[#a4240e] text-white' : 'text-gray-700 hover:bg-gray-100'}`}>
+                    <Icon className="h-5 w-5" /><span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

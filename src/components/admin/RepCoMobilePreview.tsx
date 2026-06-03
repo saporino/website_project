@@ -260,7 +260,7 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
                 </select>
               </header>
 
-              <nav className="flex gap-1 overflow-x-auto border-b border-gray-200 bg-white px-2.5 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <nav className="grid grid-cols-5 border-b border-gray-200 bg-white">
                 {TABS.map(tab => {
                   const Icon = tab.icon;
                   return (
@@ -268,12 +268,12 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
                       key={tab.id}
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex min-w-max items-center gap-1.5 border-b-2 px-2 py-1.5 text-[11px] font-semibold transition-colors ${
+                      className={`flex flex-col items-center gap-0.5 border-b-2 py-1.5 text-[9px] font-semibold leading-tight transition-colors ${
                         activeTab === tab.id ? 'border-[#8B2214] text-[#8B2214]' : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}
                     >
-                      <Icon className="h-3.5 w-3.5" />
-                      {tab.label}
+                      <Icon className="h-4 w-4" />
+                      <span className="max-w-full truncate px-0.5">{tab.label}</span>
                     </button>
                   );
                 })}
