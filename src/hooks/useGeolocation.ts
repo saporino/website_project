@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export interface Coords {
   lat: number;
@@ -38,34 +38,15 @@ export function useGeolocation({ enabled, proximityStops = [], proximityRadiusMe
   const alertedStops = useRef<Set<string>>(new Set());
   const watchId = useRef<number | null>(null);
 
-  const checkProximity = useCallback(
-    (position: GeolocationPosition) => {
-      const { latitude: lat, longitude: lng, accuracy } = position.coords;
-      setCoords({ lat, lng, accuracy });
-      setLoading(false);
-      if (!onProximityAlert || proximityStops.length === 0) return;
-      const now = new Date();
-      proximityStops.forEach(stop => {
-        if (!stop.lat || !stop.lng) return;
-        if (alertedStops.current.has(stop.id)) return;
-        if (stop.scheduled_at) {
-          const scheduled = new Date(stop.scheduled_at);
-          const isToday =
-            scheduled.getFullYear() === now.getFullYear() &&
-            scheduled.getMonth() === now.getMonth() &&
-            scheduled.getDate() === now.getDate();
-          if (!isToday) return;
-        }
-        const distance = haversineMeters(lat, lng, stop.lat, stop.lng);
-        if (distance <= proximityRadiusMeters) {
-          alertedStops.current.add(stop.id);
-          onProximityAlert({ stopId: stop.id, stopName: stop.name, distanceMeters: Math.round(distance) });
-          setTimeout(() => alertedStops.current.delete(stop.id), 30 * 60 * 1000);
-        }
-      });
-    },
-    [proximityStops, proximityRadiusMeters, onProximityAlert]
-  );
+  // Refs com os valores mais recentes — assim o watchPosition NÃO é re-registrado
+  // a cada render (proximityStops/onProximityAlert chegam como refs novas a cada render).
+  // Sem isto, o efeito re-rodava sem parar → setCoords em loop → PATCH presence em rajada.
+  const stopsRef = useRef(proximityStops);
+  const radiusRef = useRef(proximityRadiusMeters);
+  const alertRef = useRef(onProximityAlert);
+  stopsRef.current = proximityStops;
+  radiusRef.current = proximityRadiusMeters;
+  alertRef.current = onProximityAlert;
 
   useEffect(() => {
     if (!enabled) {
@@ -75,7 +56,34 @@ export function useGeolocation({ enabled, proximityStops = [], proximityRadiusMe
     if (!navigator.geolocation) { setError('Geolocalização não suportada neste dispositivo.'); return; }
     setLoading(true);
     watchId.current = navigator.geolocation.watchPosition(
-      checkProximity,
+      position => {
+        const { latitude: lat, longitude: lng, accuracy } = position.coords;
+        // Só atualiza se a posição realmente mudou (evita re-render/PATCH com a mesma coordenada).
+        setCoords(prev => (prev && prev.lat === lat && prev.lng === lng && prev.accuracy === accuracy ? prev : { lat, lng, accuracy }));
+        setLoading(false);
+        const onAlert = alertRef.current;
+        const stops = stopsRef.current;
+        if (!onAlert || stops.length === 0) return;
+        const now = new Date();
+        stops.forEach(stop => {
+          if (!stop.lat || !stop.lng) return;
+          if (alertedStops.current.has(stop.id)) return;
+          if (stop.scheduled_at) {
+            const scheduled = new Date(stop.scheduled_at);
+            const isToday =
+              scheduled.getFullYear() === now.getFullYear() &&
+              scheduled.getMonth() === now.getMonth() &&
+              scheduled.getDate() === now.getDate();
+            if (!isToday) return;
+          }
+          const distance = haversineMeters(lat, lng, stop.lat, stop.lng);
+          if (distance <= radiusRef.current) {
+            alertedStops.current.add(stop.id);
+            onAlert({ stopId: stop.id, stopName: stop.name, distanceMeters: Math.round(distance) });
+            setTimeout(() => alertedStops.current.delete(stop.id), 30 * 60 * 1000);
+          }
+        });
+      },
       err => {
         setLoading(false);
         setError(err.code === err.PERMISSION_DENIED ? 'Permissão de localização negada. Ative nas configurações do celular.' : 'Erro ao obter localização.');
@@ -83,7 +91,7 @@ export function useGeolocation({ enabled, proximityStops = [], proximityRadiusMe
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
     );
     return () => { if (watchId.current !== null) navigator.geolocation.clearWatch(watchId.current); };
-  }, [enabled, checkProximity]);
+  }, [enabled]);
 
   return { coords, error, loading };
 }

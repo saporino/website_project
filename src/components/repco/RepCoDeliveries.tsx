@@ -77,9 +77,9 @@ export default function RepCoDeliveries({ representativeId, currentLat, currentL
       const path = `canhoto/${d.id}/${Date.now()}-${file.name}`;
       const { data, error } = await supabase.storage.from('invoices').upload(path, file, { upsert: true });
       if (error || !data) { toast.error('Erro ao enviar o canhoto'); setBusy(null); return; }
-      const { data: url } = supabase.storage.from('invoices').getPublicUrl(data.path || path);
+      // invoices é bucket PRIVADO → guardar o PATH (não URL pública); ver via createSignedUrl.
       const { error: rpcErr } = await supabase.rpc('repco_update_delivery', {
-        p_order_id: d.id, p_status: 'entregue', p_proof_url: url.publicUrl, p_proof_filename: file.name,
+        p_order_id: d.id, p_status: 'entregue', p_proof_url: data.path || path, p_proof_filename: file.name,
         p_lat: currentLat ?? null, p_lng: currentLng ?? null,
       });
       setBusy(null);
@@ -89,6 +89,16 @@ export default function RepCoDeliveries({ representativeId, currentLat, currentL
       fetchDeliveries();
     });
     document.body.appendChild(input); input.click();
+  }
+
+  async function verCanhoto(pathOrUrl: string) {
+    // Bucket privado → URL assinada. Aceita path novo OU URL pública antiga (extrai o path).
+    let path = pathOrUrl;
+    const m = pathOrUrl.match(/\/invoices\/(.+)$/);
+    if (m) path = decodeURIComponent(m[1]);
+    const { data, error } = await supabase.storage.from('invoices').createSignedUrl(path, 3600);
+    if (error || !data?.signedUrl) { toast.error('Não foi possível abrir o canhoto'); return; }
+    window.open(data.signedUrl, '_blank');
   }
 
   function navegar(d: Delivery, app: 'google' | 'waze') {
@@ -166,7 +176,7 @@ export default function RepCoDeliveries({ representativeId, currentLat, currentL
                       <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-600" />
                     </div>
                     {d.delivery_proof_url && (
-                      <a href={d.delivery_proof_url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs text-green-700 hover:underline"><Camera className="h-3.5 w-3.5" /> Ver canhoto{d.delivery_proof_filename ? ` (${d.delivery_proof_filename})` : ''}</a>
+                      <button onClick={() => verCanhoto(d.delivery_proof_url!)} className="mt-2 inline-flex items-center gap-1 text-xs text-green-700 hover:underline"><Camera className="h-3.5 w-3.5" /> Ver canhoto{d.delivery_proof_filename ? ` (${d.delivery_proof_filename})` : ''}</button>
                     )}
                   </div>
                 ))}
