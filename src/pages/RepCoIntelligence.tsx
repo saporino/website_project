@@ -81,14 +81,21 @@ export default function RepCoIntelligence() {
   const maxLinha = Math.max(...linhaAgg.map(a => a.faturamento), 1);
   const reps = [...rep].sort((a, b) => (Number(b.faturamento) || 0) - (Number(a.faturamento) || 0));
 
+  // Paleta de cores para cidades — cada cidade ganha uma cor distinta
+  const MAP_PALETTE = ['#8B2214','#1d6fa4','#2e7d32','#6a1a8a','#b45309','#0e5f6b','#7b2d00','#1a3a6b','#4a5c00','#5c1a3a'];
+  function cityColor(idx: number) { return MAP_PALETTE[idx % MAP_PALETTE.length]; }
+
   // Mapa: agrega coords por município (média), só pontos geocodificados
-  const geoMap = new Map<string, { key: string; lat: number; lng: number; faturamento: number; pedidos: number }>();
+  const geoMap = new Map<string, { key: string; lat: number; lng: number; faturamento: number; pedidos: number; colorIdx: number }>();
+  let colorCounter = 0;
   area.forEach(r => {
     if (r.lat == null || r.lng == null) return;
     const k = `${r.municipio} / ${r.uf}`;
-    const c = geoMap.get(k) || { key: k, lat: Number(r.lat), lng: Number(r.lng), faturamento: 0, pedidos: 0 };
+    if (!geoMap.has(k)) {
+      geoMap.set(k, { key: k, lat: Number(r.lat), lng: Number(r.lng), faturamento: 0, pedidos: 0, colorIdx: colorCounter++ });
+    }
+    const c = geoMap.get(k)!;
     c.faturamento += Number(r.faturamento) || 0; c.pedidos += Number(r.pedidos) || 0;
-    geoMap.set(k, c);
   });
   const areaGeo = [...geoMap.values()];
   const maxGeo = Math.max(...areaGeo.map(a => a.faturamento), 1);
@@ -126,15 +133,28 @@ export default function RepCoIntelligence() {
             {/* Mapa de calor geográfico */}
             {areaGeo.length > 0 && (
               <Panel title="Mapa de calor de vendas" icon={<MapPin className="w-4 h-4" />} hint="tamanho do círculo = faturamento">
+                {/* Legenda de cores */}
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {areaGeo.map(a => (
+                    <div key={a.key} className="flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700">
+                      <span className="inline-block w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: cityColor(a.colorIdx) }} />
+                      {a.key}
+                      <span className="text-gray-400 font-normal">{fmtK(a.faturamento)}</span>
+                    </div>
+                  ))}
+                </div>
                 <div className="rounded-lg overflow-hidden border border-gray-100" style={{ height: 360 }}>
-                  <MapContainer center={mapCenter} zoom={areaGeo.length === 1 ? 9 : 5} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
+                  <MapContainer center={mapCenter} zoom={areaGeo.length === 1 ? 9 : 7} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
                     <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                    {areaGeo.map(a => (
-                      <CircleMarker key={a.key} center={[a.lat, a.lng]} radius={8 + (a.faturamento / maxGeo) * 22}
-                        pathOptions={{ color: PRIMARY, fillColor: PRIMARY, fillOpacity: 0.5, weight: 1 }}>
-                        <Tooltip>{a.key} · {fmtBRL(a.faturamento)} · {a.pedidos} ped.</Tooltip>
-                      </CircleMarker>
-                    ))}
+                    {areaGeo.map(a => {
+                      const col = cityColor(a.colorIdx);
+                      return (
+                        <CircleMarker key={a.key} center={[a.lat, a.lng]} radius={8 + (a.faturamento / maxGeo) * 22}
+                          pathOptions={{ color: col, fillColor: col, fillOpacity: 0.55, weight: 2 }}>
+                          <Tooltip permanent={false}>{a.key} · {fmtBRL(a.faturamento)} · {a.pedidos} ped.</Tooltip>
+                        </CircleMarker>
+                      );
+                    })}
                   </MapContainer>
                 </div>
               </Panel>
