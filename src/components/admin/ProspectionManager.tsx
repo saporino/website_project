@@ -602,12 +602,14 @@ export default function ProspectionManager({ refreshKey = 0 }: { refreshKey?: nu
     window.addEventListener('admin:prospection-updated', handleRefresh);
     window.addEventListener('repco:prospection-updated', handleRefresh);
     window.addEventListener('repco:clients-updated', handleRefresh);
-    window.addEventListener('focus', handleRefresh);
+    // REMOVIDO: 'focus' -> fetchData interferia com o upload de arquivo:
+    // quando o seletor de arquivo fecha, o browser dispara focus, que chamava
+    // fetchData() -> setLoading(true) ao mesmo tempo que o parse rodava,
+    // causando race condition que impedia o preview de aparecer.
     return () => {
       window.removeEventListener('admin:prospection-updated', handleRefresh);
       window.removeEventListener('repco:prospection-updated', handleRefresh);
       window.removeEventListener('repco:clients-updated', handleRefresh);
-      window.removeEventListener('focus', handleRefresh);
     };
   }, []);
 
@@ -1094,7 +1096,7 @@ export default function ProspectionManager({ refreshKey = 0 }: { refreshKey?: nu
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6${parsedLeads.length > 0 ? ' pb-24' : ''}`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-xl font-bold text-gray-900">Prospecção RepCo</h3>
@@ -1281,6 +1283,39 @@ export default function ProspectionManager({ refreshKey = 0 }: { refreshKey?: nu
           </div>
         )}
       </div>
+
+      {/* BARRA FIXA NO RODAPÉ — aparece assim que o arquivo é lido, impossível de perder */}
+      {parsedLeads.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#8B2214] bg-[#8B2214] px-4 py-3 shadow-2xl">
+          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+            <div className="min-w-0 text-white">
+              <p className="truncate text-sm font-semibold">
+                📋 {filteredAssignableLeads.length} lead{filteredAssignableLeads.length !== 1 ? 's' : ''} prontos
+                {filteredDuplicateLeads.length > 0 && ` · ${filteredDuplicateLeads.length} já cliente`}
+                {filteredInvalidLeads.length > 0 && ` · ${filteredInvalidLeads.length} inválido`}
+              </p>
+              <p className="text-xs text-red-200">
+                {listName.trim() || 'Dê um nome à lista'} · role a página para revisar os leads
+              </p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <button
+                onClick={resetImportForm}
+                className="rounded-lg border border-red-300 bg-transparent px-3 py-2 text-sm font-medium text-white hover:bg-[#6d1a10]"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreateList}
+                disabled={saving || filteredValidLeads.length === 0 || !listName.trim()}
+                className="rounded-lg bg-white px-5 py-2 text-sm font-bold text-[#8B2214] hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {saving ? 'Criando...' : `✓ Criar lista (${filteredAssignableLeads.length} leads)`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-xl border border-gray-200 bg-white">
         <div className="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 lg:flex-row lg:items-end lg:justify-between">
