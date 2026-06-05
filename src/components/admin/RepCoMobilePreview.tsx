@@ -187,7 +187,6 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
           key={propsKey}
           representativeId={selectedRep.id}
           previewMode
-          onNavigateToRoute={() => setActiveTab('rotas')}
           onNavigateToClient={() => setActiveTab('clients')}
         />
       );

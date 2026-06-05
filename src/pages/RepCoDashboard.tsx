@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense, lazy } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { AuthModal } from '../components/AuthModal';
 import { supabase } from '../lib/supabase';
@@ -13,10 +13,9 @@ import RepCoProspection from '../components/repco/RepCoProspection';
 import RepCoDeliveries from '../components/repco/RepCoDeliveries';
 import { usePresence } from '../hooks/usePresence';
 import { useGeolocation } from '../hooks/useGeolocation';
-import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Map, Home, ClipboardList, Radio, Truck, MoreHorizontal } from 'lucide-react';
+import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Home, ClipboardList, Radio, Truck, MoreHorizontal } from 'lucide-react';
 import { useTrainingListener, espelhoTabToRepTab } from '../lib/training';
 
-const RepCoRoutes = lazy(() => import('../components/repco/RepCoRoutes'));
 
 interface Representative {
   id: string;
@@ -31,7 +30,7 @@ interface Representative {
   has_personal_delivery: boolean;
 }
 
-type RepCoTab = 'inicio' | 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido' | 'rotas' | 'entregas' | 'prospection';
+type RepCoTab = 'inicio' | 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido' | 'entregas' | 'prospection';
 
 export function RepCoDashboard() {
   const { user, profile, signOut } = useAuth();
@@ -46,7 +45,6 @@ export function RepCoDashboard() {
     commissions: 0,
     performance: 0,
     novo_pedido: 0,
-    rotas: 0,
     entregas: 0,
     prospection: 0,
   });
@@ -245,7 +243,6 @@ export function RepCoDashboard() {
     { id: 'clients', label: 'Clientes', icon: Users },
     { id: 'novo_pedido', label: 'Novo Pedido', icon: ShoppingCart },
     { id: 'orders', label: 'Pedidos', icon: ShoppingBag },
-    { id: 'rotas', label: 'Rotas', icon: Map },
     { id: 'entregas', label: 'Entregas', icon: Truck },
     { id: 'prospection', label: 'Prospecção', icon: ClipboardList },
     { id: 'commissions', label: 'Comissões', icon: DollarSign },
@@ -320,7 +317,6 @@ export function RepCoDashboard() {
               <RepCoHome
                 representativeId={rep!.id}
                 refreshKey={refreshVersion.inicio}
-                onNavigateToRoute={() => openTab('rotas')}
                 onNavigateToClient={(clientId) => { setPreSelectedClientId(clientId); openTab('novo_pedido'); }}
               />
             )}
@@ -338,17 +334,7 @@ export function RepCoDashboard() {
               />
             )}
             {activeTab === 'orders' && <RepCoOrders repId={rep!.id} refreshKey={refreshVersion.orders} />}
-            {activeTab === 'rotas' && (
-              <Suspense fallback={<div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#a4240e]"/></div>}>
-                <RepCoRoutes
-                  representativeId={rep!.id}
-                  currentLat={coords?.lat}
-                  currentLng={coords?.lng}
-                  onNavigateToOrder={(clientId) => { setPreSelectedClientId(clientId); openTab('novo_pedido'); }}
-                />
-              </Suspense>
-            )}
-            {activeTab === 'entregas' && <RepCoDeliveries representativeId={rep!.id} currentLat={coords?.lat} currentLng={coords?.lng} refreshKey={refreshVersion.entregas} />}
+            {activeTab === 'entregas' &&<RepCoDeliveries representativeId={rep!.id} currentLat={coords?.lat} currentLng={coords?.lng} refreshKey={refreshVersion.entregas} />}
             {activeTab === 'prospection' && <RepCoProspection representativeId={rep!.id} currentLat={coords?.lat} currentLng={coords?.lng} refreshKey={refreshVersion.prospection} />}
             {activeTab === 'commissions' && <RepCoCommissions repId={rep!.id} />}
             {activeTab === 'performance' && <RepCoPerformance repId={rep!.id} />}
