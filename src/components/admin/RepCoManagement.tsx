@@ -1000,6 +1000,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
           offsetIndex={i}
           representatives={reps}
           initialRepresentativeId={pv.repId ?? selectedRep?.id}
+          isTrainingMode={pv.isTrainingMode}
           onClose={() => closePreview(pv.id)}
         />
       ))}
