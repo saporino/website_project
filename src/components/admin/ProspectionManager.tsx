@@ -721,9 +721,12 @@ export default function ProspectionManager({ refreshKey = 0 }: { refreshKey?: nu
   }
 
   async function handleProspectFileUpload(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+    const input = event.target;
+    const file = input.files?.[0];
     if (!file) return;
 
+    // Feedback imediato — garante que NUNCA "não acontece nada" sem explicação.
+    toast.info(`Lendo "${file.name}"...`);
     setParseError('');
     setSelectedFileName(file.name);
     setParsedLeads([]);
@@ -736,21 +739,38 @@ export default function ProspectionManager({ refreshKey = 0 }: { refreshKey?: nu
     try {
       parsedRows = await parseProspectFile(file);
     } catch (error) {
-      setParseError(error instanceof Error ? error.message : 'Não foi possível ler o arquivo.');
+      const msg = error instanceof Error ? error.message : 'Não foi possível ler o arquivo.';
+      setParseError(msg);
+      toast.error(msg);
+      input.value = '';
       return;
     }
     const rows = parsedRows.filter(row => Object.values(row).some(value => normalizeValue(value)));
     if (rows.length === 0) {
       setParseError('Arquivo vazio ou sem cabeçalho reconhecido.');
+      toast.error('Arquivo vazio ou sem cabeçalho reconhecido.');
+      input.value = '';
       return;
     }
     if (rows.length > MAX_IMPORT_ROWS) {
-      setParseError(`Arquivo com muitas linhas. O limite atual é de ${MAX_IMPORT_ROWS.toLocaleString('pt-BR')} linhas por importação.`);
+      const msg = `Arquivo com muitas linhas. O limite atual é de ${MAX_IMPORT_ROWS.toLocaleString('pt-BR')} linhas por importação.`;
+      setParseError(msg);
+      toast.error(msg);
+      input.value = '';
       return;
     }
 
     const clients = await fetchExistingClients();
-    setParsedLeads(rows.map((row, index) => markExistingClient(normalizeRow(row, index + 2, ''), clients)));
+    const leads = rows.map((row, index) => markExistingClient(normalizeRow(row, index + 2, ''), clients));
+    setParsedLeads(leads);
+    const validCount = leads.filter(lead => lead.isValid).length;
+    if (validCount === 0) {
+      toast.warning(`${rows.length} linha(s) lida(s), mas nenhuma tem o nome da empresa numa coluna reconhecida. Veja "Ver colunas aceitas".`);
+    } else {
+      toast.success(`${rows.length} linha(s) lida(s) · ${validCount} válida(s). Revise abaixo e clique em "Criar lista".`);
+    }
+    // Reseta o input para permitir reselecionar o MESMO arquivo (o navegador não dispara change com valor igual).
+    input.value = '';
   }
 
   async function handleCreateList() {
