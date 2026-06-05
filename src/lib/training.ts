@@ -7,7 +7,8 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface TrainingState {
   active: boolean;
-  tab?: string;
+  tab?: string;           // aba atual do instrutor
+  scrollPct?: number;     // posição de scroll 0–1 (sincroniza a lista visível)
   instructor?: string;
   targets?: string[] | 'all';
 }
@@ -76,11 +77,14 @@ export function useTrainingListener(repId: string | undefined): TrainingState | 
 }
 
 // Mapeia a aba do espelho/treinamento para a aba do portal do rep.
+// DEVE incluir TODAS as abas do RepCoApp — atualizar sempre que adicionar aba nova.
 export function espelhoTabToRepTab(tab?: string): string {
   switch (tab) {
     case 'inicio':      return 'inicio';
+    case 'profile':     return 'profile';
     case 'prospection': return 'prospection';
     case 'clients':     return 'clients';
+    case 'novo_pedido': return 'novo_pedido';
     case 'orders':      return 'orders';
     case 'entregas':    return 'entregas';
     case 'commissions': return 'commissions';

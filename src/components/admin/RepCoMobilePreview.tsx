@@ -174,6 +174,9 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
   }, []);
   function startDrag(e: React.MouseEvent) { dragRef.current = { dx: e.clientX - pos.x, dy: e.clientY - pos.y }; }
 
+  // Ref do elemento main — usado para broadcast de scroll (treinamento) e recepção (espelho)
+  const mainRef = useRef<HTMLDivElement>(null);
+
   // Modo Treinamento ao vivo (broadcast) — desligado por padrão
   const sendTraining = useTrainingBroadcast();
   const [training, setTraining] = useState(false);
@@ -186,16 +189,32 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
     if (training) sendTraining({ active: true, tab: activeTab, instructor: 'Instrutor', targets: 'all' });
   }, [activeTab, training, sendTraining]);
 
-  // ESPELHO "Ver como rep": escuta o broadcast de treinamento e espelha a aba,
-  // igual ao portal real do rep. Assim o admin pode TESTAR que o broadcast funciona
-  // antes de os reps reais usarem.
+  // Broadcast de scroll: quando o instrutor rola, envia a posição (0–1) para os reps
+  function handleScroll() {
+    if (!isTrainingMode || !training || !mainRef.current) return;
+    const el = mainRef.current;
+    const pct = el.scrollHeight > el.clientHeight
+      ? el.scrollTop / (el.scrollHeight - el.clientHeight)
+      : 0;
+    sendTraining({ active: true, tab: activeTab, scrollPct: pct, instructor: 'Instrutor', targets: 'all' });
+  }
+
+  // ESPELHO "Ver como rep": escuta broadcast e espelha aba + posição de scroll
   const trainingBroadcast = useTrainingListener(!isTrainingMode ? representativeId : undefined);
   useEffect(() => {
-    if (isTrainingMode) return; // o painel de treinamento envia, não recebe
+    if (isTrainingMode) return;
     if (trainingBroadcast?.active && trainingBroadcast.tab) {
       setActiveTab(espelhoTabToRepTab(trainingBroadcast.tab) as typeof activeTab);
+      // Aplica scroll após render
+      if (trainingBroadcast.scrollPct !== undefined && mainRef.current) {
+        const el = mainRef.current;
+        requestAnimationFrame(() => {
+          el.scrollTop = trainingBroadcast.scrollPct! * (el.scrollHeight - el.clientHeight);
+        });
+      }
     } else if (trainingBroadcast?.active === false) {
       setActiveTab('inicio');
+      if (mainRef.current) mainRef.current.scrollTop = 0;
     }
   }, [trainingBroadcast, isTrainingMode]);
 
@@ -363,7 +382,7 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
               </nav>
 
               {/* área de conteúdo — ocupa todo o espaço restante e rola */}
-              <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain px-2.5 py-2.5">
+              <main ref={mainRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain px-2.5 py-2.5">
                 {renderContent()}
               </main>
             </div>
