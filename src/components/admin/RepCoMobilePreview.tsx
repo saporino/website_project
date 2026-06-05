@@ -408,8 +408,12 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
               {/* Overlay invisível para fechar o menu ao clicar fora */}
               {menuOpen && <div className="absolute inset-0 z-40" onClick={() => setMenuOpen(false)} />}
 
-              {/* área de conteúdo — ocupa todo o espaço restante e rola */}
-              <main ref={mainRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain px-2.5 py-2.5">
+              {/* área de conteúdo — zoom 0.82 = proporcional ao telefone real (375px viewport).
+                  Sem isso, componentes web (text-2xl, p-6, etc.) aparecem em tamanho desktop
+                  mesmo num container de 360px porque as media queries usam o viewport. */}
+              <main ref={mainRef} onScroll={handleScroll}
+                className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain"
+                style={{ zoom: 0.82 }}>
                 {renderContent()}
               </main>
             </div>
