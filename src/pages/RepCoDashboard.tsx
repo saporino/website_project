@@ -240,11 +240,11 @@ export function RepCoDashboard() {
   const tabs: { id: RepCoTab; label: string; icon: React.ElementType }[] = [
     { id: 'inicio', label: 'Início', icon: Home },
     { id: 'profile', label: 'Perfil', icon: User },
+    { id: 'prospection', label: 'Prospecção', icon: ClipboardList },
     { id: 'clients', label: 'Clientes', icon: Users },
     { id: 'novo_pedido', label: 'Novo Pedido', icon: ShoppingCart },
     { id: 'orders', label: 'Pedidos', icon: ShoppingBag },
     { id: 'entregas', label: 'Entregas', icon: Truck },
-    { id: 'prospection', label: 'Prospecção', icon: ClipboardList },
     { id: 'commissions', label: 'Comissões', icon: DollarSign },
     { id: 'performance', label: 'Performance', icon: TrendingUp },
   ];
