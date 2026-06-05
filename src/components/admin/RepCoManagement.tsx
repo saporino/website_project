@@ -99,14 +99,16 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   const [orderClients, setOrderClients] = useState<RepClient[]>([]);
   const [transferClientId, setTransferClientId] = useState<string | null>(null);
   const [transferRepresentativeId, setTransferRepresentativeId] = useState('');
-  const [previews, setPreviews] = useState<{ id: number; repId: string | null }[]>([]);
+  const [previews, setPreviews] = useState<{ id: number; repId: string | null; locked: boolean }[]>([]);
   const previewSeq = useRef(0);
+  // "Ver como rep" — dropdown visível, admin pode trocar de rep
   const openPreview = (repId: string | null = null) =>
-    setPreviews(p => (p.length >= 6 ? p : [...p, { id: ++previewSeq.current, repId }]));
+    setPreviews(p => (p.length >= 6 ? p : [...p, { id: ++previewSeq.current, repId, locked: false }]));
   const closePreview = (id: number) => setPreviews(p => p.filter(x => x.id !== id));
+  // "Ver todos" — cada janela fixada no seu rep (sem dropdown)
   const openAllPreviews = () => {
     const active = reps.filter(r => r.status === 'active');
-    setPreviews(active.slice(0, 6).map(r => ({ id: ++previewSeq.current, repId: r.id })));
+    setPreviews(active.slice(0, 6).map(r => ({ id: ++previewSeq.current, repId: r.id, locked: true })));
   };
   // Edição dos dados do representante (admin)
   const [editing, setEditing] = useState(false);
@@ -835,7 +837,8 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
             key={pv.id}
             offsetIndex={i}
             representatives={reps}
-            initialRepresentativeId={pv.repId ?? selectedRep.id}
+            initialRepresentativeId={pv.repId ?? selectedRep?.id}
+            locked={pv.locked}
             onClose={() => closePreview(pv.id)}
           />
         ))}

@@ -19,6 +19,8 @@ interface Props {
   initialRepresentativeId?: string | null;
   onClose: () => void;
   offsetIndex?: number;
+  /** Quando true: dropdown de troca de rep fica oculto (modo "Ver todos" — cada janela já está fixada no rep correto) */
+  locked?: boolean;
 }
 
 type PreviewTab = 'inicio' | 'prospection' | 'clients' | 'orders' | 'rotas';
@@ -124,7 +126,7 @@ function ReadOnlyOrdersPreview({ representativeId }: { representativeId: string 
   );
 }
 
-export default function RepCoMobilePreview({ representatives, initialRepresentativeId, onClose, offsetIndex = 0 }: Props) {
+export default function RepCoMobilePreview({ representatives, initialRepresentativeId, onClose, offsetIndex = 0, locked = false }: Props) {
   const availableReps = useMemo(
     () => representatives.filter(rep => rep.status === 'active'),
     [representatives]
@@ -245,18 +247,26 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
                   <p className="truncate text-[13px] font-semibold">{selectedRep?.full_name || 'Selecione um representante'}</p>
                   <p className="text-[11px] text-white/75">Espelho mobile seguro</p>
                 </div>
-                <select
-                  value={representativeId}
-                  onChange={event => setRepresentativeId(event.target.value)}
-                  className="mt-2 w-full rounded-lg border border-white/20 bg-white/95 px-3 py-1.5 text-xs font-medium text-gray-700 outline-none focus:ring-2 focus:ring-white/60"
-                >
-                  {availableReps.length === 0 && <option value="">Nenhum representante ativo</option>}
-                  {availableReps.map(rep => (
-                    <option key={rep.id} value={rep.id}>
-                      {rep.full_name}
-                    </option>
-                  ))}
-                </select>
+                {locked ? (
+                  /* Modo "Ver todos": janela fixada no rep — sem dropdown */
+                  <div className="mt-2 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90">
+                    {selectedRep?.full_name || '—'}
+                  </div>
+                ) : (
+                  /* Modo "Ver como rep": dropdown para escolher o rep */
+                  <select
+                    value={representativeId}
+                    onChange={event => setRepresentativeId(event.target.value)}
+                    className="mt-2 w-full rounded-lg border border-white/20 bg-white/95 px-3 py-1.5 text-xs font-medium text-gray-700 outline-none focus:ring-2 focus:ring-white/60"
+                  >
+                    {availableReps.length === 0 && <option value="">Nenhum representante ativo</option>}
+                    {availableReps.map(rep => (
+                      <option key={rep.id} value={rep.id}>
+                        {rep.full_name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </header>
 
               <nav className="grid grid-cols-5 border-b border-gray-200 bg-white">
