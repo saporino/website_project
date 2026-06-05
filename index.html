@@ -1,16 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR" translate="no">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- App ja esta em PT-BR. Tradutor automatico mutila o DOM e quebra o React
+         (ex.: falha ao mostrar o preview do CSV). Pedimos para NAO traduzir. -->
+    <meta name="google" content="notranslate" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     <title>Café Saporino Website Development</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root" class="notranslate" translate="no"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
