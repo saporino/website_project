@@ -28,7 +28,7 @@ interface Props {
   isTrainingMode?: boolean;
 }
 
-type PreviewTab = 'inicio' | 'prospection' | 'clients' | 'orders' | 'rotas';
+type PreviewTab = 'inicio' | 'prospection' | 'clients' | 'orders';
 
 interface PreviewOrder {
   id: string;
@@ -45,7 +45,7 @@ const TABS: { id: PreviewTab; label: string; icon: ElementType }[] = [
   { id: 'prospection', label: 'Prospecção', icon: ClipboardList },
   { id: 'clients', label: 'Clientes', icon: Users },
   { id: 'orders', label: 'Pedidos', icon: ShoppingBag },
-  { id: 'rotas', label: 'Rotas', icon: Map },
+  // 'rotas' removido (Bloco E) — aba não existe mais no portal do rep
 ];
 
 const ORDER_STATUS: Record<string, { label: string; className: string }> = {
@@ -257,7 +257,7 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
       </div>
       {!minimized && (
         <div className="rounded-b-2xl border-x-[6px] border-b-[6px] border-gray-950 bg-gray-950 shadow-2xl">
-            <div className="relative h-[64vh] max-h-[680px] overflow-hidden rounded-b-[1.1rem] bg-[#f5f3ee]">
+            <div className="relative h-[64vh] max-h-[680px] overflow-hidden rounded-b-[1.1rem] bg-[#f5f3ee] flex flex-col">
               <div className="flex items-center justify-between bg-[#8B2214] px-5 pb-0.5 pt-2.5 text-[10px] font-semibold text-white/90">
                 <span>9:41</span>
                 <span>●●●</span>
@@ -323,7 +323,7 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
                 })}
               </nav>
 
-              <main className="h-[calc(100%-150px)] overflow-y-auto overflow-x-hidden px-2.5 py-2.5">
+              <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2.5 py-2.5">
                 {renderContent()}
               </main>
             </div>
