@@ -1,20 +1,21 @@
-// Modo Treinamento ao vivo (Etapa 1) — broadcast via Supabase Realtime, sem escrita no banco.
-// O admin (pelo espelho) transmite o estado do treino; o app do rep escuta e trava/segue.
-// Desligado por padrão: nada acontece no app do rep até o admin "Ligar Treinamento".
+// Modo Treinamento ao vivo — broadcast via Supabase Realtime (cross-device)
+// + window.CustomEvent (mesmo browser/aba, para testes).
+// O admin (painel de treinamento) transmite; o portal /repco e o espelho escutam.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface TrainingState {
   active: boolean;
-  tab?: string;          // tela que o instrutor está demonstrando
-  instructor?: string;   // nome de quem conduz
-  targets?: string[] | 'all'; // quais reps recebem
+  tab?: string;
+  instructor?: string;
+  targets?: string[] | 'all';
 }
 
 const CHANNEL = 'repco-training';
+const LOCAL_EVENT = 'repco:training-state'; // para comunicação na mesma aba
 
-// Admin: mantém um canal e envia o estado do treino.
+// Admin: envia o estado do treino via Realtime (cross-device) E evento local (mesma aba).
 export function useTrainingBroadcast() {
   const chRef = useRef<RealtimeChannel | null>(null);
   useEffect(() => {
@@ -24,34 +25,64 @@ export function useTrainingBroadcast() {
     return () => { supabase.removeChannel(ch); chRef.current = null; };
   }, []);
   return useCallback((state: TrainingState) => {
+    // 1. Mesmo browser/aba (funciona para testes com espelho + treinamento abertos juntos)
+    window.dispatchEvent(new CustomEvent(LOCAL_EVENT, { detail: state }));
+    // 2. Cross-device via Supabase Realtime (para reps em outros dispositivos/abas)
     chRef.current?.send({ type: 'broadcast', event: 'state', payload: state });
   }, []);
 }
 
-// Rep: escuta o canal e devolve o estado do treino quando ele é o alvo (ou 'all').
+// Rep / Espelho: escuta tanto o evento local quanto o Realtime.
+// Devolve o estado ativo, ou { active: false } quando o treino é desligado.
 export function useTrainingListener(repId: string | undefined): TrainingState | null {
   const [state, setState] = useState<TrainingState | null>(null);
+
+  // Evento local — funciona quando emissor e receptor estão na mesma aba (testes)
+  useEffect(() => {
+    function handle(e: Event) {
+      const s = (e as CustomEvent<TrainingState>).detail;
+      const targeted = s.targets === 'all' ||
+        (Array.isArray(s.targets) && !!repId && s.targets.includes(repId));
+      if (s.active && targeted) {
+        setState(s);
+      } else if (!s.active) {
+        setState({ active: false }); // sinaliza desligar (vai voltar para Início)
+      }
+    }
+    window.addEventListener(LOCAL_EVENT, handle);
+    return () => window.removeEventListener(LOCAL_EVENT, handle);
+  }, [repId]);
+
+  // Supabase Realtime — funciona para reps em outros dispositivos/abas
   useEffect(() => {
     if (!repId) return;
-    const ch = supabase.channel(CHANNEL);
+    const ch = supabase.channel(CHANNEL + '-rx-' + repId.slice(0, 8));
     ch.on('broadcast', { event: 'state' }, ({ payload }) => {
       const s = payload as TrainingState;
-      const targeted = s.targets === 'all' || (Array.isArray(s.targets) && s.targets.includes(repId));
-      setState(s.active && targeted ? s : null);
+      const targeted = s.targets === 'all' ||
+        (Array.isArray(s.targets) && s.targets.includes(repId));
+      if (s.active && targeted) {
+        setState(s);
+      } else if (!s.active) {
+        setState({ active: false });
+      }
     }).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [repId]);
+
   return state;
 }
 
-// Mapeia a aba do espelho (admin) para a aba do app do rep.
+// Mapeia a aba do espelho/treinamento para a aba do portal do rep.
 export function espelhoTabToRepTab(tab?: string): string {
   switch (tab) {
-    case 'inicio': return 'inicio';
-    case 'clients': return 'clients';
-    case 'orders': return 'orders';
-    case 'rotas': return 'rotas';
+    case 'inicio':      return 'inicio';
     case 'prospection': return 'prospection';
-    default: return 'inicio';
+    case 'clients':     return 'clients';
+    case 'orders':      return 'orders';
+    case 'entregas':    return 'entregas';
+    case 'commissions': return 'commissions';
+    case 'performance': return 'performance';
+    default:            return 'inicio';
   }
 }

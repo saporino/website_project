@@ -72,8 +72,8 @@ export function RepCoDashboard() {
   useEffect(() => {
     if (training?.active && training.tab) {
       setActiveTab(espelhoTabToRepTab(training.tab) as RepCoTab);
-    } else if (training && !training.active) {
-      // Instrutor desligou o ao vivo → rep volta para Início
+    } else if (training?.active === false) {
+      // Instrutor desligou → rep volta para Início
       setActiveTab('inicio');
     }
   }, [training]);

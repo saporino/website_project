@@ -181,7 +181,7 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
     if (isTrainingMode) return; // o painel de treinamento envia, não recebe
     if (trainingBroadcast?.active && trainingBroadcast.tab) {
       setActiveTab(espelhoTabToRepTab(trainingBroadcast.tab) as typeof activeTab);
-    } else if (trainingBroadcast && !trainingBroadcast.active) {
+    } else if (trainingBroadcast?.active === false) {
       setActiveTab('inicio');
     }
   }, [trainingBroadcast, isTrainingMode]);
