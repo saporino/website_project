@@ -101,11 +101,16 @@ export default function RepCoDeliveries({ representativeId, currentLat, currentL
   }
 
   function navegar(d: Delivery, app: 'google' | 'waze') {
+    // Usa nome + endereço completo — mais confiável que coordenadas brutas,
+    // que podem estar geocodificadas para o negócio vizinho.
     const c = d.client;
-    const dest = c?.lat != null && c?.lng != null ? `${c.lat},${c.lng}` : encodeURIComponent(c?.endereco_completo || clientName(c));
+    const name = clientName(c);
+    const address = c?.endereco_completo || [c?.municipio, c?.uf].filter(Boolean).join(', ') || '';
+    const query = [name, address].filter(Boolean).join(', ');
+    const encoded = encodeURIComponent(query);
     const url = app === 'waze'
-      ? (c?.lat != null ? `https://waze.com/ul?ll=${dest}&navigate=yes` : `https://waze.com/ul?q=${dest}&navigate=yes`)
-      : `https://www.google.com/maps/dir/?api=1&destination=${dest}`;
+      ? `https://waze.com/ul?q=${encoded}&navigate=yes`
+      : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
     window.open(url, '_blank');
   }
 
