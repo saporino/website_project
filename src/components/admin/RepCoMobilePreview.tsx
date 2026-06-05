@@ -48,15 +48,19 @@ interface PreviewOrder {
   representative_clients: { razao_social: string | null; nome_fantasia: string | null } | null;
 }
 
-// Abas do RepCoApp — espelho fiel do RepCoWeb (mesma ordem, mesmas funções)
-const TABS: { id: PreviewTab; label: string; icon: ElementType }[] = [
+// Abas de TRABALHO — visíveis na barra inferior (uso diário)
+const WORK_TABS: { id: PreviewTab; label: string; icon: ElementType }[] = [
   { id: 'inicio',      label: 'Início',      icon: Home        },
-  { id: 'profile',     label: 'Perfil',      icon: User        },
   { id: 'prospection', label: 'Prospecção',  icon: ClipboardList },
   { id: 'clients',     label: 'Clientes',    icon: Users       },
   { id: 'novo_pedido', label: 'Novo Pedido', icon: Plus        },
   { id: 'orders',      label: 'Pedidos',     icon: ShoppingBag },
   { id: 'entregas',    label: 'Entregas',    icon: Truck       },
+];
+
+// Abas do MENU (⋯) — acesso pessoal/relatórios, fora do fluxo de trabalho
+const MENU_TABS: { id: PreviewTab; label: string; icon: ElementType }[] = [
+  { id: 'profile',     label: 'Perfil',      icon: User        },
   { id: 'commissions', label: 'Comissões',   icon: DollarSign  },
   { id: 'performance', label: 'Performance', icon: TrendingUp  },
 ];
@@ -157,6 +161,7 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
   const [activeTab, setActiveTab] = useState<PreviewTab>('inicio');
   const [refreshKey, setRefreshKey] = useState(0);
   const [minimized, setMinimized] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [pos, setPos] = useState(() => ({ x: Math.max(8, window.innerWidth - 392 - offsetIndex * 40), y: 72 + offsetIndex * 40 }));
   const dragRef = useRef<{ dx: number; dy: number } | null>(null);
 
@@ -313,10 +318,29 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
       {!minimized && (
         <div className="rounded-b-2xl border-x-[6px] border-b-[6px] border-gray-950 bg-gray-950 shadow-2xl">
             <div className="relative h-[64vh] max-h-[680px] overflow-hidden rounded-b-[1.1rem] bg-[#f5f3ee] flex flex-col">
-              {/* barra de status — altura fixa, não encolhe */}
-              <div className="flex-shrink-0 flex items-center justify-between bg-[#8B2214] px-5 pb-0.5 pt-2.5 text-[10px] font-semibold text-white/90">
+              {/* barra de status — 3 pontinhos abrem menu Perfil/Comissões/Performance */}
+              <div className="flex-shrink-0 relative flex items-center justify-between bg-[#8B2214] px-5 pb-0.5 pt-2.5 text-[10px] font-semibold text-white/90">
                 <span>9:41</span>
-                <span>●●●</span>
+                <button
+                  onClick={() => setMenuOpen(v => !v)}
+                  className={`flex h-6 w-6 items-center justify-center rounded-full transition-colors ${menuOpen ? 'bg-white/30' : 'bg-white/10 hover:bg-white/20'}`}
+                  title="Perfil / Comissões / Performance"
+                >●●●</button>
+                {/* Dropdown menu */}
+                {menuOpen && (
+                  <div className="absolute right-2 top-7 z-50 w-44 rounded-xl border border-gray-100 bg-white shadow-xl py-1" onClick={e => e.stopPropagation()}>
+                    {MENU_TABS.map(mt => {
+                      const Icon = mt.icon;
+                      return (
+                        <button key={mt.id} onClick={() => { setActiveTab(mt.id); setMenuOpen(false); }}
+                          className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm font-medium transition-colors hover:bg-gray-50 ${activeTab === mt.id ? 'text-[#8B2214]' : 'text-gray-700'}`}>
+                          <Icon className="h-4 w-4 flex-shrink-0" />
+                          {mt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <header className="flex-shrink-0 bg-[#8B2214] px-3.5 pb-2.5 pt-1.5 text-white">
@@ -360,10 +384,10 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
                 )}
               </header>
 
-              {/* nav tabs — scrollável horizontal com todas as abas do RepCoApp */}
-              <nav className="flex-shrink-0 flex overflow-x-auto border-b border-gray-200 bg-white scrollbar-none" style={{scrollbarWidth:'none'}}>
+              {/* nav tabs de TRABALHO — 6 abas distribuídas igualmente */}
+              <nav className="flex-shrink-0 grid border-b border-gray-200 bg-white" style={{gridTemplateColumns:`repeat(${WORK_TABS.length}, 1fr)`}}>
 
-                {TABS.map(tab => {
+                {WORK_TABS.map(tab => {
                   const Icon = tab.icon;
                   return (
                     <button
@@ -380,6 +404,9 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
                   );
                 })}
               </nav>
+
+              {/* Overlay invisível para fechar o menu ao clicar fora */}
+              {menuOpen && <div className="absolute inset-0 z-40" onClick={() => setMenuOpen(false)} />}
 
               {/* área de conteúdo — ocupa todo o espaço restante e rola */}
               <main ref={mainRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain px-2.5 py-2.5">
