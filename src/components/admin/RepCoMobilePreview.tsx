@@ -175,54 +175,49 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
 
   const selectedRep = availableReps.find(rep => rep.id === representativeId) || null;
 
-  function renderContent() {
-    // MODO TREINAMENTO: tela genérica, sem dados de rep específico
-    if (isTrainingMode) {
-      return (
-        <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-          <div className="rounded-full bg-[#f5f0ef] p-4">
-            <Radio className="h-8 w-8 text-[#8B2214]" />
-          </div>
-          <p className="text-sm font-bold text-gray-800">Modo Treinamento</p>
-          <p className="text-xs text-gray-500">Use o botão <strong>Treinar</strong> acima para transmitir esta tela para todos os representantes online em tempo real.</p>
-        </div>
-      );
-    }
+  // No treinamento usa o primeiro rep ativo como demo (Admin Force tem dados reais)
+  const trainingRep = isTrainingMode ? (availableReps[0] || null) : null;
+  const activeRep = isTrainingMode ? trainingRep : selectedRep;
 
-    if (!selectedRep) {
+  function renderContent() {
+    if (!activeRep) {
       return (
         <div className="flex h-full items-center justify-center px-6 text-center">
           <div>
             <p className="text-sm font-semibold text-gray-700">Nenhum representante ativo</p>
-            <p className="mt-1 text-xs text-gray-400">Selecione um representante no dropdown acima.</p>
+            <p className="mt-1 text-xs text-gray-400">
+              {isTrainingMode ? 'Cadastre um representante ativo para usar no treinamento.' : 'Selecione um representante no dropdown acima.'}
+            </p>
           </div>
         </div>
       );
     }
 
-    // MODO "VER COMO REP": dados reais, ações DESBLOQUEADAS (admin pode ajudar)
-    const propsKey = `${selectedRep.id}-${refreshKey}`;
+    // Treinamento: dados reais (Admin Force) com ações BLOQUEADAS (só demonstração)
+    // Ver como rep: dados reais com ações DESBLOQUEADAS (admin pode ajudar)
+    const propsKey = `${activeRep.id}-${refreshKey}-${isTrainingMode ? 'train' : 'live'}`;
     if (activeTab === 'inicio') {
       return (
         <RepCoHome
           key={propsKey}
-          representativeId={selectedRep.id}
+          representativeId={activeRep.id}
+          previewMode={isTrainingMode}
           onNavigateToClient={() => setActiveTab('clients')}
         />
       );
     }
     if (activeTab === 'prospection') {
-      return <RepCoProspection key={propsKey} representativeId={selectedRep.id} />;
+      return <RepCoProspection key={propsKey} representativeId={activeRep.id} previewMode={isTrainingMode} />;
     }
     if (activeTab === 'clients') {
-      return <RepCoClients key={propsKey} representativeId={selectedRep.id} />;
+      return <RepCoClients key={propsKey} representativeId={activeRep.id} previewMode={isTrainingMode} />;
     }
     if (activeTab === 'orders') {
-      return <ReadOnlyOrdersPreview key={propsKey} representativeId={selectedRep.id} />;
+      return <ReadOnlyOrdersPreview key={propsKey} representativeId={activeRep.id} />;
     }
     return (
       <Suspense fallback={<div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#a4240e]" /></div>}>
-        <RepCoRoutes key={propsKey} representativeId={selectedRep.id} />
+        <RepCoRoutes key={propsKey} representativeId={activeRep.id} previewMode={isTrainingMode} />
       </Suspense>
     );
   }
@@ -234,7 +229,7 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
         <div className="flex min-w-0 items-center gap-2">
           <GripHorizontal className="h-4 w-4 shrink-0 text-white/50" />
           <span className="truncate text-xs font-semibold">
-            {isTrainingMode ? '📡 Treinamento — Todos' : `Espelho — ${selectedRep?.full_name || 'representante'}`}
+            {isTrainingMode ? '📡 Treinamento — Todos' : `Espelho — ${activeRep?.full_name || selectedRep?.full_name || 'representante'}`}
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
