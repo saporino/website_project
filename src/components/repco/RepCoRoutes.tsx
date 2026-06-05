@@ -123,11 +123,14 @@ export default function RepCoRoutes({ representativeId, currentLat, currentLng, 
     });
   }
 
-  function openNav(stop: Stop) {
-    if (!stop.lat || !stop.lng) return;
-    const waze = `https://waze.com/ul?ll=${stop.lat},${stop.lng}&navigate=yes`;
-    const maps = `https://maps.google.com/?daddr=${stop.lat},${stop.lng}`;
-    window.open(window.confirm('Abrir no Waze? (Cancelar = Google Maps)') ? waze : maps, '_blank');
+  function openNav(stop: Stop, app: 'google' | 'waze' = 'google') {
+    // Usa nome + endereço — mais confiável que lat/lng bruto que pode estar errado.
+    const query = [stop.company_name, stop.address, stop.city].filter(Boolean).join(', ');
+    const encoded = encodeURIComponent(query || String(stop.id));
+    const url = app === 'waze'
+      ? `https://waze.com/ul?q=${encoded}&navigate=yes`
+      : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+    window.open(url, '_blank');
   }
 
   async function finalizeDay() {
