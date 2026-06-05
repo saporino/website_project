@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Download, Printer, MessageCircle, Mail, FileText, CheckCircle, Truck, Camera } from 'lucide-react';
+import { Download, Printer, MessageCircle, Mail, FileText, CheckCircle, Truck, Camera, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { buildInvoiceShareUrls, extractStoragePath } from '../../utils/invoiceShare';
 import OrderInstallmentsView from './OrderInstallmentsView';
@@ -66,6 +66,17 @@ export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
   const [loading, setLoading] = useState(true);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  function toggleExpand(id: string) {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function expandAll() { setExpandedIds(new Set(filtered.map(o => o.id))); }
+  function collapseAll() { setExpandedIds(new Set()); }
 
   async function fetchOrders() {
     setLoading(true);
@@ -152,16 +163,28 @@ export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
   const filtered = filter === 'all' ? orders : orders.filter(o => o.status === filter);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-2xl font-bold text-gray-900">Pedidos</h2>
-        <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-semibold">
-          {(['all', 'new', 'pending', 'completed'] as Filter[]).map((f, idx) => (
-            <button key={f} onClick={() => setFilter(f)}
-              className={`px-4 py-2.5 border-r border-gray-200 last:border-0 transition-all ${idx === 0 ? 'rounded-l-xl' : idx === 3 ? 'rounded-r-xl' : ''} ${filter === f ? 'bg-[#a4240e] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
-              {f === 'all' ? 'Todos' : f === 'new' ? 'Novos' : f === 'pending' ? 'Pendentes' : 'Concluídos'}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 flex-wrap">
+          {filtered.length > 0 && (
+            <div className="flex gap-1">
+              <button onClick={expandAll} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+                <ChevronDown className="inline w-3.5 h-3.5 mr-1"/>Expandir tudo
+              </button>
+              <button onClick={collapseAll} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+                <ChevronUp className="inline w-3.5 h-3.5 mr-1"/>Recolher tudo
+              </button>
+            </div>
+          )}
+          <div className="flex items-center bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-semibold">
+            {(['all', 'new', 'pending', 'completed'] as Filter[]).map((f, idx) => (
+              <button key={f} onClick={() => setFilter(f)}
+                className={`px-4 py-2.5 border-r border-gray-200 last:border-0 transition-all ${idx === 0 ? 'rounded-l-xl' : idx === 3 ? 'rounded-r-xl' : ''} ${filter === f ? 'bg-[#a4240e] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+                {f === 'all' ? 'Todos' : f === 'new' ? 'Novos' : f === 'pending' ? 'Pendentes' : 'Concluídos'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -176,11 +199,12 @@ export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
             const hasPdf = Boolean(extractStoragePath(order.invoice_pdf_url));
             const hasXml = Boolean(extractStoragePath(order.invoice_xml_url));
             const hasProof = Boolean(order.payment_proof_filename);
+            const isExpanded = expandedIds.has(order.id);
             return (
-              <div key={order.id} className="bg-white border border-gray-200 rounded-xl p-5">
-                {/* Header do card */}
-                <div className="flex items-start justify-between">
-                  <div>
+              <div key={order.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                {/* Header clicável — colapsa/expande o card */}
+                <button onClick={() => toggleExpand(order.id)} className="w-full text-left p-4 flex items-start justify-between gap-2 hover:bg-gray-50 transition-colors">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className="font-bold text-gray-900">{order.order_number}</span>
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${st.color}`}>{st.label}</span>
@@ -197,17 +221,23 @@ export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
                       )}
                     </div>
                     {order.representative_clients && (
-                      <p className="text-base font-semibold text-gray-900 mt-1">{order.representative_clients.razao_social}</p>
+                      <p className="text-sm font-semibold text-gray-900">{order.representative_clients.razao_social}</p>
                     )}
-                    <p className="text-xs text-gray-500 mt-0.5">{order.description}</p>
+                    <p className="text-xs text-gray-500">{order.description}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xl font-bold text-gray-900">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total_amount)}
-                    </p>
-                    <p className="text-xs text-gray-400">{new Date(order.created_at).toLocaleDateString('pt-BR')}</p>
+                  <div className="flex items-start gap-2 flex-shrink-0">
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-gray-900">
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total_amount)}
+                      </p>
+                      <p className="text-xs text-gray-400">{new Date(order.created_at).toLocaleDateString('pt-BR')}</p>
+                    </div>
+                    {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0"/> : <ChevronDown className="w-4 h-4 text-gray-400 mt-1 flex-shrink-0"/>}
                   </div>
-                </div>
+                </button>
+
+                {/* Conteúdo expandido */}
+                {isExpanded && <div className="px-4 pb-4 space-y-3 border-t border-gray-100 pt-3">
 
                 {/* Seção de documentos */}
                 {(hasPdf || hasXml || hasProof) && (
@@ -316,6 +346,7 @@ export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
                 )}
                 {order.payment_method === 'boleto' && <OrderInstallmentsView orderId={order.id} />}
                 <OrderNotes orderId={order.id} />
+                </div>}
               </div>
             );
           })}

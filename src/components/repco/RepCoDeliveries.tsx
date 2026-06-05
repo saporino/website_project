@@ -38,7 +38,6 @@ export default function RepCoDeliveries({ representativeId, currentLat, currentL
       .from('representative_orders')
       .select('id,order_number,total_amount,delivery_status,delivery_proof_url,delivery_proof_filename,delivered_at,representative_clients(razao_social,nome_fantasia,endereco_completo,municipio,uf,lat,lng)')
       .eq('representative_id', representativeId)
-      .eq('is_personal_delivery', true)
       .order('created_at', { ascending: false });
     const rows: Delivery[] = (data || []).map((o: any) => ({
       ...o,
