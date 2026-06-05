@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { X, Package, Check } from 'lucide-react';
+import { X, Package, Check, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { createPreference } from '../lib/mercadopago';
@@ -44,6 +44,7 @@ export const SubscriptionCheckout = ({
 }: SubscriptionCheckoutProps) => {
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [currentStep, setCurrentStep] = useState<'info' | 'freight' | 'payment'>('info');
   const [isLoadingCep, setIsLoadingCep] = useState(false);
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
@@ -513,15 +514,26 @@ export const SubscriptionCheckout = ({
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Senha *
                       </label>
-                      <input
-                        type="password"
-                        required
-                        value={formData.customer_password}
-                        onChange={(e) => setFormData({ ...formData, customer_password: e.target.value })}
-                        placeholder="Mínimo 6 caracteres"
-                        minLength={6}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent"
-                      />
+                      <div className="relative">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          required
+                          value={formData.customer_password}
+                          onChange={(e) => setFormData({ ...formData, customer_password: e.target.value })}
+                          placeholder="Mínimo 6 caracteres"
+                          minLength={6}
+                          className="w-full px-4 pr-12 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword((v) => !v)}
+                          tabIndex={-1}
+                          aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        </button>
+                      </div>
                       <p className="text-xs text-gray-500 mt-1">
                         Crie uma senha para acessar sua conta no futuro
                       </p>
