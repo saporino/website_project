@@ -66,10 +66,16 @@ export function RepCoDashboard() {
     enabled: !!rep && rep.status === 'active',
   });
 
-  // Modo Treinamento ao vivo: segue a tela do instrutor e trava a interação (só assiste).
+  // Modo Treinamento ao vivo: segue a tela do instrutor.
+  // Ligado: espelha a aba do instrutor. Desligado: volta para Início.
   const training = useTrainingListener(rep?.id);
   useEffect(() => {
-    if (training?.active && training.tab) setActiveTab(espelhoTabToRepTab(training.tab) as RepCoTab);
+    if (training?.active && training.tab) {
+      setActiveTab(espelhoTabToRepTab(training.tab) as RepCoTab);
+    } else if (training && !training.active) {
+      // Instrutor desligou o ao vivo → rep volta para Início
+      setActiveTab('inicio');
+    }
   }, [training]);
 
   useEffect(() => { if (user) fetchRep(); }, [user]);
@@ -299,6 +305,15 @@ export function RepCoDashboard() {
           </div>
         </div>
       </header>
+
+      {/* Banner de treinamento ao vivo */}
+      {training?.active && (
+        <div className="bg-[#8B2214] text-white text-xs font-semibold text-center py-2 px-4 flex items-center justify-center gap-2 animate-pulse">
+          <span className="inline-block w-2 h-2 rounded-full bg-white" />
+          Treinamento ao vivo — sua tela está sendo guiada pelo instrutor
+          <span className="inline-block w-2 h-2 rounded-full bg-white" />
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 md:px-6 pt-6 md:pt-8 pb-24 md:pb-8">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
