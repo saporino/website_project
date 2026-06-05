@@ -72,13 +72,13 @@ function previsaoBoleto(due: string | null): Date | null {
   return r;
 }
 
-type Tab = 'avista' | 'aprazo' | 'pagas';
+type Tab = 'todas' | 'avista' | 'aprazo' | 'pagas';
 
 export function RepCoCommissions({ repId }: Props) {
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [boletoComms, setBoletoComms] = useState<BoletoComm[]>([]);
   const [instByOrder, setInstByOrder] = useState<Record<string, Installment[]>>({});
-  const [tab, setTab] = useState<Tab>('avista');
+  const [tab, setTab] = useState<Tab>('todas');
   const [loading, setLoading] = useState(true);
   const [proofUrls, setProofUrls] = useState<Record<string, string>>({});
 
@@ -161,6 +161,7 @@ export function RepCoCommissions({ repId }: Props) {
   }
 
   const tabs: { key: Tab; label: string }[] = [
+    { key: 'todas', label: 'Todas' },
     { key: 'avista', label: 'À Vista (PIX)' },
     { key: 'aprazo', label: 'A Prazo (Boleto)' },
     { key: 'pagas', label: 'Pagas' },
@@ -200,6 +201,58 @@ export function RepCoCommissions({ repId }: Props) {
         <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-10 w-10 border-b-4 border-[#a4240e]" /></div>
       ) : (
         <>
+          {tab === 'todas' && (() => {
+            const hasAny = avista.length > 0 || aprazoScheduled.length > 0 || boletoPending.length > 0 || paid.length > 0;
+            return !hasAny ? <Empty text="Nenhuma comissão registrada" /> : (
+              <div className="space-y-5">
+                {avista.length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">À Vista (PIX)</p>
+                    {groupByDate(avista).map(([date, list]) => (
+                      <Block key={date} title={`Cai em ${fmtDate(date)}`} total={list.reduce((s, p) => s + p.amount, 0)}>
+                        {list.map(p => <Row key={p.id} order={orderOf(p)?.order_number} client={clientOf(p)} rate={p.representative_commissions?.total_rate} amount={p.amount} />)}
+                      </Block>
+                    ))}
+                  </div>
+                )}
+                {(aprazoScheduled.length > 0 || boletoPending.length > 0) && (
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">A Prazo (Boleto)</p>
+                    {boletoPending.map(c => {
+                      const insts = instByOrder[c.order_id] || [];
+                      const unpaid = insts.filter(i => i.status !== 'paid');
+                      const orderNum = (c.representative_orders as any)?.order_number || '—';
+                      const clientName = (c.representative_orders as any)?.representative_clients?.razao_social || '—';
+                      return (
+                        <div key={c.id} className="rounded-xl border border-gray-200 bg-white p-3 text-xs text-gray-600">
+                          <p className="font-medium text-gray-800">{orderNum} · {clientName}</p>
+                          {unpaid.map((i, idx) => <p key={idx} className="mt-1 text-gray-500">Parcela {i.installment_number} · R$ {i.amount?.toFixed(2).replace('.', ',')} · venc. {i.due_date ? new Date(i.due_date).toLocaleDateString('pt-BR') : '—'}</p>)}
+                        </div>
+                      );
+                    })}
+                    {aprazoScheduled.map(p => (
+                      <Block key={p.id} title={p.scheduled_payment_date ? `Prev. ${fmtDate(p.scheduled_payment_date)}` : 'Agendado'} total={p.amount}>
+                        <Row order={orderOf(p)?.order_number} client={clientOf(p)} rate={p.representative_commissions?.total_rate} amount={p.amount} />
+                      </Block>
+                    ))}
+                  </div>
+                )}
+                {paid.length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">Pagas</p>
+                    {paid.slice(0, 5).map(p => (
+                      <div key={p.id} className="rounded-xl border border-green-200 bg-green-50 p-3 text-xs">
+                        <div className="flex justify-between"><span className="font-medium text-green-800">{p.payment_method === 'pix' ? 'PIX' : 'Transferência'}</span><span className="font-bold text-green-800">R$ {p.amount?.toFixed(2).replace('.', ',')}</span></div>
+                        {p.scheduled_payment_date && <p className="text-green-700 mt-0.5">Pago em {new Date(p.scheduled_payment_date).toLocaleDateString('pt-BR')}</p>}
+                      </div>
+                    ))}
+                    {paid.length > 5 && <p className="text-xs text-center text-gray-400">+ {paid.length - 5} anteriores · veja em "Pagas"</p>}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {tab === 'avista' && (
             avista.length === 0
               ? <Empty text="Nenhuma comissão à vista pendente" />
