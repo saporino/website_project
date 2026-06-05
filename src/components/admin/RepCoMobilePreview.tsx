@@ -1,6 +1,6 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ElementType } from 'react';
 import { Home, ClipboardList, Users, ShoppingBag, Map, RefreshCw, X, FileText, Minus, GripHorizontal, Radio } from 'lucide-react';
-import { useTrainingBroadcast } from '../../lib/training';
+import { useTrainingBroadcast, useTrainingListener, espelhoTabToRepTab } from '../../lib/training';
 import RepCoHome from '../repco/RepCoHome';
 import RepCoProspection from '../repco/RepCoProspection';
 import RepCoClients from '../repco/RepCoClients';
@@ -172,6 +172,19 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
   useEffect(() => {
     if (training) sendTraining({ active: true, tab: activeTab, instructor: 'Instrutor', targets: 'all' });
   }, [activeTab, training, sendTraining]);
+
+  // ESPELHO "Ver como rep": escuta o broadcast de treinamento e espelha a aba,
+  // igual ao portal real do rep. Assim o admin pode TESTAR que o broadcast funciona
+  // antes de os reps reais usarem.
+  const trainingBroadcast = useTrainingListener(!isTrainingMode ? representativeId : undefined);
+  useEffect(() => {
+    if (isTrainingMode) return; // o painel de treinamento envia, não recebe
+    if (trainingBroadcast?.active && trainingBroadcast.tab) {
+      setActiveTab(espelhoTabToRepTab(trainingBroadcast.tab) as typeof activeTab);
+    } else if (trainingBroadcast && !trainingBroadcast.active) {
+      setActiveTab('inicio');
+    }
+  }, [trainingBroadcast, isTrainingMode]);
 
   const selectedRep = availableReps.find(rep => rep.id === representativeId) || null;
 
