@@ -1,36 +1,15 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { VitePWA } from 'vite-plugin-pwa';
+
+// VitePWA desativado: o service worker causava versao em cache quebrada
+// (ex.: import de CSV/XLSX parava de funcionar) e tela branca no F5.
+// Reativar SO quando for fazer o app instalavel/APK, com teste no device.
+// import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   plugins: [
     react(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['icons/icon.svg'],
-      manifest: {
-        name: 'Café Saporino — RepCo',
-        short_name: 'RepCo Saporino',
-        description: 'Portal do Representante Comercial — Café Saporino',
-        theme_color: '#8B2214',
-        background_color: '#f8f7f5',
-        display: 'standalone',
-        start_url: '/repco',
-        scope: '/',
-        icons: [
-          { src: '/icons/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icons/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
-        ],
-      },
-      workbox: {
-        navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/assets\//, /\.[a-z0-9]+$/i],
-        cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        skipWaiting: true,
-      },
-    }),
+    // VitePWA removido — reativar com cuidado no futuro (ver comentario acima)
   ],
   optimizeDeps: {
     include: ['leaflet'],
