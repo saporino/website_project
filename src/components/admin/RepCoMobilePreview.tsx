@@ -1,12 +1,19 @@
+// RepCoApp — espelho mobile do portal RepCoWeb.
+// Deve ter TODAS as abas do RepCoWeb para o rep ter acesso completo.
 import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ElementType } from 'react';
-import { Home, ClipboardList, Users, ShoppingBag, RefreshCw, X, FileText, Minus, GripHorizontal, Radio } from 'lucide-react';
+import { Home, ClipboardList, Users, ShoppingBag, RefreshCw, X, Minus, GripHorizontal, Radio, Truck, DollarSign, TrendingUp, User, Plus, FileText } from 'lucide-react';
 import { useTrainingBroadcast, useTrainingListener, espelhoTabToRepTab } from '../../lib/training';
 import RepCoHome from '../repco/RepCoHome';
 import RepCoProspection from '../repco/RepCoProspection';
 import RepCoClients from '../repco/RepCoClients';
+import RepCoDeliveries from '../repco/RepCoDeliveries';
 import { supabase } from '../../lib/supabase';
 
-const RepCoRoutes = lazy(() => import('../repco/RepCoRoutes'));
+// Lazy — exports nomeados precisam de .then(m=>({default:m.X}))
+const RepCoProfile     = lazy(() => import('../repco/RepCoProfile').then(m => ({ default: m.RepCoProfile })));
+const RepCoNewOrder    = lazy(() => import('../repco/RepCoNewOrder'));
+const RepCoCommissions = lazy(() => import('../repco/RepCoCommissions').then(m => ({ default: m.RepCoCommissions })));
+const RepCoPerformance = lazy(() => import('../repco/RepCoPerformance').then(m => ({ default: m.RepCoPerformance })));
 
 interface Representative {
   id: string;
@@ -28,7 +35,8 @@ interface Props {
   isTrainingMode?: boolean;
 }
 
-type PreviewTab = 'inicio' | 'prospection' | 'clients' | 'orders';
+// Todas as abas do RepCoApp — idêntico ao RepCoWeb
+type PreviewTab = 'inicio' | 'profile' | 'prospection' | 'clients' | 'novo_pedido' | 'orders' | 'entregas' | 'commissions' | 'performance';
 
 interface PreviewOrder {
   id: string;
@@ -40,12 +48,17 @@ interface PreviewOrder {
   representative_clients: { razao_social: string | null; nome_fantasia: string | null } | null;
 }
 
+// Abas do RepCoApp — espelho fiel do RepCoWeb (mesma ordem, mesmas funções)
 const TABS: { id: PreviewTab; label: string; icon: ElementType }[] = [
-  { id: 'inicio', label: 'Início', icon: Home },
-  { id: 'prospection', label: 'Prospecção', icon: ClipboardList },
-  { id: 'clients', label: 'Clientes', icon: Users },
-  { id: 'orders', label: 'Pedidos', icon: ShoppingBag },
-  // 'rotas' removido (Bloco E) — aba não existe mais no portal do rep
+  { id: 'inicio',      label: 'Início',      icon: Home        },
+  { id: 'profile',     label: 'Perfil',      icon: User        },
+  { id: 'prospection', label: 'Prospecção',  icon: ClipboardList },
+  { id: 'clients',     label: 'Clientes',    icon: Users       },
+  { id: 'novo_pedido', label: 'Novo Pedido', icon: Plus        },
+  { id: 'orders',      label: 'Pedidos',     icon: ShoppingBag },
+  { id: 'entregas',    label: 'Entregas',    icon: Truck       },
+  { id: 'commissions', label: 'Comissões',   icon: DollarSign  },
+  { id: 'performance', label: 'Performance', icon: TrendingUp  },
 ];
 
 const ORDER_STATUS: Record<string, { label: string; className: string }> = {
@@ -209,30 +222,53 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
     // Treinamento: dados reais (Admin Force) com ações BLOQUEADAS (só demonstração)
     // Ver como rep: dados reais com ações DESBLOQUEADAS (admin pode ajudar)
     const propsKey = `${activeRep.id}-${refreshKey}-${isTrainingMode ? 'train' : 'live'}`;
-    if (activeTab === 'inicio') {
+    const pm = isTrainingMode; // previewMode: bloqueado no treinamento, livre no "Ver como rep"
+    const Fallback = <div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#8B2214]" /></div>;
+
+    if (activeTab === 'inicio')
+      return <RepCoHome key={propsKey} representativeId={activeRep.id} previewMode={pm} onNavigateToClient={() => setActiveTab('clients')} />;
+
+    if (activeTab === 'profile')
       return (
-        <RepCoHome
-          key={propsKey}
-          representativeId={activeRep.id}
-          previewMode={isTrainingMode}
-          onNavigateToClient={() => setActiveTab('clients')}
-        />
+        <Suspense fallback={Fallback}>
+          <RepCoProfile key={propsKey} rep={{ id: activeRep.id, full_name: activeRep.full_name, email: '', phone: '', status: 'active', user_id: '' } as any} onUpdate={() => {}} />
+        </Suspense>
       );
-    }
-    if (activeTab === 'prospection') {
-      return <RepCoProspection key={propsKey} representativeId={activeRep.id} previewMode={isTrainingMode} />;
-    }
-    if (activeTab === 'clients') {
-      return <RepCoClients key={propsKey} representativeId={activeRep.id} previewMode={isTrainingMode} />;
-    }
-    if (activeTab === 'orders') {
+
+    if (activeTab === 'prospection')
+      return <RepCoProspection key={propsKey} representativeId={activeRep.id} previewMode={pm} />;
+
+    if (activeTab === 'clients')
+      return <RepCoClients key={propsKey} representativeId={activeRep.id} previewMode={pm} />;
+
+    if (activeTab === 'novo_pedido')
+      return (
+        <Suspense fallback={Fallback}>
+          <RepCoNewOrder key={propsKey} representativeId={activeRep.id} onOrderCreated={() => setActiveTab('orders')} />
+        </Suspense>
+      );
+
+    if (activeTab === 'orders')
       return <ReadOnlyOrdersPreview key={propsKey} representativeId={activeRep.id} />;
-    }
-    return (
-      <Suspense fallback={<div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#a4240e]" /></div>}>
-        <RepCoRoutes key={propsKey} representativeId={activeRep.id} previewMode={isTrainingMode} />
-      </Suspense>
-    );
+
+    if (activeTab === 'entregas')
+      return <RepCoDeliveries key={propsKey} representativeId={activeRep.id} previewMode={pm} />;
+
+    if (activeTab === 'commissions')
+      return (
+        <Suspense fallback={Fallback}>
+          <RepCoCommissions key={propsKey} repId={activeRep.id} />
+        </Suspense>
+      );
+
+    if (activeTab === 'performance')
+      return (
+        <Suspense fallback={Fallback}>
+          <RepCoPerformance key={propsKey} repId={activeRep.id} />
+        </Suspense>
+      );
+
+    return <ReadOnlyOrdersPreview key={propsKey} representativeId={activeRep.id} />;
   }
 
   return (
@@ -305,8 +341,9 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
                 )}
               </header>
 
-              {/* nav tabs — altura fixa, não encolhe */}
-              <nav className="flex-shrink-0 grid grid-cols-4 border-b border-gray-200 bg-white">
+              {/* nav tabs — scrollável horizontal com todas as abas do RepCoApp */}
+              <nav className="flex-shrink-0 flex overflow-x-auto border-b border-gray-200 bg-white scrollbar-none" style={{scrollbarWidth:'none'}}>
+
                 {TABS.map(tab => {
                   const Icon = tab.icon;
                   return (
@@ -314,12 +351,12 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
                       key={tab.id}
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
-                      className={`flex flex-col items-center gap-0.5 border-b-2 py-1.5 text-[9px] font-semibold leading-tight transition-colors ${
+                      className={`flex-shrink-0 flex flex-col items-center gap-0.5 border-b-2 px-2.5 py-1.5 text-[8px] font-semibold leading-tight transition-colors whitespace-nowrap ${
                         activeTab === tab.id ? 'border-[#8B2214] text-[#8B2214]' : 'border-transparent text-gray-500 hover:text-gray-700'
                       }`}
                     >
-                      <Icon className="h-4 w-4" />
-                      <span className="max-w-full truncate px-0.5">{tab.label}</span>
+                      <Icon className="h-3.5 w-3.5" />
+                      <span>{tab.label}</span>
                     </button>
                   );
                 })}
