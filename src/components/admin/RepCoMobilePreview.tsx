@@ -260,17 +260,19 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
                 </div>
                 <div className="mt-1.5 min-w-0">
                   <p className="truncate text-[13px] font-semibold">
-                    {isTrainingMode ? 'Todos representantes' : (selectedRep?.full_name || 'Selecione um representante')}
+                    {isTrainingMode ? 'Todos Representantes' : 'Admin'}
                   </p>
                   <p className="text-[11px] text-white/75">
-                    {isTrainingMode ? 'Modo treinamento — broadcast ao vivo' : 'Ver como rep — ações desbloqueadas'}
+                    {isTrainingMode
+                      ? 'Modo treinamento — broadcast ao vivo'
+                      : `Assistindo: ${selectedRep?.full_name || 'selecione um rep'}`}
                   </p>
                 </div>
                 {isTrainingMode ? (
-                  /* Modo treinamento: sem rep específico, mostra label fixo */
+                  /* Modo treinamento: label fixo sem dropdown */
                   <div className="mt-2 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90 flex items-center gap-2">
                     <Radio className="w-3 h-3 flex-shrink-0" />
-                    Todos representantes
+                    Todos Representantes
                   </div>
                 ) : (
                   /* Modo "Ver como rep": dropdown para escolher + ações desbloqueadas */
