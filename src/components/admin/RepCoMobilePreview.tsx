@@ -258,12 +258,13 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
       {!minimized && (
         <div className="rounded-b-2xl border-x-[6px] border-b-[6px] border-gray-950 bg-gray-950 shadow-2xl">
             <div className="relative h-[64vh] max-h-[680px] overflow-hidden rounded-b-[1.1rem] bg-[#f5f3ee] flex flex-col">
-              <div className="flex items-center justify-between bg-[#8B2214] px-5 pb-0.5 pt-2.5 text-[10px] font-semibold text-white/90">
+              {/* barra de status — altura fixa, não encolhe */}
+              <div className="flex-shrink-0 flex items-center justify-between bg-[#8B2214] px-5 pb-0.5 pt-2.5 text-[10px] font-semibold text-white/90">
                 <span>9:41</span>
                 <span>●●●</span>
               </div>
 
-              <header className="bg-[#8B2214] px-3.5 pb-2.5 pt-1.5 text-white">
+              <header className="flex-shrink-0 bg-[#8B2214] px-3.5 pb-2.5 pt-1.5 text-white">
                 <div className="flex items-center justify-between gap-3">
                   <div className="inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1 shadow-sm">
                     <img src="/saporino-logo.png" alt="Saporino" className="h-[18px] w-auto object-contain" />
@@ -304,7 +305,8 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
                 )}
               </header>
 
-              <nav className="grid grid-cols-5 border-b border-gray-200 bg-white">
+              {/* nav tabs — altura fixa, não encolhe */}
+              <nav className="flex-shrink-0 grid grid-cols-4 border-b border-gray-200 bg-white">
                 {TABS.map(tab => {
                   const Icon = tab.icon;
                   return (
@@ -323,7 +325,8 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
                 })}
               </nav>
 
-              <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-2.5 py-2.5">
+              {/* área de conteúdo — ocupa todo o espaço restante e rola */}
+              <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain px-2.5 py-2.5">
                 {renderContent()}
               </main>
             </div>

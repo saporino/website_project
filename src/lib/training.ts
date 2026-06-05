@@ -37,20 +37,22 @@ export function useTrainingBroadcast() {
 export function useTrainingListener(repId: string | undefined): TrainingState | null {
   const [state, setState] = useState<TrainingState | null>(null);
 
-  // Evento local — funciona quando emissor e receptor estão na mesma aba (testes)
+  // Evento local — funciona na mesma aba (testes com espelho + treinamento juntos).
+  // targets='all' é sempre recebido independente de repId.
   useEffect(() => {
     function handle(e: Event) {
       const s = (e as CustomEvent<TrainingState>).detail;
       const targeted = s.targets === 'all' ||
         (Array.isArray(s.targets) && !!repId && s.targets.includes(repId));
-      if (s.active && targeted) {
+      if (!s.active) {
+        setState({ active: false });
+      } else if (targeted) {
         setState(s);
-      } else if (!s.active) {
-        setState({ active: false }); // sinaliza desligar (vai voltar para Início)
       }
     }
     window.addEventListener(LOCAL_EVENT, handle);
     return () => window.removeEventListener(LOCAL_EVENT, handle);
+  // repId na dependency: se mudar de rep no espelho, re-registra o listener
   }, [repId]);
 
   // Supabase Realtime — funciona para reps em outros dispositivos/abas
