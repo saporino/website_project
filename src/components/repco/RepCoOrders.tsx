@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Download, Printer, MessageCircle, Mail, FileText, CheckCircle } from 'lucide-react';
+import { Download, Printer, MessageCircle, Mail, FileText, CheckCircle, Truck, Camera } from 'lucide-react';
 import { toast } from 'sonner';
 import { buildInvoiceShareUrls, extractStoragePath } from '../../utils/invoiceShare';
 import OrderInstallmentsView from './OrderInstallmentsView';
@@ -24,6 +24,12 @@ interface Order {
   status: string;
   created_at: string;
   representative_clients: { razao_social: string } | null;
+  // entrega pessoal (Bloco C/D)
+  delivery_status: string | null;
+  delivery_accepted_at: string | null;
+  delivered_at: string | null;
+  delivery_proof_url: string | null;
+  delivery_proof_filename: string | null;
 }
 
 interface Props { repId: string; refreshKey?: number; }
@@ -86,6 +92,16 @@ export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
       window.removeEventListener('focus', handleRefresh);
     };
   }, [repId]);
+
+  async function handleViewCanhoto(pathOrUrl: string | null) {
+    if (!pathOrUrl) { toast.error('Canhoto não encontrado'); return; }
+    let path = pathOrUrl;
+    const m = pathOrUrl.match(/\/invoices\/(.+?)(\?|$)/);
+    if (m) path = decodeURIComponent(m[1]);
+    const { data, error } = await supabase.storage.from('invoices').createSignedUrl(path, 3600);
+    if (error || !data?.signedUrl) { toast.error('Não foi possível abrir o canhoto'); return; }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+  }
 
   async function resolveSignedUrl(fileRef: string | null): Promise<string | null> {
     const path = extractStoragePath(fileRef);
@@ -165,10 +181,20 @@ export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
                 {/* Header do card */}
                 <div className="flex items-start justify-between">
                   <div>
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
                       <span className="font-bold text-gray-900">{order.order_number}</span>
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${st.color}`}>{st.label}</span>
                       {order.payment_method === 'pix' && <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-medium">PIX</span>}
+                      {order.is_personal_delivery && (
+                        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+                          order.delivery_status==='entregue' ? 'bg-green-100 text-green-700' :
+                          order.delivery_status==='em_rota'  ? 'bg-blue-100 text-blue-700'   :
+                          'bg-amber-100 text-amber-700'}`}>
+                          <Truck className="w-3 h-3"/>
+                          {order.delivery_status==='entregue' ? 'Entregue' :
+                           order.delivery_status==='em_rota'  ? 'Em rota'  : 'Entrega pessoal'}
+                        </span>
+                      )}
                     </div>
                     {order.representative_clients && (
                       <p className="text-base font-semibold text-gray-900 mt-1">{order.representative_clients.razao_social}</p>
@@ -253,6 +279,39 @@ export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+                {/* ── ENTREGA PESSOAL (Bloco D) ── */}
+                {order.is_personal_delivery && (
+                  <div className={`mt-4 rounded-lg border px-3 py-2.5 text-xs ${
+                    order.delivery_status==='entregue' ? 'border-green-200 bg-green-50' :
+                    order.delivery_status==='em_rota'  ? 'border-blue-200 bg-blue-50'   :
+                    'border-amber-200 bg-amber-50'}`}>
+                    <div className="flex items-start justify-between gap-2 flex-wrap">
+                      <div>
+                        <p className={`font-semibold flex items-center gap-1.5 ${
+                          order.delivery_status==='entregue' ? 'text-green-700' :
+                          order.delivery_status==='em_rota'  ? 'text-blue-700'  :
+                          'text-amber-700'}`}>
+                          <Truck className="w-3.5 h-3.5"/>
+                          {order.delivery_status==='entregue' ? 'Entrega confirmada' :
+                           order.delivery_status==='em_rota'  ? 'Em rota de entrega'  :
+                           'Entrega pessoal — aguardando'}
+                        </p>
+                        {order.delivery_accepted_at && (
+                          <p className="text-gray-500 mt-0.5">Aceita: {new Date(order.delivery_accepted_at).toLocaleString('pt-BR')}</p>
+                        )}
+                        {order.delivered_at && (
+                          <p className="text-gray-500">Entregue: {new Date(order.delivered_at).toLocaleString('pt-BR')}</p>
+                        )}
+                      </div>
+                      {order.delivery_proof_url && (
+                        <button onClick={() => handleViewCanhoto(order.delivery_proof_url)}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-green-300 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 flex-shrink-0">
+                          <Camera className="w-3.5 h-3.5"/>Ver canhoto
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
                 {order.payment_method === 'boleto' && <OrderInstallmentsView orderId={order.id} />}

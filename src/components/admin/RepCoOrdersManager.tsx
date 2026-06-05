@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
+import { Truck, Camera } from 'lucide-react';
 import OrderInstallmentsPanel from './OrderInstallmentsPanel';
 
 interface RepCoOrder {
@@ -12,6 +13,9 @@ interface RepCoOrder {
   invoice_pdf_filename: string | null; invoice_xml_filename: string | null; payment_proof_filename: string | null; payment_proof_url: string | null;
   status: string; notes: string | null; created_at: string; completed_at: string | null;
   pix_bonus_eligible: boolean; client_name?: string; rep_name?: string;
+  // entrega pessoal (Bloco C/D)
+  delivery_status: string | null; delivery_accepted_at: string | null;
+  delivered_at: string | null; delivery_proof_url: string | null; delivery_proof_filename: string | null;
 }
 
 type NFUploadStatus = {
@@ -58,6 +62,16 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
   function notifyOrdersUpdated() {
     window.dispatchEvent(new CustomEvent('admin:repco-updated'));
     window.dispatchEvent(new CustomEvent('repco:orders-updated', { detail: { representativeId } }));
+  }
+
+  async function openCanhoto(pathOrUrl: string | null) {
+    if (!pathOrUrl) { toast.error('Canhoto não encontrado'); return; }
+    let path = pathOrUrl;
+    const m = pathOrUrl.match(/\/invoices\/(.+?)(\?|$)/);
+    if (m) path = decodeURIComponent(m[1]);
+    const { data, error } = await supabase.storage.from('invoices').createSignedUrl(path, 3600);
+    if (error || !data?.signedUrl) { toast.error('Não foi possível abrir o canhoto'); return; }
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
   }
 
   async function fetchOrders() {
@@ -387,6 +401,16 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
                         {isPix?'PIX':`Boleto ${order.payment_term??0}d`}
                       </span>
                       {order.pix_bonus_eligible&&<span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">+0.5% bônus</span>}
+                      {order.is_personal_delivery && (
+                        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+                          order.delivery_status==='entregue' ? 'bg-green-100 text-green-700' :
+                          order.delivery_status==='em_rota'  ? 'bg-blue-100 text-blue-700'   :
+                          'bg-amber-100 text-amber-700'}`}>
+                          <Truck className="w-3 h-3" />
+                          {order.delivery_status==='entregue' ? 'Entregue' :
+                           order.delivery_status==='em_rota'  ? 'Em rota'  : 'Entrega pessoal'}
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">{order.client_name} · {new Date(order.created_at).toLocaleDateString('pt-BR')}</p>
                     {!representativeId&&<p className="text-xs text-gray-400">{order.rep_name}</p>}
@@ -478,6 +502,42 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
                         )}
                       </div>
                     </div>
+                    {/* ── ENTREGA PESSOAL (Bloco D) ── */}
+                    {order.is_personal_delivery && (
+                      <div className="pt-2 border-t border-gray-100">
+                        <p className="text-xs font-medium text-gray-600 mb-1.5 flex items-center gap-1"><Truck className="w-3.5 h-3.5"/>Entrega pessoal (+2,5%)</p>
+                        <div className={`rounded-lg border px-3 py-2 text-xs ${
+                          order.delivery_status==='entregue' ? 'border-green-200 bg-green-50' :
+                          order.delivery_status==='em_rota'  ? 'border-blue-200 bg-blue-50'   :
+                          'border-amber-200 bg-amber-50'}`}>
+                          <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div>
+                              <span className={`font-semibold ${
+                                order.delivery_status==='entregue' ? 'text-green-700' :
+                                order.delivery_status==='em_rota'  ? 'text-blue-700'  :
+                                'text-amber-700'}`}>
+                                {order.delivery_status==='entregue' ? '✓ Entregue' :
+                                 order.delivery_status==='em_rota'  ? '🚚 Em rota'  :
+                                 '⏳ Aguardando aceite do rep'}
+                              </span>
+                              {order.delivery_accepted_at && (
+                                <p className="text-gray-500 mt-0.5">Aceita em: {new Date(order.delivery_accepted_at).toLocaleString('pt-BR')}</p>
+                              )}
+                              {order.delivered_at && (
+                                <p className="text-gray-500">Entregue em: {new Date(order.delivered_at).toLocaleString('pt-BR')}</p>
+                              )}
+                            </div>
+                            {order.delivery_proof_url && (
+                              <button onClick={()=>openCanhoto(order.delivery_proof_url)}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-green-300 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-50 flex-shrink-0">
+                                <Camera className="w-3.5 h-3.5"/>Ver canhoto
+                                {order.delivery_proof_filename && <span className="text-gray-400 font-normal truncate max-w-[120px]">({order.delivery_proof_filename})</span>}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     {order.payment_method==='boleto' && (
                       <div className="pt-2 border-t border-gray-100">
                         <OrderInstallmentsPanel orderId={order.id} onChanged={fetchOrders} />
