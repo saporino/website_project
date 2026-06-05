@@ -395,21 +395,15 @@ export default function RepCoProspection({ representativeId, currentLat, current
   }
 
   function openDirections(lead: ProspectLead, app: 'google' | 'waze') {
-    if (lead.lat !== null && lead.lng !== null) {
-      const url =
-        app === 'waze'
-          ? `https://waze.com/ul?ll=${lead.lat},${lead.lng}&navigate=yes`
-          : `https://www.google.com/maps/dir/?api=1&destination=${lead.lat},${lead.lng}`;
-      window.open(url, '_blank');
-      return;
-    }
-
-    const address = buildAddress(lead) || lead.company_name;
-    const encodedAddress = encodeURIComponent(address);
+    // Navega pelo NOME + endereço — mais confiável que coordenadas brutas do Apify,
+    // que às vezes apontam para outro negócio na mesma quadra.
+    const address = buildAddress(lead);
+    const query = [lead.company_name || lead.trade_name, address].filter(Boolean).join(', ');
+    const encoded = encodeURIComponent(query);
     const url =
       app === 'waze'
-        ? `https://waze.com/ul?q=${encodedAddress}&navigate=yes`
-        : `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+        ? `https://waze.com/ul?q=${encoded}&navigate=yes`
+        : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
     window.open(url, '_blank');
   }
 
