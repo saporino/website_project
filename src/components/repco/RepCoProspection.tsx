@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CheckCircle, Clock, ExternalLink, Globe2, Mail, MapPin, MessageCircle, Phone, RotateCcw, UserPlus } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, ExternalLink, Globe2, Mail, MapPin, MessageCircle, Phone, RotateCcw, UserPlus, ChevronLeft, List } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { SEGMENT_LABEL } from '../../constants/segments';
@@ -43,6 +43,15 @@ interface Props {
   currentLng?: number;
   previewMode?: boolean;
   refreshKey?: number;
+}
+
+interface ProspectListSummary {
+  id: string;
+  name: string;
+  segment: string | null;
+  pending_count: number;
+  total_count: number;
+  categories: string[];
 }
 
 interface ConvertForm {
@@ -280,6 +289,8 @@ function classifyDocument(value: string) {
 
 export default function RepCoProspection({ representativeId, currentLat, currentLng, previewMode = false, refreshKey = 0 }: Props) {
   const [leads, setLeads] = useState<ProspectLead[]>([]);
+  const [lists, setLists] = useState<ProspectListSummary[]>([]);
+  const [selectedListId, setSelectedListId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [rejectingLead, setRejectingLead] = useState<ProspectLead | null>(null);
@@ -313,7 +324,11 @@ export default function RepCoProspection({ representativeId, currentLat, current
 
   async function fetchLeads() {
     setLoading(true);
-    const [{ data: directLeads, error: directError }, { data: listLeads, error: listError }] = await Promise.all([
+    const [
+      { data: directLeads, error: directError },
+      { data: listLeads, error: listError },
+      { data: assignedLists },
+    ] = await Promise.all([
       supabase
         .from('prospect_leads')
         .select(SELECT_FIELDS)
@@ -324,6 +339,11 @@ export default function RepCoProspection({ representativeId, currentLat, current
         .select(SELECT_LIST_FIELDS)
         .eq('prospect_lists.assigned_representative_id', representativeId)
         .order('created_at', { ascending: false }),
+      supabase
+        .from('prospect_lists')
+        .select('id,name,segment,pending_count,total_count')
+        .eq('assigned_representative_id', representativeId)
+        .order('created_at', { ascending: false }),
     ]);
 
     if (directError || listError) {
@@ -333,8 +353,25 @@ export default function RepCoProspection({ representativeId, currentLat, current
     }
 
     const merged = new Map<string, ProspectLead>();
-    [...(directLeads || []), ...(listLeads || [])].map(normalizeLeadRelation).forEach(lead => merged.set(lead.id, lead));
-    setLeads(Array.from(merged.values()));
+    const allLeads = [...(directLeads || []), ...(listLeads || [])].map(normalizeLeadRelation);
+    allLeads.forEach(lead => merged.set(lead.id, lead));
+    const mergedLeads = Array.from(merged.values());
+    setLeads(mergedLeads);
+
+    // Montar sumário de listas com as categorias reais dos leads
+    const listMap = new Map<string, Set<string>>();
+    mergedLeads.forEach(l => {
+      if (!l.prospect_list_id) return;
+      if (!listMap.has(l.prospect_list_id)) listMap.set(l.prospect_list_id, new Set());
+      if (l.category) listMap.get(l.prospect_list_id)!.add(l.category);
+    });
+    setLists(
+      (assignedLists || []).map(pl => ({
+        id: pl.id, name: pl.name, segment: pl.segment,
+        pending_count: pl.pending_count ?? 0, total_count: pl.total_count ?? 0,
+        categories: Array.from(listMap.get(pl.id) || []).slice(0, 4),
+      }))
+    );
     setLoading(false);
   }
 
@@ -557,9 +594,13 @@ export default function RepCoProspection({ representativeId, currentLat, current
     });
   }, [currentLat, currentLng, leads]);
 
-  const cities = Array.from(new Set(leads.map(l => l.city).filter(Boolean))).sort() as string[];
-  const categories = Array.from(new Set(leads.map(l => l.category).filter(Boolean))).sort() as string[];
-  const visibleLeads = sortedLeads.filter(l =>
+  const leadsInSelectedList = useMemo(
+    () => selectedListId ? sortedLeads.filter(l => l.prospect_list_id === selectedListId) : sortedLeads,
+    [sortedLeads, selectedListId]
+  );
+  const cities = Array.from(new Set(leadsInSelectedList.map(l => l.city).filter(Boolean))).sort() as string[];
+  const categories = Array.from(new Set(leadsInSelectedList.map(l => l.category).filter(Boolean))).sort() as string[];
+  const visibleLeads = leadsInSelectedList.filter(l =>
     (!cityFilter || l.city === cityFilter) && (!categoryFilter || l.category === categoryFilter)
   );
 
@@ -569,15 +610,65 @@ export default function RepCoProspection({ representativeId, currentLat, current
 
   return (
     <div className="space-y-3">
+      {/* ── SELETOR DE LISTAS ── */}
+      {!selectedListId && lists.length > 0 && (
+        <div className="space-y-2">
+          <div>
+            <h3 className="text-base font-semibold text-gray-800">Minhas Listas de Prospecção</h3>
+            <p className="text-xs text-gray-500">{lists.length} lista{lists.length !== 1 ? 's' : ''} atribuída{lists.length !== 1 ? 's' : ''} · toque para trabalhar</p>
+          </div>
+          {lists.map(list => {
+            const listLeadCount = leads.filter(l => l.prospect_list_id === list.id && !['converted','rejected'].includes(l.status)).length;
+            return (
+              <button key={list.id} onClick={() => { setSelectedListId(list.id); setCityFilter(''); setCategoryFilter(''); }}
+                className="w-full text-left rounded-xl border border-gray-200 bg-white p-4 shadow-sm hover:border-[#8B2214] hover:shadow-md transition-all active:scale-[0.99]">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-gray-900 truncate">{list.name}</p>
+                    {list.categories.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {list.categories.map(cat => (
+                          <span key={cat} className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] text-gray-600">{cat}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-shrink-0 text-right">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#f5f0ef] px-2.5 py-1 text-sm font-bold text-[#8B2214]">
+                      <List className="w-3.5 h-3.5"/>{listLeadCount}
+                    </span>
+                    <p className="mt-1 text-[11px] text-gray-400">pendentes</p>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── LEADS DA LISTA SELECIONADA ── */}
+      {(selectedListId || lists.length === 0) && (
+      <div className="space-y-3">
+      {selectedListId && (
+        <div className="flex items-center gap-2">
+          <button onClick={() => { setSelectedListId(null); setCityFilter(''); setCategoryFilter(''); }}
+            className="inline-flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+            <ChevronLeft className="w-3.5 h-3.5"/>Listas
+          </button>
+          <span className="text-sm font-semibold text-gray-800 truncate">
+            {lists.find(l => l.id === selectedListId)?.name || 'Lista'}
+          </span>
+        </div>
+      )}
       <div>
-        <h3 className="text-base font-semibold text-gray-800">Minha Prospecção</h3>
+        <h3 className="text-base font-semibold text-gray-800">{selectedListId ? 'Leads desta lista' : 'Minha Prospecção'}</h3>
         <p className="text-xs text-gray-500">
-          {visibleLeads.length} de {leads.length} lead{leads.length !== 1 ? 's' : ''}
+          {visibleLeads.length} de {leadsInSelectedList.length} lead{leadsInSelectedList.length !== 1 ? 's' : ''}
           {currentLat !== undefined && currentLng !== undefined ? ' · do mais perto ao mais longe' : ''}.
         </p>
       </div>
 
-      {leads.length > 0 && (
+      {leadsInSelectedList.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">
           <select value={cityFilter} onChange={e => setCityFilter(e.target.value)} className="h-9 rounded-lg border border-gray-300 px-3 text-sm">
             <option value="">Todas as cidades</option>
@@ -627,7 +718,7 @@ export default function RepCoProspection({ representativeId, currentLat, current
                     <div className="mt-1.5 flex flex-wrap gap-1 text-[10px]">
                       {lead.category && <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-gray-700">{lead.category}</span>}
                       <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-gray-700">{getSegmentLabel(lead.segment)}</span>
-                      {lead.prospect_lists?.name && <span className="max-w-full truncate rounded-full bg-gray-100 px-1.5 py-0.5 text-gray-700">Lista: {lead.prospect_lists.name}</span>}
+                      {!selectedListId && lead.prospect_lists?.name && <span className="max-w-full truncate rounded-full bg-gray-100 px-1.5 py-0.5 text-gray-700">Lista: {lead.prospect_lists.name}</span>}
                     </div>
                     {address && (
                       <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-relaxed text-gray-600">
@@ -712,6 +803,8 @@ export default function RepCoProspection({ representativeId, currentLat, current
             );
           })}
         </div>
+      )}
+      </div>
       )}
       {convertingLead && convertForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
