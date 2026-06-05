@@ -99,16 +99,15 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   const [orderClients, setOrderClients] = useState<RepClient[]>([]);
   const [transferClientId, setTransferClientId] = useState<string | null>(null);
   const [transferRepresentativeId, setTransferRepresentativeId] = useState('');
-  const [previews, setPreviews] = useState<{ id: number; repId: string | null; locked: boolean }[]>([]);
+  const [previews, setPreviews] = useState<{ id: number; repId: string | null; isTrainingMode: boolean }[]>([]);
   const previewSeq = useRef(0);
-  // "Ver como rep" — dropdown visível, admin pode trocar de rep
+  // "Ver como rep" — dropdown para escolher o rep, ações DESBLOQUEADAS (admin pode ajudar)
   const openPreview = (repId: string | null = null) =>
-    setPreviews(p => (p.length >= 6 ? p : [...p, { id: ++previewSeq.current, repId, locked: false }]));
+    setPreviews(p => (p.length >= 6 ? p : [...p, { id: ++previewSeq.current, repId, isTrainingMode: false }]));
   const closePreview = (id: number) => setPreviews(p => p.filter(x => x.id !== id));
-  // "Ver todos" — cada janela fixada no seu rep (sem dropdown)
+  // "Ver todos" — UMA janela de treinamento genérica, sem rep específico, broadcast ao vivo
   const openAllPreviews = () => {
-    const active = reps.filter(r => r.status === 'active');
-    setPreviews(active.slice(0, 6).map(r => ({ id: ++previewSeq.current, repId: r.id, locked: true })));
+    setPreviews([{ id: ++previewSeq.current, repId: null, isTrainingMode: true }]);
   };
   // Edição dos dados do representante (admin)
   const [editing, setEditing] = useState(false);
@@ -838,7 +837,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
             offsetIndex={i}
             representatives={reps}
             initialRepresentativeId={pv.repId ?? selectedRep?.id}
-            locked={pv.locked}
+            isTrainingMode={pv.isTrainingMode}
             onClose={() => closePreview(pv.id)}
           />
         ))}

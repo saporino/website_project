@@ -19,8 +19,13 @@ interface Props {
   initialRepresentativeId?: string | null;
   onClose: () => void;
   offsetIndex?: number;
-  /** Quando true: dropdown de troca de rep fica oculto (modo "Ver todos" — cada janela já está fixada no rep correto) */
-  locked?: boolean;
+  /**
+   * isTrainingMode=true  → "Ver todos": UMA janela genérica sem rep, mostra "Todos representantes",
+   *                         sem dropdown, ações bloqueadas — usada com broadcast de treinamento.
+   * isTrainingMode=false → "Ver como rep": dropdown para escolher rep, ações DESBLOQUEADAS
+   *                         (admin pode ajudar o rep remotamente).
+   */
+  isTrainingMode?: boolean;
 }
 
 type PreviewTab = 'inicio' | 'prospection' | 'clients' | 'orders' | 'rotas';
@@ -126,7 +131,7 @@ function ReadOnlyOrdersPreview({ representativeId }: { representativeId: string 
   );
 }
 
-export default function RepCoMobilePreview({ representatives, initialRepresentativeId, onClose, offsetIndex = 0, locked = false }: Props) {
+export default function RepCoMobilePreview({ representatives, initialRepresentativeId, onClose, offsetIndex = 0, isTrainingMode = false }: Props) {
   const availableReps = useMemo(
     () => representatives.filter(rep => rep.status === 'active'),
     [representatives]
@@ -171,40 +176,53 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
   const selectedRep = availableReps.find(rep => rep.id === representativeId) || null;
 
   function renderContent() {
+    // MODO TREINAMENTO: tela genérica, sem dados de rep específico
+    if (isTrainingMode) {
+      return (
+        <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+          <div className="rounded-full bg-[#f5f0ef] p-4">
+            <Radio className="h-8 w-8 text-[#8B2214]" />
+          </div>
+          <p className="text-sm font-bold text-gray-800">Modo Treinamento</p>
+          <p className="text-xs text-gray-500">Use o botão <strong>Treinar</strong> acima para transmitir esta tela para todos os representantes online em tempo real.</p>
+        </div>
+      );
+    }
+
     if (!selectedRep) {
       return (
         <div className="flex h-full items-center justify-center px-6 text-center">
           <div>
             <p className="text-sm font-semibold text-gray-700">Nenhum representante ativo</p>
-            <p className="mt-1 text-xs text-gray-400">Aprove ou selecione um representante ativo para abrir o preview.</p>
+            <p className="mt-1 text-xs text-gray-400">Selecione um representante no dropdown acima.</p>
           </div>
         </div>
       );
     }
 
+    // MODO "VER COMO REP": dados reais, ações DESBLOQUEADAS (admin pode ajudar)
     const propsKey = `${selectedRep.id}-${refreshKey}`;
     if (activeTab === 'inicio') {
       return (
         <RepCoHome
           key={propsKey}
           representativeId={selectedRep.id}
-          previewMode
           onNavigateToClient={() => setActiveTab('clients')}
         />
       );
     }
     if (activeTab === 'prospection') {
-      return <RepCoProspection key={propsKey} representativeId={selectedRep.id} previewMode />;
+      return <RepCoProspection key={propsKey} representativeId={selectedRep.id} />;
     }
     if (activeTab === 'clients') {
-      return <RepCoClients key={propsKey} representativeId={selectedRep.id} previewMode />;
+      return <RepCoClients key={propsKey} representativeId={selectedRep.id} />;
     }
     if (activeTab === 'orders') {
       return <ReadOnlyOrdersPreview key={propsKey} representativeId={selectedRep.id} />;
     }
     return (
       <Suspense fallback={<div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#a4240e]" /></div>}>
-        <RepCoRoutes key={propsKey} representativeId={selectedRep.id} previewMode />
+        <RepCoRoutes key={propsKey} representativeId={selectedRep.id} />
       </Suspense>
     );
   }
@@ -215,7 +233,9 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
       <div onMouseDown={startDrag} className="flex items-center justify-between rounded-t-2xl bg-gray-950 px-3 py-2 text-white cursor-move select-none shadow-2xl">
         <div className="flex min-w-0 items-center gap-2">
           <GripHorizontal className="h-4 w-4 shrink-0 text-white/50" />
-          <span className="truncate text-xs font-semibold">Espelho — {selectedRep?.full_name || 'representante'}</span>
+          <span className="truncate text-xs font-semibold">
+            {isTrainingMode ? '📡 Treinamento — Todos' : `Espelho — ${selectedRep?.full_name || 'representante'}`}
+          </span>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
           <button type="button" onClick={() => setTraining(t => !t)} title={training ? 'Encerrar treinamento' : 'Ligar treinamento ao vivo (todos os reps)'}
@@ -244,16 +264,21 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
                   <span className="rounded-full bg-white/15 px-2 py-1 text-[10px] font-semibold">Preview</span>
                 </div>
                 <div className="mt-1.5 min-w-0">
-                  <p className="truncate text-[13px] font-semibold">{selectedRep?.full_name || 'Selecione um representante'}</p>
-                  <p className="text-[11px] text-white/75">Espelho mobile seguro</p>
+                  <p className="truncate text-[13px] font-semibold">
+                    {isTrainingMode ? 'Todos representantes' : (selectedRep?.full_name || 'Selecione um representante')}
+                  </p>
+                  <p className="text-[11px] text-white/75">
+                    {isTrainingMode ? 'Modo treinamento — broadcast ao vivo' : 'Ver como rep — ações desbloqueadas'}
+                  </p>
                 </div>
-                {locked ? (
-                  /* Modo "Ver todos": janela fixada no rep — sem dropdown */
-                  <div className="mt-2 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90">
-                    {selectedRep?.full_name || '—'}
+                {isTrainingMode ? (
+                  /* Modo treinamento: sem rep específico, mostra label fixo */
+                  <div className="mt-2 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium text-white/90 flex items-center gap-2">
+                    <Radio className="w-3 h-3 flex-shrink-0" />
+                    Todos representantes
                   </div>
                 ) : (
-                  /* Modo "Ver como rep": dropdown para escolher o rep */
+                  /* Modo "Ver como rep": dropdown para escolher + ações desbloqueadas */
                   <select
                     value={representativeId}
                     onChange={event => setRepresentativeId(event.target.value)}
