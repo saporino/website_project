@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ElementType } from 'react';
-import { Home, ClipboardList, Users, ShoppingBag, Map, RefreshCw, X, FileText, Minus, GripHorizontal, Radio } from 'lucide-react';
+import { Home, ClipboardList, Users, ShoppingBag, RefreshCw, X, FileText, Minus, GripHorizontal, Radio } from 'lucide-react';
 import { useTrainingBroadcast, useTrainingListener, espelhoTabToRepTab } from '../../lib/training';
 import RepCoHome from '../repco/RepCoHome';
 import RepCoProspection from '../repco/RepCoProspection';
