@@ -163,9 +163,11 @@ export default function RepCoIntelligence() {
             {/* Vendas por região + por linha */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Panel title="Vendas por região" icon={<MapPin className="w-4 h-4" />} hint="mapa por pino chega com geocodificação">
-                {areaAgg.length === 0 ? <Empty /> : areaAgg.slice(0, 12).map(a => (
-                  <BarRow key={a.key} label={a.key} value={fmtK(a.faturamento)} pct={(a.faturamento / maxArea) * 100} sub={`${a.pedidos} ped.`} />
-                ))}
+                {areaAgg.length === 0 ? <Empty /> : areaAgg.slice(0, 12).map(a => {
+                  const geoEntry = geoMap.get(a.key);
+                  const barColor = geoEntry ? cityColor(geoEntry.colorIdx) : PRIMARY;
+                  return <BarRow key={a.key} label={a.key} value={fmtK(a.faturamento)} pct={(a.faturamento / maxArea) * 100} sub={`${a.pedidos} ped.`} color={barColor} />;
+                })}
               </Panel>
               <Panel title="Vendas por linha de produto" icon={<Coffee className="w-4 h-4" />}>
                 {linhaAgg.length === 0 ? <Empty /> : linhaAgg.map(a => (
@@ -256,12 +258,13 @@ function Panel({ title, icon, hint, children }: { title: string; icon?: React.Re
     </div>
   );
 }
-function BarRow({ label, value, pct, sub }: { label: string; value: string; pct: number; sub?: string }) {
+function BarRow({ label, value, pct, sub, color }: { label: string; value: string; pct: number; sub?: string; color?: string }) {
   return (
     <div className="flex items-center gap-2">
+      {color && <span className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />}
       <span className="text-xs text-gray-600 w-32 truncate" title={label}>{label}</span>
       <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
-        <div className="h-full rounded-full" style={{ width: `${Math.max(pct, 2)}%`, background: PRIMARY }} />
+        <div className="h-full rounded-full" style={{ width: `${Math.max(pct, 2)}%`, background: color || PRIMARY }} />
       </div>
       <span className="text-xs text-gray-700 font-medium w-20 text-right">{value}</span>
       {sub && <span className="text-[10px] text-gray-400 w-14 text-right">{sub}</span>}
