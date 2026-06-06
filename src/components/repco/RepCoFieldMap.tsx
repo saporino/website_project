@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
-import { MapPin, Navigation2, CheckCircle, AlertCircle, RotateCcw, Truck, ShoppingBag, Users } from 'lucide-react';
+import { MapPin, Navigation2, CheckCircle, AlertCircle, RotateCcw, Truck, ShoppingBag, Users, Edit2, UserPlus } from 'lucide-react';
 
 interface Props {
   representativeId: string;
@@ -69,9 +69,14 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
   const [selectedPin, setSelectedPin] = useState<MapPin | null>(null);
   const [pulsingId, setPulsingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Edição inline do lead no popup
+  const [editing, setEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ company_name: '', address: '', phone: '' });
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
+  // Rastreia se o usuário fez zoom/pan manual — se sim, não reseta o zoom após ações
+  const userHasInteracted = useRef(false);
 
   const hasGps = currentLat !== undefined && currentLng !== undefined;
 
@@ -152,6 +157,8 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
   }, [mode, representativeId, currentLat, currentLng, refreshKey]);
 
   useEffect(() => { fetchPins(); }, [fetchPins]);
+  // Ao mudar de modo, reseta a interação (novo conjunto de dados = fitBounds desejado)
+  useEffect(() => { userHasInteracted.current = false; }, [mode]);
 
   // Renderiza o mapa Leaflet
   useEffect(() => {
@@ -163,16 +170,15 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
       if (!leafletMap.current) {
         const mapCenter = hasGps ? [currentLat!, currentLng!] : [-23.185, -47.010];
         leafletMap.current = L.map(mapRef.current!, {
-          zoomControl: true,
-          attributionControl: false,
-          scrollWheelZoom: true,   // zoom com scroll do mouse — explícito em todos os modos
-          center: mapCenter,
-          zoom: 13,
+          zoomControl: true, attributionControl: false, scrollWheelZoom: true,
+          center: mapCenter, zoom: 13,
         });
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(leafletMap.current);
+        // Marca interação manual — zoom e pan feitos pelo usuário não são revertidos após ações
+        leafletMap.current.on('movestart', (e: any) => {
+          if (e.originalEvent) userHasInteracted.current = true; // só eventos reais do usuário
+        });
       }
-
-      // Garante tamanho correto após mudança de modo ou re-render
       setTimeout(() => leafletMap.current?.invalidateSize(), 50);
 
       // Remove markers antigos
@@ -211,10 +217,13 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
         bounds.push([pin.lat, pin.lng]);
       });
 
-      if (bounds.length > 1) {
-        leafletMap.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
-      } else if (bounds.length === 1) {
-        leafletMap.current.setView(bounds[0], 13);
+      // Só ajusta zoom se o usuário NÃO fez interação manual (evita reset após check-in)
+      if (!userHasInteracted.current) {
+        if (bounds.length > 1) {
+          leafletMap.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+        } else if (bounds.length === 1) {
+          leafletMap.current.setView(bounds[0], 13);
+        }
       }
     }
 
@@ -222,9 +231,64 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
     return () => { if (!mapRef.current) { leafletMap.current?.remove(); leafletMap.current = null; } };
   }, [pins, pulsingId, loading, hasGps, currentLat, currentLng]);
 
-  function navegar(pin: MapPin) {
+  function navegar(pin: MapPin, app: 'google' | 'waze') {
     const query = [pin.label, pin.sublabel].filter(Boolean).join(', ');
-    window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, '_blank');
+    const encoded = encodeURIComponent(query);
+    const url = app === 'waze'
+      ? `https://waze.com/ul?q=${encoded}&navigate=yes`
+      : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
+    window.open(url, '_blank');
+  }
+
+  function openEdit(pin: MapPin) {
+    setEditForm({
+      company_name: pin.data.company_name || pin.label || '',
+      address: pin.data.address || '',
+      phone: pin.data.phone || pin.data.whatsapp || '',
+    });
+    setEditing(true);
+  }
+
+  async function saveEdit(pin: MapPin) {
+    if (previewMode) { toast.info('Ação desativada no espelho.'); return; }
+    setBusy(true);
+    const { error } = await supabase.from('prospect_leads').update({
+      company_name: editForm.company_name,
+      address: editForm.address,
+      phone: editForm.phone,
+    }).eq('id', pin.id);
+    setBusy(false);
+    if (error) { toast.error('Erro ao salvar'); return; }
+    toast.success('Dados atualizados');
+    setEditing(false);
+    fetchPins();
+  }
+
+  async function convertToClient(pin: MapPin) {
+    if (previewMode) { toast.info('Ação desativada no espelho.'); return; }
+    setBusy(true);
+    // Cria cliente básico com os dados do lead
+    const { data: client, error: clientErr } = await supabase.from('representative_clients').insert({
+      representative_id: representativeId,
+      razao_social: pin.data.company_name || pin.label,
+      endereco_completo: pin.data.address ? [pin.data.address, pin.data.city, pin.data.state].filter(Boolean).join(', ') : null,
+      whatsapp_comprador: pin.data.phone || pin.data.whatsapp || null,
+      segment: pin.data.segment || null,
+      lat: pin.lat, lng: pin.lng,
+      municipio: pin.data.city || null, uf: pin.data.state || null,
+      status: 'active', is_active_client: true,
+    }).select('id').single();
+    if (clientErr || !client) { setBusy(false); toast.error('Erro ao converter: ' + clientErr?.message); return; }
+    // Marca lead como convertido
+    await supabase.from('prospect_leads').update({
+      status: 'converted', converted_at: new Date().toISOString(),
+      representative_client_id: client.id,
+    }).eq('id', pin.id);
+    setBusy(false);
+    toast.success(`${pin.label} convertido em cliente! ✅`);
+    setSelectedPin(null);
+    fetchPins();
+    window.dispatchEvent(new CustomEvent('repco:clients-updated', { detail: { representativeId } }));
   }
 
   async function doCheckIn(pin: MapPin) {
@@ -315,42 +379,92 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
 
       {/* Painel do pin selecionado */}
       {selectedPin && (
-        <div className="bg-white border-t border-gray-200 p-3 space-y-2 shadow-lg">
+        <div className="bg-white border-t border-gray-200 p-3 space-y-2.5 shadow-lg">
+          {/* Header: número + nome + status + fechar */}
           <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="inline-block w-3 h-3 rounded-full flex-shrink-0" style={{ background: selectedPin.color }} />
+                {/* Número do pino — identifica no mapa */}
+                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full text-white text-[11px] font-bold flex-shrink-0"
+                  style={{ background: selectedPin.color }}>
+                  {selectedPin.number}
+                </span>
                 <span className="font-semibold text-sm text-gray-900 truncate">{selectedPin.label}</span>
-                <span className="text-[10px] rounded-full px-1.5 py-0.5 font-medium" style={{ background: selectedPin.color + '22', color: selectedPin.color }}>
+                <span className="text-[10px] rounded-full px-1.5 py-0.5 font-medium flex-shrink-0"
+                  style={{ background: selectedPin.color + '22', color: selectedPin.color }}>
                   {STATUS_LABEL[selectedPin.status] || selectedPin.status}
                 </span>
               </div>
-              <p className="text-xs text-gray-500 mt-0.5 truncate">{selectedPin.sublabel}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{selectedPin.sublabel}</p>
               {hasGps && (
-                <p className="text-xs text-blue-600 mt-0.5">
-                  {fmtDist(haversineKm(currentLat!, currentLng!, selectedPin.lat, selectedPin.lng))} de você
+                <p className="text-xs text-blue-600 mt-0.5 font-medium">
+                  📍 {fmtDist(haversineKm(currentLat!, currentLng!, selectedPin.lat, selectedPin.lng))} de você
                 </p>
               )}
               {mode === 'pedidos' && selectedPin.data.total_amount && (
                 <p className="text-xs font-semibold text-gray-800 mt-0.5">{fmtBRL(selectedPin.data.total_amount)}</p>
               )}
             </div>
-            <button onClick={() => setSelectedPin(null)} className="flex-shrink-0 text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+            <div className="flex items-center gap-1">
+              {mode === 'visitar' && (
+                <button onClick={() => { openEdit(selectedPin); }}
+                  title="Editar dados do lead"
+                  className="rounded-lg p-1.5 text-gray-400 hover:text-[#8B2214] hover:bg-red-50">
+                  <Edit2 className="w-4 h-4" />
+                </button>
+              )}
+              <button onClick={() => { setSelectedPin(null); setEditing(false); }} className="text-gray-400 hover:text-gray-600 text-xl leading-none px-1">×</button>
+            </div>
           </div>
 
-          <div className="flex gap-1.5 flex-wrap">
-            <button onClick={() => navegar(selectedPin)}
-              className="flex items-center gap-1 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100">
-              <Navigation2 className="w-3.5 h-3.5" /> Navegar
-            </button>
+          {/* Formulário de edição inline */}
+          {editing && mode === 'visitar' && (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-2.5 space-y-2">
+              <p className="text-xs font-semibold text-gray-700">Editar dados</p>
+              <input value={editForm.company_name} onChange={e => setEditForm(f=>({...f,company_name:e.target.value}))}
+                placeholder="Nome do estabelecimento" className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-[#8B2214]" />
+              <input value={editForm.address} onChange={e => setEditForm(f=>({...f,address:e.target.value}))}
+                placeholder="Endereço" className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-[#8B2214]" />
+              <input value={editForm.phone} onChange={e => setEditForm(f=>({...f,phone:e.target.value}))}
+                placeholder="Telefone / WhatsApp" className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-[#8B2214]" />
+              <div className="flex gap-1.5">
+                <button onClick={() => setEditing(false)} className="flex-1 rounded-lg border border-gray-200 py-1.5 text-xs text-gray-600 hover:bg-gray-100">Cancelar</button>
+                <button disabled={busy} onClick={() => saveEdit(selectedPin)}
+                  className="flex-1 rounded-lg bg-[#8B2214] py-1.5 text-xs font-semibold text-white hover:bg-[#6d1a10] disabled:opacity-50">
+                  {busy ? '...' : 'Salvar'}
+                </button>
+              </div>
+            </div>
+          )}
 
-            {mode === 'visitar' && !['visited','converted','rejected'].includes(selectedPin.status) && (
+          {/* Navegação — Google Maps e Waze lado a lado */}
+          <div className="grid grid-cols-2 gap-1.5">
+            <button onClick={() => navegar(selectedPin, 'google')}
+              className="flex items-center justify-center gap-1 rounded-lg bg-blue-50 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100">
+              <Navigation2 className="w-3.5 h-3.5" /> Google Maps
+            </button>
+            <button onClick={() => navegar(selectedPin, 'waze')}
+              className="flex items-center justify-center gap-1 rounded-lg bg-sky-50 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-100">
+              <Navigation2 className="w-3.5 h-3.5" /> Waze
+            </button>
+          </div>
+
+          {/* Ações do modo Visitar */}
+          {mode === 'visitar' && !editing && (
+          <div className="flex gap-1.5 flex-wrap">
+            {!['visited','converted','rejected'].includes(selectedPin.status) && (
               <button disabled={busy} onClick={() => doCheckIn(selectedPin)}
                 className="flex items-center gap-1 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50">
-                <CheckCircle className="w-3.5 h-3.5" /> {busy ? '...' : 'Fazer check-in'}
+                <CheckCircle className="w-3.5 h-3.5" /> {busy ? '...' : 'Check-in'}
               </button>
             )}
-            {mode === 'visitar' && !['visited','converted','rejected'].includes(selectedPin.status) && (
+            {!['visited','converted','rejected'].includes(selectedPin.status) && (
+              <button disabled={busy} onClick={() => convertToClient(selectedPin)}
+                className="flex items-center gap-1 rounded-lg bg-[#8B2214] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#6d1a10] disabled:opacity-50">
+                <UserPlus className="w-3.5 h-3.5" /> {busy ? '...' : 'Converter em cliente'}
+              </button>
+            )}
+            {!['visited','converted','rejected'].includes(selectedPin.status) && (
               <button disabled={busy} onClick={async () => {
                 if (previewMode) { toast.info('Ação desativada no espelho.'); return; }
                 setBusy(true);
@@ -360,7 +474,7 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
                 <RotateCcw className="w-3.5 h-3.5" /> Voltar depois
               </button>
             )}
-            {mode === 'visitar' && !['visited','converted','rejected'].includes(selectedPin.status) && (
+            {!['visited','converted','rejected'].includes(selectedPin.status) && (
               <button disabled={busy} onClick={async () => {
                 if (previewMode) { toast.info('Ação desativada no espelho.'); return; }
                 setBusy(true);
@@ -370,13 +484,16 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
                 <AlertCircle className="w-3.5 h-3.5" /> Não existe
               </button>
             )}
-            {mode === 'entregas' && selectedPin.status !== 'entregue' && (
-              <button onClick={() => doEntregue(selectedPin)}
-                className="flex items-center gap-1 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700">
-                <Truck className="w-3.5 h-3.5" /> Registrar entrega
-              </button>
-            )}
           </div>
+          )}
+
+          {/* Ações do modo Entregas */}
+          {mode === 'entregas' && selectedPin.status !== 'entregue' && (
+            <button onClick={() => doEntregue(selectedPin)}
+              className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-green-600 py-2 text-xs font-semibold text-white hover:bg-green-700">
+              <Truck className="w-3.5 h-3.5" /> Registrar entrega
+            </button>
+          )}
         </div>
       )}
     </div>
