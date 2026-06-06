@@ -437,14 +437,14 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
             </div>
           )}
 
-          {/* Navegação — Google Maps e Waze lado a lado */}
-          <div className="grid grid-cols-2 gap-1.5">
+          {/* Navegação */}
+          <div className="flex gap-1.5 flex-wrap">
             <button onClick={() => navegar(selectedPin, 'google')}
-              className="flex items-center justify-center gap-1 rounded-lg bg-blue-50 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100">
+              className="flex items-center gap-1 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100">
               <Navigation2 className="w-3.5 h-3.5" /> Google Maps
             </button>
             <button onClick={() => navegar(selectedPin, 'waze')}
-              className="flex items-center justify-center gap-1 rounded-lg bg-sky-50 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-100">
+              className="flex items-center gap-1 rounded-lg bg-sky-50 px-3 py-1.5 text-xs font-medium text-sky-700 hover:bg-sky-100">
               <Navigation2 className="w-3.5 h-3.5" /> Waze
             </button>
           </div>
