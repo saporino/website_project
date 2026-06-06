@@ -29,7 +29,9 @@ export default function RepCoCalculatorFab({ contained = false }: { contained?: 
       {open && (
         <div className={`${overlayPos} z-[70] flex flex-col bg-black/40`} onClick={() => setOpen(false)}>
           <div
-            className={`${contained ? 'mt-auto rounded-t-2xl' : 'mt-auto md:mt-0 md:m-auto md:max-w-lg md:rounded-2xl rounded-t-2xl'} w-full bg-[#f8f7f5] shadow-2xl flex flex-col max-h-[92vh]`}
+            className={`${contained
+              ? 'h-full rounded-t-2xl'                                  /* contido: preenche o frame do espelho */
+              : 'mt-auto md:mt-0 md:m-auto md:max-w-lg md:rounded-2xl rounded-t-2xl max-h-[92vh]'} w-full bg-[#f8f7f5] shadow-2xl flex flex-col`}
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-[#8B2214] rounded-t-2xl flex-shrink-0">
