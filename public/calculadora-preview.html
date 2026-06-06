@@ -426,21 +426,27 @@
 
       <!-- Resultado para cada parte -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-        <!-- Representante -->
+        <!-- Saporino (Fornecedor) -->
         <div style="background:#fff8f7;border:1px solid #f0d8d5;border-radius:8px;padding:10px">
-          <p style="font-size:10px;font-weight:700;color:#8B2214;text-transform:uppercase;margin-bottom:6px">Representante</p>
-          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-            <span style="font-size:10px;color:#888">Cede</span>
-            <span id="split-rep-cede" style="font-size:12px;font-weight:700;color:#8B2214">—</span>
+          <p style="font-size:10px;font-weight:700;color:#8B2214;text-transform:uppercase;letter-spacing:.3px;margin-bottom:8px">☕ Saporino</p>
+          <!-- Preço de venda original -->
+          <div style="display:flex;justify-content:space-between;margin-bottom:2px">
+            <span style="font-size:10px;color:#888">Preço de venda</span>
+            <span id="split-rep-original" style="font-size:11px;font-weight:600;color:#555">—</span>
           </div>
-          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
-            <span style="font-size:10px;color:#888">Novo lucro/un.</span>
-            <span id="split-rep-lucro" style="font-size:13px;font-weight:700;color:#8B2214">—</span>
+          <!-- Desconto dado -->
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:10px;color:#888">Desconto dado</span>
+            <span id="split-rep-cede" style="font-size:11px;font-weight:700;color:#dc2626">—</span>
           </div>
-          <div style="display:flex;justify-content:space-between">
-            <span style="font-size:10px;color:#888">Nova margem</span>
-            <span id="split-rep-margem" style="font-size:11px;font-weight:600;color:#555">—</span>
+          <!-- Separador -->
+          <div style="height:1px;background:#f0d8d5;margin-bottom:4px"></div>
+          <!-- Novo preço efetivo -->
+          <div style="display:flex;justify-content:space-between;margin-bottom:2px">
+            <span style="font-size:10px;font-weight:700;color:#555">Recebe por un.</span>
+            <span id="split-rep-lucro" style="font-size:14px;font-weight:800;color:#8B2214">—</span>
           </div>
+          <p style="font-size:9px;color:#aaa;margin-top:3px;line-height:1.3">Desconto sai do custo efetivo do cliente</p>
         </div>
 
         <!-- Cliente -->
@@ -721,9 +727,12 @@
     set('split-prateleira-nova2', 'R$ ' + fmt(novaShelf));
 
     // Fornecedor (rep): absorve splitRep — mostrado como informativo
-    set('split-rep-cede',   splitRep > 0 ? '– R$ ' + fmt(splitRep) : 'Nada');
-    set('split-rep-lucro',  splitRep > 0 ? 'Absorve R$ ' + fmt(splitRep) : 'Inalterado');
-    set('split-rep-margem', 'Prateleira ↓ R$ ' + fmt(splitRep));
+    // Quadrinho Saporino: mostra preço de venda original → desconto → novo preço efetivo
+    const novoPrecoSaporino = cp - splitRep; // novo preço que Saporino recebe por unidade
+    set('split-rep-original', 'R$ ' + fmt(cp));
+    set('split-rep-cede',   splitRep > 0 ? '– R$ ' + fmt(splitRep) : '—');
+    set('split-rep-lucro',  'R$ ' + fmt(novoPrecoSaporino));
+    document.getElementById('split-rep-cede').style.color  = splitRep > 0 ? '#dc2626' : '#aaa';
     document.getElementById('split-rep-lucro').style.color = '#8B2214';
 
     // Cliente: lucro cai apenas pelo que ELE cedeu
