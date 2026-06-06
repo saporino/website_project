@@ -94,6 +94,9 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
   // Quando o usuário muda de aba, hasInitialFit reseta → fitBounds roda de novo.
   // Quando dados atualizam (fetchPins, GPS) → hasInitialFit já é true → sem reset.
   const hasInitialFit = useRef(false);
+  // Ref para evitar loop no useEffect de auto-pulsing
+  const pulsingIdRef = useRef<string | null>(null);
+  useEffect(() => { pulsingIdRef.current = pulsingId; }, [pulsingId]);
 
   const hasGps = currentLat !== undefined && currentLng !== undefined;
 
@@ -135,7 +138,9 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
 
       const rows = (data || [])
         .map((d: any) => Array.isArray(d.prospect_leads) ? d.prospect_leads[0] : d.prospect_leads)
-        .filter((l: any) => l?.lat != null && l?.lng != null);
+        .filter((l: any) => l?.lat != null && l?.lng != null
+          // Concluídos saem do mapa ativo (ficam só no histórico abaixo)
+          && !['visited', 'converted', 'rejected'].includes(l?.status || ''));
       const sorted = hasGps
         ? [...rows].sort((a: any, b: any) => haversineKm(currentLat!, currentLng!, a.lat, a.lng) - haversineKm(currentLat!, currentLng!, b.lat, b.lng))
         : rows;
@@ -302,11 +307,33 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
   }
 
   useEffect(() => { fetchPins(); }, [fetchPins]);
-  // Ao mudar de aba (modo), reseta AMBOS os refs → próximo fetchPins faz fitBounds uma vez
+  // Ao mudar de aba (modo), reseta refs
   useEffect(() => {
     userHasInteracted.current = false;
     hasInitialFit.current = false;
+    setPulsingId(null);
   }, [mode]);
+
+  // Decide se um pino está pendente (deve piscar / ficar no mapa)
+  function isPending(pin: MapPin) {
+    if (mode === 'visitar') return !['visited', 'converted', 'rejected'].includes(pin.status);
+    if (mode === 'entregas') return pin.status !== 'entregue';
+    return !['completed', 'cancelled'].includes(pin.status);
+  }
+
+  // Auto-pulsing: sempre que os pinos mudam, garante que o mais próximo pendente está piscando.
+  // Só troca se o atual pulsing foi concluído (saiu dos pins pendentes).
+  useEffect(() => {
+    if (loading) return;
+    const pending = pins.filter(isPending);
+    if (pending.length === 0) { setPulsingId(null); return; }
+    const currentStillPending = pending.find(p => p.id === pulsingIdRef.current);
+    if (currentStillPending) return; // atual ainda pendente → mantém
+    const nearest = hasGps
+      ? [...pending].sort((a, b) => haversineKm(currentLat!, currentLng!, a.lat, a.lng) - haversineKm(currentLat!, currentLng!, b.lat, b.lng))[0]
+      : pending[0];
+    setPulsingId(nearest.id);
+  }, [pins, mode, loading, hasGps, currentLat, currentLng]);
 
   // Renderiza o mapa Leaflet
   useEffect(() => {
@@ -469,17 +496,8 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
     if (error) { toast.error('Erro ao fazer check-in'); return; }
     toast.success('Check-in registrado!');
     setSelectedPin(null);
-    // Próximo mais perto pisca
+    // fetchPins → setPins → useEffect auto-pulsing escolhe o próximo pendente
     await fetchPins();
-    const remaining = pins.filter(p => p.id !== pin.id && !['visited','converted','rejected'].includes(p.status));
-    if (remaining.length > 0 && hasGps) {
-      const nearest = remaining.sort((a, b) =>
-        haversineKm(currentLat!, currentLng!, a.lat, a.lng) - haversineKm(currentLat!, currentLng!, b.lat, b.lng)
-      )[0];
-      setPulsingId(nearest.id);
-      setTimeout(() => setPulsingId(null), 8000);
-      toast.info(`Próxima mais perto: ${nearest.label}`);
-    }
     window.dispatchEvent(new CustomEvent('repco:prospection-updated', { detail: { representativeId } }));
   }
 
@@ -503,14 +521,7 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
       onFinalizeDelivery(pin.id);
     }
     // Pulsing do próximo após finalizar
-    const remaining = pins.filter(p => p.id !== pin.id && p.status !== 'entregue');
-    if (remaining.length > 0) {
-      const nearest = hasGps
-        ? [...remaining].sort((a, b) => haversineKm(currentLat!, currentLng!, a.lat, a.lng) - haversineKm(currentLat!, currentLng!, b.lat, b.lng))[0]
-        : remaining[0];
-      setPulsingId(nearest.id);
-      setTimeout(() => setPulsingId(null), 10000);
-    }
+    // fetchPins → setPins → useEffect auto-pulsing escolhe o próximo pendente
   }
 
 
