@@ -687,44 +687,50 @@
     const novaPrecos = prateleiraBefore - splitRep - splitCli;
     const totalDesc  = splitRep + splitCli;
 
-    // Rep: seu lucro cai pelo que ele cedeu (sobre o preço de venda ao cliente)
-    // Lucro do rep = (preço que ele cobra ao cliente) - seu custo de produção
-    // Simplificamos: rep tem o lucro igual à diferença entre custo efetivo e custo original
-    // Para esta calculadora: rep perde exatamente o que cedeu no split
-    const repLucroAntes  = prateleiraBefore - custoEfetivo;  // lucro original do cliente
-    // Quando rep cede: ele absorve o splitRep do seu próprio lucro
-    // O cliente mantém o custo efetivo, mas a prateleira baixa
-    const repLucroDepois  = repLucroAntes  - splitRep;  // rep cede do lucro
-    const cliLucroAntes   = prateleiraBefore - custoEfetivo;
-    const cliLucroDepois  = novaPrecos - custoEfetivo;  // prateleira mais baixa, custo igual
+    // ── LÓGICA CORRETA ──
+    // Custo efetivo do cliente ANTES do split (já com desconto% e imposto% do bloco acima)
+    const custoAntesSplit = cp * (1 - desc / 100) * (1 + imp / 100);
+    const lucroAntesSplit = prateleiraBefore - custoAntesSplit;
 
-    // Na verdade o correto é separar: rep e cliente têm margens distintas
-    // Rep cede splitRep do preço → seu lucro de representação cai
-    // Cliente cede splitCli → prateleira dele cai → lucro de varejo dele cai
-    const cliLucroFinal  = novaPrecos - custoEfetivo;
-    const cliMargemFinal = novaPrecos > 0 ? (cliLucroFinal / novaPrecos) * 100 : 0;
+    // Rep dá splitRep (R$):
+    //   → custo do cliente cai splitRep
+    //   → prateleira cai splitRep
+    //   → lucro do cliente NÃO MUDA (ambos caem igual)
+    //   → rep absorve splitRep do próprio bolso
+
+    // Cliente dá splitCli (R$):
+    //   → APENAS a prateleira cai splitCli
+    //   → custo do cliente NÃO MUDA
+    //   → lucro do cliente cai exatamente splitCli
+
+    // RESULTADO:
+    const novoCustoCliente = custoAntesSplit - splitRep;   // rep reduziu o preço de venda
+    const novaShelf        = prateleiraBefore - splitRep - splitCli; // prateleira cai por ambos
+    const novoLucroCliente = novaShelf - novoCustoCliente;
+    // Simplificando: (shelf - splitRep - splitCli) - (custo - splitRep) = shelf - custo - splitCli
+    // = lucroAntesSplit - splitCli  ← cliente perde só o que ele cedeu ✅
+
+    const novaMargemCliente = novaShelf > 0 ? (novoLucroCliente / novaShelf) * 100 : 0;
+    const novoMarkupCliente = novoCustoCliente > 0 ? (novoLucroCliente / novoCustoCliente) * 100 : 0;
 
     document.getElementById('split-result').style.display = 'block';
 
-    set('split-nova-prateleira',     'R$ ' + fmt(novaPrecos));
-    set('split-total-desc',          'R$ ' + fmt(totalDesc));
-    set('split-prateleira-antiga',   'R$ ' + fmt(prateleiraBefore));
-    set('split-prateleira-nova2',    'R$ ' + fmt(novaPrecos));
+    set('split-nova-prateleira',  'R$ ' + fmt(novaShelf));
+    set('split-total-desc',       'R$ ' + fmt(totalDesc));
+    set('split-prateleira-antiga','R$ ' + fmt(prateleiraBefore));
+    set('split-prateleira-nova2', 'R$ ' + fmt(novaShelf));
 
+    // Fornecedor (rep): absorve splitRep — mostrado como informativo
     set('split-rep-cede',   splitRep > 0 ? '– R$ ' + fmt(splitRep) : 'Nada');
+    set('split-rep-lucro',  splitRep > 0 ? 'Absorve R$ ' + fmt(splitRep) : 'Inalterado');
+    set('split-rep-margem', 'Prateleira ↓ R$ ' + fmt(splitRep));
+    document.getElementById('split-rep-lucro').style.color = '#8B2214';
+
+    // Cliente: lucro cai apenas pelo que ELE cedeu
     set('split-cli-cede',   splitCli > 0 ? '– R$ ' + fmt(splitCli) : 'Nada');
-
-    // Rep: mantém custo efetivo, mas recebe menos (prateleira - splitRep do seu lado)
-    // Para simplicidade: rep absorve splitRep do lucro que teria
-    const repLucroSplit  = repLucroAntes - splitRep;
-    const repMargemSplit = novaPrecos > 0 ? (repLucroSplit / novaPrecos) * 100 : 0;
-    set('split-rep-lucro',  'R$ ' + fmt(repLucroSplit));
-    set('split-rep-margem', fmt(repMargemSplit) + ' %');
-    document.getElementById('split-rep-lucro').style.color  = repLucroSplit >= 0 ? '#8B2214' : '#dc2626';
-
-    set('split-cli-lucro',  'R$ ' + fmt(cliLucroFinal));
-    set('split-cli-margem', fmt(cliMargemFinal) + ' %');
-    document.getElementById('split-cli-lucro').style.color = cliLucroFinal >= 0 ? '#16a34a' : '#dc2626';
+    set('split-cli-lucro',  'R$ ' + fmt(novoLucroCliente));
+    set('split-cli-margem', fmt(novaMargemCliente) + ' %');
+    document.getElementById('split-cli-lucro').style.color = novoLucroCliente >= 0 ? '#16a34a' : '#dc2626';
   }
 </script>
 </body>
