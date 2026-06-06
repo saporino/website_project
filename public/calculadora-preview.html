@@ -389,6 +389,92 @@
     <div id="lucro" style="display:none">0</div>
   </div>
 
+  <!-- Desconto Compartilhado — chegar no preço da concorrência -->
+  <div class="extra-section" id="split-section" style="display:none">
+    <h4 style="color:#1a1a1a">🤝 Desconto Conjunto — Competir no Mercado</h4>
+    <p style="font-size:11px;color:#888;margin-bottom:12px">
+      Cada parte cede R$ do próprio lucro para baixar a prateleira e chegar no preço da concorrência.<br>
+      <strong>Zero = não participa.</strong> Preço de custo e imposto não mudam.
+    </p>
+
+    <div class="extra-row">
+      <span class="extra-label">💼 Desconto do Representante (R$)</span>
+      <div class="extra-input-wrap" style="width:100px">
+        <span style="font-size:12px;color:#888;font-weight:600">R$</span>
+        <input type="number" id="split-rep" placeholder="0,00" min="0" step="0.1" oninput="calcSplit()" style="width:60px" />
+      </div>
+    </div>
+    <div class="extra-row" style="margin-bottom:0">
+      <span class="extra-label">🏪 Desconto do Cliente (R$)</span>
+      <div class="extra-input-wrap" style="width:100px">
+        <span style="font-size:12px;color:#888;font-weight:600">R$</span>
+        <input type="number" id="split-cli" placeholder="0,00" min="0" step="0.1" oninput="calcSplit()" style="width:60px" />
+      </div>
+    </div>
+
+    <div id="split-result" style="display:none;margin-top:12px">
+      <div style="height:1px;background:#f0ebe9;margin-bottom:12px"></div>
+
+      <!-- Novo preço de prateleira — destaque -->
+      <div style="background:linear-gradient(135deg,#8B2214,#6d1a10);border-radius:10px;padding:12px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <p style="font-size:10px;color:rgba(255,255,255,0.7);font-weight:600;text-transform:uppercase;margin-bottom:2px">Novo Preço de Prateleira</p>
+          <p style="font-size:11px;color:rgba(255,255,255,0.6)">↓ <span id="split-total-desc"></span> de desconto total</p>
+        </div>
+        <span id="split-nova-prateleira" style="font-size:24px;font-weight:800;color:#fff">R$ —</span>
+      </div>
+
+      <!-- Resultado para cada parte -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <!-- Representante -->
+        <div style="background:#fff8f7;border:1px solid #f0d8d5;border-radius:8px;padding:10px">
+          <p style="font-size:10px;font-weight:700;color:#8B2214;text-transform:uppercase;margin-bottom:6px">Representante</p>
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+            <span style="font-size:10px;color:#888">Cede</span>
+            <span id="split-rep-cede" style="font-size:12px;font-weight:700;color:#8B2214">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+            <span style="font-size:10px;color:#888">Novo lucro/un.</span>
+            <span id="split-rep-lucro" style="font-size:13px;font-weight:700;color:#8B2214">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-size:10px;color:#888">Nova margem</span>
+            <span id="split-rep-margem" style="font-size:11px;font-weight:600;color:#555">—</span>
+          </div>
+        </div>
+
+        <!-- Cliente -->
+        <div style="background:#f0faf4;border:1px solid #c6e8d4;border-radius:8px;padding:10px">
+          <p style="font-size:10px;font-weight:700;color:#16a34a;text-transform:uppercase;margin-bottom:6px">Cliente</p>
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+            <span style="font-size:10px;color:#888">Cede</span>
+            <span id="split-cli-cede" style="font-size:12px;font-weight:700;color:#16a34a">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+            <span style="font-size:10px;color:#888">Novo lucro/un.</span>
+            <span id="split-cli-lucro" style="font-size:13px;font-weight:700;color:#16a34a">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-size:10px;color:#888">Nova margem</span>
+            <span id="split-cli-margem" style="font-size:11px;font-weight:600;color:#555">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Era × Agora -->
+      <div style="background:#f9f6f5;border-radius:8px;padding:10px;font-size:11px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+          <span style="color:#888">Prateleira anterior</span>
+          <span id="split-prateleira-antiga" style="font-weight:600;color:#555">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:#888">Nova prateleira</span>
+          <span id="split-prateleira-nova2" style="font-weight:700;color:#8B2214">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Botão Limpar -->
   <div class="buttons">
     <button class="btn-clear" onclick="clearAll()">🗑 Limpar Tudo</button>
@@ -568,6 +654,77 @@
     document.getElementById('sim-lucro-depois').style.color  = cor;
     document.getElementById('sim-margem-depois').style.color = cor;
     document.getElementById('sim-markup-depois').style.color = cor;
+
+    // Mostra seção de desconto conjunto quando há prateleira definida
+    document.getElementById('split-section').style.display = (cp != null && sp != null) ? 'block' : 'none';
+    calcSplit();
+  }
+
+  function calcSplit() {
+    const cp   = getVal('custo');   // custo original do cliente
+    const sp   = getVal('venda');   // prateleira original (antes do split)
+    if (cp == null || sp == null) { document.getElementById('split-result').style.display = 'none'; return; }
+
+    const desc = parseFloat(document.getElementById('desconto').value) || 0;
+    const imp  = parseFloat(document.getElementById('imposto').value)  || 0;
+    const splitRep = parseFloat(document.getElementById('split-rep').value) || 0;
+    const splitCli = parseFloat(document.getElementById('split-cli').value) || 0;
+
+    const set = (id, v) => { document.getElementById(id).textContent = v; };
+
+    if (splitRep === 0 && splitCli === 0) {
+      document.getElementById('split-result').style.display = 'none';
+      return;
+    }
+
+    // Custo efetivo do cliente (considerando desconto e imposto dos campos acima)
+    const custoEfetivo = cp * (1 - desc / 100) * (1 + imp / 100);
+
+    // Prateleira ANTES do split (pode já estar com ajuste)
+    const prateleiraBefore = sp;
+
+    // Nova prateleira = prateleira original - desconto do rep - desconto do cliente
+    const novaPrecos = prateleiraBefore - splitRep - splitCli;
+    const totalDesc  = splitRep + splitCli;
+
+    // Rep: seu lucro cai pelo que ele cedeu (sobre o preço de venda ao cliente)
+    // Lucro do rep = (preço que ele cobra ao cliente) - seu custo de produção
+    // Simplificamos: rep tem o lucro igual à diferença entre custo efetivo e custo original
+    // Para esta calculadora: rep perde exatamente o que cedeu no split
+    const repLucroAntes  = prateleiraBefore - custoEfetivo;  // lucro original do cliente
+    // Quando rep cede: ele absorve o splitRep do seu próprio lucro
+    // O cliente mantém o custo efetivo, mas a prateleira baixa
+    const repLucroDepois  = repLucroAntes  - splitRep;  // rep cede do lucro
+    const cliLucroAntes   = prateleiraBefore - custoEfetivo;
+    const cliLucroDepois  = novaPrecos - custoEfetivo;  // prateleira mais baixa, custo igual
+
+    // Na verdade o correto é separar: rep e cliente têm margens distintas
+    // Rep cede splitRep do preço → seu lucro de representação cai
+    // Cliente cede splitCli → prateleira dele cai → lucro de varejo dele cai
+    const cliLucroFinal  = novaPrecos - custoEfetivo;
+    const cliMargemFinal = novaPrecos > 0 ? (cliLucroFinal / novaPrecos) * 100 : 0;
+
+    document.getElementById('split-result').style.display = 'block';
+
+    set('split-nova-prateleira',     'R$ ' + fmt(novaPrecos));
+    set('split-total-desc',          'R$ ' + fmt(totalDesc));
+    set('split-prateleira-antiga',   'R$ ' + fmt(prateleiraBefore));
+    set('split-prateleira-nova2',    'R$ ' + fmt(novaPrecos));
+
+    set('split-rep-cede',   splitRep > 0 ? '– R$ ' + fmt(splitRep) : 'Nada');
+    set('split-cli-cede',   splitCli > 0 ? '– R$ ' + fmt(splitCli) : 'Nada');
+
+    // Rep: mantém custo efetivo, mas recebe menos (prateleira - splitRep do seu lado)
+    // Para simplicidade: rep absorve splitRep do lucro que teria
+    const repLucroSplit  = repLucroAntes - splitRep;
+    const repMargemSplit = novaPrecos > 0 ? (repLucroSplit / novaPrecos) * 100 : 0;
+    set('split-rep-lucro',  'R$ ' + fmt(repLucroSplit));
+    set('split-rep-margem', fmt(repMargemSplit) + ' %');
+    document.getElementById('split-rep-lucro').style.color  = repLucroSplit >= 0 ? '#8B2214' : '#dc2626';
+
+    set('split-cli-lucro',  'R$ ' + fmt(cliLucroFinal));
+    set('split-cli-margem', fmt(cliMargemFinal) + ' %');
+    document.getElementById('split-cli-lucro').style.color = cliLucroFinal >= 0 ? '#16a34a' : '#dc2626';
   }
 </script>
 </body>
