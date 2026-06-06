@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Calculadora de Preço — RepCo Saporino</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f8f7f5;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+  .card {
+    background: #fff;
+    border: 1px solid #e5e0de;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 420px;
+    padding: 20px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.07);
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .header-icon {
+    width: 36px; height: 36px;
+    background: #f5f0ef;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .header h2 {
+    font-size: 17px; font-weight: 700;
+    color: #1a1a1a;
+  }
+  .header p {
+    font-size: 11px; color: #888; margin-top: 1px;
+  }
+
+  /* Campos de cálculo */
+  .fields-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .field {
+    position: relative;
+  }
+  .field label {
+    position: absolute;
+    top: 8px; left: 12px;
+    font-size: 10px; font-weight: 600;
+    color: #8B2214;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+    pointer-events: none;
+  }
+  .field input {
+    width: 100%;
+    padding: 28px 40px 10px 12px;
+    border: 1.5px solid #ddd0cc;
+    border-radius: 10px;
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a1a1a;
+    background: #fff;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .field input:focus {
+    border-color: #8B2214;
+    box-shadow: 0 0 0 3px rgba(139,34,20,.08);
+  }
+  .field input.calculated {
+    background: #f9f6f5;
+    color: #555;
+    font-weight: 600;
+  }
+  .field input.active-input {
+    border-color: #8B2214;
+    background: #fff;
+  }
+
+  /* Radio button */
+  .field .radio-btn {
+    position: absolute;
+    right: 10px; bottom: 10px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    border: 2px solid #ddd0cc;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color .15s;
+  }
+  .field .radio-btn.selected {
+    border-color: #8B2214;
+  }
+  .field .radio-btn.selected::after {
+    content: '';
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #8B2214;
+  }
+
+  /* Campos custo/venda — full width */
+  .fields-full {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  /* Resultado / Lucro */
+  .result-box {
+    background: #f9f6f5;
+    border: 1px solid #e8e0de;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+  .result-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .result-row:last-child { margin-bottom: 0; }
+  .result-label {
+    font-size: 12px;
+    color: #666;
+    font-weight: 500;
+  }
+  .result-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1a1a1a;
+  }
+  .result-value.positive { color: #16a34a; }
+  .result-value.negative { color: #dc2626; }
+
+  /* Impostos e desconto */
+  .extra-section {
+    background: #fff;
+    border: 1px solid #e8e0de;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+  .extra-section h4 {
+    font-size: 11px;
+    font-weight: 700;
+    color: #8B2214;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    margin-bottom: 10px;
+  }
+  .extra-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    gap: 8px;
+  }
+  .extra-row:last-child { margin-bottom: 0; }
+  .extra-label {
+    font-size: 12px;
+    color: #555;
+    font-weight: 500;
+    flex: 1;
+  }
+  .extra-input-wrap {
+    display: flex;
+    align-items: center;
+    border: 1.5px solid #ddd0cc;
+    border-radius: 8px;
+    padding: 6px 10px;
+    gap: 4px;
+    width: 90px;
+    background: #fff;
+    transition: border-color .15s;
+  }
+  .extra-input-wrap:focus-within {
+    border-color: #8B2214;
+  }
+  .extra-input-wrap input {
+    width: 50px;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a1a1a;
+    text-align: right;
+    background: transparent;
+  }
+  .extra-input-wrap span {
+    font-size: 12px;
+    color: #888;
+    font-weight: 600;
+  }
+
+  /* Hint de entrada */
+  .input-hint {
+    font-size: 11px;
+    color: #777;
+    text-align: center;
+    margin-bottom: 14px;
+    min-height: 16px;
+  }
+  .input-hint strong {
+    color: #8B2214;
+  }
+
+  /* Botões */
+  .buttons {
+    display: flex;
+    gap: 8px;
+  }
+  .btn-clear {
+    flex: 1;
+    padding: 11px;
+    border: 1.5px solid #ddd0cc;
+    border-radius: 10px;
+    background: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    color: #666;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-clear:hover { background: #f5f0ef; }
+
+  /* Separador */
+  .divider {
+    height: 1px;
+    background: #f0ebe9;
+    margin: 14px 0;
+  }
+
+  /* Badge "Toque 2x para limpar" */
+  .tip {
+    font-size: 10px;
+    color: #aaa;
+    text-align: center;
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="header">
+    <div class="header-icon">🧮</div>
+    <div>
+      <h2>Calculadora de Preço</h2>
+      <p>Digite 2 campos — os outros calculam automaticamente</p>
+    </div>
+  </div>
+
+  <!-- Markup e Margem -->
+  <div class="fields-grid">
+    <div class="field">
+      <label>Markup %</label>
+      <input type="number" id="markup" placeholder="0,00" class="active-input" oninput="calc('markup')" ondblclick="clearField('markup')" />
+    </div>
+    <div class="field">
+      <label>Margem %</label>
+      <input type="number" id="margem" placeholder="0,00" oninput="calc('margem')" ondblclick="clearField('margem')" />
+    </div>
+  </div>
+
+  <!-- Custo e Venda -->
+  <div class="fields-full">
+    <div class="field">
+      <label>Preço de Custo</label>
+      <input type="number" id="custo" placeholder="0,00" oninput="calc('custo')" ondblclick="clearField('custo')" />
+      <div class="radio-btn" id="radio-custo" onclick="toggleRadio('custo')"></div>
+    </div>
+    <div class="field">
+      <label>Preço de Venda</label>
+      <input type="number" id="venda" placeholder="0,00" oninput="calc('venda')" ondblclick="clearField('venda')" />
+      <div class="radio-btn" id="radio-venda" onclick="toggleRadio('venda')"></div>
+    </div>
+  </div>
+
+  <!-- Hint de entrada -->
+  <div class="input-hint" id="hint">Digite valores em 2 campos para calcular</div>
+
+  <!-- Impostos e Desconto -->
+  <div class="extra-section">
+    <h4>Ajustes sobre o Preço de Venda</h4>
+    <div class="extra-row">
+      <span class="extra-label">💰 Lucro estimado</span>
+      <span id="lucro" style="font-size:14px;font-weight:700;color:#16a34a">R$ —</span>
+    </div>
+    <div class="divider" style="margin:8px 0"></div>
+    <div class="extra-row">
+      <span class="extra-label">Aplicar Desconto na Venda</span>
+      <div class="extra-input-wrap">
+        <input type="number" id="desconto" placeholder="0" min="0" max="100" oninput="calcExtras()" />
+        <span>%</span>
+      </div>
+    </div>
+    <div class="extra-row">
+      <span class="extra-label">Aplicar Imposto sobre Venda</span>
+      <div class="extra-input-wrap">
+        <input type="number" id="imposto" placeholder="0" min="0" max="100" oninput="calcExtras()" />
+        <span>%</span>
+      </div>
+    </div>
+    <div id="extras-result" style="display:none;margin-top:8px">
+      <div style="height:1px;background:#f0ebe9;margin-bottom:8px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:11px;color:#888">Preço de Venda ajustado</span>
+        <span id="venda-ajustada" style="font-size:15px;font-weight:700;color:#8B2214">R$ —</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botão Limpar -->
+  <div class="buttons">
+    <button class="btn-clear" onclick="clearAll()">🗑 Limpar Tudo</button>
+  </div>
+
+  <p class="tip">Toque duplo em qualquer campo para limpá-lo individualmente</p>
+</div>
+
+<script>
+  let inputs = {};      // campos digitados pelo usuário
+  let fixedField = null; // campo fixado pelo radio button
+
+  function fmt(v) {
+    return v != null && !isNaN(v) ? v.toFixed(2).replace('.', ',') : '';
+  }
+
+  function getVal(id) {
+    const v = parseFloat(document.getElementById(id).value.replace(',', '.'));
+    return isNaN(v) ? null : v;
+  }
+
+  function setCalc(id, value) {
+    const el = document.getElementById(id);
+    if (inputs[id] !== undefined) return; // não sobrescreve campo digitado
+    el.value = value != null ? fmt(value) : '';
+    el.classList.add('calculated');
+    el.classList.remove('active-input');
+  }
+
+  function clearField(id) {
+    document.getElementById(id).value = '';
+    delete inputs[id];
+    calc(null);
+  }
+
+  function clearAll() {
+    ['markup','margem','custo','venda'].forEach(id => {
+      document.getElementById(id).value = '';
+      document.getElementById(id).classList.remove('calculated','active-input');
+    });
+    document.getElementById('desconto').value = '';
+    document.getElementById('imposto').value = '';
+    inputs = {};
+    fixedField = null;
+    ['radio-custo','radio-venda'].forEach(id => document.getElementById(id).classList.remove('selected'));
+    document.getElementById('hint').innerHTML = 'Digite valores em 2 campos para calcular';
+    document.getElementById('lucro').textContent = 'R$ —';
+    document.getElementById('extras-result').style.display = 'none';
+    calcExtras();
+  }
+
+  function toggleRadio(field) {
+    if (fixedField === field) {
+      fixedField = null;
+      document.getElementById('radio-' + field).classList.remove('selected');
+    } else {
+      fixedField = field;
+      ['custo','venda'].forEach(f => document.getElementById('radio-' + f).classList.remove('selected'));
+      document.getElementById('radio-' + field).classList.add('selected');
+    }
+    calc(null);
+  }
+
+  function calc(changed) {
+    if (changed) {
+      const el = document.getElementById(changed);
+      if (el.value === '') { delete inputs[changed]; }
+      else { inputs[changed] = parseFloat(el.value.replace(',','.'));
+             el.classList.add('active-input'); el.classList.remove('calculated'); }
+    }
+
+    // Reseta campos calculados
+    const all = ['markup','margem','custo','venda'];
+    all.forEach(id => { if (inputs[id] === undefined) {
+      document.getElementById(id).value = '';
+      document.getElementById(id).classList.remove('calculated','active-input');
+    }});
+
+    const keys = Object.keys(inputs);
+    let mk = inputs.markup, mg = inputs.margem, cp = inputs.custo, sp = inputs.venda;
+
+    // Calcula com base nos 2 campos preenchidos
+    if (keys.length >= 2) {
+      if (cp != null && mk != null && sp == null) { sp = cp * (1 + mk/100); }
+      else if (cp != null && mg != null && sp == null) { sp = cp / (1 - mg/100); }
+      else if (sp != null && mk != null && cp == null) { cp = sp / (1 + mk/100); }
+      else if (sp != null && mg != null && cp == null) { cp = sp * (1 - mg/100); }
+      else if (cp != null && sp != null) {
+        mk = (sp - cp) / cp * 100;
+        mg = (sp - cp) / sp * 100;
+      }
+
+      if (cp != null && sp != null) {
+        if (inputs.markup === undefined) setCalc('markup', mk != null ? mk : (sp-cp)/cp*100);
+        if (inputs.margem === undefined) setCalc('margem', mg != null ? mg : (sp-cp)/sp*100);
+        if (inputs.custo === undefined) setCalc('custo', cp);
+        if (inputs.venda === undefined) setCalc('venda', sp);
+
+        const lucro = sp - cp;
+        document.getElementById('lucro').textContent = 'R$ ' + fmt(lucro);
+        document.getElementById('lucro').style.color = lucro >= 0 ? '#16a34a' : '#dc2626';
+
+        const names = { markup:'Markup %', margem:'Margem %', custo:'Preço de Custo', venda:'Preço de Venda' };
+        const hint = keys.slice(0,2).map(k => '<strong>' + names[k] + '</strong>').join(' + ');
+        document.getElementById('hint').innerHTML = '✏️ Entrada: ' + hint;
+      }
+    } else {
+      document.getElementById('hint').innerHTML = keys.length === 1
+        ? '✏️ ' + ({markup:'Markup %',margem:'Margem %',custo:'Preço de Custo',venda:'Preço de Venda'}[keys[0]]) + ' — digite mais 1 campo'
+        : 'Digite valores em 2 campos para calcular';
+      document.getElementById('lucro').textContent = 'R$ —';
+    }
+
+    calcExtras();
+  }
+
+  function calcExtras() {
+    const vendaEl = document.getElementById('venda');
+    const sp = parseFloat(vendaEl.value.replace(',','.'));
+    const desc = parseFloat(document.getElementById('desconto').value) || 0;
+    const imp = parseFloat(document.getElementById('imposto').value) || 0;
+
+    if (!isNaN(sp) && sp > 0 && (desc > 0 || imp > 0)) {
+      let ajustado = sp;
+      if (desc > 0) ajustado = ajustado * (1 - desc/100);
+      if (imp > 0) ajustado = ajustado * (1 + imp/100);
+      document.getElementById('venda-ajustada').textContent = 'R$ ' + fmt(ajustado);
+      document.getElementById('extras-result').style.display = 'block';
+    } else {
+      document.getElementById('extras-result').style.display = 'none';
+    }
+  }
+</script>
+</body>
+</html>
