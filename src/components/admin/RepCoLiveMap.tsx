@@ -56,10 +56,16 @@ function getMinutesAgo(lastSeen: string | null) {
   return Math.floor((Date.now() - new Date(lastSeen).getTime()) / 60000);
 }
 
+// Verde = ativo no app nos últimos 3 min. Baseado em last_seen_at (recência),
+// NÃO no flag is_online — assim trocar para Waze/Maps rapidamente não apaga a luz.
+const ONLINE_MIN = 3;   // verde
+const RECENT_MIN = 15;  // amarelo
+function isOnlineNow(rep: RepPresence) { return !!rep.last_seen_at && getMinutesAgo(rep.last_seen_at) < ONLINE_MIN; }
+
 function getStatusStyle(rep: RepPresence) {
   const min = getMinutesAgo(rep.last_seen_at);
-  if (rep.is_online && min < 2) return { badge: 'bg-green-100 text-green-700', label: 'Online agora' };
-  if (rep.is_online && min < 10) return { badge: 'bg-yellow-100 text-yellow-700', label: `${min}min atrás` };
+  if (rep.last_seen_at && min < ONLINE_MIN) return { badge: 'bg-green-100 text-green-700', label: 'Online agora' };
+  if (rep.last_seen_at && min < RECENT_MIN) return { badge: 'bg-yellow-100 text-yellow-700', label: `${min}min atrás` };
   if (rep.last_seen_at) return { badge: 'bg-gray-100 text-gray-500', label: `Visto ${new Date(rep.last_seen_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` };
   return { badge: 'bg-gray-100 text-gray-400', label: 'Offline' };
 }
@@ -139,7 +145,7 @@ export default function RepCoLiveMap() {
     if (data) setRepRouteStops(data as RouteStop[]);
   }
 
-  const onlineCount = reps.filter(r => r.is_online && getMinutesAgo(r.last_seen_at) < 10).length;
+  const onlineCount = reps.filter(r => getMinutesAgo(r.last_seen_at) < ONLINE_MIN).length;
   const repsWithCoords = reps.filter(r => r.last_lat && r.last_lng);
   const todayRevenue = reps.reduce((s, r) => s + r.todayRevenue, 0);
   const todayOrders = reps.reduce((s, r) => s + r.todayOrders, 0);
@@ -183,7 +189,7 @@ export default function RepCoLiveMap() {
               ))}
               {repsWithCoords.map(rep => (
                 <Marker key={rep.id} position={[rep.last_lat!, rep.last_lng!]}
-                  icon={makeRepIcon(rep.is_online, getMinutesAgo(rep.last_seen_at))}
+                  icon={makeRepIcon(isOnlineNow(rep), getMinutesAgo(rep.last_seen_at))}
                   eventHandlers={{ click: () => toggleRepRoute(rep.id) }}>
                   <Popup>
                     <div style={{ minWidth: '180px', fontFamily: 'system-ui' }}>
@@ -222,14 +228,14 @@ export default function RepCoLiveMap() {
                     <span className="text-base flex-shrink-0">{medals[i] ?? `${i + 1}`}</span>
                     <p className="text-xs font-medium text-gray-800 truncate flex-1">{rep.full_name}</p>
                     <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${badge}`}>
-                      {rep.is_online && getMinutesAgo(rep.last_seen_at) < 2 ? '●' : '○'}
+                      {isOnlineNow(rep) ? '●' : '○'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-gray-400">{rep.todayOrders} pedidos</span>
                     <span className="text-xs font-semibold text-amber-700">R$ {rep.todayRevenue.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}</span>
                   </div>
-                  {rep.current_tab && rep.is_online && getMinutesAgo(rep.last_seen_at) < 10 && (
+                  {rep.current_tab && getMinutesAgo(rep.last_seen_at) < RECENT_MIN && (
                     <p className="text-xs text-gray-400 mt-1 truncate">📍 {TAB_LABELS[rep.current_tab] ?? rep.current_tab}</p>
                   )}
                 </div>

@@ -38,9 +38,12 @@ export function usePresence({ representativeId, currentTab, coords, enabled = tr
   useEffect(() => {
     if (!enabled || !representativeId) return;
     sendHeartbeat();
-    intervalRef.current = setInterval(sendHeartbeat, 60000);
-    const handleVisibility = () => document.visibilityState === 'hidden' ? setOffline() : sendHeartbeat();
-    const handleUnload = () => setOffline();
+    intervalRef.current = setInterval(sendHeartbeat, 45000); // heartbeat a cada 45s
+    // NÃO marca offline ao trocar de app (rep usa Waze/Maps o tempo todo no campo).
+    // Ao voltar para o app, reenvia heartbeat. O status "online" decai sozinho pelo
+    // last_seen_at quando o heartbeat para (celular bloqueado / app fechado de verdade).
+    const handleVisibility = () => { if (document.visibilityState === 'visible') sendHeartbeat(); };
+    const handleUnload = () => setOffline(); // só ao fechar/sair de verdade
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('beforeunload', handleUnload);
     return () => {
