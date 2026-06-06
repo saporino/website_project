@@ -164,13 +164,11 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
   );
   const [activeTab, setActiveTab] = useState<PreviewTab>('inicio');
   const [refreshKey, setRefreshKey] = useState(0);
-  // Relógio real de São Paulo na barra de status (atualiza a cada 15s)
-  const [clock, setClock] = useState(() =>
-    new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })
-  );
+  // Relógio real de São Paulo na barra de status — formato 24h (atualiza a cada 15s)
+  const fmtClock = () => new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false });
+  const [clock, setClock] = useState(fmtClock);
   useEffect(() => {
-    const id = setInterval(() =>
-      setClock(new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })), 15000);
+    const id = setInterval(() => setClock(fmtClock()), 15000);
     return () => clearInterval(id);
   }, []);
   const [minimized, setMinimized] = useState(false);
