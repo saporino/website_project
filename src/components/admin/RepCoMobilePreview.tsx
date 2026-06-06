@@ -353,9 +353,9 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
 
               <header className="flex-shrink-0 bg-[#8B2214] px-3.5 pb-2.5 pt-1.5 text-white">
                 <div className="flex items-center justify-between gap-3">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1 shadow-sm">
-                    <img src="/saporino-logo.png" alt="Saporino" className="h-[18px] w-auto object-contain" />
-                    <span className="text-[11px] font-bold text-[#8B2214]">RepCo</span>
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 shadow-sm">
+                    <img src="/saporino-logo-tight.png" alt="Saporino" className="h-5 w-auto object-contain" />
+                    <span className="text-xs font-bold text-[#8B2214]">RepCo</span>
                   </div>
                   <span className="rounded-full bg-white/15 px-2 py-1 text-[10px] font-semibold">Preview</span>
                 </div>
