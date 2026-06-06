@@ -9,18 +9,13 @@ interface Props {
   currentLng?: number;
   previewMode?: boolean;
   refreshKey?: number;
-  /** Chamado ao editar lead — abre aba Clientes com dados pré-preenchidos */
   onEditLead?: (leadData: {
-    razao_social: string;
-    endereco_completo: string;
-    whatsapp_comprador: string;
-    cnpj: string | null;
-    segment: string | null;
-    lat: number | null;
-    lng: number | null;
-    municipio: string | null;
-    uf: string | null;
+    razao_social: string; endereco_completo: string; whatsapp_comprador: string;
+    cnpj: string | null; segment: string | null; lat: number | null; lng: number | null;
+    municipio: string | null; uf: string | null;
   }) => void;
+  /** Chamado ao finalizar entrega no mapa — navega para aba Entregas com aquele pedido destacado */
+  onFinalizeDelivery?: (orderId: string) => void;
 }
 
 type MapMode = 'visitar' | 'pedidos' | 'entregas';
@@ -74,7 +69,7 @@ const STATUS_LABEL: Record<string, string> = {
   pendente:'A entregar', em_rota:'Em rota', entregue:'Entregue',
 };
 
-export default function RepCoFieldMap({ representativeId, currentLat, currentLng, previewMode = false, refreshKey = 0, onEditLead }: Props) {
+export default function RepCoFieldMap({ representativeId, currentLat, currentLng, previewMode = false, refreshKey = 0, onEditLead, onFinalizeDelivery }: Props) {
   const [mode, setMode] = useState<MapMode>('visitar');
   const [pins, setPins] = useState<MapPin[]>([]);
   const [loading, setLoading] = useState(true);
@@ -344,10 +339,36 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
     window.dispatchEvent(new CustomEvent('repco:prospection-updated', { detail: { representativeId } }));
   }
 
-  async function doEntregue(_pin: MapPin) {
+  async function aceitarEntrega(pin: MapPin) {
     if (previewMode) { toast.info('Ação desativada no espelho.'); return; }
-    toast.info('Vá para Entregas para registrar com foto do canhoto.');
+    setBusy(true);
+    const { error } = await supabase.rpc('repco_update_delivery', { p_order_id: pin.id, p_status: 'em_rota' });
+    setBusy(false);
+    if (error) { toast.error('Erro ao aceitar entrega'); return; }
+    toast.success('Entrega aceita — você está em rota! 🚚');
+    setSelectedPin(null);
+    await fetchPins();
+    // Abre navegação automaticamente ao aceitar
+    navegar(pin, 'google');
   }
+
+  async function finalizarEntrega(pin: MapPin) {
+    if (previewMode) { toast.info('Ação desativada no espelho.'); return; }
+    // Navega para aba Entregas para fazer upload do canhoto
+    if (onFinalizeDelivery) {
+      onFinalizeDelivery(pin.id);
+    }
+    // Pulsing do próximo após finalizar
+    const remaining = pins.filter(p => p.id !== pin.id && p.status !== 'entregue');
+    if (remaining.length > 0) {
+      const nearest = hasGps
+        ? [...remaining].sort((a, b) => haversineKm(currentLat!, currentLng!, a.lat, a.lng) - haversineKm(currentLat!, currentLng!, b.lat, b.lng))[0]
+        : remaining[0];
+      setPulsingId(nearest.id);
+      setTimeout(() => setPulsingId(null), 10000);
+    }
+  }
+
 
   const noPlan = mode === 'visitar' && !loading && pins.length === 0;
   const noData = mode !== 'visitar' && !loading && pins.length === 0;
@@ -517,11 +538,31 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
           )}
 
           {/* Ações do modo Entregas */}
-          {mode === 'entregas' && selectedPin.status !== 'entregue' && (
-            <button onClick={() => doEntregue(selectedPin)}
-              className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-green-600 py-2 text-xs font-semibold text-white hover:bg-green-700">
-              <Truck className="w-3.5 h-3.5" /> Registrar entrega
-            </button>
+          {mode === 'entregas' && (
+            <div className="flex gap-1.5 flex-wrap">
+              {selectedPin.status === 'pendente' && (
+                <button disabled={busy} onClick={() => aceitarEntrega(selectedPin)}
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-[#8B2214] py-2 text-xs font-semibold text-white hover:bg-[#6d1a10] disabled:opacity-50">
+                  <Truck className="w-3.5 h-3.5" /> {busy ? '...' : 'Aceitar entrega → Ir agora'}
+                </button>
+              )}
+              {selectedPin.status === 'em_rota' && (
+                <>
+                  <div className="w-full text-center text-xs font-semibold text-blue-700 bg-blue-50 rounded-lg py-1.5 flex items-center justify-center gap-1">
+                    <Truck className="w-3.5 h-3.5 animate-pulse" /> Em rota de entrega
+                  </div>
+                  <button disabled={busy} onClick={() => finalizarEntrega(selectedPin)}
+                    className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-green-600 py-2 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50">
+                    <CheckCircle className="w-3.5 h-3.5" /> {busy ? '...' : 'Finalizar + foto do canhoto'}
+                  </button>
+                </>
+              )}
+              {selectedPin.status === 'entregue' && (
+                <div className="w-full text-center text-xs font-semibold text-green-700 bg-green-50 rounded-lg py-2 flex items-center justify-center gap-1">
+                  <CheckCircle className="w-3.5 h-3.5" /> Entregue ✓
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

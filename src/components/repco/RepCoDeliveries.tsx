@@ -3,7 +3,13 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { Truck, MapPin, Camera, CheckCircle, Navigation2 } from 'lucide-react';
 
-interface Props { representativeId: string; currentLat?: number; currentLng?: number; previewMode?: boolean; refreshKey?: number; }
+interface Props {
+  representativeId: string; currentLat?: number; currentLng?: number;
+  previewMode?: boolean; refreshKey?: number;
+  /** ID do pedido a destacar (vindo do mapa) — abre upload de canhoto automaticamente */
+  highlightOrderId?: string | null;
+  onHighlightConsumed?: () => void;
+}
 
 interface Client { razao_social: string | null; nome_fantasia: string | null; endereco_completo: string | null; municipio: string | null; uf: string | null; lat: number | null; lng: number | null; }
 interface Delivery {
@@ -27,10 +33,11 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   entregue: { label: 'Entregue', cls: 'bg-green-100 text-green-700' },
 };
 
-export default function RepCoDeliveries({ representativeId, currentLat, currentLng, previewMode = false, refreshKey = 0 }: Props) {
+export default function RepCoDeliveries({ representativeId, currentLat, currentLng, previewMode = false, refreshKey = 0, highlightOrderId, onHighlightConsumed }: Props) {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
+  const [pulsing, setPulsing] = useState<string | null>(null);
 
   async function fetchDeliveries() {
     setLoading(true);
@@ -47,6 +54,26 @@ export default function RepCoDeliveries({ representativeId, currentLat, currentL
     setLoading(false);
   }
   useEffect(() => { fetchDeliveries(); /* eslint-disable-next-line */ }, [representativeId, refreshKey]);
+
+  // Quando vem do mapa (finalizar entrega), destaca o pedido e abre o upload de canhoto
+  useEffect(() => {
+    if (!highlightOrderId || loading) return;
+    const delivery = deliveries.find(d => d.id === highlightOrderId);
+    if (!delivery) return;
+    // Pulsa o pedido destacado
+    setPulsing(highlightOrderId);
+    setTimeout(() => setPulsing(null), 8000);
+    // Scroll suave até o card
+    setTimeout(() => {
+      const el = document.getElementById(`delivery-${highlightOrderId}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 300);
+    onHighlightConsumed?.();
+    // Abre automaticamente o upload do canhoto se já está em_rota
+    if (delivery.delivery_status === 'em_rota' && !previewMode) {
+      setTimeout(() => registrarEntrega(delivery), 600);
+    }
+  }, [highlightOrderId, loading, deliveries]);
 
   const hasGps = currentLat !== undefined && currentLng !== undefined;
   const distOf = (d: Delivery) => (hasGps && d.client?.lat != null && d.client?.lng != null ? distanceKm(currentLat!, currentLng!, d.client.lat, d.client.lng) : null);
@@ -137,7 +164,8 @@ export default function RepCoDeliveries({ representativeId, currentLat, currentL
             const dist = distOf(d);
             const st = STATUS[d.delivery_status] || STATUS.pendente;
             return (
-              <div key={d.id} className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+              <div key={d.id} id={`delivery-${d.id}`}
+                className={`rounded-xl border bg-white p-3 shadow-sm transition-all ${pulsing === d.id ? 'border-[#8B2214] ring-2 ring-[#8B2214] shadow-lg' : 'border-gray-200'}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">

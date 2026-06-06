@@ -52,6 +52,7 @@ export function RepCoDashboard() {
   });
   const [preSelectedClientId, setPreSelectedClientId] = useState<string | null>(null);
   const [preFilledClientData, setPreFilledClientData] = useState<any>(null);
+  const [highlightDeliveryId, setHighlightDeliveryId] = useState<string | null>(null);
   const [showRegForm, setShowRegForm] = useState(false);
   const [regForm, setRegForm] = useState({ full_name: profile?.full_name || '', cpf: '', phone: '', cnpj: '' });
   const [submitting, setSubmitting] = useState(false);
@@ -353,11 +354,17 @@ export function RepCoDashboard() {
               />
             )}
             {activeTab === 'orders' && <RepCoOrders repId={rep!.id} refreshKey={refreshVersion.orders} />}
-            {activeTab === 'entregas' &&<RepCoDeliveries representativeId={rep!.id} currentLat={coords?.lat} currentLng={coords?.lng} refreshKey={refreshVersion.entregas} />}
+            {activeTab === 'entregas' &&<RepCoDeliveries representativeId={rep!.id} currentLat={coords?.lat} currentLng={coords?.lng} refreshKey={refreshVersion.entregas}
+              highlightOrderId={highlightDeliveryId} onHighlightConsumed={() => setHighlightDeliveryId(null)} />}
             {activeTab === 'mapa' && (
               <div style={{height:'calc(100vh - 200px)'}}>
                 <RepCoFieldMap representativeId={rep!.id} currentLat={coords?.lat} currentLng={coords?.lng} refreshKey={refreshVersion.mapa}
-                  onEditLead={(data) => { setPreFilledClientData(data); openTab('clients'); }} />
+                  onEditLead={(data) => { setPreFilledClientData(data); openTab('clients'); }}
+                  onFinalizeDelivery={(orderId) => {
+                    setHighlightDeliveryId(orderId);
+                    openTab('entregas');
+                    refreshTabs('entregas');
+                  }} />
               </div>
             )
 }

@@ -279,7 +279,8 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
       return <ReadOnlyOrdersPreview key={propsKey} representativeId={activeRep.id} />;
 
     if (activeTab === 'mapa')
-      return <RepCoFieldMap key={propsKey} representativeId={activeRep.id} previewMode={pm} />;
+      return <RepCoFieldMap key={propsKey} representativeId={activeRep.id} previewMode={pm}
+        onFinalizeDelivery={() => setActiveTab('entregas')} />;
 
     if (activeTab === 'entregas')
       return <RepCoDeliveries key={propsKey} representativeId={activeRep.id} previewMode={pm} />;
