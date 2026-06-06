@@ -69,6 +69,11 @@ const STATUS_LABEL: Record<string, string> = {
   pendente:'A entregar', em_rota:'Em rota', entregue:'Entregue',
 };
 
+interface DayBlock {
+  date: string; // YYYY-MM-DD
+  items: Array<{ id: string; label: string; sublabel: string; status: string; time?: string; isPending: boolean }>;
+}
+
 export default function RepCoFieldMap({ representativeId, currentLat, currentLng, previewMode = false, refreshKey = 0, onEditLead, onFinalizeDelivery }: Props) {
   const [mode, setMode] = useState<MapMode>('visitar');
   const [pins, setPins] = useState<MapPin[]>([]);
@@ -76,13 +81,14 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
   const [selectedPin, setSelectedPin] = useState<MapPin | null>(null);
   const [pulsingId, setPulsingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  // Edição inline do lead no popup
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ company_name: '', address: '', phone: '' });
+  // Histórico diário abaixo do mapa
+  const [dayBlocks, setDayBlocks] = useState<DayBlock[]>([]);
+  const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
-  // Rastreia se o usuário fez zoom/pan manual — se sim, não reseta o zoom após ações
   const userHasInteracted = useRef(false);
 
   const hasGps = currentLat !== undefined && currentLng !== undefined;
@@ -163,8 +169,116 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
         data: o,
       })));
     }
+    // ── HISTÓRICO DIÁRIO ──
+    await fetchHistory();
     setLoading(false);
   }, [mode, representativeId, currentLat, currentLng, refreshKey]);
+
+  const fetchHistory = useCallback(async () => {
+    const today = new Date().toISOString().split('T')[0];
+    let blocks: DayBlock[] = [];
+
+    if (mode === 'visitar') {
+      const { data } = await supabase
+        .from('rep_daily_plans')
+        .select('plan_date, prospect_leads(id, company_name, status, visited_at, category)')
+        .eq('representative_id', representativeId)
+        .order('plan_date', { ascending: false })
+        .limit(14);
+      const byDate: Record<string, any[]> = {};
+      (data || []).forEach((row: any) => {
+        const d = row.plan_date;
+        const lead = Array.isArray(row.prospect_leads) ? row.prospect_leads[0] : row.prospect_leads;
+        if (!lead) return;
+        if (!byDate[d]) byDate[d] = [];
+        byDate[d].push(lead);
+      });
+      blocks = Object.entries(byDate).map(([date, leads]) => ({
+        date,
+        items: leads.map((l: any) => ({
+          id: l.id, label: l.company_name, sublabel: l.category || '',
+          status: l.status || 'assigned',
+          time: l.visited_at ? new Date(l.visited_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : undefined,
+          isPending: !['visited', 'converted', 'rejected'].includes(l.status || 'assigned'),
+        })),
+      }));
+
+    } else if (mode === 'pedidos') {
+      const { data } = await supabase
+        .from('representative_orders')
+        .select('id, order_number, status, total_amount, created_at, representative_clients(razao_social, municipio)')
+        .eq('representative_id', representativeId)
+        .order('created_at', { ascending: false })
+        .limit(60);
+      const byDate: Record<string, any[]> = {};
+      (data || []).forEach((o: any) => {
+        const d = o.created_at?.split('T')[0];
+        if (!d) return;
+        if (!byDate[d]) byDate[d] = [];
+        byDate[d].push(o);
+      });
+      blocks = Object.entries(byDate).map(([date, orders]) => ({
+        date,
+        items: orders.map((o: any) => {
+          const c = getClient(o);
+          return {
+            id: o.id, label: o.order_number || '—',
+            sublabel: `${c?.razao_social || '—'} · R$ ${(o.total_amount||0).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2})}`,
+            status: o.status, time: undefined,
+            isPending: !['completed', 'cancelled'].includes(o.status || ''),
+          };
+        }),
+      }));
+
+    } else { // entregas
+      const { data } = await supabase
+        .from('representative_orders')
+        .select('id, order_number, delivery_status, total_amount, delivery_accepted_at, delivered_at, representative_clients(razao_social, municipio)')
+        .eq('representative_id', representativeId)
+        .not('delivery_accepted_at', 'is', null)
+        .order('delivery_accepted_at', { ascending: false })
+        .limit(30);
+      const byDate: Record<string, any[]> = {};
+      (data || []).forEach((o: any) => {
+        const d = (o.delivery_accepted_at || o.delivered_at)?.split('T')[0];
+        if (!d) return;
+        if (!byDate[d]) byDate[d] = [];
+        byDate[d].push(o);
+      });
+      blocks = Object.entries(byDate).map(([date, orders]) => ({
+        date,
+        items: orders.map((o: any) => {
+          const c = getClient(o);
+          return {
+            id: o.id, label: o.order_number || '—',
+            sublabel: `${c?.razao_social || '—'} · R$ ${(o.total_amount||0).toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2})}`,
+            status: o.delivery_status || 'pendente',
+            time: o.delivered_at ? new Date(o.delivered_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : undefined,
+            isPending: o.delivery_status !== 'entregue',
+          };
+        }),
+      }));
+    }
+
+    setDayBlocks(blocks);
+    // Hoje sempre expandido por padrão
+    setExpandedDays(prev => { const n = new Set(prev); n.add(today); return n; });
+  }, [mode, representativeId]);
+
+  async function continuarPendentes(date: string) {
+    if (previewMode) { toast.info('Ação desativada no espelho.'); return; }
+    const today = new Date().toISOString().split('T')[0];
+    const block = dayBlocks.find(b => b.date === date);
+    if (!block) return;
+    const pendingIds = block.items.filter(i => i.isPending).map(i => i.id);
+    if (!pendingIds.length) return;
+    const rows = pendingIds.map(lead_id => ({ representative_id: representativeId, lead_id, plan_date: today }));
+    const { error } = await supabase.from('rep_daily_plans').upsert(rows, { onConflict: 'representative_id,lead_id,plan_date' });
+    if (error) { toast.error('Erro ao continuar pendentes'); return; }
+    toast.success(`${pendingIds.length} visita${pendingIds.length > 1 ? 's' : ''} adicionada${pendingIds.length > 1 ? 's' : ''} ao plano de hoje!`);
+    await fetchHistory();
+    window.dispatchEvent(new CustomEvent('repco:map-updated', { detail: { representativeId } }));
+  }
 
   useEffect(() => { fetchPins(); }, [fetchPins]);
   // Ao mudar de modo, reseta a interação (novo conjunto de dados = fitBounds desejado)
@@ -567,6 +681,76 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── HISTÓRICO DIÁRIO ── */}
+      {dayBlocks.length > 0 && (
+        <div className="border-t border-gray-200 bg-gray-50">
+          <div className="px-3 py-2 flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+              {mode === 'visitar' ? 'Histórico de Visitas' : mode === 'pedidos' ? 'Histórico de Pedidos' : 'Histórico de Entregas'}
+            </span>
+            <span className="text-[10px] text-gray-400">{dayBlocks.length} dia{dayBlocks.length !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="space-y-1 px-2 pb-3 max-h-64 overflow-y-auto">
+            {dayBlocks.map(block => {
+              const today = new Date().toISOString().split('T')[0];
+              const isToday = block.date === today;
+              const isExpanded = expandedDays.has(block.date);
+              const pendingCount = block.items.filter(i => i.isPending).length;
+              const doneCount = block.items.length - pendingCount;
+              const dateLabel = isToday ? 'Hoje' : new Date(block.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
+
+              return (
+                <div key={block.date} className="rounded-lg border border-gray-200 bg-white overflow-hidden">
+                  {/* Header do bloco */}
+                  <button onClick={() => setExpandedDays(prev => { const n = new Set(prev); n.has(block.date) ? n.delete(block.date) : n.add(block.date); return n; })}
+                    className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-gray-50">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-semibold ${isToday ? 'text-[#8B2214]' : 'text-gray-700'}`}>{dateLabel}</span>
+                      {pendingCount > 0 && (
+                        <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">{pendingCount} pendente{pendingCount !== 1 ? 's' : ''}</span>
+                      )}
+                      {doneCount > 0 && (
+                        <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-medium text-green-700">{doneCount} feito{doneCount !== 1 ? 's' : ''}</span>
+                      )}
+                    </div>
+                    <span className="text-gray-400 text-xs">{isExpanded ? '▲' : '▼'}</span>
+                  </button>
+
+                  {/* Itens do bloco */}
+                  {isExpanded && (
+                    <div className="border-t border-gray-100">
+                      {/* Botão "Continuar pendentes" para dias anteriores no modo Visitar */}
+                      {!isToday && pendingCount > 0 && mode === 'visitar' && (
+                        <button onClick={() => continuarPendentes(block.date)}
+                          className="w-full py-1.5 text-xs font-semibold text-[#8B2214] hover:bg-red-50 border-b border-gray-100">
+                          ↩ Continuar {pendingCount} visita{pendingCount !== 1 ? 's' : ''} pendente{pendingCount !== 1 ? 's' : ''} hoje
+                        </button>
+                      )}
+                      {block.items.map(item => (
+                        <div key={item.id} className="flex items-center justify-between px-3 py-1.5 border-b border-gray-50 last:border-0">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium text-gray-800 truncate">{item.label}</p>
+                            {item.sublabel && <p className="text-[10px] text-gray-500 truncate">{item.sublabel}</p>}
+                          </div>
+                          <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                            {item.time && <span className="text-[10px] text-gray-400">{item.time}</span>}
+                            <span className={`text-[10px] rounded-full px-1.5 py-0.5 font-medium ${
+                              item.isPending ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
+                            }`}>
+                              {STATUS_LABEL[item.status] || item.status}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
