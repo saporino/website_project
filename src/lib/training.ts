@@ -17,6 +17,7 @@ export interface TrainingState {
   scrollPct?: number;     // posição de scroll 0–1 (sincroniza a lista visível)
   calcOpen?: boolean;     // calculadora aberta/fechada pelo instrutor
   calcState?: CalcState;  // valores digitados na calculadora (sincroniza ao vivo)
+  calcScrollPct?: number; // posição de scroll dentro da calculadora (0–1)
   instructor?: string;
   targets?: string[] | 'all';
 }

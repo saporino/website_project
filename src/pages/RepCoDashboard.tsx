@@ -383,7 +383,8 @@ export function RepCoDashboard() {
       {/* Calculadora de Preço — botão flutuante; segue o instrutor no treinamento */}
       <RepCoCalculatorFab open={calcOpen} onOpenChange={setCalcOpen}
         syncState={training?.active ? training.calcState : undefined}
-        readOnly={!!training?.active} />
+        readOnly={!!training?.active}
+        contentScrollPct={training?.active ? training.calcScrollPct : undefined} />
 
       {/* Barra de navegação inferior (mobile) — padrão corporativo */}
       <nav className="fixed bottom-0 inset-x-0 z-30 flex border-t border-gray-200 bg-white shadow-[0_-1px_8px_rgba(0,0,0,0.06)] md:hidden">

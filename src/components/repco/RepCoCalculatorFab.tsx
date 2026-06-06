@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Calculator, X } from 'lucide-react';
 import RepCoCalculator from './RepCoCalculator';
 import type { CalcState } from '../../lib/training';
@@ -13,6 +13,8 @@ export default function RepCoCalculatorFab({
   syncState,
   onCalcStateChange,
   readOnly = false,
+  onContentScroll,
+  contentScrollPct,
 }: {
   contained?: boolean;
   open?: boolean;                       // controlado (ex.: sincronizado por treinamento)
@@ -20,10 +22,20 @@ export default function RepCoCalculatorFab({
   syncState?: CalcState | null;         // estado da calc vindo do instrutor
   onCalcStateChange?: (s: CalcState) => void; // emite estado da calc (instrutor)
   readOnly?: boolean;                   // mirror só-leitura (rep durante treino)
+  onContentScroll?: (pct: number) => void;    // instrutor rola → emite posição
+  contentScrollPct?: number;                  // rep recebe posição → aplica scroll
 }) {
   const [openLocal, setOpenLocal] = useState(false);
   const open = openProp !== undefined ? openProp : openLocal;
   const setOpen = (v: boolean) => { setOpenLocal(v); onOpenChange?.(v); };
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Aplica o scroll recebido do instrutor (rep segue)
+  useEffect(() => {
+    if (contentScrollPct === undefined || !contentRef.current) return;
+    const el = contentRef.current;
+    el.scrollTop = contentScrollPct * (el.scrollHeight - el.clientHeight);
+  }, [contentScrollPct, open]);
 
   const fabPos = contained
     ? 'absolute bottom-3 right-3 z-[800]'
@@ -61,7 +73,12 @@ export default function RepCoCalculatorFab({
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4">
+            <div ref={contentRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4"
+              onScroll={() => {
+                if (!onContentScroll || !contentRef.current) return;
+                const el = contentRef.current;
+                onContentScroll(el.scrollHeight > el.clientHeight ? el.scrollTop / (el.scrollHeight - el.clientHeight) : 0);
+              }}>
               <RepCoCalculator syncState={syncState} onStateChange={onCalcStateChange} readOnly={readOnly} />
             </div>
           </div>

@@ -435,11 +435,13 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
                 style={{ zoom: 0.82 }}>
                 {renderContent()}
               </main>
-              {/* Calculadora — FAB contido; sincroniza abrir/fechar + valores no treinamento */}
+              {/* Calculadora — FAB contido; sincroniza abrir/fechar + valores + scroll no treinamento */}
               <RepCoCalculatorFab contained open={calcOpen} onOpenChange={setCalcOpen}
                 syncState={!isTrainingMode && trainingBroadcast?.active ? trainingBroadcast.calcState : undefined}
                 readOnly={!isTrainingMode && !!trainingBroadcast?.active}
-                onCalcStateChange={isTrainingMode ? setCalcStateLocal : undefined} />
+                onCalcStateChange={isTrainingMode ? setCalcStateLocal : undefined}
+                contentScrollPct={!isTrainingMode && trainingBroadcast?.active ? trainingBroadcast.calcScrollPct : undefined}
+                onContentScroll={isTrainingMode && training ? (pct) => sendTraining({ active: true, tab: activeTab, calcOpen, calcState: calcStateLocal, calcScrollPct: pct, instructor: 'Instrutor', targets: 'all' }) : undefined} />
             </div>
         </div>
       )}
