@@ -431,7 +431,7 @@
           <p style="font-size:10px;font-weight:700;color:#8B2214;text-transform:uppercase;letter-spacing:.3px;margin-bottom:8px">☕ Saporino</p>
           <!-- Preço de venda original -->
           <div style="display:flex;justify-content:space-between;margin-bottom:2px">
-            <span style="font-size:10px;color:#888">Preço de venda</span>
+            <span data-label="saporino-preco" style="font-size:10px;color:#888">Preço de venda</span>
             <span id="split-rep-original" style="font-size:11px;font-weight:600;color:#555">—</span>
           </div>
           <!-- Desconto dado -->
@@ -726,10 +726,17 @@
     set('split-prateleira-antiga','R$ ' + fmt(prateleiraBefore));
     set('split-prateleira-nova2', 'R$ ' + fmt(novaShelf));
 
-    // Fornecedor (rep): absorve splitRep — mostrado como informativo
-    // Quadrinho Saporino: mostra preço de venda original → desconto → novo preço efetivo
-    const novoPrecoSaporino = cp - splitRep; // novo preço que Saporino recebe por unidade
-    set('split-rep-original', 'R$ ' + fmt(cp));
+    // ── Quadrinho SAPORINO — sincronizado com Seção 1 ──
+    // Parte do custoEfetivo (já com desconto% e imposto% de cima), não do custo original.
+    // Assim tudo fica encadeado: desconto% → custo efetivo → desconto conjunto → recebe por un.
+    const novoPrecoSaporino = custoEfetivo - splitRep;
+    const labelPrecoEfetivo = (desc > 0 || imp > 0)
+      ? 'Preço efetivo (c/ajuste)' // já veio com desconto% ou imposto% da seção 1
+      : 'Preço de venda';           // sem ajuste na seção 1, igual ao custo original
+    set('split-rep-original', 'R$ ' + fmt(custoEfetivo)); // usa o custo JÁ ajustado
+    // Atualiza também o label dinâmico
+    const labelEl = document.querySelector('[data-label="saporino-preco"]');
+    if (labelEl) labelEl.textContent = labelPrecoEfetivo;
     set('split-rep-cede',   splitRep > 0 ? '– R$ ' + fmt(splitRep) : '—');
     set('split-rep-lucro',  'R$ ' + fmt(novoPrecoSaporino));
     document.getElementById('split-rep-cede').style.color  = splitRep > 0 ? '#dc2626' : '#aaa';
