@@ -268,11 +268,11 @@
   <div class="fields-grid">
     <div class="field">
       <label>Markup %</label>
-      <input type="number" id="markup" placeholder="0,00" class="active-input" oninput="calc('markup')" ondblclick="clearField('markup')" />
+      <input type="text" inputmode="decimal" id="markup" placeholder="0,00" class="active-input" oninput="calc('markup')" ondblclick="clearField('markup')" />
     </div>
     <div class="field">
       <label>Margem %</label>
-      <input type="number" id="margem" placeholder="0,00" oninput="calc('margem')" ondblclick="clearField('margem')" />
+      <input type="text" inputmode="decimal" id="margem" placeholder="0,00" oninput="calc('margem')" ondblclick="clearField('margem')" />
     </div>
   </div>
 
@@ -280,12 +280,12 @@
   <div class="fields-full">
     <div class="field">
       <label>Preço de Custo</label>
-      <input type="number" id="custo" placeholder="0,00" oninput="calc('custo')" ondblclick="clearField('custo')" />
+      <input type="text" inputmode="decimal" id="custo" placeholder="0,00" oninput="calc('custo')" ondblclick="clearField('custo')" />
       <div class="radio-btn" id="radio-custo" onclick="toggleRadio('custo')"></div>
     </div>
     <div class="field">
       <label>Preço de Venda</label>
-      <input type="number" id="venda" placeholder="0,00" oninput="calc('venda')" ondblclick="clearField('venda')" />
+      <input type="text" inputmode="decimal" id="venda" placeholder="0,00" oninput="calc('venda')" ondblclick="clearField('venda')" />
       <div class="radio-btn" id="radio-venda" onclick="toggleRadio('venda')"></div>
     </div>
   </div>
