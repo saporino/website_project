@@ -523,19 +523,23 @@
   }
 
   function clearAll() {
-    ['markup','margem','custo','venda'].forEach(id => {
-      document.getElementById(id).value = '';
-      document.getElementById(id).classList.remove('calculated','active-input');
+    // Limpa todos os campos de entrada
+    ['markup','margem','custo','venda','desconto','imposto','split-rep','split-cli'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.value = ''; el.classList.remove('calculated','active-input'); }
     });
-    document.getElementById('desconto').value = '';
-    document.getElementById('imposto').value = '';
     inputs = {};
     fixedField = null;
-    ['radio-custo','radio-venda'].forEach(id => document.getElementById(id).classList.remove('selected'));
+    ['radio-custo','radio-venda'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove('selected');
+    });
     document.getElementById('hint').innerHTML = 'Digite valores em 2 campos para calcular';
-    document.getElementById('lucro').textContent = 'R$ —';
-    document.getElementById('extras-result').style.display = 'none';
-    calcExtras();
+    // Esconde todas as seções de resultado
+    ['sim-result','split-result','split-section'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
   }
 
   function toggleRadio(field) {
