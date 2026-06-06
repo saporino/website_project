@@ -11,9 +11,10 @@ import RepCoNewOrder from '../components/repco/RepCoNewOrder';
 import RepCoHome from '../components/repco/RepCoHome';
 import RepCoProspection from '../components/repco/RepCoProspection';
 import RepCoDeliveries from '../components/repco/RepCoDeliveries';
+import RepCoFieldMap from '../components/repco/RepCoFieldMap';
 import { usePresence } from '../hooks/usePresence';
 import { useGeolocation } from '../hooks/useGeolocation';
-import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Home, ClipboardList, Radio, Truck, MoreHorizontal } from 'lucide-react';
+import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Home, ClipboardList, Radio, Truck, MoreHorizontal, Map } from 'lucide-react';
 import { useTrainingListener, espelhoTabToRepTab } from '../lib/training';
 
 
@@ -30,7 +31,7 @@ interface Representative {
   has_personal_delivery: boolean;
 }
 
-type RepCoTab = 'inicio' | 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido' | 'entregas' | 'prospection';
+type RepCoTab = 'inicio' | 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido' | 'entregas' | 'prospection' | 'mapa';
 
 export function RepCoDashboard() {
   const { user, profile, signOut } = useAuth();
@@ -47,6 +48,7 @@ export function RepCoDashboard() {
     novo_pedido: 0,
     entregas: 0,
     prospection: 0,
+    mapa: 0,
   });
   const [preSelectedClientId, setPreSelectedClientId] = useState<string | null>(null);
   const [showRegForm, setShowRegForm] = useState(false);
@@ -247,6 +249,7 @@ export function RepCoDashboard() {
     { id: 'inicio', label: 'Início', icon: Home },
     { id: 'profile', label: 'Perfil', icon: User },
     { id: 'prospection', label: 'Prospecção', icon: ClipboardList },
+    { id: 'mapa', label: 'Mapa', icon: Map },
     { id: 'clients', label: 'Clientes', icon: Users },
     { id: 'novo_pedido', label: 'Novo Pedido', icon: ShoppingCart },
     { id: 'orders', label: 'Pedidos', icon: ShoppingBag },
@@ -350,6 +353,12 @@ export function RepCoDashboard() {
             )}
             {activeTab === 'orders' && <RepCoOrders repId={rep!.id} refreshKey={refreshVersion.orders} />}
             {activeTab === 'entregas' &&<RepCoDeliveries representativeId={rep!.id} currentLat={coords?.lat} currentLng={coords?.lng} refreshKey={refreshVersion.entregas} />}
+            {activeTab === 'mapa' && (
+              <div style={{height:'calc(100vh - 200px)'}}>
+                <RepCoFieldMap representativeId={rep!.id} currentLat={coords?.lat} currentLng={coords?.lng} refreshKey={refreshVersion.mapa} />
+              </div>
+            )
+}
             {activeTab === 'prospection' && <RepCoProspection representativeId={rep!.id} currentLat={coords?.lat} currentLng={coords?.lng} refreshKey={refreshVersion.prospection} />}
             {activeTab === 'commissions' && <RepCoCommissions repId={rep!.id} />}
             {activeTab === 'performance' && <RepCoPerformance repId={rep!.id} />}

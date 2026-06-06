@@ -7,6 +7,7 @@ import RepCoHome from '../repco/RepCoHome';
 import RepCoProspection from '../repco/RepCoProspection';
 import RepCoClients from '../repco/RepCoClients';
 import RepCoDeliveries from '../repco/RepCoDeliveries';
+import RepCoFieldMap from '../repco/RepCoFieldMap';
 import { supabase } from '../../lib/supabase';
 
 // Lazy — exports nomeados precisam de .then(m=>({default:m.X}))
@@ -36,7 +37,7 @@ interface Props {
 }
 
 // Todas as abas do RepCoApp — idêntico ao RepCoWeb
-type PreviewTab = 'inicio' | 'profile' | 'prospection' | 'clients' | 'novo_pedido' | 'orders' | 'entregas' | 'commissions' | 'performance';
+type PreviewTab = 'inicio' | 'profile' | 'prospection' | 'mapa' | 'clients' | 'novo_pedido' | 'orders' | 'entregas' | 'commissions' | 'performance';
 
 interface PreviewOrder {
   id: string;
@@ -49,9 +50,11 @@ interface PreviewOrder {
 }
 
 // Abas de TRABALHO — visíveis na barra inferior (uso diário)
+// RepCoApp deve ter TODAS as abas de trabalho do RepCoWeb
 const WORK_TABS: { id: PreviewTab; label: string; icon: ElementType }[] = [
   { id: 'inicio',      label: 'Início',      icon: Home        },
   { id: 'prospection', label: 'Prospecção',  icon: ClipboardList },
+  { id: 'mapa',        label: 'Mapa',        icon: FileText    }, // usa FileText como placeholder (Map não disponível aqui)
   { id: 'clients',     label: 'Clientes',    icon: Users       },
   { id: 'novo_pedido', label: 'Novo Pedido', icon: Plus        },
   { id: 'orders',      label: 'Pedidos',     icon: ShoppingBag },
@@ -274,6 +277,9 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
 
     if (activeTab === 'orders')
       return <ReadOnlyOrdersPreview key={propsKey} representativeId={activeRep.id} />;
+
+    if (activeTab === 'mapa')
+      return <RepCoFieldMap key={propsKey} representativeId={activeRep.id} previewMode={pm} />;
 
     if (activeTab === 'entregas')
       return <RepCoDeliveries key={propsKey} representativeId={activeRep.id} previewMode={pm} />;

@@ -301,6 +301,9 @@ export default function RepCoProspection({ representativeId, currentLat, current
   const [converting, setConverting] = useState(false);
   const [cityFilter, setCityFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  // Seleção para "Planejar para Hoje"
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [planning, setPlanning] = useState(false);
 
   useEffect(() => {
     fetchLeads();
@@ -574,6 +577,24 @@ export default function RepCoProspection({ representativeId, currentLat, current
     }
   }
 
+  async function planForToday() {
+    if (previewMode) { toast.info('Ação desativada no espelho.'); return; }
+    if (selectedIds.size === 0) return;
+    setPlanning(true);
+    const today = new Date().toISOString().split('T')[0];
+    const rows = Array.from(selectedIds).map(lead_id => ({ representative_id: representativeId, lead_id, plan_date: today }));
+    const { error } = await supabase.from('rep_daily_plans').upsert(rows, { onConflict: 'representative_id,lead_id,plan_date' });
+    setPlanning(false);
+    if (error) { toast.error('Erro ao planejar visitas'); return; }
+    toast.success(`${selectedIds.size} visita${selectedIds.size>1?'s':''} adicionada${selectedIds.size>1?'s':''} ao mapa de hoje!`);
+    setSelectedIds(new Set());
+    window.dispatchEvent(new CustomEvent('repco:map-updated', { detail: { representativeId } }));
+  }
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => { const n=new Set(prev); n.has(id)?n.delete(id):n.add(id); return n; });
+  }
+
   const sortedLeads = useMemo(() => {
     const hasCurrentLocation = currentLat !== undefined && currentLng !== undefined;
     return [...leads].sort((a, b) => {
@@ -678,6 +699,22 @@ export default function RepCoProspection({ representativeId, currentLat, current
         </div>
       )}
 
+      {/* Barra "Planejar para Hoje" — aparece quando leads são selecionados */}
+      {selectedIds.size > 0 && (
+        <div className="sticky bottom-0 z-30 flex items-center justify-between gap-2 rounded-xl border border-[#8B2214] bg-[#8B2214] px-3 py-2.5 shadow-xl">
+          <div className="text-sm text-white font-medium">
+            {selectedIds.size} selecionado{selectedIds.size > 1 ? 's' : ''} para o mapa
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setSelectedIds(new Set())} className="rounded-lg border border-white/30 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/10">Limpar</button>
+            <button disabled={planning} onClick={planForToday}
+              className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-[#8B2214] hover:bg-red-50 disabled:opacity-60">
+              {planning ? '...' : '🗺️ Planejar para Hoje'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {leads.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white py-12 text-center">
           <p className="font-medium text-gray-500">Nenhum lead atribuído ainda.</p>
@@ -696,10 +733,26 @@ export default function RepCoProspection({ representativeId, currentLat, current
             const contactLinks = getContactLinks(lead);
             const phoneDigits = getLeadPhone(lead);
             const email = getLeadEmail(lead);
+            const isSelected = selectedIds.has(lead.id);
+            const canSelect = lead.lat !== null && !['visited','converted'].includes(lead.status);
 
             return (
-              <div key={lead.id} className="rounded-xl border border-gray-200 bg-white p-2.5 shadow-sm">
+              <div key={lead.id}
+                onClick={() => canSelect && toggleSelect(lead.id)}
+                className={`rounded-xl border bg-white p-2.5 shadow-sm transition-all cursor-pointer ${
+                  isSelected ? 'border-[#8B2214] ring-1 ring-[#8B2214]' : 'border-gray-200'
+                }`}>
                 <div className="min-w-0">
+                  {/* Checkbox de seleção */}
+                  {canSelect && (
+                    <div className="float-right ml-2 mt-0.5 flex-shrink-0">
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                        isSelected ? 'bg-[#8B2214] border-[#8B2214]' : 'border-gray-300'
+                      }`}>
+                        {isSelected && <span className="text-white text-[10px]">✓</span>}
+                      </div>
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <h4 className="min-w-0 flex-1 text-[13px] font-semibold text-gray-900">{lead.trade_name || lead.company_name}</h4>
