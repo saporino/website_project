@@ -164,6 +164,15 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
   );
   const [activeTab, setActiveTab] = useState<PreviewTab>('inicio');
   const [refreshKey, setRefreshKey] = useState(0);
+  // Relógio real de São Paulo na barra de status (atualiza a cada 15s)
+  const [clock, setClock] = useState(() =>
+    new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })
+  );
+  useEffect(() => {
+    const id = setInterval(() =>
+      setClock(new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' })), 15000);
+    return () => clearInterval(id);
+  }, []);
   const [minimized, setMinimized] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [pos, setPos] = useState(() => ({ x: Math.max(8, window.innerWidth - 392 - offsetIndex * 40), y: 72 + offsetIndex * 40 }));
@@ -331,7 +340,7 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
             <div className="relative h-[64vh] max-h-[680px] overflow-hidden rounded-b-[1.1rem] bg-[#f5f3ee] flex flex-col">
               {/* barra de status — 3 pontinhos abrem menu Perfil/Comissões/Performance */}
               <div className="flex-shrink-0 relative flex items-center justify-between bg-[#8B2214] px-5 pb-0.5 pt-2.5 text-[10px] font-semibold text-white/90">
-                <span>9:41</span>
+                <span>{clock}</span>
                 <button
                   onClick={() => setMenuOpen(v => !v)}
                   className={`flex h-6 w-6 items-center justify-center rounded-full transition-colors ${menuOpen ? 'bg-white/30' : 'bg-white/10 hover:bg-white/20'}`}
