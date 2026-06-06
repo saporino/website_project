@@ -34,7 +34,12 @@ function fmtCPF(v:string){return v.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/,'$1.
 function days(d:string|null){if(!d)return 999;return Math.floor((Date.now()-new Date(d).getTime())/86400000);}
 function parsePrazoOffsets(prazo:string|null):number[]{return (prazo||'').match(/\d+/g)?.map(Number).filter(n=>n>0)||[];}
 function scoreFaixa(s:number){return s<300?{label:'Ruim',cls:'bg-red-100 text-red-700'}:s<500?{label:'Regular',cls:'bg-orange-100 text-orange-700'}:s<700?{label:'Bom',cls:'bg-amber-100 text-amber-700'}:s<900?{label:'Ótimo',cls:'bg-green-100 text-green-700'}:{label:'Excelente',cls:'bg-emerald-100 text-emerald-700'};}
-export default function RepCoClients({ representativeId, previewMode = false, refreshKey = 0 }: { representativeId: string; previewMode?: boolean; refreshKey?: number }) {
+interface InitialClientData {
+  razao_social?: string; endereco_completo?: string; whatsapp_comprador?: string;
+  cnpj?: string | null; segment?: string | null;
+  lat?: number | null; lng?: number | null; municipio?: string | null; uf?: string | null;
+}
+export default function RepCoClients({ representativeId, previewMode = false, refreshKey = 0, initialData, onInitialDataConsumed }: { representativeId: string; previewMode?: boolean; refreshKey?: number; initialData?: InitialClientData | null; onInitialDataConsumed?: () => void; }) {
   const [clients,setClients]=useState<RepCoClient[]>([]);
   const [blocked,setBlocked]=useState<Record<string,string>>({});
   const [loading,setLoading]=useState(true);
@@ -50,6 +55,25 @@ export default function RepCoClients({ representativeId, previewMode = false, re
   const [ok,setOk]=useState('');
   const [search,setSearch]=useState('');
   useEffect(()=>{fetchClients();},[representativeId,refreshKey]);
+
+  // Quando o rep toca "Editar" no mapa, recebe os dados do lead pré-preenchidos
+  useEffect(()=>{
+    if(!initialData) return;
+    setForm(_=>({
+      ...emptyForm,
+      razao_social: initialData.razao_social||'',
+      endereco_completo: initialData.endereco_completo||'',
+      whatsapp_comprador: initialData.whatsapp_comprador||'',
+      cnpj: (initialData.cnpj||'').replace(/\D/g,''),
+      segment: (initialData.segment||'') as ClientSegment|'',
+      municipio: initialData.municipio||'',
+      uf: initialData.uf||'',
+      is_pj: !!(initialData.cnpj),
+    }));
+    setView('new');
+    setErr('');
+    onInitialDataConsumed?.();
+  },[initialData]);
   useEffect(()=>{
     function handleRefresh(event: Event){
       const detail=(event as CustomEvent<{representativeId?:string}>).detail;

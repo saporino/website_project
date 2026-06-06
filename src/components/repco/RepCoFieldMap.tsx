@@ -9,6 +9,18 @@ interface Props {
   currentLng?: number;
   previewMode?: boolean;
   refreshKey?: number;
+  /** Chamado ao editar lead — abre aba Clientes com dados pré-preenchidos */
+  onEditLead?: (leadData: {
+    razao_social: string;
+    endereco_completo: string;
+    whatsapp_comprador: string;
+    cnpj: string | null;
+    segment: string | null;
+    lat: number | null;
+    lng: number | null;
+    municipio: string | null;
+    uf: string | null;
+  }) => void;
 }
 
 type MapMode = 'visitar' | 'pedidos' | 'entregas';
@@ -62,7 +74,7 @@ const STATUS_LABEL: Record<string, string> = {
   pendente:'A entregar', em_rota:'Em rota', entregue:'Entregue',
 };
 
-export default function RepCoFieldMap({ representativeId, currentLat, currentLng, previewMode = false, refreshKey = 0 }: Props) {
+export default function RepCoFieldMap({ representativeId, currentLat, currentLng, previewMode = false, refreshKey = 0, onEditLead }: Props) {
   const [mode, setMode] = useState<MapMode>('visitar');
   const [pins, setPins] = useState<MapPin[]>([]);
   const [loading, setLoading] = useState(true);
@@ -241,12 +253,29 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
   }
 
   function openEdit(pin: MapPin) {
-    setEditForm({
-      company_name: pin.data.company_name || pin.label || '',
-      address: pin.data.address || '',
-      phone: pin.data.phone || pin.data.whatsapp || '',
-    });
-    setEditing(true);
+    if (previewMode) { toast.info('Ação desativada no espelho.'); return; }
+    if (onEditLead) {
+      // Abre aba Clientes com formulário completo pré-preenchido
+      onEditLead({
+        razao_social: pin.data.company_name || pin.label || '',
+        endereco_completo: [pin.data.address, pin.data.number, pin.data.city, pin.data.state].filter(Boolean).join(', '),
+        whatsapp_comprador: pin.data.whatsapp || pin.data.phone || '',
+        cnpj: pin.data.cnpj || null,
+        segment: pin.data.segment || null,
+        lat: pin.lat,
+        lng: pin.lng,
+        municipio: pin.data.city || null,
+        uf: pin.data.state || null,
+      });
+    } else {
+      // Fallback: abre form inline simplificado se não houver callback
+      setEditForm({
+        company_name: pin.data.company_name || pin.label || '',
+        address: pin.data.address || '',
+        phone: pin.data.phone || pin.data.whatsapp || '',
+      });
+      setEditing(true);
+    }
   }
 
   async function saveEdit(pin: MapPin) {
