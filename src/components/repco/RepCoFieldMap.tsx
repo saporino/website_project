@@ -161,10 +161,19 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
     async function initMap() {
       L = (await import('leaflet')).default;
       if (!leafletMap.current) {
-        const mapCenter = hasGps ? [currentLat!, currentLng!] : [-23.185, -47.010]; // centro Jundiaí como default
-        leafletMap.current = L.map(mapRef.current!, { zoomControl: true, attributionControl: false, center: mapCenter, zoom: 13 });
+        const mapCenter = hasGps ? [currentLat!, currentLng!] : [-23.185, -47.010];
+        leafletMap.current = L.map(mapRef.current!, {
+          zoomControl: true,
+          attributionControl: false,
+          scrollWheelZoom: true,   // zoom com scroll do mouse — explícito em todos os modos
+          center: mapCenter,
+          zoom: 13,
+        });
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(leafletMap.current);
       }
+
+      // Garante tamanho correto após mudança de modo ou re-render
+      setTimeout(() => leafletMap.current?.invalidateSize(), 50);
 
       // Remove markers antigos
       markersRef.current.forEach(m => m.remove());
@@ -290,17 +299,15 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
           </div>
         )}
         {noPlan && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gray-50 z-10 px-6 text-center">
-            <MapPin className="h-10 w-10 text-gray-300" />
-            <p className="font-semibold text-gray-700">Nenhuma visita planejada para hoje</p>
-            <p className="text-sm text-gray-500">Na aba Prospecção, selecione leads e toque em "Planejar para Hoje".</p>
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 pointer-events-none w-[90%] max-w-sm rounded-xl bg-white/90 shadow-lg border border-gray-200 px-4 py-3 text-center backdrop-blur-sm">
+            <p className="font-semibold text-gray-700 text-sm">Nenhuma visita planejada para hoje</p>
+            <p className="text-xs text-gray-500 mt-0.5">Na aba Prospecção, selecione leads e toque em "Planejar para Hoje".</p>
           </div>
         )}
         {noData && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-gray-50 z-10 px-6 text-center">
-            <MapPin className="h-10 w-10 text-gray-300" />
-            <p className="font-semibold text-gray-700">Sem {mode === 'pedidos' ? 'pedidos' : 'entregas'} no mapa</p>
-            <p className="text-sm text-gray-500">{mode === 'pedidos' ? 'Pedidos com clientes geocodificados aparecerão aqui.' : 'Entregas pessoais pendentes aparecerão aqui.'}</p>
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 pointer-events-none w-[90%] max-w-sm rounded-xl bg-white/90 shadow-lg border border-gray-200 px-4 py-3 text-center backdrop-blur-sm">
+            <p className="font-semibold text-gray-700 text-sm">Sem {mode === 'pedidos' ? 'pedidos' : 'entregas'} no mapa</p>
+            <p className="text-xs text-gray-500 mt-0.5">{mode === 'pedidos' ? 'Pedidos com clientes geocodificados aparecerão aqui.' : 'Entregas pessoais pendentes aparecerão aqui.'}</p>
           </div>
         )}
         <div ref={mapRef} className="w-full h-full" style={{ minHeight: 280 }} />
