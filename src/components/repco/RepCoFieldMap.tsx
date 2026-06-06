@@ -87,6 +87,13 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
 
   const hasGps = currentLat !== undefined && currentLng !== undefined;
 
+  // Supabase retorna a relação como objeto OU array dependendo do contexto —
+  // normaliza para sempre ser um objeto (ou null).
+  function getClient(o: any) {
+    const c = o.representative_clients;
+    return Array.isArray(c) ? (c[0] ?? null) : (c ?? null);
+  }
+
   const fetchPins = useCallback(async () => {
     setLoading(true);
     setSelectedPin(null);
@@ -99,16 +106,14 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
         .eq('representative_id', representativeId)
         .eq('plan_date', today);
 
-      const rows = (data || []).map((d: any) => d.prospect_leads).filter((l: any) => l?.lat != null && l?.lng != null);
-      let sorted = rows;
-      if (hasGps) {
-        sorted = [...rows].sort((a: any, b: any) =>
-          haversineKm(currentLat!, currentLng!, a.lat, a.lng) - haversineKm(currentLat!, currentLng!, b.lat, b.lng)
-        );
-      }
+      const rows = (data || [])
+        .map((d: any) => Array.isArray(d.prospect_leads) ? d.prospect_leads[0] : d.prospect_leads)
+        .filter((l: any) => l?.lat != null && l?.lng != null);
+      const sorted = hasGps
+        ? [...rows].sort((a: any, b: any) => haversineKm(currentLat!, currentLng!, a.lat, a.lng) - haversineKm(currentLat!, currentLng!, b.lat, b.lng))
+        : rows;
       setPins(sorted.map((l: any, i: number) => ({
-        id: l.id, number: i+1,
-        lat: l.lat, lng: l.lng,
+        id: l.id, number: i+1, lat: l.lat, lng: l.lng,
         label: l.company_name,
         sublabel: [l.address, l.city, l.state].filter(Boolean).join(', '),
         status: l.status || 'assigned',
@@ -124,12 +129,13 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
         .order('created_at', { ascending: false })
         .limit(60);
 
-      const rows = (data || []).filter((o: any) => o.representative_clients?.lat != null);
+      const rows = (data || [])
+        .map((o: any) => ({ ...o, _c: getClient(o) }))
+        .filter((o: any) => o._c?.lat != null && o._c?.lng != null);
       setPins(rows.map((o: any, i: number) => ({
-        id: o.id, number: i+1,
-        lat: o.representative_clients.lat, lng: o.representative_clients.lng,
+        id: o.id, number: i+1, lat: o._c.lat, lng: o._c.lng,
         label: o.order_number || '—',
-        sublabel: o.representative_clients?.razao_social || '—',
+        sublabel: o._c?.razao_social || '—',
         status: o.status,
         color: PIN_COLORS[o.status] || PIN_COLORS.new,
         data: o,
@@ -142,19 +148,16 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
         .eq('representative_id', representativeId)
         .in('delivery_status', ['pendente', 'em_rota']);
 
-      const rows = (data || []).filter((o: any) => o.representative_clients?.lat != null);
-      let sorted = rows;
-      if (hasGps) {
-        sorted = [...rows].sort((a: any, b: any) =>
-          haversineKm(currentLat!, currentLng!, a.representative_clients.lat, a.representative_clients.lng) -
-          haversineKm(currentLat!, currentLng!, b.representative_clients.lat, b.representative_clients.lng)
-        );
-      }
+      const rows = (data || [])
+        .map((o: any) => ({ ...o, _c: getClient(o) }))
+        .filter((o: any) => o._c?.lat != null && o._c?.lng != null);
+      const sorted = hasGps
+        ? [...rows].sort((a: any, b: any) => haversineKm(currentLat!, currentLng!, a._c.lat, a._c.lng) - haversineKm(currentLat!, currentLng!, b._c.lat, b._c.lng))
+        : rows;
       setPins(sorted.map((o: any, i: number) => ({
-        id: o.id, number: i+1,
-        lat: o.representative_clients.lat, lng: o.representative_clients.lng,
+        id: o.id, number: i+1, lat: o._c.lat, lng: o._c.lng,
         label: o.order_number || '—',
-        sublabel: o.representative_clients?.razao_social || '—',
+        sublabel: `${o._c?.razao_social || '—'} · ${o._c?.municipio || ''}`,
         status: o.delivery_status || 'pendente',
         color: PIN_COLORS[o.delivery_status || 'pendente'],
         data: o,
