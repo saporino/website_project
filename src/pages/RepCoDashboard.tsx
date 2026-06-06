@@ -83,6 +83,12 @@ export function RepCoDashboard() {
     }
   }, [training]);
 
+  // Calculadora segue o instrutor durante treinamento ao vivo
+  const [calcOpen, setCalcOpen] = useState(false);
+  useEffect(() => {
+    if (training?.active) setCalcOpen(!!training.calcOpen);
+  }, [training]);
+
   useEffect(() => { if (user) fetchRep(); }, [user]);
 
   function refreshTabs(...tabsToRefresh: RepCoTab[]) {
@@ -375,7 +381,7 @@ export function RepCoDashboard() {
       </div>
 
       {/* Calculadora de Preço — botão flutuante acessível de qualquer aba */}
-      <RepCoCalculatorFab />
+      <RepCoCalculatorFab open={calcOpen} onOpenChange={setCalcOpen} />
 
       {/* Barra de navegação inferior (mobile) — padrão corporativo */}
       <nav className="fixed bottom-0 inset-x-0 z-30 flex border-t border-gray-200 bg-white shadow-[0_-1px_8px_rgba(0,0,0,0.06)] md:hidden">

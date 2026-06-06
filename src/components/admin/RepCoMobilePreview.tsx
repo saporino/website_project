@@ -189,14 +189,15 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
   // Modo Treinamento ao vivo (broadcast) — desligado por padrão
   const sendTraining = useTrainingBroadcast();
   const [training, setTraining] = useState(false);
+  const [calcOpen, setCalcOpen] = useState(false); // calculadora aberta neste frame
   useEffect(() => {
     if (!training) return;
-    sendTraining({ active: true, tab: activeTab, instructor: 'Instrutor', targets: 'all' });
+    sendTraining({ active: true, tab: activeTab, calcOpen, instructor: 'Instrutor', targets: 'all' });
     return () => sendTraining({ active: false, targets: 'all' });
   }, [training, sendTraining]);
   useEffect(() => {
-    if (training) sendTraining({ active: true, tab: activeTab, instructor: 'Instrutor', targets: 'all' });
-  }, [activeTab, training, sendTraining]);
+    if (training) sendTraining({ active: true, tab: activeTab, calcOpen, instructor: 'Instrutor', targets: 'all' });
+  }, [activeTab, calcOpen, training, sendTraining]);
 
   // Broadcast de scroll: quando o instrutor rola, envia a posição (0–1) para os reps
   function handleScroll() {
@@ -205,7 +206,7 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
     const pct = el.scrollHeight > el.clientHeight
       ? el.scrollTop / (el.scrollHeight - el.clientHeight)
       : 0;
-    sendTraining({ active: true, tab: activeTab, scrollPct: pct, instructor: 'Instrutor', targets: 'all' });
+    sendTraining({ active: true, tab: activeTab, scrollPct: pct, calcOpen, instructor: 'Instrutor', targets: 'all' });
   }
 
   // ESPELHO "Ver como rep": escuta broadcast e espelha aba + posição de scroll
@@ -214,6 +215,7 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
     if (isTrainingMode) return;
     if (trainingBroadcast?.active && trainingBroadcast.tab) {
       setActiveTab(espelhoTabToRepTab(trainingBroadcast.tab) as typeof activeTab);
+      setCalcOpen(!!trainingBroadcast.calcOpen); // calculadora segue o instrutor
       // Aplica scroll após render
       if (trainingBroadcast.scrollPct !== undefined && mainRef.current) {
         const el = mainRef.current;
@@ -223,6 +225,7 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
       }
     } else if (trainingBroadcast?.active === false) {
       setActiveTab('inicio');
+      setCalcOpen(false);
       if (mainRef.current) mainRef.current.scrollTop = 0;
     }
   }, [trainingBroadcast, isTrainingMode]);
@@ -424,8 +427,8 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
                 style={{ zoom: 0.82 }}>
                 {renderContent()}
               </main>
-              {/* Calculadora — FAB contido dentro do frame do espelho */}
-              <RepCoCalculatorFab contained />
+              {/* Calculadora — FAB contido; sincroniza com treinamento (abrir/fechar) */}
+              <RepCoCalculatorFab contained open={calcOpen} onOpenChange={setCalcOpen} />
             </div>
         </div>
       )}

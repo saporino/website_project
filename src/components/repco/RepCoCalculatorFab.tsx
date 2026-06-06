@@ -5,8 +5,18 @@ import RepCoCalculator from './RepCoCalculator';
 // Botão flutuante (FAB) + modal da Calculadora de Preço RepCo.
 // Disponível em todas as telas do RepCoWeb e RepCoApp.
 // contained=true → posiciona dentro de um frame relative (ex.: espelho do admin).
-export default function RepCoCalculatorFab({ contained = false }: { contained?: boolean }) {
-  const [open, setOpen] = useState(false);
+export default function RepCoCalculatorFab({
+  contained = false,
+  open: openProp,
+  onOpenChange,
+}: {
+  contained?: boolean;
+  open?: boolean;                       // controlado (ex.: sincronizado por treinamento)
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [openLocal, setOpenLocal] = useState(false);
+  const open = openProp !== undefined ? openProp : openLocal;
+  const setOpen = (v: boolean) => { setOpenLocal(v); onOpenChange?.(v); };
 
   const fabPos = contained
     ? 'absolute bottom-3 right-3'

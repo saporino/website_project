@@ -9,6 +9,7 @@ export interface TrainingState {
   active: boolean;
   tab?: string;           // aba atual do instrutor
   scrollPct?: number;     // posição de scroll 0–1 (sincroniza a lista visível)
+  calcOpen?: boolean;     // calculadora aberta/fechada pelo instrutor
   instructor?: string;
   targets?: string[] | 'all';
 }
