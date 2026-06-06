@@ -100,6 +100,23 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
     return Array.isArray(c) ? (c[0] ?? null) : (c ?? null);
   }
 
+  // Aplica um pequeno deslocamento (~100-300m) em pinos que compartilham as
+  // mesmas coordenadas (ex.: vários clientes com coords do centro da cidade).
+  // Usa o índice para gerar um offset determinístico em espiral.
+  function jitterPins(pins: MapPin[]): MapPin[] {
+    const seen = new Map<string, number>();
+    return pins.map(pin => {
+      const key = `${pin.lat.toFixed(4)},${pin.lng.toFixed(4)}`;
+      const count = seen.get(key) || 0;
+      seen.set(key, count + 1);
+      if (count === 0) return pin; // primeiro pin nessa posição: sem jitter
+      // Distribui em ângulos de 45° com raio de ~0.002° (~200m)
+      const angle = (count * 45 * Math.PI) / 180;
+      const radius = 0.002 * Math.ceil(count / 8);
+      return { ...pin, lat: pin.lat + radius * Math.cos(angle), lng: pin.lng + radius * Math.sin(angle) };
+    });
+  }
+
   const fetchPins = useCallback(async () => {
     setLoading(true);
     setSelectedPin(null);
@@ -118,14 +135,14 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
       const sorted = hasGps
         ? [...rows].sort((a: any, b: any) => haversineKm(currentLat!, currentLng!, a.lat, a.lng) - haversineKm(currentLat!, currentLng!, b.lat, b.lng))
         : rows;
-      setPins(sorted.map((l: any, i: number) => ({
+      setPins(jitterPins(sorted.map((l: any, i: number) => ({
         id: l.id, number: i+1, lat: l.lat, lng: l.lng,
         label: l.company_name,
         sublabel: [l.address, l.city, l.state].filter(Boolean).join(', '),
         status: l.status || 'assigned',
         color: PIN_COLORS[l.status || 'assigned'] || PIN_COLORS.assigned,
         data: l,
-      })));
+      }))));
 
     } else if (mode === 'pedidos') {
       const { data } = await supabase
@@ -138,14 +155,14 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
       const rows = (data || [])
         .map((o: any) => ({ ...o, _c: getClient(o) }))
         .filter((o: any) => o._c?.lat != null && o._c?.lng != null);
-      setPins(rows.map((o: any, i: number) => ({
+      setPins(jitterPins(rows.map((o: any, i: number) => ({
         id: o.id, number: i+1, lat: o._c.lat, lng: o._c.lng,
         label: o.order_number || '—',
         sublabel: o._c?.razao_social || '—',
         status: o.status,
         color: PIN_COLORS[o.status] || PIN_COLORS.new,
         data: o,
-      })));
+      }))));
 
     } else { // entregas
       const { data } = await supabase
@@ -160,14 +177,14 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
       const sorted = hasGps
         ? [...rows].sort((a: any, b: any) => haversineKm(currentLat!, currentLng!, a._c.lat, a._c.lng) - haversineKm(currentLat!, currentLng!, b._c.lat, b._c.lng))
         : rows;
-      setPins(sorted.map((o: any, i: number) => ({
+      setPins(jitterPins(sorted.map((o: any, i: number) => ({
         id: o.id, number: i+1, lat: o._c.lat, lng: o._c.lng,
         label: o.order_number || '—',
         sublabel: `${o._c?.razao_social || '—'} · ${o._c?.municipio || ''}`,
         status: o.delivery_status || 'pendente',
         color: PIN_COLORS[o.delivery_status || 'pendente'],
         data: o,
-      })));
+      }))));
     }
     // ── HISTÓRICO DIÁRIO ──
     await fetchHistory();
