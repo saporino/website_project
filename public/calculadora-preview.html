@@ -341,7 +341,13 @@
   }
 
   function getVal(id) {
-    const v = parseFloat(document.getElementById(id).value.replace(',', '.'));
+    const raw = document.getElementById(id).value.trim();
+    // Padrão brasileiro: vírgula como decimal (22,5 = 22.5)
+    // Aceita também ponto (22.5). Ignora se termina em , ou . (usuário ainda digitando)
+    if (!raw || raw === '-' || raw.endsWith(',') || raw.endsWith('.')) return null;
+    // Remove pontos de milhar (ex: 1.000,50 → 1000.50) e troca vírgula por ponto
+    const normalized = raw.replace(/\.(?=\d{3}(,|$))/g, '').replace(',', '.');
+    const v = parseFloat(normalized);
     return isNaN(v) ? null : v;
   }
 
