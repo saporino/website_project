@@ -30,12 +30,15 @@ export default function RepCoCalculatorFab({
   const setOpen = (v: boolean) => { setOpenLocal(v); onOpenChange?.(v); };
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // Aplica o scroll recebido do instrutor (rep segue)
+  // Aplica o scroll recebido do instrutor (rep segue).
+  // syncState nos deps: reaplica após o conteúdo crescer (valores preenchidos).
+  // rAF: garante que a altura já estabilizou antes de calcular o scrollTop.
   useEffect(() => {
     if (contentScrollPct === undefined || !contentRef.current) return;
     const el = contentRef.current;
-    el.scrollTop = contentScrollPct * (el.scrollHeight - el.clientHeight);
-  }, [contentScrollPct, open]);
+    const apply = () => { el.scrollTop = contentScrollPct * (el.scrollHeight - el.clientHeight); };
+    requestAnimationFrame(() => { apply(); requestAnimationFrame(apply); });
+  }, [contentScrollPct, open, syncState]);
 
   const fabPos = contained
     ? 'absolute bottom-3 right-3 z-[800]'
