@@ -90,6 +90,10 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
   const leafletMap = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const userHasInteracted = useRef(false);
+  // Controla fitBounds: só faz UMA vez por modo (na primeira carga).
+  // Quando o usuário muda de aba, hasInitialFit reseta → fitBounds roda de novo.
+  // Quando dados atualizam (fetchPins, GPS) → hasInitialFit já é true → sem reset.
+  const hasInitialFit = useRef(false);
 
   const hasGps = currentLat !== undefined && currentLng !== undefined;
 
@@ -298,8 +302,11 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
   }
 
   useEffect(() => { fetchPins(); }, [fetchPins]);
-  // Ao mudar de modo, reseta a interação (novo conjunto de dados = fitBounds desejado)
-  useEffect(() => { userHasInteracted.current = false; }, [mode]);
+  // Ao mudar de aba (modo), reseta AMBOS os refs → próximo fetchPins faz fitBounds uma vez
+  useEffect(() => {
+    userHasInteracted.current = false;
+    hasInitialFit.current = false;
+  }, [mode]);
 
   // Renderiza o mapa Leaflet
   useEffect(() => {
@@ -358,11 +365,14 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
         bounds.push([pin.lat, pin.lng]);
       });
 
-      // Só ajusta zoom se o usuário NÃO fez interação manual (evita reset após check-in)
-      if (!userHasInteracted.current) {
+      // fitBounds só na PRIMEIRA carga de cada modo.
+      // Depois disso (GPS update, check-in, refresh) o zoom NÃO reseta.
+      // Mudar de aba reseta hasInitialFit → fitBounds roda de novo ao entrar na aba.
+      if (!hasInitialFit.current && bounds.length > 0) {
+        hasInitialFit.current = true;
         if (bounds.length > 1) {
           leafletMap.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
-        } else if (bounds.length === 1) {
+        } else {
           leafletMap.current.setView(bounds[0], 13);
         }
       }
