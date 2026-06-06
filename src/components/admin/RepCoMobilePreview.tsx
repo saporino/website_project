@@ -8,6 +8,7 @@ import RepCoProspection from '../repco/RepCoProspection';
 import RepCoClients from '../repco/RepCoClients';
 import RepCoDeliveries from '../repco/RepCoDeliveries';
 import RepCoFieldMap from '../repco/RepCoFieldMap';
+import RepCoCalculatorFab from '../repco/RepCoCalculatorFab';
 import { supabase } from '../../lib/supabase';
 
 // Lazy — exports nomeados precisam de .then(m=>({default:m.X}))
@@ -423,6 +424,8 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
                 style={{ zoom: 0.82 }}>
                 {renderContent()}
               </main>
+              {/* Calculadora — FAB contido dentro do frame do espelho */}
+              <RepCoCalculatorFab contained />
             </div>
         </div>
       )}

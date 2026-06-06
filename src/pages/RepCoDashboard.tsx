@@ -12,6 +12,7 @@ import RepCoHome from '../components/repco/RepCoHome';
 import RepCoProspection from '../components/repco/RepCoProspection';
 import RepCoDeliveries from '../components/repco/RepCoDeliveries';
 import RepCoFieldMap from '../components/repco/RepCoFieldMap';
+import RepCoCalculatorFab from '../components/repco/RepCoCalculatorFab';
 import { usePresence } from '../hooks/usePresence';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Home, ClipboardList, Radio, Truck, MoreHorizontal, Map } from 'lucide-react';
@@ -374,6 +375,9 @@ export function RepCoDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Calculadora de Preço — botão flutuante acessível de qualquer aba */}
+      <RepCoCalculatorFab />
 
       {/* Barra de navegação inferior (mobile) — padrão corporativo */}
       <nav className="fixed bottom-0 inset-x-0 z-30 flex border-t border-gray-200 bg-white shadow-[0_-1px_8px_rgba(0,0,0,0.06)] md:hidden">
