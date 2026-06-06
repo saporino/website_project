@@ -293,35 +293,75 @@
   <!-- Hint de entrada -->
   <div class="input-hint" id="hint">Digite valores em 2 campos para calcular</div>
 
-  <!-- Impostos e Desconto -->
+  <!-- Ajustes + Resultado Interligado -->
   <div class="extra-section">
-    <h4>Ajustes sobre o Preço de Venda</h4>
+    <h4>Ajustes · Representante → Cliente</h4>
+
+    <!-- Desconto e Imposto -->
     <div class="extra-row">
-      <span class="extra-label">💰 Lucro estimado</span>
-      <span id="lucro" style="font-size:14px;font-weight:700;color:#16a34a">R$ —</span>
-    </div>
-    <div class="divider" style="margin:8px 0"></div>
-    <div class="extra-row">
-      <span class="extra-label">Aplicar Desconto na Venda</span>
+      <span class="extra-label">Desconto concedido na venda</span>
       <div class="extra-input-wrap">
-        <input type="number" id="desconto" placeholder="0" min="0" max="100" oninput="calcExtras()" />
+        <input type="number" id="desconto" placeholder="0" min="0" max="100" step="0.1" oninput="calcExtras()" />
         <span>%</span>
       </div>
     </div>
     <div class="extra-row">
-      <span class="extra-label">Aplicar Imposto sobre Venda</span>
+      <span class="extra-label">Imposto sobre a venda (ex: ICMS)</span>
       <div class="extra-input-wrap">
-        <input type="number" id="imposto" placeholder="0" min="0" max="100" oninput="calcExtras()" />
+        <input type="number" id="imposto" placeholder="0" min="0" max="100" step="0.1" oninput="calcExtras()" />
         <span>%</span>
       </div>
     </div>
-    <div id="extras-result" style="display:none;margin-top:8px">
-      <div style="height:1px;background:#f0ebe9;margin-bottom:8px"></div>
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:11px;color:#888">Preço de Venda ajustado</span>
-        <span id="venda-ajustada" style="font-size:15px;font-weight:700;color:#8B2214">R$ —</span>
+
+    <div style="height:1px;background:#f0ebe9;margin:10px 0"></div>
+
+    <!-- Preço que o cliente efetivamente paga -->
+    <div class="extra-row" style="margin-bottom:4px">
+      <span class="extra-label" style="font-weight:600;color:#333">Cliente paga</span>
+      <span id="cliente-paga" style="font-size:15px;font-weight:700;color:#1a1a1a">—</span>
+    </div>
+
+    <div style="height:1px;background:#f0ebe9;margin:10px 0"></div>
+
+    <!-- Dois ângulos: Rep e Cliente -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <!-- Representante -->
+      <div style="background:#fff8f7;border:1px solid #f0d8d5;border-radius:8px;padding:10px">
+        <p style="font-size:10px;font-weight:700;color:#8B2214;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px">Representante</p>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
+          <span style="font-size:10px;color:#888">Lucro</span>
+          <span id="rep-lucro" style="font-size:14px;font-weight:700;color:#8B2214">R$ —</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
+          <span style="font-size:10px;color:#888">Margem efetiva</span>
+          <span id="rep-margem" style="font-size:12px;font-weight:600;color:#555">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span style="font-size:10px;color:#888">Markup efetivo</span>
+          <span id="rep-markup" style="font-size:12px;font-weight:600;color:#555">—</span>
+        </div>
+      </div>
+
+      <!-- Cliente (Lojista) -->
+      <div style="background:#f0faf4;border:1px solid #c6e8d4;border-radius:8px;padding:10px">
+        <p style="font-size:10px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:.3px;margin-bottom:6px">Cliente (Lojista)</p>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
+          <span style="font-size:10px;color:#888">Lucro</span>
+          <span id="cli-lucro" style="font-size:14px;font-weight:700;color:#16a34a">R$ —</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px">
+          <span style="font-size:10px;color:#888">Margem estimada</span>
+          <span id="cli-margem" style="font-size:12px;font-weight:600;color:#555">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span style="font-size:10px;color:#888">Preço de prateleira</span>
+          <span id="cli-prateleira" style="font-size:12px;font-weight:600;color:#555">—</span>
+        </div>
       </div>
     </div>
+
+    <!-- Lucro base (sem ajustes) — mantido para referência -->
+    <div id="lucro" style="display:none">0</div>
   </div>
 
   <!-- Botão Limpar -->
@@ -447,19 +487,50 @@
   }
 
   function calcExtras() {
-    const vendaEl = document.getElementById('venda');
-    const sp = parseFloat(vendaEl.value.replace(',','.'));
+    const sp   = parseFloat(document.getElementById('venda').value.replace(',','.')) || 0;
+    const cp   = parseFloat(document.getElementById('custo').value.replace(',','.')) || 0;
     const desc = parseFloat(document.getElementById('desconto').value) || 0;
-    const imp = parseFloat(document.getElementById('imposto').value) || 0;
+    const imp  = parseFloat(document.getElementById('imposto').value) || 0;
 
-    if (!isNaN(sp) && sp > 0 && (desc > 0 || imp > 0)) {
-      let ajustado = sp;
-      if (desc > 0) ajustado = ajustado * (1 - desc/100);
-      if (imp > 0) ajustado = ajustado * (1 + imp/100);
-      document.getElementById('venda-ajustada').textContent = 'R$ ' + fmt(ajustado);
-      document.getElementById('extras-result').style.display = 'block';
+    // ── Preço que o cliente efetivamente paga ──
+    // Desconto primeiro → depois imposto (como no original)
+    let clientePaga = sp;
+    if (desc > 0) clientePaga = clientePaga * (1 - desc / 100);
+    if (imp  > 0) clientePaga = clientePaga * (1 + imp  / 100);
+
+    const set = (id, v) => { document.getElementById(id).textContent = v; };
+
+    if (sp > 0 && cp > 0) {
+      // ── Ângulo do REPRESENTANTE ──
+      // Lucro = o que o cliente pagou - custo do rep
+      const repLucro   = clientePaga - cp;
+      const repMargem  = clientePaga > 0 ? (repLucro / clientePaga) * 100 : 0;
+      const repMarkup  = cp > 0         ? (repLucro / cp)          * 100 : 0;
+
+      set('cliente-paga', sp > 0 ? 'R$ ' + fmt(clientePaga) : '—');
+      set('rep-lucro',  'R$ ' + fmt(repLucro));
+      set('rep-margem', fmt(repMargem) + ' %');
+      set('rep-markup', fmt(repMarkup) + ' %');
+
+      // Cores: lucro negativo = vermelho
+      document.getElementById('rep-lucro').style.color = repLucro >= 0 ? '#8B2214' : '#dc2626';
+
+      // ── Ângulo do CLIENTE (Lojista) ──
+      // O lojista COMPRA pelo preço que pagou ao rep (clientePaga)
+      // e VENDE pelo Preço de Venda original (prateleira = sp)
+      const cliLucro  = sp - clientePaga;      // quanto o lojista ganha por unidade
+      const cliMargem = sp > 0 ? (cliLucro / sp) * 100 : 0;
+
+      set('cli-lucro',     'R$ ' + fmt(cliLucro));
+      set('cli-margem',    fmt(cliMargem) + ' %');
+      set('cli-prateleira', 'R$ ' + fmt(sp));
+
+      document.getElementById('cli-lucro').style.color = cliLucro >= 0 ? '#16a34a' : '#dc2626';
+
     } else {
-      document.getElementById('extras-result').style.display = 'none';
+      // Sem dados suficientes — limpa
+      ['cliente-paga','rep-lucro','rep-margem','rep-markup',
+       'cli-lucro','cli-margem','cli-prateleira'].forEach(id => set(id, '—'));
     }
   }
 </script>
