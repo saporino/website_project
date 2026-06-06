@@ -5,11 +5,18 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from './supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
+export interface CalcState {
+  raw: { markup: string; margem: string; custo: string; venda: string };
+  order: string[];
+  desc: string; imp: string; splitRep: string; splitCli: string;
+}
+
 export interface TrainingState {
   active: boolean;
   tab?: string;           // aba atual do instrutor
   scrollPct?: number;     // posição de scroll 0–1 (sincroniza a lista visível)
   calcOpen?: boolean;     // calculadora aberta/fechada pelo instrutor
+  calcState?: CalcState;  // valores digitados na calculadora (sincroniza ao vivo)
   instructor?: string;
   targets?: string[] | 'all';
 }

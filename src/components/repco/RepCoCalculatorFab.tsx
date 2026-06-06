@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Calculator, X } from 'lucide-react';
 import RepCoCalculator from './RepCoCalculator';
+import type { CalcState } from '../../lib/training';
 
 // Botão flutuante (FAB) + modal da Calculadora de Preço RepCo.
 // Disponível em todas as telas do RepCoWeb e RepCoApp.
@@ -9,10 +10,16 @@ export default function RepCoCalculatorFab({
   contained = false,
   open: openProp,
   onOpenChange,
+  syncState,
+  onCalcStateChange,
+  readOnly = false,
 }: {
   contained?: boolean;
   open?: boolean;                       // controlado (ex.: sincronizado por treinamento)
   onOpenChange?: (open: boolean) => void;
+  syncState?: CalcState | null;         // estado da calc vindo do instrutor
+  onCalcStateChange?: (s: CalcState) => void; // emite estado da calc (instrutor)
+  readOnly?: boolean;                   // mirror só-leitura (rep durante treino)
 }) {
   const [openLocal, setOpenLocal] = useState(false);
   const open = openProp !== undefined ? openProp : openLocal;
@@ -54,7 +61,7 @@ export default function RepCoCalculatorFab({
               </button>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4">
-              <RepCoCalculator />
+              <RepCoCalculator syncState={syncState} onStateChange={onCalcStateChange} readOnly={readOnly} />
             </div>
           </div>
         </div>

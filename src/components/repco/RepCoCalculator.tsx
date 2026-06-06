@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Trash2 } from 'lucide-react';
+import type { CalcState } from '../../lib/training';
 
 // Calculadora de Preço RepCo — markup/margem/custo/venda + simulação de lucro do cliente
 // + desconto conjunto (Saporino + Cliente) para competir no mercado.
@@ -21,13 +22,36 @@ function parse(raw: string): number | null {
 }
 const pctVal = (raw: string) => { const n = parse(raw); return n != null ? n : 0; };
 
-export default function RepCoCalculator() {
+export default function RepCoCalculator({ syncState, onStateChange, readOnly = false }: {
+  syncState?: CalcState | null;   // recebe estado do instrutor (treinamento)
+  onStateChange?: (s: CalcState) => void; // emite estado (instrutor → broadcast)
+  readOnly?: boolean;             // mirror só-leitura
+} = {}) {
   const [raw, setRaw] = useState<Record<Field, string>>({ markup: '', margem: '', custo: '', venda: '' });
   const [order, setOrder] = useState<Field[]>([]); // ordem digitada — 2 últimos = ativos
   const [desc, setDesc] = useState('');
   const [imp, setImp] = useState('');
   const [splitRep, setSplitRep] = useState('');
   const [splitCli, setSplitCli] = useState('');
+
+  // Aplica estado recebido do instrutor (treinamento ao vivo)
+  const lastSync = useRef('');
+  useEffect(() => {
+    if (!syncState) return;
+    const key = JSON.stringify(syncState);
+    if (key === lastSync.current) return;
+    lastSync.current = key;
+    setRaw(syncState.raw);
+    setOrder(syncState.order as Field[]);
+    setDesc(syncState.desc); setImp(syncState.imp);
+    setSplitRep(syncState.splitRep); setSplitCli(syncState.splitCli);
+  }, [syncState]);
+
+  // Emite estado quando muda (instrutor → broadcast). Não emite em modo mirror.
+  useEffect(() => {
+    if (readOnly || !onStateChange) return;
+    onStateChange({ raw, order, desc, imp, splitRep, splitCli });
+  }, [raw, order, desc, imp, splitRep, splitCli, readOnly]);
 
   const active = order.slice(-2);
 
@@ -112,10 +136,10 @@ export default function RepCoCalculator() {
         {(['markup', 'margem'] as Field[]).map(f => (
           <div className={fieldBox} key={f}>
             <label className={labelCls}>{FIELD_LABEL[f]}</label>
-            <input inputMode="decimal" placeholder="0,00" className={inputCls(f)}
+            <input inputMode="decimal" placeholder="0,00" className={inputCls(f)} readOnly={readOnly}
               value={displayVal(f, f === 'markup' ? c.mk : c.mg)}
               onChange={e => onType(f, e.target.value)}
-              onDoubleClick={() => onType(f, '')} />
+              onDoubleClick={() => !readOnly && onType(f, '')} />
           </div>
         ))}
       </div>
@@ -124,10 +148,10 @@ export default function RepCoCalculator() {
       {(['custo', 'venda'] as Field[]).map(f => (
         <div className={fieldBox} key={f}>
           <label className={labelCls}>{FIELD_LABEL[f]}</label>
-          <input inputMode="decimal" placeholder="0,00" className={inputCls(f)}
+          <input inputMode="decimal" placeholder="0,00" className={inputCls(f)} readOnly={readOnly}
             value={displayVal(f, f === 'custo' ? c.cp : c.sp)}
             onChange={e => onType(f, e.target.value)}
-            onDoubleClick={() => onType(f, '')} />
+            onDoubleClick={() => !readOnly && onType(f, '')} />
         </div>
       ))}
 
@@ -153,14 +177,14 @@ export default function RepCoCalculator() {
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-gray-600 flex-1">🏷️ Desconto concedido ao cliente</span>
               <div className="flex items-center border border-[#ddd0cc] rounded-lg px-2.5 py-1.5 gap-1 w-[90px] focus-within:border-[#8B2214]">
-                <input inputMode="decimal" value={desc} onChange={e => setDesc(e.target.value)} placeholder="0" className="w-full text-sm font-bold text-right outline-none bg-transparent" />
+                <input inputMode="decimal" readOnly={readOnly} value={desc} onChange={e => setDesc(e.target.value)} placeholder="0" className="w-full text-sm font-bold text-right outline-none bg-transparent" />
                 <span className="text-xs text-gray-400 font-semibold">%</span>
               </div>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-600 flex-1">🧾 Imposto do cliente (ICMS etc.)</span>
               <div className="flex items-center border border-[#ddd0cc] rounded-lg px-2.5 py-1.5 gap-1 w-[90px] focus-within:border-[#8B2214]">
-                <input inputMode="decimal" value={imp} onChange={e => setImp(e.target.value)} placeholder="0" className="w-full text-sm font-bold text-right outline-none bg-transparent" />
+                <input inputMode="decimal" readOnly={readOnly} value={imp} onChange={e => setImp(e.target.value)} placeholder="0" className="w-full text-sm font-bold text-right outline-none bg-transparent" />
                 <span className="text-xs text-gray-400 font-semibold">%</span>
               </div>
             </div>
@@ -206,14 +230,14 @@ export default function RepCoCalculator() {
               <span className="text-xs text-gray-600 flex-1">☕ Desconto da Saporino (R$)</span>
               <div className="flex items-center border border-[#ddd0cc] rounded-lg px-2.5 py-1.5 gap-1 w-[100px] focus-within:border-[#8B2214]">
                 <span className="text-xs text-gray-400 font-semibold">R$</span>
-                <input inputMode="decimal" value={splitRep} onChange={e => setSplitRep(e.target.value)} placeholder="0,00" className="w-full text-sm font-bold text-right outline-none bg-transparent" />
+                <input inputMode="decimal" readOnly={readOnly} value={splitRep} onChange={e => setSplitRep(e.target.value)} placeholder="0,00" className="w-full text-sm font-bold text-right outline-none bg-transparent" />
               </div>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-600 flex-1">🏪 Desconto do Cliente (R$)</span>
               <div className="flex items-center border border-[#ddd0cc] rounded-lg px-2.5 py-1.5 gap-1 w-[100px] focus-within:border-[#8B2214]">
                 <span className="text-xs text-gray-400 font-semibold">R$</span>
-                <input inputMode="decimal" value={splitCli} onChange={e => setSplitCli(e.target.value)} placeholder="0,00" className="w-full text-sm font-bold text-right outline-none bg-transparent" />
+                <input inputMode="decimal" readOnly={readOnly} value={splitCli} onChange={e => setSplitCli(e.target.value)} placeholder="0,00" className="w-full text-sm font-bold text-right outline-none bg-transparent" />
               </div>
             </div>
 
@@ -253,10 +277,16 @@ export default function RepCoCalculator() {
         </>
       )}
 
-      <button onClick={clearAll} className="w-full flex items-center justify-center gap-2 rounded-xl border border-[#ddd0cc] bg-white py-3 text-sm font-semibold text-gray-600 hover:bg-[#f5f0ef] transition-colors">
-        <Trash2 className="w-4 h-4" /> Limpar Tudo
-      </button>
-      <p className="text-center text-[10px] text-gray-400">Toque duplo em qualquer campo para limpá-lo</p>
+      {readOnly ? (
+        <p className="text-center text-[11px] text-[#8B2214] font-semibold py-2">📡 Acompanhando o instrutor — visualização ao vivo</p>
+      ) : (
+        <>
+          <button onClick={clearAll} className="w-full flex items-center justify-center gap-2 rounded-xl border border-[#ddd0cc] bg-white py-3 text-sm font-semibold text-gray-600 hover:bg-[#f5f0ef] transition-colors">
+            <Trash2 className="w-4 h-4" /> Limpar Tudo
+          </button>
+          <p className="text-center text-[10px] text-gray-400">Toque duplo em qualquer campo para limpá-lo</p>
+        </>
+      )}
     </div>
   );
 }
