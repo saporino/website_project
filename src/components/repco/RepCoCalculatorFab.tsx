@@ -26,9 +26,10 @@ export default function RepCoCalculatorFab({
   const setOpen = (v: boolean) => { setOpenLocal(v); onOpenChange?.(v); };
 
   const fabPos = contained
-    ? 'absolute bottom-3 right-3'
-    : 'fixed bottom-20 md:bottom-6 right-4';
-  const overlayPos = contained ? 'absolute inset-0' : 'fixed inset-0';
+    ? 'absolute bottom-3 right-3 z-[800]'
+    : 'fixed bottom-20 md:bottom-6 right-4 z-[40]';
+  // z alto p/ ficar acima de mapas Leaflet (panes/controles ~600-1000)
+  const overlayPos = contained ? 'absolute inset-0 z-[900]' : 'fixed inset-0 z-[1300]';
 
   return (
     <>
@@ -36,7 +37,7 @@ export default function RepCoCalculatorFab({
         <button
           onClick={() => setOpen(true)}
           title="Calculadora de Preço"
-          className={`${fabPos} z-40 flex items-center gap-2 rounded-full bg-[#8B2214] px-3.5 py-2.5 text-white shadow-lg hover:bg-[#6d1a10] active:scale-95 transition-all`}
+          className={`${fabPos} flex items-center gap-2 rounded-full bg-[#8B2214] px-3.5 py-2.5 text-white shadow-lg hover:bg-[#6d1a10] active:scale-95 transition-all`}
         >
           <Calculator className="w-5 h-5" />
           <span className="text-sm font-semibold hidden sm:inline">Calculadora</span>
@@ -44,7 +45,7 @@ export default function RepCoCalculatorFab({
       )}
 
       {open && (
-        <div className={`${overlayPos} z-[70] flex flex-col bg-black/40`} onClick={() => setOpen(false)}>
+        <div className={`${overlayPos} flex flex-col bg-black/40`} onClick={() => setOpen(false)}>
           <div
             className={`${contained
               ? 'h-full rounded-t-2xl'                                  /* contido: preenche o frame do espelho */

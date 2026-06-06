@@ -315,7 +315,7 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
   }
 
   return (
-    <div className="fixed z-[60] w-[360px] max-w-[calc(100vw-1rem)]" style={{ left: pos.x, top: pos.y }}>
+    <div className="fixed z-[1200] w-[360px] max-w-[calc(100vw-1rem)]" style={{ left: pos.x, top: pos.y }}>
       {/* Barra de arrastar (flutuante — não bloqueia o resto do site) */}
       <div onMouseDown={startDrag} className="flex items-center justify-between rounded-t-2xl bg-gray-950 px-3 py-2 text-white cursor-move select-none shadow-2xl">
         <div className="flex min-w-0 items-center gap-2">
