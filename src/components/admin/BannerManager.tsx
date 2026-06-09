@@ -176,10 +176,24 @@ export function BannerManager() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent" />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Link ao clicar na imagem (opcional)</label>
-                    <input type="text" defaultValue={b.link_url || ''} placeholder="https://... ou /repco"
-                      onBlur={(e) => { if (e.target.value !== (b.link_url || '')) update(b.id, { link_url: e.target.value || null }); }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent" />
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Ao clicar no banner, leva para (opcional)</label>
+                    <select
+                      value={selectValue(b.link_url)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === '__custom__') update(b.id, { link_url: selectValue(b.link_url) === '__custom__' ? b.link_url : 'https://' });
+                        else update(b.id, { link_url: v || null });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#8B2214] focus:border-transparent">
+                      <option value="">— nada (banner não clicável) —</option>
+                      {DESTINOS.map(d => <option key={d.v} value={d.v}>{d.label}</option>)}
+                      <option value="__custom__">Link personalizado…</option>
+                    </select>
+                    {selectValue(b.link_url) === '__custom__' && (
+                      <input type="text" defaultValue={b.link_url || ''} placeholder="https://..."
+                        onBlur={(e) => update(b.id, { link_url: e.target.value || null })}
+                        className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent" />
+                    )}
                   </div>
                 </div>
 
