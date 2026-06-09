@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Images, Upload, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, Loader2, Move } from 'lucide-react';
+import { bannerButtonStyle } from '../../lib/bannerButton';
+import { Images, Upload, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 interface Banner {
   id: string;
@@ -13,12 +14,12 @@ interface Banner {
   button_link: string | null;
   button_x: number;
   button_y: number;
+  button_scale: number;
 }
 
 const BUCKET = 'product-images';
 const PREFIX = 'banners/';
 
-// Destinos prontos para o botao do banner.
 const DESTINOS = [
   { v: 'cadastro', label: 'Cadastro do cliente' },
   { v: 'login', label: 'Entrar (login)' },
@@ -68,7 +69,6 @@ export function BannerManager() {
     setBanners(bs => bs.map(b => (b.id === id ? { ...b, ...patch } : b)));
     await supabase.from('promo_banners').update(patch).eq('id', id);
   };
-  // Atualiza so o estado local (sem ir ao banco) — usado durante o arraste.
   const patchLocal = (id: string, patch: Partial<Banner>) =>
     setBanners(bs => bs.map(b => (b.id === id ? { ...b, ...patch } : b)));
 
@@ -95,7 +95,6 @@ export function BannerManager() {
     await load();
   };
 
-  // Posicao do botao a partir do cursor, em % da miniatura.
   const posFromEvent = (e: React.PointerEvent, container: HTMLElement) => {
     const rect = container.getBoundingClientRect();
     const x = Math.min(100, Math.max(0, ((e.clientX - rect.left) / rect.width) * 100));
@@ -114,7 +113,7 @@ export function BannerManager() {
         </div>
         <div>
           <h3 className="text-xl font-bold text-gray-900">Banners do Carrossel (Home)</h3>
-          <p className="text-sm text-gray-600">Imagens que giram no topo da loja. Ideal 1920×600px (PNG ou JPG).</p>
+          <p className="text-sm text-gray-600">Imagens que giram no topo da loja. Mantenha todas no mesmo tamanho.</p>
         </div>
       </div>
 
@@ -139,120 +138,130 @@ export function BannerManager() {
           Nenhum banner ainda. Clique em "Adicionar banner" para enviar a primeira imagem.
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {banners.map((b, i) => (
-            <div key={b.id} className={`flex flex-col lg:flex-row gap-4 p-4 rounded-xl border ${b.active ? 'border-gray-200' : 'border-gray-200 bg-gray-50 opacity-70'}`}>
-              {/* Miniatura com botao arrastavel */}
-              <div className="w-full lg:w-72 flex-shrink-0">
-                <div className="relative aspect-[16/5] rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
-                  <img src={b.image_url} alt={b.title || `Banner ${i + 1}`} className="w-full h-full object-cover" draggable={false} />
-                  {b.button_text && (
-                    <button
-                      style={{ left: `${b.button_x}%`, top: `${b.button_y}%`, touchAction: 'none' }}
-                      onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); setDragId(b.id); }}
-                      onPointerMove={(e) => { if (dragId === b.id) patchLocal(b.id, posFromEvent(e, e.currentTarget.parentElement as HTMLElement)); }}
-                      onPointerUp={(e) => {
-                        if (dragId !== b.id) return;
-                        setDragId(null);
-                        update(b.id, posFromEvent(e, e.currentTarget.parentElement as HTMLElement));
-                      }}
-                      className="absolute -translate-x-1/2 -translate-y-1/2 bg-[#8B2214] text-white font-semibold text-[10px] px-2.5 py-1 rounded-full shadow-lg cursor-move flex items-center gap-1 whitespace-nowrap"
-                      title="Arraste para posicionar o botão"
-                    >
-                      <Move className="w-2.5 h-2.5" />{b.button_text}
-                    </button>
-                  )}
-                </div>
-                {b.button_text && <p className="text-[11px] text-gray-400 mt-1 text-center">Arraste o botão para encaixá-lo no banner</p>}
+            <div key={b.id} className={`p-4 rounded-xl border ${b.active ? 'border-gray-200' : 'border-gray-200 bg-gray-50 opacity-70'}`}>
+              {/* Preview GRANDE com botao arrastavel proporcional */}
+              <div
+                className="relative w-full aspect-[16/5] rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
+                style={{ containerType: 'inline-size' }}
+              >
+                <img src={b.image_url} alt={b.title || `Banner ${i + 1}`} className="w-full h-full object-cover" draggable={false} />
+                {b.button_text && (
+                  <button
+                    style={{ ...bannerButtonStyle(b.button_x, b.button_y, b.button_scale ?? 1), touchAction: 'none' }}
+                    onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); setDragId(b.id); }}
+                    onPointerMove={(e) => { if (dragId === b.id) patchLocal(b.id, posFromEvent(e, e.currentTarget.parentElement as HTMLElement)); }}
+                    onPointerUp={(e) => { if (dragId !== b.id) return; setDragId(null); update(b.id, posFromEvent(e, e.currentTarget.parentElement as HTMLElement)); }}
+                    className="absolute bg-[#8B2214] text-white font-semibold rounded-full shadow-lg cursor-move whitespace-nowrap select-none"
+                    title="Arraste para posicionar"
+                  >
+                    {b.button_text}
+                  </button>
+                )}
               </div>
+              {b.button_text && <p className="text-xs text-gray-400 mt-1 text-center">Arraste o botão para encaixá-lo no banner · use o controle de tamanho abaixo</p>}
 
-              {/* Campos */}
-              <div className="flex-1 space-y-3">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Título (uso interno)</label>
-                    <input type="text" defaultValue={b.title || ''} placeholder="Ex.: Promoção de inverno"
-                      onBlur={(e) => { if (e.target.value !== (b.title || '')) update(b.id, { title: e.target.value }); }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent" />
+              {/* Campos + acoes */}
+              <div className="flex flex-col lg:flex-row gap-4 mt-4">
+                <div className="flex-1 space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Título (uso interno)</label>
+                      <input type="text" defaultValue={b.title || ''} placeholder="Ex.: Promoção de inverno"
+                        onBlur={(e) => { if (e.target.value !== (b.title || '')) update(b.id, { title: e.target.value }); }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Ao clicar no banner, leva para</label>
+                      <select
+                        value={selectValue(b.link_url)}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === '__custom__') update(b.id, { link_url: selectValue(b.link_url) === '__custom__' ? b.link_url : 'https://' });
+                          else update(b.id, { link_url: v || null });
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#8B2214] focus:border-transparent">
+                        <option value="">— nada (não clicável) —</option>
+                        {DESTINOS.map(d => <option key={d.v} value={d.v}>{d.label}</option>)}
+                        <option value="__custom__">Link personalizado…</option>
+                      </select>
+                      {selectValue(b.link_url) === '__custom__' && (
+                        <input type="text" defaultValue={b.link_url || ''} placeholder="https://..."
+                          onBlur={(e) => update(b.id, { link_url: e.target.value || null })}
+                          className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent" />
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Ao clicar no banner, leva para (opcional)</label>
-                    <select
-                      value={selectValue(b.link_url)}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (v === '__custom__') update(b.id, { link_url: selectValue(b.link_url) === '__custom__' ? b.link_url : 'https://' });
-                        else update(b.id, { link_url: v || null });
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#8B2214] focus:border-transparent">
-                      <option value="">— nada (banner não clicável) —</option>
-                      {DESTINOS.map(d => <option key={d.v} value={d.v}>{d.label}</option>)}
-                      <option value="__custom__">Link personalizado…</option>
-                    </select>
-                    {selectValue(b.link_url) === '__custom__' && (
-                      <input type="text" defaultValue={b.link_url || ''} placeholder="https://..."
-                        onBlur={(e) => update(b.id, { link_url: e.target.value || null })}
-                        className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent" />
+
+                  {/* Botao sobre o banner */}
+                  <div className="bg-[#faf7f6] border border-[#ddd0cc] rounded-lg p-3 space-y-3">
+                    <p className="text-xs font-bold text-[#8B2214]">Botão sobre o banner (opcional)</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Texto do botão</label>
+                        <input type="text" defaultValue={b.button_text || ''} placeholder='Ex.: Quero o meu!'
+                          onBlur={(e) => { const v = e.target.value.trim(); if (v !== (b.button_text || '')) update(b.id, { button_text: v || null }); }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Para onde leva</label>
+                        <select
+                          value={selectValue(b.button_link)}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (v === '__custom__') update(b.id, { button_link: selectValue(b.button_link) === '__custom__' ? b.button_link : 'https://' });
+                            else update(b.id, { button_link: v || null });
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#8B2214] focus:border-transparent">
+                          <option value="">— escolha —</option>
+                          {DESTINOS.map(d => <option key={d.v} value={d.v}>{d.label}</option>)}
+                          <option value="__custom__">Link personalizado…</option>
+                        </select>
+                      </div>
+                    </div>
+                    {selectValue(b.button_link) === '__custom__' && (
+                      <input type="text" defaultValue={b.button_link || ''} placeholder="https://..."
+                        onBlur={(e) => update(b.id, { button_link: e.target.value || null })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent" />
+                    )}
+                    {/* Tamanho do botao */}
+                    {b.button_text && (
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Tamanho do botão: {Math.round((b.button_scale ?? 1) * 100)}%</label>
+                        <input type="range" min={0.5} max={2} step={0.05}
+                          value={b.button_scale ?? 1}
+                          onChange={(e) => patchLocal(b.id, { button_scale: parseFloat(e.target.value) })}
+                          onMouseUp={(e) => update(b.id, { button_scale: parseFloat((e.target as HTMLInputElement).value) })}
+                          onTouchEnd={(e) => update(b.id, { button_scale: parseFloat((e.target as HTMLInputElement).value) })}
+                          className="w-full accent-[#8B2214]" />
+                      </div>
                     )}
                   </div>
                 </div>
 
-                {/* Botao sobre o banner */}
-                <div className="bg-[#faf7f6] border border-[#ddd0cc] rounded-lg p-3 space-y-3">
-                  <p className="text-xs font-bold text-[#8B2214]">Botão sobre o banner (opcional)</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Texto do botão</label>
-                      <input type="text" defaultValue={b.button_text || ''} placeholder='Ex.: Quero o meu!'
-                        onBlur={(e) => { const v = e.target.value.trim(); if (v !== (b.button_text || '')) update(b.id, { button_text: v || null }); }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent" />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Para onde leva</label>
-                      <select
-                        value={selectValue(b.button_link)}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (v === '__custom__') update(b.id, { button_link: b.button_link && selectValue(b.button_link) === '__custom__' ? b.button_link : 'https://' });
-                          else update(b.id, { button_link: v || null });
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#8B2214] focus:border-transparent">
-                        <option value="">— escolha —</option>
-                        {DESTINOS.map(d => <option key={d.v} value={d.v}>{d.label}</option>)}
-                        <option value="__custom__">Link personalizado…</option>
-                      </select>
-                    </div>
+                <div className="flex lg:flex-col items-center justify-between lg:justify-start gap-2 lg:w-32 flex-shrink-0">
+                  <button onClick={() => update(b.id, { active: !b.active })}
+                    title={b.active ? 'Ativo (clique para ocultar)' : 'Oculto (clique para mostrar)'}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold w-full justify-center ${b.active ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                    {b.active ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    {b.active ? 'Ativo' : 'Oculto'}
+                  </button>
+                  <div className="flex gap-1 w-full">
+                    <button onClick={() => move(i, -1)} disabled={i === 0} title="Subir"
+                      className="flex-1 flex items-center justify-center py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30">
+                      <ArrowUp className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => move(i, 1)} disabled={i === banners.length - 1} title="Descer"
+                      className="flex-1 flex items-center justify-center py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30">
+                      <ArrowDown className="w-4 h-4" />
+                    </button>
                   </div>
-                  {selectValue(b.button_link) === '__custom__' && (
-                    <input type="text" defaultValue={b.button_link || ''} placeholder="https://..."
-                      onBlur={(e) => update(b.id, { button_link: e.target.value || null })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#8B2214] focus:border-transparent" />
-                  )}
-                </div>
-              </div>
-
-              {/* Acoes */}
-              <div className="flex lg:flex-col items-center justify-between lg:justify-start gap-2 lg:w-32 flex-shrink-0">
-                <button onClick={() => update(b.id, { active: !b.active })}
-                  title={b.active ? 'Ativo (clique para ocultar)' : 'Oculto (clique para mostrar)'}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold w-full justify-center ${b.active ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
-                  {b.active ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                  {b.active ? 'Ativo' : 'Oculto'}
-                </button>
-                <div className="flex gap-1 w-full">
-                  <button onClick={() => move(i, -1)} disabled={i === 0} title="Subir"
-                    className="flex-1 flex items-center justify-center py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30">
-                    <ArrowUp className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => move(i, 1)} disabled={i === banners.length - 1} title="Descer"
-                    className="flex-1 flex items-center justify-center py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30">
-                    <ArrowDown className="w-4 h-4" />
+                  <button onClick={() => remove(b)} title="Remover"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold w-full justify-center bg-red-50 text-red-600 hover:bg-red-100">
+                    <Trash2 className="w-4 h-4" /> Remover
                   </button>
                 </div>
-                <button onClick={() => remove(b)} title="Remover"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold w-full justify-center bg-red-50 text-red-600 hover:bg-red-100">
-                  <Trash2 className="w-4 h-4" /> Remover
-                </button>
               </div>
             </div>
           ))}

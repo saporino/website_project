@@ -4,6 +4,7 @@ import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Sen
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CartProvider, useCart } from './contexts/CartContext';
 import { AuthModal } from './components/AuthModal';
+import { bannerButtonStyle } from './lib/bannerButton';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { ResetPassword } from './pages/ResetPassword';
 import { SubscriptionPage } from './pages/SubscriptionPage';
@@ -522,7 +523,7 @@ const Hero = ({ scrollToSection }: any) => (
 // Sem banners cadastrados → usa PROMO_SLIDES como fallback (imagens temporarias).
 interface PromoSlide {
   src: string; alt: string; href?: string;
-  buttonText?: string; buttonLink?: string; buttonX?: number; buttonY?: number;
+  buttonText?: string; buttonLink?: string; buttonX?: number; buttonY?: number; buttonScale?: number;
 }
 const PromoCarousel = ({ onAuthOpen }: { onAuthOpen?: (mode: 'login' | 'register') => void }) => {
   const [slides, setSlides] = useState<PromoSlide[]>(PROMO_SLIDES);
@@ -539,7 +540,7 @@ const PromoCarousel = ({ onAuthOpen }: { onAuthOpen?: (mode: 'login' | 'register
         setSlides(data.map((b: any) => ({
           src: b.image_url, alt: b.title || 'Banner', href: b.link_url || undefined,
           buttonText: b.button_text || undefined, buttonLink: b.button_link || undefined,
-          buttonX: b.button_x ?? 50, buttonY: b.button_y ?? 85,
+          buttonX: b.button_x ?? 50, buttonY: b.button_y ?? 85, buttonScale: b.button_scale ?? 1,
         })));
         setIndex(0);
       }
@@ -593,7 +594,7 @@ const PromoCarousel = ({ onAuthOpen }: { onAuthOpen?: (mode: 'login' | 'register
         style={{ transform: `translateX(-${index * 100}%)` }}
       >
         {slides.map((s, i) => (
-          <div key={i} className="relative w-full h-full flex-shrink-0">
+          <div key={i} className="relative w-full h-full flex-shrink-0" style={{ containerType: 'inline-size' }}>
             <img
               src={s.src} alt={s.alt} draggable={false}
               onClick={() => goTo(s.href)}
@@ -602,8 +603,8 @@ const PromoCarousel = ({ onAuthOpen }: { onAuthOpen?: (mode: 'login' | 'register
             {s.buttonText && (
               <button
                 onClick={(e) => { e.stopPropagation(); goTo(s.buttonLink); }}
-                style={{ left: `${s.buttonX ?? 50}%`, top: `${s.buttonY ?? 85}%` }}
-                className="absolute -translate-x-1/2 -translate-y-1/2 bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold text-xs sm:text-sm md:text-base px-4 sm:px-6 py-2 sm:py-2.5 rounded-full shadow-lg active:scale-95 transition whitespace-nowrap"
+                style={bannerButtonStyle(s.buttonX ?? 50, s.buttonY ?? 85, s.buttonScale ?? 1)}
+                className="absolute bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold rounded-full shadow-lg active:scale-95 transition whitespace-nowrap"
               >
                 {s.buttonText}
               </button>
