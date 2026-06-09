@@ -188,7 +188,7 @@ function AppContent() {
         onAuthOpen={openAuth}
       />
       <Hero scrollToSection={scrollToSection} />
-      <PromoCarousel />
+      <PromoCarousel onAuthOpen={openAuth} />
       <Products
         products={products}
         loading={loading}
@@ -520,23 +520,45 @@ const Hero = ({ scrollToSection }: any) => (
 // pausa no hover e swipe no celular. Cada slide e uma imagem full-width.
 // Le os banners do banco (gerenciados em Admin > Configuracoes da Loja).
 // Sem banners cadastrados → usa PROMO_SLIDES como fallback (imagens temporarias).
-const PromoCarousel = () => {
-  const [slides, setSlides] = useState<{ src: string; alt: string; href?: string }[]>(PROMO_SLIDES);
+interface PromoSlide {
+  src: string; alt: string; href?: string;
+  buttonText?: string; buttonLink?: string; buttonX?: number; buttonY?: number;
+}
+const PromoCarousel = ({ onAuthOpen }: { onAuthOpen?: (mode: 'login' | 'register') => void }) => {
+  const [slides, setSlides] = useState<PromoSlide[]>(PROMO_SLIDES);
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
     (async () => {
       const { data } = await supabase
         .from('promo_banners')
-        .select('image_url, title, link_url')
+        .select('image_url, title, link_url, button_text, button_link, button_x, button_y')
         .eq('active', true)
         .order('sort_order', { ascending: true });
       if (data && data.length) {
-        setSlides(data.map((b: any) => ({ src: b.image_url, alt: b.title || 'Banner', href: b.link_url || undefined })));
+        setSlides(data.map((b: any) => ({
+          src: b.image_url, alt: b.title || 'Banner', href: b.link_url || undefined,
+          buttonText: b.button_text || undefined, buttonLink: b.button_link || undefined,
+          buttonX: b.button_x ?? 50, buttonY: b.button_y ?? 85,
+        })));
         setIndex(0);
       }
     })();
   }, []);
+
+  // Acao de um destino (botao do banner ou link do slide inteiro).
+  const goTo = (dest?: string) => {
+    if (!dest) return;
+    if (dest === 'cadastro') { onAuthOpen?.('register'); return; }
+    if (dest === 'login') { onAuthOpen?.('login'); return; }
+    if (/^https?:\/\//.test(dest)) { window.open(dest, '_blank', 'noopener'); return; }
+    if (dest.startsWith('#')) {
+      document.querySelector(dest)?.scrollIntoView({ behavior: 'smooth' });
+      return;
+    }
+    window.history.pushState({}, '', dest);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  };
 
   const pausedRef = useRef(false);
   const touchX = useRef<number | null>(null);
@@ -567,18 +589,27 @@ const PromoCarousel = () => {
     >
       <div
         className="flex transition-transform duration-700 ease-out aspect-[16/7] sm:aspect-[16/5]"
+        /* aspect-[16/5] no desktop = mesmo da miniatura do admin (botao encaixa igual) */
         style={{ transform: `translateX(-${index * 100}%)` }}
       >
-        {slides.map((s, i) => {
-          const img = <img src={s.src} alt={s.alt} className="w-full h-full object-cover" draggable={false} />;
-          return (
-            <div key={i} className="w-full h-full flex-shrink-0">
-              {s.href
-                ? <a href={s.href} target={s.href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer" className="block w-full h-full">{img}</a>
-                : img}
-            </div>
-          );
-        })}
+        {slides.map((s, i) => (
+          <div key={i} className="relative w-full h-full flex-shrink-0">
+            <img
+              src={s.src} alt={s.alt} draggable={false}
+              onClick={() => goTo(s.href)}
+              className={`w-full h-full object-cover ${s.href ? 'cursor-pointer' : ''}`}
+            />
+            {s.buttonText && (
+              <button
+                onClick={(e) => { e.stopPropagation(); goTo(s.buttonLink); }}
+                style={{ left: `${s.buttonX ?? 50}%`, top: `${s.buttonY ?? 85}%` }}
+                className="absolute -translate-x-1/2 -translate-y-1/2 bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold text-xs sm:text-sm md:text-base px-4 sm:px-6 py-2 sm:py-2.5 rounded-full shadow-lg active:scale-95 transition whitespace-nowrap"
+              >
+                {s.buttonText}
+              </button>
+            )}
+          </div>
+        ))}
       </div>
 
       {n > 1 && (
