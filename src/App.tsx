@@ -466,9 +466,8 @@ const Hero = ({ scrollToSection }: any) => (
       className="absolute inset-0 bg-cover bg-center"
       style={{ backgroundImage: `url(${heroImage})` }}
     >
-      {/* overlay escuro global p/ legibilidade sobre as cerejas + fade mais forte embaixo */}
-      <div className="absolute inset-0 bg-black/45" />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/75" />
+      {/* foto fica VIVIDA — fade suave so no terco inferior (atras do texto + transicao) */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60" />
     </div>
 
     <div className="relative z-10 text-center text-white px-6 max-w-5xl mx-auto">
@@ -485,11 +484,11 @@ const Hero = ({ scrollToSection }: any) => (
         />
       </div>
 
-      <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight animate-fade-in-up whitespace-nowrap">
+      <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight animate-fade-in-up whitespace-nowrap [text-shadow:_0_2px_12px_rgb(0_0_0_/_70%)]">
         O Verdadeiro Sabor de Minas
       </h1>
 
-      <p className="text-lg md:text-xl mb-12 max-w-4xl mx-auto font-light leading-relaxed animate-fade-in-up animation-delay-200">
+      <p className="text-lg md:text-xl mb-12 max-w-4xl mx-auto font-light leading-relaxed animate-fade-in-up animation-delay-200 [text-shadow:_0_1px_8px_rgb(0_0_0_/_70%)]">
         Torra artesanal em pequenos lotes, direto do Cerrado Mineiro.
       </p>
 
