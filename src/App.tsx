@@ -24,6 +24,7 @@ import ProductDetail from './components/ProductDetail';
 const logoImage = '/saporino-logo.png';
 const cafeLogoImage = '/cafe-logo-saporino2.png';
 const coffeeFieldImage = '/coffee-field.webp';
+const heroImage = '/hero-colheita.png';
 
 if (MERCADO_PAGO_PUBLIC_KEY) {
   initMercadoPago(MERCADO_PAGO_PUBLIC_KEY, { locale: 'pt-BR' });
@@ -463,9 +464,11 @@ const Hero = ({ scrollToSection }: any) => (
   <section id="hero" className="relative h-screen flex items-center justify-center overflow-hidden">
     <div
       className="absolute inset-0 bg-cover bg-center"
-      style={{ backgroundImage: `url(${coffeeFieldImage})` }}
+      style={{ backgroundImage: `url(${heroImage})` }}
     >
-      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
+      {/* overlay escuro global p/ legibilidade sobre as cerejas + fade mais forte embaixo */}
+      <div className="absolute inset-0 bg-black/45" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/75" />
     </div>
 
     <div className="relative z-10 text-center text-white px-6 max-w-5xl mx-auto">
@@ -487,7 +490,7 @@ const Hero = ({ scrollToSection }: any) => (
       </h1>
 
       <p className="text-lg md:text-xl mb-12 max-w-4xl mx-auto font-light leading-relaxed animate-fade-in-up animation-delay-200">
-        Café artesanal de Patrocínio, onde cada grão conta uma história de tradição e qualidade
+        Torra artesanal em pequenos lotes, direto do Cerrado Mineiro.
       </p>
 
       <button
