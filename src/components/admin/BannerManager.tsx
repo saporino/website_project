@@ -143,7 +143,7 @@ export function BannerManager() {
             <div key={b.id} className={`p-4 rounded-xl border ${b.active ? 'border-gray-200' : 'border-gray-200 bg-gray-50 opacity-70'}`}>
               {/* Preview GRANDE com botao arrastavel proporcional */}
               <div
-                className="relative w-full aspect-[16/5] rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
+                className="relative w-full aspect-[3/1] rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
                 style={{ containerType: 'inline-size' }}
               >
                 <img src={b.image_url} alt={b.title || `Banner ${i + 1}`} className="w-full h-full object-cover" draggable={false} />

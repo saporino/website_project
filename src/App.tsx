@@ -589,8 +589,8 @@ const PromoCarousel = ({ onAuthOpen }: { onAuthOpen?: (mode: 'login' | 'register
       aria-roledescription="carrossel"
     >
       <div
-        className="flex transition-transform duration-700 ease-out aspect-[16/7] sm:aspect-[16/5]"
-        /* aspect-[16/5] no desktop = mesmo da miniatura do admin (botao encaixa igual) */
+        className="flex transition-transform duration-700 ease-out aspect-[3/1]"
+        /* aspect 3:1 = mesma proporcao dos banners (2172x724 ~ 1920x640) → sem corte */
         style={{ transform: `translateX(-${index * 100}%)` }}
       >
         {slides.map((s, i) => (
