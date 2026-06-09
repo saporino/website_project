@@ -6,8 +6,8 @@ const go = (path: string) => {
   window.scrollTo(0, 0);
 };
 
-// Foto da colheita — "onde tudo começa". Salvar em /public como historia-colheita.png
-const HERO_IMG = '/historia-colheita.png';
+// Foto da secagem do café no terreiro — "onde tudo começa".
+const HERO_IMG = '/historia-hero.png';
 
 export function HistoryPage() {
   useEffect(() => { window.scrollTo(0, 0); }, []);
@@ -29,7 +29,7 @@ export function HistoryPage() {
           <div className="max-w-5xl mx-auto w-full px-6 lg:px-8 pb-12">
             <p className="text-white/80 text-sm font-semibold tracking-widest uppercase mb-3">Café Saporino</p>
             <h1 className="text-4xl md:text-6xl font-bold text-white [text-shadow:_0_2px_16px_rgb(0_0_0_/_60%)]">Nossa História</h1>
-            <p className="text-white/90 text-lg md:text-xl mt-3 max-w-2xl">Onde tudo começa — do grão colhido à mão até a sua xícara.</p>
+            <p className="text-white/90 text-lg md:text-xl mt-3 max-w-2xl">Onde tudo começa — do grão ao terreiro, até a sua xícara.</p>
           </div>
         </div>
       </section>
