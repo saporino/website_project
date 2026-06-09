@@ -500,7 +500,7 @@ const Hero = ({ scrollToSection }: any) => (
       </button>
     </div>
 
-    <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent" />
+    <div className="absolute bottom-0 left-0 right-0 h-52 md:h-72 bg-gradient-to-t from-white via-white/80 to-transparent" />
   </section>
 );
 
