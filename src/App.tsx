@@ -1,6 +1,6 @@
-import { useState, useEffect, FormEvent, useCallback } from 'react';
+import { useState, useEffect, useRef, FormEvent, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
-import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Send, User, ChevronDown, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck, Briefcase, MapPin, Flame, Coffee } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Send, User, ChevronDown, ChevronLeft, ChevronRight, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck, Briefcase, MapPin, Flame, Coffee } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CartProvider, useCart } from './contexts/CartContext';
 import { AuthModal } from './components/AuthModal';
@@ -24,6 +24,17 @@ import ProductDetail from './components/ProductDetail';
 const logoImage = '/saporino-logo.png';
 const coffeeFieldImage = '/coffee-field.webp';
 const heroImage = '/hero-colheita.png';
+
+// Slides do carrossel de banners (entre o hero e "Nossa Linha de Cafes").
+// SUBSTITUIR pelos 4 banners gerados — ideal 1920x600px, kebab-case em /public:
+// promo-1.png ... promo-4.png. href opcional define para onde o clique leva.
+// (As imagens abaixo sao TEMPORARIAS so para visualizar o comportamento.)
+const PROMO_SLIDES: { src: string; alt: string; href?: string }[] = [
+  { src: '/hero-colheita.png',      alt: 'Siga nas redes sociais' },
+  { src: '/lavoura-cerrado.png',    alt: 'Seja um Representante Comercial' },
+  { src: '/coffee-field.webp',      alt: 'Vendas para varejo e atacado' },
+  { src: '/torrefacao-saporino.jpg', alt: 'Conheca a Linha de Cafes' },
+];
 
 if (MERCADO_PAGO_PUBLIC_KEY) {
   initMercadoPago(MERCADO_PAGO_PUBLIC_KEY, { locale: 'pt-BR' });
@@ -177,6 +188,7 @@ function AppContent() {
         onAuthOpen={openAuth}
       />
       <Hero scrollToSection={scrollToSection} />
+      <PromoCarousel slides={PROMO_SLIDES} />
       <Products
         products={products}
         loading={loading}
@@ -503,6 +515,75 @@ const Hero = ({ scrollToSection }: any) => (
     <div className="absolute bottom-0 left-0 right-0 h-36 md:h-44 bg-gradient-to-t from-white via-white/70 to-transparent" />
   </section>
 );
+
+// Carrossel de banners (estilo Melitta): auto-rotacao em loop, setas, bolinhas,
+// pausa no hover e swipe no celular. Cada slide e uma imagem full-width.
+const PromoCarousel = ({ slides }: { slides: { src: string; alt: string; href?: string }[] }) => {
+  const [index, setIndex] = useState(0);
+  const pausedRef = useRef(false);
+  const touchX = useRef<number | null>(null);
+  const n = slides.length;
+  const go = (i: number) => setIndex(((i % n) + n) % n);
+
+  useEffect(() => {
+    if (n <= 1) return;
+    const id = setInterval(() => { if (!pausedRef.current) setIndex(p => (p + 1) % n); }, 5000);
+    return () => clearInterval(id);
+  }, [n]);
+
+  if (!n) return null;
+  return (
+    <section
+      className="relative w-full overflow-hidden bg-[#f8f7f5] select-none"
+      onMouseEnter={() => { pausedRef.current = true; }}
+      onMouseLeave={() => { pausedRef.current = false; }}
+      onTouchStart={e => { pausedRef.current = true; touchX.current = e.touches[0].clientX; }}
+      onTouchEnd={e => {
+        pausedRef.current = false;
+        if (touchX.current == null) return;
+        const dx = e.changedTouches[0].clientX - touchX.current;
+        if (Math.abs(dx) > 40) go(index + (dx < 0 ? 1 : -1));
+        touchX.current = null;
+      }}
+      aria-roledescription="carrossel"
+    >
+      <div
+        className="flex transition-transform duration-700 ease-out aspect-[16/7] sm:aspect-[16/5]"
+        style={{ transform: `translateX(-${index * 100}%)` }}
+      >
+        {slides.map((s, i) => {
+          const img = <img src={s.src} alt={s.alt} className="w-full h-full object-cover" draggable={false} />;
+          return (
+            <div key={i} className="w-full h-full flex-shrink-0">
+              {s.href
+                ? <a href={s.href} target={s.href.startsWith('http') ? '_blank' : undefined} rel="noopener noreferrer" className="block w-full h-full">{img}</a>
+                : img}
+            </div>
+          );
+        })}
+      </div>
+
+      {n > 1 && (
+        <>
+          <button onClick={() => go(index - 1)} aria-label="Anterior"
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 md:w-11 md:h-11 rounded-full bg-white/80 hover:bg-white text-[#8B2214] shadow-lg flex items-center justify-center transition">
+            <ChevronLeft className="w-5 h-5 md:w-6 md:h-6" />
+          </button>
+          <button onClick={() => go(index + 1)} aria-label="Próximo"
+            className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 md:w-11 md:h-11 rounded-full bg-white/80 hover:bg-white text-[#8B2214] shadow-lg flex items-center justify-center transition">
+            <ChevronRight className="w-5 h-5 md:w-6 md:h-6" />
+          </button>
+          <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2">
+            {slides.map((_, i) => (
+              <button key={i} onClick={() => go(i)} aria-label={`Ir para o slide ${i + 1}`}
+                className={`h-2.5 rounded-full transition-all ${i === index ? 'w-6 bg-white' : 'w-2.5 bg-white/60 hover:bg-white/90'}`} />
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+};
 
 const Products = ({ products, loading, addedProducts, setAddedProducts, selectedProduct, setSelectedProduct, onAuthOpen }: any) => {
   const { addToCart } = useCart();
