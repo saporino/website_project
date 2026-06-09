@@ -1208,9 +1208,9 @@ const Contact = () => {
           ))}
         </div>
 
-        {/* Banda de imagem — estética da torra, sem atribuição de fornecedor */}
+        {/* Banda de imagem — lavoura do Cerrado, sem atribuição de fornecedor */}
         <div className="mt-8 relative h-64 md:h-80 rounded-3xl overflow-hidden">
-          <img src="/torrefacao-saporino.jpg" alt="Torra artesanal Café Saporino" className="w-full h-full object-cover" />
+          <img src="/lavoura-cerrado.png" alt="Lavoura de café no Cerrado Mineiro" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent flex items-end">
             <div className="p-8 md:p-10">
               <p className="text-2xl md:text-3xl font-bold text-white">Da roça à sua xícara</p>
