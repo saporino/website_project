@@ -24,23 +24,6 @@ import ProductDetail from './components/ProductDetail';
 const logoImage = '/saporino-logo.png';
 const coffeeFieldImage = '/coffee-field.webp';
 const heroImage = '/hero-colheita.png';
-const bannerImage = '/banner-saporino.png';
-
-// Divisoria entre secoes — brand pattern fino repetido na horizontal,
-// em cor cheia para mostrar o logo Saporino e as cores da marca.
-const SectionDivider = () => (
-  <div className="bg-white py-2" aria-hidden>
-    <div
-      className="h-12 md:h-16 w-full"
-      style={{
-        backgroundImage: `url(${bannerImage})`,
-        backgroundRepeat: 'repeat-x',
-        backgroundPosition: 'center',
-        backgroundSize: 'auto 100%',
-      }}
-    />
-  </div>
-);
 
 if (MERCADO_PAGO_PUBLIC_KEY) {
   initMercadoPago(MERCADO_PAGO_PUBLIC_KEY, { locale: 'pt-BR' });
@@ -194,7 +177,6 @@ function AppContent() {
         onAuthOpen={openAuth}
       />
       <Hero scrollToSection={scrollToSection} />
-      <SectionDivider />
       <Products
         products={products}
         loading={loading}
@@ -204,7 +186,6 @@ function AppContent() {
         setSelectedProduct={setSelectedProduct}
         onAuthOpen={openAuth}
       />
-      <SectionDivider />
       <About />
       <Contact />
       <Footer scrollToSection={scrollToSection} />
