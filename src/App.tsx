@@ -1,6 +1,6 @@
 import { useState, useEffect, FormEvent, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
-import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Send, User, ChevronDown, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck, Briefcase } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Send, User, ChevronDown, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck, Briefcase, MapPin, Flame, Coffee } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CartProvider, useCart } from './contexts/CartContext';
 import { AuthModal } from './components/AuthModal';
@@ -534,7 +534,30 @@ const Products = ({ products, loading, addedProducts, setAddedProducts, selected
 
 
   return (
-    <section id="products" className="py-10 bg-white">
+    <>
+      {/* Faixa de confiança — estilo corporativo (3 Corações / Melitta) */}
+      <div className="bg-[#f8f7f5] border-y border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-5 grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { Icon: MapPin, t: 'Origem Cerrado Mineiro', s: 'Grãos de alta altitude' },
+            { Icon: Flame, t: 'Torra artesanal', s: 'Em pequenos lotes' },
+            { Icon: Truck, t: 'Entrega para todo Brasil', s: 'Direto da torra' },
+            { Icon: Lock, t: 'Pagamento seguro', s: 'Compra protegida' },
+          ].map(({ Icon, t, s }, i) => (
+            <div key={i} className="flex items-center gap-3 justify-center md:justify-start">
+              <div className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-[#8B2214] flex-shrink-0">
+                <Icon className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-gray-900 leading-tight">{t}</p>
+                <p className="text-xs text-gray-500 leading-tight">{s}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+    <section id="products" className="py-12 bg-white">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="text-center mb-10">
           <h2 className="text-3xl font-bold text-gray-900 mb-3">Nossos Cafés</h2>
@@ -617,6 +640,7 @@ const Products = ({ products, loading, addedProducts, setAddedProducts, selected
         </div>
       </div>
     </section>
+    </>
   );
 };
 
@@ -1167,80 +1191,30 @@ const Contact = () => {
           </p>
         </div>
 
-        <div className="space-y-12">
-          {/* Seleção dos grãos */}
-          <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
-            <h3 className="text-3xl font-bold text-gray-900 mb-8 px-10 pt-10">Seleção dos grãos</h3>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-10 pb-10">
-              {/* Logo Solo Cerrado */}
-              <div className="relative h-[400px] lg:h-[500px] rounded-2xl overflow-hidden bg-white flex items-center justify-center p-8">
-                <img
-                  src="/solo-cerrado-logo.png"
-                  alt="Solo Cerrado Logo"
-                  className="w-full h-full object-contain"
-                />
+        {/* 3 etapas — narrativa de origem, sem expor fornecedores */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[
+            { Icon: MapPin, title: 'Origem no Cerrado Mineiro', text: 'Grãos cultivados em alta altitude, em solo rico e clima ideal — uma das regiões mais premiadas do Brasil, reconhecida pela doçura natural e pelo corpo encorpado.' },
+            { Icon: Flame, title: 'Torra artesanal', text: 'Torra controlada em pequenos lotes, respeitando o tempo de cada grão para desenvolver aroma e sabor com consistência, xícara após xícara.' },
+            { Icon: Coffee, title: 'Notas de sabor', text: 'Caramelo, nozes e um leve toque de chocolate amargo — o perfil marcante que caracteriza cada blend Café Saporino.' },
+          ].map(({ Icon, title, text }, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-200 p-8 text-center hover:shadow-md transition-shadow">
+              <div className="w-14 h-14 rounded-2xl bg-[#f5f0ef] text-[#8B2214] flex items-center justify-center mx-auto mb-5">
+                <Icon className="w-7 h-7" />
               </div>
-
-              {/* Informações da Solo Cerrado */}
-              <div className="flex flex-col justify-center space-y-6">
-                <div className="space-y-4">
-                  <h4 className="text-2xl font-bold text-gray-900">Solo Cerrado</h4>
-                  <div className="space-y-2 text-gray-700">
-                    <p className="leading-relaxed">
-                      Rua Miguel Marques, 389 – Bairro São Judas<br />
-                      Patrocínio/MG – CEP 38705-292
-                    </p>
-                  </div>
-                </div>
-
-                <div className="pt-6 border-t border-gray-200">
-                  <p className="text-gray-600 leading-relaxed text-lg">
-                    A <strong className="text-gray-900">Solo Cerrado</strong> é a fazenda parceira da Saporino, localizada no coração do Cerrado Mineiro em Patrocínio/MG. Com altitude elevada, clima favorável e um solo rico em nutrientes, a região produz grãos de alta qualidade, reconhecidos internacionalmente por sua doçura natural e corpo encorpado.
-                  </p>
-                  <p className="text-gray-600 leading-relaxed text-lg mt-4">
-                    Cada lote é criteriosamente selecionado, garantindo que apenas os melhores grãos vermelhos cereja sigam para a próxima etapa — a torrefação artesanal em Patrocínio.
-                  </p>
-                </div>
-              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">{title}</h3>
+              <p className="text-gray-600 leading-relaxed">{text}</p>
             </div>
-          </div>
+          ))}
+        </div>
 
-          {/* Torrefação artesanal */}
-          <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
-            <h3 className="text-3xl font-bold text-gray-900 mb-8 px-10 pt-10">Torrefação artesanal</h3>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 px-10 pb-10">
-              {/* Foto da Torrefação */}
-              <div className="relative h-[400px] lg:h-[500px] rounded-2xl overflow-hidden">
-                <img
-                  src="/torrefacao-saporino.jpg"
-                  alt="Torrefação Café Saporino"
-                  className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500"
-                />
-              </div>
-
-              {/* Informações da Torrefação */}
-              <div className="flex flex-col justify-center space-y-6">
-                <div className="space-y-4">
-                  <h4 className="text-2xl font-bold text-gray-900">Café Original de Patrocínio Ltda.</h4>
-                  <div className="space-y-2 text-gray-700">
-                    <p><span className="font-semibold">CNPJ:</span> 33.334.059/0001-75</p>
-                    <p className="leading-relaxed">
-                      Estrada Municipal Ptc-004, Km 1,5, s/nº<br />
-                      Bairro Aeroporto – Patrocínio/MG<br />
-                      CEP 38744-002
-                    </p>
-                  </div>
-                </div>
-
-                <div className="pt-6 border-t border-gray-200">
-                  <p className="text-gray-600 leading-relaxed text-lg">
-                    A <strong className="text-gray-900">Café Original de Patrocínio</strong> é a torrefadora parceira da Saporino, com décadas de tradição no processamento artesanal do café mineiro. Situada às margens da cidade de Patrocínio, é onde os grãos selecionados passam pelo processo de torra controlada, desenvolvendo os aromas e sabores únicos que caracterizam cada blend Saporino.
-                  </p>
-                  <p className="text-gray-600 leading-relaxed text-lg mt-4">
-                    O processo artesanal respeita o tempo de cada grão. A torra é feita em pequenos lotes, preservando as notas características do Cerrado Mineiro — caramelo, nozes e um leve toque de chocolate amargo — que fazem do Café Saporino uma experiência única.
-                  </p>
-                </div>
-              </div>
+        {/* Banda de imagem — estética da torra, sem atribuição de fornecedor */}
+        <div className="mt-8 relative h-64 md:h-80 rounded-3xl overflow-hidden">
+          <img src="/torrefacao-saporino.jpg" alt="Torra artesanal Café Saporino" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent flex items-end">
+            <div className="p-8 md:p-10">
+              <p className="text-2xl md:text-3xl font-bold text-white">Da roça à sua xícara</p>
+              <p className="text-white/85 mt-1 text-base md:text-lg">Tradição mineira preservada em cada grão.</p>
             </div>
           </div>
         </div>
