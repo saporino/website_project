@@ -15,6 +15,7 @@ import { createPreference, MERCADO_PAGO_PUBLIC_KEY } from './lib/mercadopago';
 import { getCarrierQuotes, lookupCEP, formatCEP, calculateCartWeight, CarrierQuote } from './lib/shipping';
 import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
 import { PrivacyPolicy, ShippingPolicy, RefundPolicy, TermsOfService, SubscriptionPolicy, BusinessPage } from './pages/PolicyPages';
+import { HistoryPage } from './pages/HistoryPage';
 import { PaymentSuccess, PaymentFailure, PaymentPending } from './pages/PaymentPages';
 import { TrackingPage } from './pages/TrackingPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
@@ -23,7 +24,6 @@ import RepCoIntelligence from './pages/RepCoIntelligence';
 import ProductDetail from './components/ProductDetail';
 
 const logoImage = '/saporino-logo.png';
-const coffeeFieldImage = '/coffee-field.webp';
 const heroImage = '/hero-colheita.png';
 
 // Slides do carrossel de banners (entre o hero e "Nossa Linha de Cafes").
@@ -108,6 +108,7 @@ function AppRouter() {
   if (currentPath === '/termos-servico') return <TermsOfService />;
   if (currentPath === '/politica-assinatura') return <SubscriptionPolicy />;
   if (currentPath === '/para-seu-negocio') return <BusinessPage />;
+  if (currentPath === '/nossa-historia' || currentPath === '/sobre') return <HistoryPage />;
 
   // Payment callback routes
   if (currentPath === '/payment/success') return <PaymentSuccess />;
@@ -267,7 +268,7 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
                 ASSINATURA
               </button>
               <button
-                onClick={() => scrollToSection('about')}
+                onClick={() => { window.history.pushState({}, '', '/nossa-historia'); window.dispatchEvent(new PopStateEvent('popstate')); }}
                 className="text-sm font-medium tracking-wide transition-all duration-300 text-white hover:text-[#8B2214] hover:bg-white/10 py-3 px-5 rounded-lg cursor-pointer"
               >
                 SOBRE
@@ -1252,51 +1253,45 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
   );
 };
 
-const About = () => (
-  <section id="about" className="py-24 bg-white">
-    <div className="max-w-7xl mx-auto px-6 lg:px-8">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-        <div className="relative order-2 lg:order-1">
-          <div
-            className="relative h-[500px] rounded-3xl overflow-hidden shadow-2xl bg-cover bg-center"
-            style={{ backgroundImage: `url(${coffeeFieldImage})` }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+const About = () => {
+  const goHistoria = () => {
+    window.history.pushState({}, '', '/nossa-historia');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  };
+  return (
+    <section id="about" className="py-24 bg-white">
+      <div className="max-w-7xl mx-auto px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+          <div className="relative order-2 lg:order-1">
+            <div className="relative h-[460px] rounded-3xl overflow-hidden shadow-2xl bg-cover bg-center"
+              style={{ backgroundImage: `url('/historia-colheita.png')` }}>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+            </div>
           </div>
-        </div>
 
-        <div className="order-1 lg:order-2">
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">Nossa História</h2>
-          <div className="w-24 h-1.5 bg-[#8B2214] mb-8 rounded-full"></div>
+          <div className="order-1 lg:order-2">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">Nossa História</h2>
+            <div className="w-24 h-1.5 bg-[#8B2214] mb-8 rounded-full"></div>
 
-          <div className="space-y-6 text-lg text-gray-600 leading-relaxed">
-            <p>
-              O <strong className="text-gray-900">Café Saporino</strong> nasceu em 2025, em Patrocínio, Minas Gerais, no coração do Cerrado Mineiro, uma das regiões mais tradicionais e respeitadas na produção de café do Brasil. Desde o início, nosso propósito foi claro: levar às pessoas o sabor verdadeiro do café mineiro, aquele que carrega em cada grão a identidade, a cultura e a autenticidade da nossa terra.
-            </p>
-            <p className="font-semibold text-gray-900">
-              Mas a essência da Saporino começou bem antes da nossa fundação.
-            </p>
-            <p>
-              A história que nos inspira remonta a 1890, quando, sob o sol forte do Triângulo Mineiro, um jovem agricultor colhia grãos vermelhos que brilhavam como "ouro verde". Seu sonho era simples e grandioso ao mesmo tempo: ver o café de sua família conquistar São Paulo, o grande centro do comércio cafeeiro da época.
-            </p>
-            <p>
-              As sacas, carregadas em carroças, seguiam até a estação mais próxima, de onde embarcavam em longas viagens de trem, cruzando o Rio Grande até Campinas e chegando finalmente à capital paulista. Cada grão levava consigo mais que aroma e sabor, levava a história de famílias inteiras que transformavam trabalho duro em tradição.
-            </p>
-            <p className="font-semibold text-gray-900">
-              Hoje, a Saporino honra esse legado.
-            </p>
-            <p>
-              Selecionamos cuidadosamente os melhores grãos do Cerrado Mineiro, mantendo o compromisso com a qualidade desde a lavoura até a torra. Cada pacote que chega às prateleiras carrega o percurso histórico que conecta Minas Gerais a São Paulo, da roça à cidade, do passado ao presente.
-            </p>
-            <p className="text-[#8B2214] font-semibold text-xl italic">
-              Quando você abre um Café Saporino, você não está apenas provando um café, você está vivendo uma jornada que começou há mais de 130 anos e que continua sendo escrita, xícara após xícara, por quem valoriza sabor, tradição e origem.
-            </p>
+            <div className="space-y-6 text-lg text-gray-600 leading-relaxed">
+              <p>
+                O <strong className="text-gray-900">Café Saporino</strong> nasceu em 2025, em Patrocínio, no coração do <strong className="text-gray-900">Cerrado Mineiro</strong> — uma das regiões mais respeitadas na produção de café do Brasil.
+              </p>
+              <p>
+                Mas nossa essência vem de muito antes: de uma tradição cafeeira mineira que remonta a <strong className="text-gray-900">1890</strong>, quando o "ouro verde" partia de Minas rumo a São Paulo. É esse legado que honramos em cada grão.
+              </p>
+            </div>
+
+            <button onClick={goHistoria}
+              className="mt-8 inline-flex items-center gap-2 bg-[#8B2214] hover:bg-[#6d1a10] text-white px-7 py-3.5 rounded-full font-semibold transition-colors">
+              Conheça nossa história
+            </button>
           </div>
         </div>
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 const Contact = () => {
   return (
@@ -1416,7 +1411,7 @@ const Footer = ({ scrollToSection }: any) => {
               <h3 className="text-lg font-bold mb-6 text-white">Institucional</h3>
               <ul className="space-y-3">
                 <li>
-                  <button onClick={() => scrollToSection('about')} className="text-white/80 hover:text-white transition-colors text-sm">
+                  <button onClick={() => { window.history.pushState({}, '', '/nossa-historia'); window.dispatchEvent(new PopStateEvent('popstate')); }} className="text-white/80 hover:text-white transition-colors text-sm">
                     Quem Somos
                   </button>
                 </li>
