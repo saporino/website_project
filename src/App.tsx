@@ -534,29 +534,6 @@ const Products = ({ products, loading, addedProducts, setAddedProducts, selected
 
 
   return (
-    <>
-      {/* Faixa de confiança — estilo corporativo (3 Corações / Melitta) */}
-      <div className="bg-[#f8f7f5] border-y border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-5 grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { Icon: MapPin, t: 'Origem Cerrado Mineiro', s: 'Grãos de alta altitude' },
-            { Icon: Flame, t: 'Torra artesanal', s: 'Em pequenos lotes' },
-            { Icon: Truck, t: 'Entrega para todo Brasil', s: 'Direto da torra' },
-            { Icon: Lock, t: 'Pagamento seguro', s: 'Compra protegida' },
-          ].map(({ Icon, t, s }, i) => (
-            <div key={i} className="flex items-center gap-3 justify-center md:justify-start">
-              <div className="w-10 h-10 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-[#8B2214] flex-shrink-0">
-                <Icon className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-900 leading-tight">{t}</p>
-                <p className="text-xs text-gray-500 leading-tight">{s}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
     <section id="products" className="py-12 bg-white">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="text-center mb-10">
@@ -640,7 +617,6 @@ const Products = ({ products, loading, addedProducts, setAddedProducts, selected
         </div>
       </div>
     </section>
-    </>
   );
 };
 
@@ -1194,7 +1170,7 @@ const Contact = () => {
         {/* 3 etapas — narrativa de origem, sem expor fornecedores */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
-            { Icon: MapPin, title: 'Origem no Cerrado Mineiro', text: 'Grãos cultivados em alta altitude, em solo rico e clima ideal — uma das regiões mais premiadas do Brasil, reconhecida pela doçura natural e pelo corpo encorpado.' },
+            { Icon: MapPin, title: 'Origem no Cerrado Mineiro', text: 'Grãos cultivados a 980 metros de altitude, em solo rico e clima ideal — uma das regiões mais premiadas do Brasil, reconhecida pela doçura natural e pelo corpo encorpado.' },
             { Icon: Flame, title: 'Torra artesanal', text: 'Torra controlada em pequenos lotes, respeitando o tempo de cada grão para desenvolver aroma e sabor com consistência, xícara após xícara.' },
             { Icon: Coffee, title: 'Notas de sabor', text: 'Caramelo, nozes e um leve toque de chocolate amargo — o perfil marcante que caracteriza cada blend Café Saporino.' },
           ].map(({ Icon, title, text }, i) => (
