@@ -524,6 +524,7 @@ const Hero = ({ scrollToSection }: any) => (
 interface PromoSlide {
   src: string; alt: string; href?: string;
   buttonText?: string; buttonLink?: string; buttonX?: number; buttonY?: number; buttonScale?: number;
+  overlayUrl?: string; overlayX?: number; overlayY?: number; overlayScale?: number;
 }
 const PromoCarousel = ({ onAuthOpen }: { onAuthOpen?: (mode: 'login' | 'register') => void }) => {
   const [slides, setSlides] = useState<PromoSlide[]>(PROMO_SLIDES);
@@ -533,7 +534,7 @@ const PromoCarousel = ({ onAuthOpen }: { onAuthOpen?: (mode: 'login' | 'register
     (async () => {
       const { data } = await supabase
         .from('promo_banners')
-        .select('image_url, title, link_url, button_text, button_link, button_x, button_y')
+        .select('image_url, title, link_url, button_text, button_link, button_x, button_y, button_scale, overlay_image_url, overlay_x, overlay_y, overlay_scale')
         .eq('active', true)
         .order('sort_order', { ascending: true });
       if (data && data.length) {
@@ -541,6 +542,8 @@ const PromoCarousel = ({ onAuthOpen }: { onAuthOpen?: (mode: 'login' | 'register
           src: b.image_url, alt: b.title || 'Banner', href: b.link_url || undefined,
           buttonText: b.button_text || undefined, buttonLink: b.button_link || undefined,
           buttonX: b.button_x ?? 50, buttonY: b.button_y ?? 85, buttonScale: b.button_scale ?? 1,
+          overlayUrl: b.overlay_image_url || undefined,
+          overlayX: b.overlay_x ?? 50, overlayY: b.overlay_y ?? 50, overlayScale: b.overlay_scale ?? 1,
         })));
         setIndex(0);
       }
@@ -600,6 +603,13 @@ const PromoCarousel = ({ onAuthOpen }: { onAuthOpen?: (mode: 'login' | 'register
               onClick={() => goTo(s.href)}
               className={`w-full h-full object-cover ${s.href ? 'cursor-pointer' : ''}`}
             />
+            {s.overlayUrl && (
+              <img
+                src={s.overlayUrl} alt="" draggable={false}
+                style={{ left: `${s.overlayX ?? 50}%`, top: `${s.overlayY ?? 50}%`, transform: 'translate(-50%, -50%)', width: `${20 * (s.overlayScale ?? 1)}cqw` }}
+                className="absolute pointer-events-none drop-shadow-lg rounded-md"
+              />
+            )}
             {s.buttonText && (
               <button
                 onClick={(e) => { e.stopPropagation(); goTo(s.buttonLink); }}

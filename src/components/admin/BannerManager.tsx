@@ -15,6 +15,10 @@ interface Banner {
   button_x: number;
   button_y: number;
   button_scale: number;
+  overlay_image_url: string | null;
+  overlay_x: number;
+  overlay_y: number;
+  overlay_scale: number;
 }
 
 const BUCKET = 'product-images';
@@ -63,6 +67,30 @@ export function BannerManager() {
     } finally {
       setUploading(false);
     }
+  };
+
+  // Upload de imagem sobreposta (ex.: QR code) para um banner.
+  const handleOverlayUpload = async (banner: Banner, file: File) => {
+    try {
+      const ext = (file.name.split('.').pop() || 'png').toLowerCase();
+      const path = `${PREFIX}overlay-${Date.now()}.${ext}`;
+      const { data, error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(data.path);
+      await update(banner.id, { overlay_image_url: pub.publicUrl, overlay_x: 50, overlay_y: 50, overlay_scale: 1 });
+    } catch (e) {
+      console.error('Erro no upload da imagem sobreposta:', e);
+      alert('Erro ao enviar a imagem. Tente novamente.');
+    }
+  };
+
+  const removeOverlay = async (banner: Banner) => {
+    const marker = `/${BUCKET}/`;
+    if (banner.overlay_image_url) {
+      const idx = banner.overlay_image_url.indexOf(marker);
+      if (idx >= 0) { try { await supabase.storage.from(BUCKET).remove([banner.overlay_image_url.slice(idx + marker.length)]); } catch { /* ok */ } }
+    }
+    await update(banner.id, { overlay_image_url: null });
   };
 
   const update = async (id: string, patch: Partial<Banner>) => {
@@ -159,8 +187,19 @@ export function BannerManager() {
                     {b.button_text}
                   </button>
                 )}
+                {b.overlay_image_url && (
+                  <img
+                    src={b.overlay_image_url} alt="overlay" draggable={false}
+                    style={{ left: `${b.overlay_x}%`, top: `${b.overlay_y}%`, transform: 'translate(-50%, -50%)', width: `${20 * (b.overlay_scale ?? 1)}cqw`, touchAction: 'none' }}
+                    onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); setDragId(b.id + ':ov'); }}
+                    onPointerMove={(e) => { if (dragId === b.id + ':ov') { const p = posFromEvent(e, e.currentTarget.parentElement as HTMLElement); patchLocal(b.id, { overlay_x: p.button_x, overlay_y: p.button_y }); } }}
+                    onPointerUp={(e) => { if (dragId !== b.id + ':ov') return; setDragId(null); const p = posFromEvent(e, e.currentTarget.parentElement as HTMLElement); update(b.id, { overlay_x: p.button_x, overlay_y: p.button_y }); }}
+                    className="absolute cursor-move drop-shadow-lg rounded-md select-none"
+                    title="Arraste para posicionar"
+                  />
+                )}
               </div>
-              {b.button_text && <p className="text-xs text-gray-400 mt-1 text-center">Arraste o botão para encaixá-lo no banner · use o controle de tamanho abaixo</p>}
+              {(b.button_text || b.overlay_image_url) && <p className="text-xs text-gray-400 mt-1 text-center">Arraste o botão/imagem para posicionar · ajuste o tamanho abaixo</p>}
 
               {/* Campos + acoes */}
               <div className="flex flex-col lg:flex-row gap-4 mt-4">
@@ -236,6 +275,31 @@ export function BannerManager() {
                           onTouchEnd={(e) => update(b.id, { button_scale: parseFloat((e.target as HTMLInputElement).value) })}
                           className="w-full accent-[#8B2214]" />
                       </div>
+                    )}
+                  </div>
+
+                  {/* Imagem sobreposta (QR code, selo, etc.) */}
+                  <div className="bg-[#faf7f6] border border-[#ddd0cc] rounded-lg p-3 space-y-3">
+                    <p className="text-xs font-bold text-[#8B2214]">Imagem sobreposta — QR code, selo (opcional)</p>
+                    {b.overlay_image_url ? (
+                      <div className="flex items-center gap-3">
+                        <img src={b.overlay_image_url} alt="" className="w-12 h-12 object-contain rounded border border-gray-200 bg-white" />
+                        <div className="flex-1">
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">Tamanho: {Math.round((b.overlay_scale ?? 1) * 100)}%</label>
+                          <input type="range" min={0.4} max={3} step={0.05} value={b.overlay_scale ?? 1}
+                            onChange={(e) => patchLocal(b.id, { overlay_scale: parseFloat(e.target.value) })}
+                            onMouseUp={(e) => update(b.id, { overlay_scale: parseFloat((e.target as HTMLInputElement).value) })}
+                            onTouchEnd={(e) => update(b.id, { overlay_scale: parseFloat((e.target as HTMLInputElement).value) })}
+                            className="w-full accent-[#8B2214]" />
+                        </div>
+                        <button onClick={() => removeOverlay(b)} className="text-xs text-red-600 hover:underline whitespace-nowrap">Remover</button>
+                      </div>
+                    ) : (
+                      <label className="inline-flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-white text-xs font-semibold bg-[#8B2214] hover:bg-[#6d1a10]">
+                        <Upload className="w-4 h-4" /> Enviar imagem (ex.: QR)
+                        <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+                          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleOverlayUpload(b, f); e.target.value = ''; }} />
+                      </label>
                     )}
                   </div>
                 </div>
