@@ -22,7 +22,6 @@ import RepCoIntelligence from './pages/RepCoIntelligence';
 import ProductDetail from './components/ProductDetail';
 
 const logoImage = '/saporino-logo.png';
-const cafeLogoImage = '/cafe-logo-saporino2.png';
 const coffeeFieldImage = '/coffee-field.webp';
 const heroImage = '/hero-colheita.png';
 
@@ -473,14 +472,9 @@ const Hero = ({ scrollToSection }: any) => (
     <div className="relative z-10 text-center text-white px-6 max-w-5xl mx-auto">
       <div className="relative inline-block mb-12">
         <img
-          src={cafeLogoImage}
-          alt="Café"
-          className="absolute top-6 md:top-12 -left-12 md:-left-20 h-[49px] md:h-[85px] w-auto drop-shadow-2xl animate-fade-in z-10 transform -rotate-12"
-        />
-        <img
           src={logoImage}
-          alt="Saporino"
-          className="h-44 md:h-72 w-auto mx-auto drop-shadow-2xl animate-fade-in relative"
+          alt="Café Saporino"
+          className="h-52 md:h-[340px] w-auto mx-auto drop-shadow-2xl animate-fade-in relative"
         />
       </div>
 
