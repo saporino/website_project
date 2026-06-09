@@ -539,10 +539,10 @@ const Products = ({ products, loading, addedProducts, setAddedProducts, selected
     <section id="products" className="py-12 bg-white">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="text-center mb-10">
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">Nossos Cafés</h2>
+          <h2 className="text-3xl font-bold text-gray-900 mb-3">Nossa Linha de Cafés</h2>
           <div className="w-16 h-1 bg-[#8B2214] mx-auto mb-4 rounded-full"></div>
           <p className="text-sm text-gray-500 max-w-xl mx-auto leading-relaxed">
-            Seleção especial de cafés produzidos com os melhores grãos de Minas Gerais
+            Do tradicional ao gourmet — um café para cada momento.
           </p>
         </div>
 
