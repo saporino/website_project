@@ -6,6 +6,13 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // DESLIGADO durante a fase de desenvolvimento: o service worker fazia
+      // cache teimoso (F5 mostrava versao antiga; so atualizava ao fechar o
+      // navegador). selfDestroying gera um SW que se desinstala sozinho e
+      // limpa o cache em TODOS os navegadores que ja tinham a versao antiga
+      // (inclusive os reps). REATIVAR (selfDestroying: false) so na fase do
+      // app Google Play / PWABuilder. Ver CLAUDE.md sec.8 e sec.11.
+      selfDestroying: true,
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon.svg'],
       manifest: {
