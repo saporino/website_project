@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Edit, Trash2, Save, X, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Image as ImageIcon, ChevronUp, ChevronDown } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
 
 interface Product {
@@ -117,6 +117,27 @@ export function ProductsManagement() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Reordena trocando o display_order com o produto vizinho (setas ↑↓).
+  const moveProduct = async (idx: number, dir: -1 | 1) => {
+    const j = idx + dir;
+    if (j < 0 || j >= products.length) return;
+    const a = products[idx], b = products[j];
+    // Garante valores distintos e nao-zero antes de trocar (evita empate).
+    const oa = a.display_order || idx + 1;
+    const ob = b.display_order || j + 1;
+    // Atualiza local (otimista) para a UI responder na hora.
+    setProducts(prev => {
+      const copy = [...prev];
+      [copy[idx], copy[j]] = [copy[j], copy[idx]];
+      return copy;
+    });
+    await Promise.all([
+      supabase.from('products').update({ display_order: ob }).eq('id', a.id),
+      supabase.from('products').update({ display_order: oa }).eq('id', b.id),
+    ]);
+    loadProducts();
   };
 
   const handleEdit = (product: Product) => {
@@ -335,7 +356,7 @@ export function ProductsManagement() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {products.map((product) => (
+        {products.map((product, idx) => (
           <div
             key={product.id}
             className={`bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow ${editingId === product.id ? 'border-2 border-[#a4240e]' : 'border border-gray-200'
@@ -382,6 +403,25 @@ export function ProductsManagement() {
                   </div>
 
                   <div className="flex items-center space-x-2">
+                    <div className="flex flex-col">
+                      <button
+                        onClick={() => moveProduct(idx, -1)}
+                        disabled={idx === 0}
+                        title="Subir (aparece antes na loja)"
+                        className="p-1 text-gray-500 hover:bg-gray-100 rounded disabled:opacity-30 disabled:hover:bg-transparent"
+                      >
+                        <ChevronUp className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => moveProduct(idx, 1)}
+                        disabled={idx === products.length - 1}
+                        title="Descer (aparece depois na loja)"
+                        className="p-1 text-gray-500 hover:bg-gray-100 rounded disabled:opacity-30 disabled:hover:bg-transparent"
+                      >
+                        <ChevronDown className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <span className="text-xs font-semibold text-gray-400 w-5 text-center" title="Posição">{idx + 1}</span>
                     <button
                       onClick={() => handleEdit(product)}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
