@@ -188,7 +188,7 @@ function AppContent() {
         onAuthOpen={openAuth}
       />
       <Hero scrollToSection={scrollToSection} />
-      <PromoCarousel slides={PROMO_SLIDES} />
+      <PromoCarousel />
       <Products
         products={products}
         loading={loading}
@@ -518,8 +518,26 @@ const Hero = ({ scrollToSection }: any) => (
 
 // Carrossel de banners (estilo Melitta): auto-rotacao em loop, setas, bolinhas,
 // pausa no hover e swipe no celular. Cada slide e uma imagem full-width.
-const PromoCarousel = ({ slides }: { slides: { src: string; alt: string; href?: string }[] }) => {
+// Le os banners do banco (gerenciados em Admin > Configuracoes da Loja).
+// Sem banners cadastrados → usa PROMO_SLIDES como fallback (imagens temporarias).
+const PromoCarousel = () => {
+  const [slides, setSlides] = useState<{ src: string; alt: string; href?: string }[]>(PROMO_SLIDES);
   const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('promo_banners')
+        .select('image_url, title, link_url')
+        .eq('active', true)
+        .order('sort_order', { ascending: true });
+      if (data && data.length) {
+        setSlides(data.map((b: any) => ({ src: b.image_url, alt: b.title || 'Banner', href: b.link_url || undefined })));
+        setIndex(0);
+      }
+    })();
+  }, []);
+
   const pausedRef = useRef(false);
   const touchX = useRef<number | null>(null);
   const n = slides.length;
