@@ -6,7 +6,6 @@ import { supabase } from '../lib/supabase';
 import { SubscriptionCheckout } from '../components/SubscriptionCheckout';
 import { AuthModal } from '../components/AuthModal';
 
-const coffeeFieldImage = '/coffee-field.webp';
 const subscriptionBg = '/assinatura-fundo.png';
 const logoImage = '/SAPORINO LOGO transparente big-PNG.png';
 
