@@ -250,6 +250,12 @@ export const SubscriptionPage = () => {
 
         <div className="relative z-10 text-center text-white px-6 max-w-5xl mx-auto">
           <div className="relative inline-block mb-12">
+            {/* halo radial sutil atras do logo — destaca o badge sobre a foto */}
+            <div
+              aria-hidden
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] pointer-events-none"
+              style={{ background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.28) 40%, rgba(0,0,0,0) 70%)' }}
+            />
             <img
               src={logoImage}
               alt="Saporino"
