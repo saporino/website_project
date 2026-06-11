@@ -43,7 +43,7 @@ export const SubscriptionPage = () => {
       const [{ data: settings }, { data: prods }] = await Promise.all([
         supabase.from('subscription_settings').select('accepting_new, tiers').maybeSingle(),
         supabase.from('products').select('id, name, price, promotional_price, roast_type, flavor_notes')
-          .eq('subscription_enabled', true).eq('is_active', true).order('display_order', { ascending: true }),
+          .eq('subscription_enabled', true).order('display_order', { ascending: true }),
       ]);
       if (settings) {
         setAcceptingNew(settings.accepting_new);
