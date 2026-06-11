@@ -307,9 +307,113 @@ export const TermsOfService = () => (
 );
 
 export const SubscriptionPolicy = () => (
-    <PolicyLayout title="Política de Assinatura">
-        <p>Detalhes sobre o funcionamento do Clube de Assinatura...</p>
-        <p>Em construção...</p>
+    <PolicyLayout title="Política de Assinatura – Café Saporino Ltda.">
+        <p className="text-sm text-gray-500 mb-6"><strong>Última atualização:</strong> 19 de novembro de 2025</p>
+
+        <p className="mb-4">A presente Política de Assinatura estabelece as condições aplicáveis aos planos de assinatura oferecidos pela Café Saporino Ltda., inscrita no CNPJ nº 61.109.694/0001-94, com sede na Al. Rio Negro, 503 – Sala 2005 – Alphaville Industrial – Barueri/SP – CEP 06454-000.</p>
+        <p className="mb-6">Ao contratar qualquer plano de assinatura da Café Saporino, o cliente declara estar ciente e de acordo com todos os termos descritos nesta política.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">1. Sobre a Assinatura Café Saporino</h2>
+        <p className="mb-4">A Assinatura Café Saporino foi criada para proporcionar praticidade, economia e comodidade aos consumidores que desejam receber regularmente os cafés da marca sem a necessidade de realizar novos pedidos a cada compra.</p>
+        <p className="mb-4">A assinatura permite que o cliente receba cafés selecionados de forma recorrente, com benefícios exclusivos de acordo com o plano escolhido.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">2. Planos disponíveis</h2>
+        <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3">Plano Mensal</h3>
+        <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li>Desconto de 5% sobre os produtos elegíveis da assinatura;</li>
+            <li>Sem fidelidade;</li>
+            <li>Cancelamento a qualquer momento;</li>
+            <li>Frete cobrado normalmente conforme a região de entrega.</li>
+        </ul>
+        <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3">Plano Semestral (6 Meses)</h3>
+        <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li>Desconto de 7% durante toda a vigência do plano;</li>
+            <li>Frete grátis durante todo o período contratado;</li>
+            <li>Fidelidade de 6 meses;</li>
+            <li>Recebimento de 1 (um) Café Gourmet Edição Limitada de 250g como brinde de boas-vindas.</li>
+        </ul>
+        <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3">Plano Anual (12 Meses)</h3>
+        <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li>Desconto de 12% durante toda a vigência do plano;</li>
+            <li>Frete grátis durante todo o período contratado;</li>
+            <li>Fidelidade de 12 meses;</li>
+            <li>Recebimento de 1 (um) Café Especial de 250g na adesão;</li>
+            <li>Recebimento de 1 (um) Café Especial de 250g após completar 6 meses de assinatura ativa.</li>
+        </ul>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">3. Cobrança recorrente</h2>
+        <p className="mb-4">As assinaturas funcionam por meio de cobrança recorrente automática. Ao aderir a qualquer plano, o assinante autoriza a Café Saporino a realizar as cobranças periódicas no método de pagamento cadastrado.</p>
+        <p className="mb-4">É responsabilidade do cliente manter os dados de pagamento atualizados durante toda a vigência da assinatura. A não aprovação da cobrança poderá resultar na suspensão ou cancelamento da assinatura.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">4. Frete das assinaturas</h2>
+        <p className="mb-2"><strong>Plano Mensal:</strong> o frete será calculado normalmente conforme o CEP de entrega e a modalidade escolhida pelo cliente.</p>
+        <p className="mb-2"><strong>Plano Semestral (6 Meses):</strong> frete gratuito durante toda a vigência da assinatura.</p>
+        <p className="mb-4"><strong>Plano Anual (12 Meses):</strong> frete gratuito durante toda a vigência da assinatura.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">5. Brindes e benefícios promocionais</h2>
+        <p className="mb-2">Os brindes oferecidos pela Café Saporino são benefícios promocionais concedidos exclusivamente aos assinantes dos planos elegíveis. Os brindes:</p>
+        <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li>não possuem valor de revenda;</li>
+            <li>não poderão ser convertidos em dinheiro;</li>
+            <li>não poderão ser trocados por outros produtos;</li>
+            <li>poderão ser substituídos por itens equivalentes em caso de indisponibilidade.</li>
+        </ul>
+        <p className="mb-4">A Café Saporino reserva-se o direito de alterar brindes futuros sem aviso prévio, respeitando os benefícios já prometidos aos assinantes ativos.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">6. Cancelamento</h2>
+        <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3">Plano Mensal</h3>
+        <p className="mb-4">O assinante poderá cancelar sua assinatura a qualquer momento. O cancelamento impedirá apenas futuras cobranças, não afetando pedidos já faturados, processados ou enviados.</p>
+        <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3">Plano Semestral (6 Meses) e Plano Anual (12 Meses)</h3>
+        <p className="mb-2">Os planos de fidelidade possuem descontos, frete promocional e brindes concedidos em razão do compromisso assumido pelo assinante durante todo o período contratado. Em caso de cancelamento antecipado por iniciativa do assinante:</p>
+        <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li>a assinatura será encerrada;</li>
+            <li>os benefícios promocionais poderão ser perdidos;</li>
+            <li>os descontos concedidos poderão ser recalculados;</li>
+            <li>o frete promocional poderá ser recalculado;</li>
+            <li>os brindes recebidos poderão ser considerados no recálculo dos benefícios concedidos.</li>
+        </ul>
+        <p className="mb-4">A Café Saporino poderá cobrar do assinante a diferença correspondente aos valores efetivamente economizados até a data do cancelamento.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">7. Alteração de dados cadastrais</h2>
+        <p className="mb-2">O assinante é responsável por manter sempre atualizados: nome, endereço, telefone, e-mail e informações de pagamento.</p>
+        <p className="mb-4">A Café Saporino não se responsabiliza por atrasos, falhas de entrega ou cobranças recusadas decorrentes de informações incorretas fornecidas pelo assinante.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">8. Alteração de preços</h2>
+        <p className="mb-4">A Café Saporino poderá revisar os valores dos planos de assinatura a qualquer momento. Alterações futuras não afetarão pedidos já faturados. Quando aplicável, os assinantes serão comunicados previamente sobre reajustes aplicáveis às próximas renovações.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">9. Indisponibilidade de produtos</h2>
+        <p className="mb-2">Em situações excepcionais de indisponibilidade de determinado café, lote ou edição especial, a Café Saporino poderá:</p>
+        <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li>substituir o produto por item equivalente;</li>
+            <li>disponibilizar opção semelhante;</li>
+            <li>oferecer crédito correspondente;</li>
+            <li>entrar em contato para alinhamento da entrega.</li>
+        </ul>
+        <p className="mb-4">Sempre que possível, a substituição buscará manter características semelhantes de qualidade e categoria.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">10. Suspensão ou cancelamento por fraude</h2>
+        <p className="mb-2">A Café Saporino poderá suspender ou cancelar assinaturas quando houver indícios de:</p>
+        <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li>fraude;</li>
+            <li>informações falsas;</li>
+            <li>uso indevido dos benefícios da assinatura;</li>
+            <li>tentativa de obtenção indevida de descontos ou brindes;</li>
+            <li>violação dos Termos de Serviço.</li>
+        </ul>
+        <p className="mb-4">Nesses casos, a empresa poderá adotar as medidas administrativas e legais cabíveis.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">11. Marketplaces</h2>
+        <p className="mb-4">A assinatura Café Saporino é válida exclusivamente nos canais em que essa modalidade estiver disponível. Compras realizadas através de marketplaces como Amazon, Mercado Livre, Shopee, TikTok Shop ou outras plataformas parceiras poderão seguir regras específicas da respectiva plataforma.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">12. Alterações desta política</h2>
+        <p className="mb-4">A Café Saporino poderá atualizar esta Política de Assinatura a qualquer momento para refletir alterações operacionais, comerciais ou legais. A versão vigente estará sempre disponível em seus canais oficiais.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">13. Contato</h2>
+        <p className="mb-2">Em caso de dúvidas relacionadas à assinatura:</p>
+        <p className="mb-1"><strong>Café Saporino Ltda.</strong> — CNPJ: 61.109.694/0001-94</p>
+        <p className="mb-1">Al. Rio Negro, 503 – Sala 2005 – Alphaville Industrial – Barueri/SP – CEP 06454-000</p>
+        <p className="mb-4">E-mail: <a href="mailto:sac@cafesaporino.com.br" className="text-[#a4240e] hover:underline">sac@cafesaporino.com.br</a></p>
+        <p className="text-sm text-gray-500 italic">Café Saporino — O Verdadeiro Sabor de Minas®</p>
     </PolicyLayout>
 );
 

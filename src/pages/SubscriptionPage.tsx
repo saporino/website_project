@@ -22,6 +22,13 @@ interface SubProduct {
 }
 const unitPrice = (p: SubProduct) => (p.promotional_price && p.promotional_price > 0 ? p.promotional_price : p.price);
 
+// Benefícios por plano (conforme a Política de Assinatura).
+const planBenefits = (months: number): { frete: string; fidelidade: string; brinde: string | null } => {
+  if (months >= 12) return { frete: 'Frete grátis', fidelidade: 'Fidelidade de 12 meses', brinde: '1 Café Especial 250g na adesão + 1 Café Especial 250g aos 6 meses' };
+  if (months >= 6) return { frete: 'Frete grátis', fidelidade: 'Fidelidade de 6 meses', brinde: '1 Café Gourmet Edição Limitada 250g de boas-vindas' };
+  return { frete: 'Frete conforme sua região', fidelidade: 'Sem fidelidade — cancele quando quiser', brinde: null };
+};
+
 export const SubscriptionPage = () => {
   const { user, profile, signOut } = useAuth();
   const [accountType, setAccountType] = useState<AccountType>(null);
@@ -549,7 +556,7 @@ export const SubscriptionPage = () => {
 
                       <div>
                         <label className="block text-lg font-semibold text-gray-900 mb-3">Compromisso (quanto mais meses, maior o desconto):</label>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="grid grid-cols-3 gap-3">
                           {tiers.map((t) => (
                             <button key={t.months} onClick={() => setCommitment(t)}
                               className={`py-3 px-2 rounded-xl font-semibold transition-all text-center ${commitment?.months === t.months ? 'bg-[#a4240e] text-white' : 'bg-white text-gray-700 hover:bg-gray-100'}`}>
@@ -558,6 +565,19 @@ export const SubscriptionPage = () => {
                             </button>
                           ))}
                         </div>
+                        {/* Condições do plano selecionado */}
+                        {commitment && (() => {
+                          const b = planBenefits(commitment.months);
+                          return (
+                            <div className="mt-4 bg-white border border-[#ddd0cc] rounded-xl p-4 space-y-2">
+                              <div className="flex items-start gap-2"><Check className="w-4 h-4 text-[#a4240e] flex-shrink-0 mt-0.5" /><span className="text-sm text-gray-700">{b.frete}</span></div>
+                              <div className="flex items-start gap-2"><Check className="w-4 h-4 text-[#a4240e] flex-shrink-0 mt-0.5" /><span className="text-sm text-gray-700">{b.fidelidade}</span></div>
+                              {b.brinde && <div className="flex items-start gap-2"><Check className="w-4 h-4 text-[#a4240e] flex-shrink-0 mt-0.5" /><span className="text-sm text-gray-700"><strong>Brinde:</strong> {b.brinde}</span></div>}
+                              <a href="/politica-assinatura" onClick={(e) => { e.preventDefault(); window.history.pushState({}, '', '/politica-assinatura'); window.dispatchEvent(new PopStateEvent('popstate')); }}
+                                className="inline-block text-xs text-[#a4240e] underline mt-1">Ver política de assinatura completa</a>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
 
@@ -572,8 +592,9 @@ export const SubscriptionPage = () => {
                         <div className="mt-6 border-t border-gray-200 pt-4 space-y-1.5 text-sm">
                           <div className="flex justify-between"><span className="text-gray-600">Subtotal ({totalPackages} {totalPackages === 1 ? 'pacote' : 'pacotes'}/mês)</span><span className="font-semibold">R$ {subtotal.toFixed(2).replace('.', ',')}</span></div>
                           {pct > 0 && <div className="flex justify-between text-green-700"><span>Desconto assinante (-{pct}%)</span><span>- R$ {disc.toFixed(2).replace('.', ',')}</span></div>}
-                          <div className="flex justify-between text-lg font-bold pt-1"><span className="text-gray-900">Por mês</span><span className="text-[#a4240e]">R$ {(subtotal - disc).toFixed(2).replace('.', ',')}</span></div>
-                          <p className="text-xs text-gray-400">+ frete calculado no checkout. A cobrança do 1º ciclo é feita agora.</p>
+                          <div className="flex justify-between"><span className="text-gray-600">Frete</span><span className="font-semibold">{(commitment?.months ?? 1) >= 6 ? 'Grátis' : 'Conforme sua região'}</span></div>
+                          <div className="flex justify-between text-lg font-bold pt-1"><span className="text-gray-900">Por mês{(commitment?.months ?? 1) < 6 ? ' + frete' : ''}</span><span className="text-[#a4240e]">R$ {(subtotal - disc).toFixed(2).replace('.', ',')}</span></div>
+                          <p className="text-xs text-gray-400">{(commitment?.months ?? 1) >= 6 ? 'Frete grátis neste plano. ' : 'Frete calculado no checkout pelo CEP. '}A cobrança do 1º ciclo é feita agora.</p>
                         </div>
                       );
                     })()}

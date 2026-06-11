@@ -326,15 +326,18 @@ export const SubscriptionCheckout = ({
       const products = selectedProducts;
       const totalAmount = basePrice + freightData.freight_cost;
 
-      // Registra a assinatura (plano escolhido)
-      await supabase.from('subscriptions').insert({
+      // Registra a assinatura (plano escolhido) — base para alertas e recorrencia
+      const { error: subErr } = await supabase.from('subscriptions').insert({
         user_id: userId,
         account_type: accountType,
         selected_coffees: selectedCoffees,
         grind_type: grindType,
         shipping_date: shippingDate,
-        status: 'pending',
+        commitment_months: commitmentMonths,
+        discount_pct: discountPct,
+        status: 'active',
       });
+      if (subErr) console.error('Erro ao registrar assinatura:', subErr);
 
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
