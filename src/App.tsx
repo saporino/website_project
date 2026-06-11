@@ -1308,7 +1308,7 @@ const Contact = () => {
         {/* 3 etapas — narrativa de origem, sem expor fornecedores */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
-            { Icon: MapPin, title: 'Origem no Cerrado Mineiro', text: 'Grãos cultivados a 980 metros de altitude, em solo rico e clima ideal — uma das regiões mais premiadas do Brasil, reconhecida pela doçura natural e pelo corpo encorpado.' },
+            { Icon: MapPin, title: 'Origem no Cerrado Mineiro', text: 'Grãos cultivados entre 900 e 1.200 metros de altitude, em solo rico e clima ideal — uma das regiões mais premiadas do Brasil, reconhecida pela doçura natural e pelo corpo encorpado.' },
             { Icon: Flame, title: 'Torra artesanal', text: 'Torra controlada em pequenos lotes, respeitando o tempo de cada grão para desenvolver aroma e sabor com consistência, xícara após xícara.' },
             { Icon: Coffee, title: 'Notas de sabor', text: 'Café encorpado, com acidez equilibrada e leve toque frutado, apresentando notas de chocolate e caramelo — o perfil marcante de cada blend Café Saporino.' },
           ].map(({ Icon, title, text }, i) => (

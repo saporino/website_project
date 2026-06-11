@@ -295,7 +295,7 @@ export const SubscriptionPage = () => {
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-12">
             <span className="inline-flex items-center gap-2 bg-[#a4240e] text-white text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
-              <Percent className="w-4 h-4" /> Assinantes economizam 20%
+              <Percent className="w-4 h-4" /> Assinantes economizam até 20%
             </span>
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Conheça o nosso café</h2>
             <div className="w-24 h-1.5 bg-[#a4240e] mx-auto rounded-full" />
@@ -807,7 +807,7 @@ export const SubscriptionPage = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 text-left">
             {[
-              { Icon: Percent, t: 'Economize 20%', d: 'Assinantes pagam menos do que comprando avulso, todo mês.' },
+              { Icon: Percent, t: 'Economize até 20%', d: 'Quanto maior o compromisso, maior o desconto — assinantes pagam menos do que no avulso.' },
               { Icon: Coffee, t: 'Sempre fresco', d: 'Torra recente a cada ciclo — o café chega no ponto, nunca parado na prateleira.' },
               { Icon: Truck, t: 'Entrega programada', d: 'Chega na sua casa sem você precisar lembrar de comprar.' },
               { Icon: Mountain, t: '100% Arábica do Cerrado', d: 'Origem mineira reconhecida, com perfil sensorial validado por estudos.' },
