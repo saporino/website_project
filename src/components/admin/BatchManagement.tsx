@@ -457,10 +457,17 @@ export default function BatchManagement({ refreshKey = 0 }: { refreshKey?: numbe
                 <select value={batchForm.status} onChange={e=>setBatchForm({...batchForm,status:e.target.value})} className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded">
                   {Object.entries(STATUS_LABELS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
                 </select></div>
-              {[["quantity_packages","Qtd Pacotes","number"],["production_date","Data de Producao","date"],["expiry_date","Validade","date"],["farm_name","Fazenda","text"],["variety","Variedade","text"],["altitude_m","Altitude (m)","number"],["sca_score","Score SCA","number"]].map(([k,l,t])=>(
+              {[["quantity_packages","Qtd Pacotes","number"],["production_date","Data de Producao","date"],["expiry_date","Validade","date"],["farm_name","Fazenda","text"],["variety","Variedade","text"],["altitude_m","Altitude (m)","number"],["sca_score","Score SCA","number"]].map(([k,l,t])=>{
+                const isInt = k==="quantity_packages" || k==="altitude_m"; // pacotes/altitude = inteiros (sem virgula)
+                return (
                 <div key={k}><label className="block text-xs font-semibold text-gray-600 mb-1">{l}</label>
-                  <input type={t} step={t==="number"?"0.01":undefined} value={batchForm[k]||""} onChange={e=>setBatchForm({...batchForm,[k]:e.target.value})} className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/></div>
-              ))}
+                  <input type={t} step={t!=="number"?undefined : isInt?"1":"0.01"} min={t==="number"?"0":undefined}
+                    inputMode={t==="number"?(isInt?"numeric":"decimal"):undefined}
+                    value={batchForm[k]||""}
+                    onChange={e=>{ const v = isInt ? e.target.value.replace(/\D/g,'') : e.target.value; setBatchForm({...batchForm,[k]:v}); }}
+                    className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/></div>
+                );
+              })}
               <div><label className="block text-xs font-semibold text-gray-600 mb-1">Peso Verde (kg)</label>
                 <div className="flex items-start gap-2">
                   <input type="number" step="0.01" value={batchForm.green_weight_kg||""} onChange={e=>setBatchForm({...batchForm,green_weight_kg:e.target.value})} className="flex-1 w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/>
