@@ -463,8 +463,9 @@ export default function BatchManagement({ refreshKey = 0 }: { refreshKey?: numbe
                 <div key={k}><label className="block text-xs font-semibold text-gray-600 mb-1">{l}</label>
                   <input type={t} step={t!=="number"?undefined : isInt?"1":"0.01"} min={t==="number"?"0":undefined}
                     inputMode={t==="number"?(isInt?"numeric":"decimal"):undefined}
+                    onKeyDown={isInt?(e=>{ if([".",",","e","E","+","-"].includes(e.key)) e.preventDefault(); }):undefined}
                     value={batchForm[k]||""}
-                    onChange={e=>{ const v = isInt ? e.target.value.replace(/\D/g,'') : e.target.value; setBatchForm({...batchForm,[k]:v}); }}
+                    onChange={e=>setBatchForm({...batchForm,[k]:e.target.value})}
                     className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/></div>
                 );
               })}
