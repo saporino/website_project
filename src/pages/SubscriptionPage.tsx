@@ -243,24 +243,25 @@ export const SubscriptionPage = () => {
             <span className="inline-flex items-center gap-2 bg-[#a4240e] text-white text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
               <Percent className="w-4 h-4" /> Assinantes economizam até {tiers.length ? Math.max(...tiers.map(t => t.discount_pct)) : 20}%
             </span>
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Conheça o nosso café</h2>
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Nossos cafés</h2>
             <div className="w-24 h-1.5 bg-[#a4240e] mx-auto rounded-full" />
             <p className="text-lg text-gray-600 max-w-3xl mx-auto mt-6 leading-relaxed">
-              O Café Saporino é <strong className="text-gray-900">100% Arábica do Cerrado Mineiro</strong>, com
-              <strong className="text-gray-900"> torrefação artesanal a lenha</strong> e moagem fina. Uma raiz mineira
-              tradicional, com qualidade comprovada e o sabor que faz parte da rotina de quem ama café.
+              Cafés <strong className="text-gray-900">100% Arábica</strong>, de grãos selecionados e
+              <strong className="text-gray-900"> torra artesanal</strong>. Da torra clássica do dia a dia ao gourmet especial —
+              em diferentes torras e moagens (fina, média, em grãos ou espresso). Cada café com o seu próprio perfil de sabor,
+              que você confere ao escolher abaixo.
             </p>
           </div>
 
-          {/* Especificações */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-10">
+          {/* Especificações — genéricas (válidas para toda a linha) */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {[
-              { Icon: Mountain, t: 'Origem', s: 'Cerrado Mineiro (MG)' },
-              { Icon: Sparkles, t: 'Altitude', s: '900 a 1.200 metros' },
               { Icon: Coffee, t: 'Composição', s: '100% Arábica' },
-              { Icon: Flame, t: 'Torra', s: 'Média, artesanal a lenha' },
-              { Icon: Package, t: 'Moagem', s: 'Fina (moinho de martelo)' },
-              { Icon: Award, t: 'Apresentação', s: 'Torrado e moído · 500g' },
+              { Icon: Flame, t: 'Torra', s: 'Artesanal' },
+              { Icon: Package, t: 'Moagens', s: 'Fina, média, grãos ou espresso' },
+              { Icon: Award, t: 'Seleção', s: 'Grãos selecionados' },
+              { Icon: Sparkles, t: 'Frescor', s: 'Torra recente a cada ciclo' },
+              { Icon: Check, t: 'Variedade', s: 'Do clássico ao gourmet' },
             ].map(({ Icon, t, s }) => (
               <div key={t} className="bg-[#faf7f6] border border-[#ddd0cc] rounded-2xl p-5 flex items-center gap-4">
                 <div className="w-11 h-11 rounded-xl bg-white text-[#a4240e] flex items-center justify-center flex-shrink-0 border border-[#ddd0cc]">
@@ -273,54 +274,9 @@ export const SubscriptionPage = () => {
               </div>
             ))}
           </div>
-
-          {/* Notas sensoriais */}
-          <div className="bg-[#a4240e] text-white rounded-3xl p-8 md:p-10 mb-10">
-            <p className="text-sm font-semibold uppercase tracking-wide text-white/70 mb-2">Notas sensoriais</p>
-            <p className="text-xl md:text-2xl font-light leading-relaxed">
-              Café <strong className="font-semibold">encorpado</strong>, com acidez equilibrada e leve toque frutado,
-              apresentando notas marcantes de <strong className="font-semibold">chocolate</strong> e
-              <strong className="font-semibold"> caramelo</strong>.
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-6 pt-6 border-t border-white/20">
-              {[
-                { k: 'Corpo', v: '7,9' }, { k: 'Sabor', v: '7,9' }, { k: 'Fragrância', v: '7,8' },
-                { k: 'Finalização', v: '7,8' }, { k: 'Acidez', v: '7,5' },
-              ].map(({ k, v }) => (
-                <div key={k} className="text-center">
-                  <p className="text-3xl font-bold">{v}</p>
-                  <p className="text-xs text-white/70 uppercase tracking-wide">{k}</p>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-white/60 mt-4">
-              Perfil dos cafés Arábica do Cerrado Mineiro validado por estudos sensoriais recentes (2024–2026), publicados na <em>European Food Research and Technology</em>.
-            </p>
-          </div>
-
-          {/* Moagem fina = vantagem */}
-          <div className="border border-[#ddd0cc] rounded-3xl p-8 md:p-10">
-            <h3 className="text-2xl font-bold text-[#a4240e] mb-4">Moagem fina — mais sabor na xícara</h3>
-            <p className="text-gray-600 leading-relaxed mb-5">
-              Processado em moinho de martelo, o Saporino tem moagem fina — a granulometria padrão da indústria
-              brasileira, compatível com filtro de papel, coador de pano e cafeteira tradicional.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {[
-                { t: 'Sabor mais intenso', d: 'A moagem fina aumenta o contato do pó com a água, extraindo mais aroma, corpo e sabor do grão.' },
-                { t: 'Rende mais', d: 'Usa-se menos pó por preparo para a mesma intensidade — mais cafés ao longo do mês com o mesmo pacote.' },
-                { t: 'Padrão nacional', d: 'Coa em 4 a 5 minutos — o tempo certo para a água extrair o máximo do grão. Não é lentidão, é técnica.' },
-              ].map(({ t, d }) => (
-                <div key={t} className="flex flex-col">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <Check className="w-5 h-5 text-[#a4240e]" />
-                    <p className="font-bold text-gray-900">{t}</p>
-                  </div>
-                  <p className="text-sm text-gray-600 leading-relaxed">{d}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+          <p className="text-center text-sm text-gray-400 mt-6 max-w-2xl mx-auto">
+            O perfil de cada café (origem, altitude, notas e pontuação) é específico de cada produto — em breve você confere o perfil completo de cada um.
+          </p>
         </div>
       </section>
 
