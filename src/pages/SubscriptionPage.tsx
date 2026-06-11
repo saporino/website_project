@@ -11,58 +11,15 @@ const logoImage = '/SAPORINO LOGO transparente big-PNG.png';
 
 type AccountType = 'PF' | 'PJ' | null;
 
-interface SelectedCoffee {
+interface SubProduct {
   id: string;
   name: string;
-  description: string;
-  roast: string;
-  forWho: string;
+  price: number;
+  promotional_price: number | null;
+  roast_type: string | null;
+  flavor_notes: string | null;
 }
-
-const COFFEE_OPTIONS: SelectedCoffee[] = [
-  {
-    id: 'tradicional',
-    name: 'Café Saporino Tradicional',
-    description: 'Torra média. Notas de chocolate e caramelo. Equilibrado e perfeito para o dia a dia.',
-    roast: 'Torra média',
-    forWho: 'Famílias e quem busca constância',
-  },
-  {
-    id: 'extra-forte',
-    name: 'Café Saporino Extra Forte',
-    description: 'Torra escura. Intenso, encorpado e com final marcante.',
-    roast: 'Torra escura',
-    forWho: 'Quem gosta de café forte',
-  },
-  {
-    id: 'classico',
-    name: 'Café Saporino Clássico',
-    description: 'Torra média-clara. Aroma floral, acidez leve e doçura natural.',
-    roast: 'Torra média-clara',
-    forWho: 'Quem aprecia cafés suaves e aromáticos',
-  },
-  {
-    id: 'gourmet',
-    name: 'Café Saporino Gourmet',
-    description: 'Torra média. Notas de frutas secas, chocolate ao leite e toque de noz.',
-    roast: 'Torra média',
-    forWho: 'Quem gosta de equilíbrio e sofisticação',
-  },
-  {
-    id: 'premium',
-    name: 'Café Saporino Premium',
-    description: 'Torra média-escura. Cacau, especiarias e leve cítrico.',
-    roast: 'Torra média-escura',
-    forWho: 'Quem busca cafés mais intensos',
-  },
-  {
-    id: 'tradicao',
-    name: 'Café Saporino Tradição',
-    description: 'Torra média. Sabor caseiro, redondo e com leve defumado.',
-    roast: 'Torra média',
-    forWho: 'Quem gosta do clássico sabor de família',
-  },
-];
+const unitPrice = (p: SubProduct) => (p.promotional_price && p.promotional_price > 0 ? p.promotional_price : p.price);
 
 export const SubscriptionPage = () => {
   const { user, profile, signOut } = useAuth();
@@ -77,15 +34,24 @@ export const SubscriptionPage = () => {
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const [acceptingNew, setAcceptingNew] = useState(true);
   const [tiers, setTiers] = useState<{ months: number; discount_pct: number }[]>([]);
+  const [subProducts, setSubProducts] = useState<SubProduct[]>([]);
+  const [commitment, setCommitment] = useState<{ months: number; discount_pct: number } | null>(null);
 
   useEffect(() => {
     window.scrollTo(0, 0); // Scroll to top when page loads
     (async () => {
-      const { data } = await supabase.from('subscription_settings').select('accepting_new, tiers').maybeSingle();
-      if (data) {
-        setAcceptingNew(data.accepting_new);
-        setTiers(Array.isArray(data.tiers) ? data.tiers : []);
+      const [{ data: settings }, { data: prods }] = await Promise.all([
+        supabase.from('subscription_settings').select('accepting_new, tiers').maybeSingle(),
+        supabase.from('products').select('id, name, price, promotional_price, roast_type, flavor_notes')
+          .eq('subscription_enabled', true).eq('is_active', true).order('display_order', { ascending: true }),
+      ]);
+      if (settings) {
+        setAcceptingNew(settings.accepting_new);
+        const ts = Array.isArray(settings.tiers) ? settings.tiers : [];
+        setTiers(ts);
+        if (ts.length) setCommitment(ts[0]);
       }
+      setSubProducts((prods as SubProduct[]) || []);
     })();
   }, []);
 
@@ -109,36 +75,6 @@ export const SubscriptionPage = () => {
       }
     }
     setSelectedCoffees(newSelection);
-  };
-
-  const handleSubscribe = async () => {
-    if (!user) {
-      openAuthModal('login');
-      return;
-    }
-
-    if (selectedCoffees.size < 2) {
-      toast.error('Selecione pelo menos 2 tipos de café');
-      return;
-    }
-
-    try {
-      const { error } = await supabase.from('subscriptions').insert({
-        user_id: user.id,
-        account_type: accountType,
-        selected_coffees: Array.from(selectedCoffees),
-        grind_type: grindType,
-        shipping_date: shippingDate,
-        status: 'active',
-      });
-
-      if (error) throw error;
-
-      toast.success('Assinatura criada com sucesso!');
-    } catch (error) {
-      console.error('Error creating subscription:', error);
-      toast.error('Erro ao criar assinatura. Tente novamente.');
-    }
   };
 
   const handleCheckoutSuccess = () => {
@@ -422,9 +358,9 @@ export const SubscriptionPage = () => {
             <div
               onClick={() => {
                 setAccountType('PF');
-                setShowCheckout(true);
+                setTimeout(() => scrollToSection('cafes-saporino'), 80);
               }}
-              className="bg-white rounded-3xl p-10 shadow-xl cursor-pointer transition-all duration-300 transform hover:scale-105 hover:ring-4 hover:ring-[#a4240e]/50"
+              className={`bg-white rounded-3xl p-10 shadow-xl cursor-pointer transition-all duration-300 transform hover:scale-105 hover:ring-4 hover:ring-[#a4240e]/50 ${accountType === 'PF' ? 'ring-4 ring-[#a4240e]' : ''}`}
             >
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-3xl font-bold text-gray-900">Pessoa Física (PF)</h3>
@@ -456,7 +392,7 @@ export const SubscriptionPage = () => {
                 setAccountType('PJ');
                 setShowCheckout(true);
               }}
-              className="bg-white rounded-3xl p-10 shadow-xl cursor-pointer transition-all duration-300 transform hover:scale-105 hover:ring-4 hover:ring-[#a4240e]/50"
+              className={`bg-white rounded-3xl p-10 shadow-xl cursor-pointer transition-all duration-300 transform hover:scale-105 hover:ring-4 hover:ring-[#a4240e]/50 ${accountType === 'PJ' ? 'ring-4 ring-[#a4240e]' : ''}`}
             >
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-3xl font-bold text-gray-900">Pessoa Jurídica (PJ)</h3>
@@ -582,32 +518,33 @@ export const SubscriptionPage = () => {
                 </p>
               </div>
 
+              {subProducts.length === 0 ? (
+                <p className="text-center text-gray-500 py-10">Nenhum café disponível para assinatura no momento.</p>
+              ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {COFFEE_OPTIONS.map((coffee) => (
+                {subProducts.map((p) => {
+                  const sel = selectedCoffees.has(p.id);
+                  return (
                   <div
-                    key={coffee.id}
-                    onClick={() => handleCoffeeSelection(coffee.id)}
-                    className={`bg-white rounded-3xl p-8 shadow-lg cursor-pointer transition-all duration-300 transform hover:scale-105 ${selectedCoffees.has(coffee.id) ? 'ring-4 ring-[#a4240e]' : ''
-                      }`}
+                    key={p.id}
+                    onClick={() => handleCoffeeSelection(p.id)}
+                    className={`bg-white rounded-3xl p-8 shadow-lg cursor-pointer transition-all duration-300 transform hover:scale-105 ${sel ? 'ring-4 ring-[#a4240e]' : ''}`}
                   >
                     <div className="flex items-center justify-between mb-4">
                       <div className="w-16 h-16 bg-stone-100 rounded-2xl flex items-center justify-center">
                         <Coffee className="w-8 h-8 text-[#a4240e]" />
                       </div>
-                      {selectedCoffees.has(coffee.id) && (
-                        <Check className="w-8 h-8 text-[#a4240e]" />
-                      )}
+                      {sel && <Check className="w-8 h-8 text-[#a4240e]" />}
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-3">
-                      {coffee.name} – 500g
-                    </h3>
-                    <p className="text-gray-600 mb-3">{coffee.description}</p>
-                    <p className="text-sm text-[#a4240e] font-semibold">
-                      Para quem é: {coffee.forWho}
-                    </p>
+                    <h3 className="text-xl font-bold text-gray-900 mb-1">{p.name}</h3>
+                    {p.roast_type && <p className="text-sm text-gray-500 mb-2">{p.roast_type}</p>}
+                    {p.flavor_notes && <p className="text-gray-600 mb-3 text-sm">{p.flavor_notes}</p>}
+                    <p className="text-lg font-bold text-[#a4240e]">R$ {unitPrice(p).toFixed(2).replace('.', ',')}<span className="text-sm font-normal text-gray-500"> /pacote</span></p>
                   </div>
-                ))}
+                  );
+                })}
               </div>
+              )}
 
               {selectedCoffees.size >= 2 && (
                 <div className="mt-12 max-w-3xl mx-auto">
@@ -663,13 +600,41 @@ export const SubscriptionPage = () => {
                           ))}
                         </div>
                       </div>
+
+                      <div>
+                        <label className="block text-lg font-semibold text-gray-900 mb-3">Compromisso (quanto mais meses, maior o desconto):</label>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          {tiers.map((t) => (
+                            <button key={t.months} onClick={() => setCommitment(t)}
+                              className={`py-3 px-2 rounded-xl font-semibold transition-all text-center ${commitment?.months === t.months ? 'bg-[#a4240e] text-white' : 'bg-white text-gray-700 hover:bg-gray-100'}`}>
+                              <span className="block text-sm">{t.months === 1 ? '1 mês' : `${t.months} meses`}</span>
+                              <span className="block text-xs opacity-90">-{t.discount_pct}%</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
 
+                    {(() => {
+                      const sel = subProducts.filter((p) => selectedCoffees.has(p.id));
+                      const subtotal = sel.reduce((s, p) => s + unitPrice(p), 0);
+                      const pct = commitment?.discount_pct ?? 0;
+                      const disc = subtotal * pct / 100;
+                      return (
+                        <div className="mt-6 border-t border-gray-200 pt-4 space-y-1.5 text-sm">
+                          <div className="flex justify-between"><span className="text-gray-600">Subtotal ({sel.length} cafés/mês)</span><span className="font-semibold">R$ {subtotal.toFixed(2).replace('.', ',')}</span></div>
+                          {pct > 0 && <div className="flex justify-between text-green-700"><span>Desconto assinante (-{pct}%)</span><span>- R$ {disc.toFixed(2).replace('.', ',')}</span></div>}
+                          <div className="flex justify-between text-lg font-bold pt-1"><span className="text-gray-900">Por mês</span><span className="text-[#a4240e]">R$ {(subtotal - disc).toFixed(2).replace('.', ',')}</span></div>
+                          <p className="text-xs text-gray-400">+ frete calculado no checkout. A cobrança do 1º ciclo é feita agora.</p>
+                        </div>
+                      );
+                    })()}
+
                     <button
-                      onClick={handleSubscribe}
-                      className="w-full mt-8 bg-[#a4240e] hover:bg-[#8a1f0c] text-white py-4 rounded-full text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
+                      onClick={() => { if (selectedCoffees.size < 2) { toast.error('Selecione pelo menos 2 cafés'); return; } setShowCheckout(true); }}
+                      className="w-full mt-6 bg-[#a4240e] hover:bg-[#8a1f0c] text-white py-4 rounded-full text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
                     >
-                      Confirmar Assinatura
+                      Assinar agora
                     </button>
                   </div>
                 </div>
@@ -868,9 +833,12 @@ export const SubscriptionPage = () => {
       {showCheckout && accountType && (
         <SubscriptionCheckout
           accountType={accountType}
-          selectedCoffees={[]}
-          grindType="beans"
-          shippingDate={1}
+          selectedCoffees={Array.from(selectedCoffees)}
+          grindType={grindType}
+          shippingDate={shippingDate}
+          products={subProducts.filter((p) => selectedCoffees.has(p.id)).map((p) => ({ id: p.id, name: p.name, price: unitPrice(p) }))}
+          discountPct={commitment?.discount_pct ?? 0}
+          commitmentMonths={commitment?.months ?? 1}
           onClose={() => {
             setShowCheckout(false);
             setAccountType(null);

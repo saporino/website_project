@@ -10,6 +10,9 @@ interface SubscriptionCheckoutProps {
   selectedCoffees: string[];
   grindType: 'beans' | 'coado' | 'espresso';
   shippingDate: 1 | 15;
+  products?: { id: string; name: string; price: number }[];
+  discountPct?: number;
+  commitmentMonths?: number;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -39,9 +42,17 @@ export const SubscriptionCheckout = ({
   selectedCoffees,
   grindType,
   shippingDate,
+  products: selectedProducts = [],
+  discountPct = 0,
+  commitmentMonths = 1,
   onClose,
   onSuccess,
 }: SubscriptionCheckoutProps) => {
+  // Preco real dos produtos selecionados + desconto do plano.
+  const discountFactor = 1 - (discountPct || 0) / 100;
+  const realSubtotal = selectedProducts.reduce((s, p) => s + (p.price || 0), 0);
+  const discountValue = realSubtotal * (discountPct || 0) / 100;
+  const discountedSubtotal = realSubtotal - discountValue;
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -137,7 +148,7 @@ export const SubscriptionCheckout = ({
   };
 
   const calculateFreight = () => {
-    const basePrice = selectedCoffees.length * 35;
+    const basePrice = discountedSubtotal;
     const totalAmount = basePrice;
 
     if (accountType === 'PF') {
@@ -310,13 +321,19 @@ export const SubscriptionCheckout = ({
 
       console.log('Cadastro concluído com sucesso!');
 
-      // Create subscription order
-      const { data: products } = await supabase
-        .from('products')
-        .select('*')
-        .in('id', selectedCoffees);
-
+      // Produtos selecionados (com preco real ja recebido da pagina)
+      const products = selectedProducts;
       const totalAmount = basePrice + freightData.freight_cost;
+
+      // Registra a assinatura (plano escolhido)
+      await supabase.from('subscriptions').insert({
+        user_id: userId,
+        account_type: accountType,
+        selected_coffees: selectedCoffees,
+        grind_type: grindType,
+        shipping_date: shippingDate,
+        status: 'pending',
+      });
 
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
@@ -345,15 +362,18 @@ export const SubscriptionCheckout = ({
 
       // Create order items
       if (orderData && products) {
-        const orderItems = products.map((product) => ({
-          order_id: orderData.id,
-          product_id: product.id,
-          product_name: product.name,
-          grind_type: grindType,
-          quantity: 1,
-          unit_price: 35,
-          subtotal: 35,
-        }));
+        const orderItems = products.map((product) => {
+          const unit = Math.round(product.price * discountFactor * 100) / 100;
+          return {
+            order_id: orderData.id,
+            product_id: product.id,
+            product_name: product.name,
+            grind_type: grindType,
+            quantity: 1,
+            unit_price: unit,
+            subtotal: unit,
+          };
+        });
 
         const { error: itemsError } = await supabase
           .from('order_items')
@@ -364,9 +384,9 @@ export const SubscriptionCheckout = ({
         // Create Mercado Pago preference
         const preferenceResponse = await createPreference({
           items: products.map((product) => ({
-            title: `${product.name} - Assinatura Mensal`,
+            title: `${product.name} - Assinatura (${commitmentMonths === 1 ? 'mensal' : commitmentMonths + ' meses'})`,
             quantity: 1,
-            unit_price: 35,
+            unit_price: Math.round(product.price * discountFactor * 100) / 100,
             currency_id: 'BRL',
           })),
           back_urls: {
@@ -796,23 +816,29 @@ export const SubscriptionCheckout = ({
                     <h4 className="font-semibold text-gray-900 mb-3">Resumo da Assinatura:</h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Cafés selecionados:</span>
-                        <span className="font-semibold">{selectedCoffees.length}</span>
+                        <span className="text-gray-600">Plano:</span>
+                        <span className="font-semibold">{commitmentMonths === 1 ? 'Mensal' : `${commitmentMonths} meses`}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Valor por café:</span>
-                        <span className="font-semibold">R$ 35,00</span>
+                        <span className="text-gray-600">Cafés ({selectedProducts.length}):</span>
+                        <span className="font-semibold">R$ {realSubtotal.toFixed(2).replace('.', ',')}</span>
                       </div>
+                      {discountPct > 0 && (
+                        <div className="flex justify-between text-green-700">
+                          <span>Desconto assinante (-{discountPct}%):</span>
+                          <span>- R$ {discountValue.toFixed(2).replace('.', ',')}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
                         <span className="text-gray-600">Frete:</span>
                         <span className="font-semibold">
-                          {freightData.freight_cost === 0 ? 'Grátis' : `R$ ${freightData.freight_cost.toFixed(2)}`}
+                          {freightData.freight_cost === 0 ? 'Grátis' : `R$ ${freightData.freight_cost.toFixed(2).replace('.', ',')}`}
                         </span>
                       </div>
                       <div className="border-t border-gray-200 pt-2 mt-2 flex justify-between">
-                        <span className="font-bold text-gray-900">Total:</span>
+                        <span className="font-bold text-gray-900">Total / mês:</span>
                         <span className="font-bold text-[#a4240e] text-xl">
-                          R$ {(basePrice + freightData.freight_cost).toFixed(2)}
+                          R$ {(basePrice + freightData.freight_cost).toFixed(2).replace('.', ',')}
                         </span>
                       </div>
                     </div>
