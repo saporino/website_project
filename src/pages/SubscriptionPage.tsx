@@ -25,8 +25,10 @@ const unitPrice = (p: SubProduct) => (p.promotional_price && p.promotional_price
 export const SubscriptionPage = () => {
   const { user, profile, signOut } = useAuth();
   const [accountType, setAccountType] = useState<AccountType>(null);
-  const [selectedCoffees, setSelectedCoffees] = useState<Set<string>>(new Set());
-  const [grindType, setGrindType] = useState<'beans' | 'coado' | 'espresso'>('beans');
+  const [coffeeQty, setCoffeeQty] = useState<Record<string, number>>({}); // produtoId -> qtd de pacotes
+  const grindType = 'beans' as const; // moagem e por produto (fixa); selecao global removida
+  const selectedIds = Object.keys(coffeeQty).filter((id) => coffeeQty[id] > 0);
+  const totalPackages = selectedIds.reduce((s, id) => s + coffeeQty[id], 0);
   const [shippingDate, setShippingDate] = useState<1 | 15>(1);
   const [showFAQ, setShowFAQ] = useState<string | null>(null);
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
@@ -66,17 +68,16 @@ export const SubscriptionPage = () => {
     setIsAuthModalOpen(true);
   };
 
-  const handleCoffeeSelection = (coffeeId: string) => {
-    const newSelection = new Set(selectedCoffees);
-    if (newSelection.has(coffeeId)) {
-      newSelection.delete(coffeeId);
-    } else {
-      if (newSelection.size < 4) {
-        newSelection.add(coffeeId);
-      }
-    }
-    setSelectedCoffees(newSelection);
-  };
+  const toggleCoffee = (id: string) => setCoffeeQty((q) => {
+    const n = { ...q };
+    if (n[id]) delete n[id]; else n[id] = 1;
+    return n;
+  });
+  const setQty = (id: string, val: number) => setCoffeeQty((q) => {
+    const n = { ...q };
+    if (val <= 0) delete n[id]; else n[id] = Math.min(val, 20);
+    return n;
+  });
 
   const handleCheckoutSuccess = () => {
     setShowCheckout(false);
@@ -466,11 +467,11 @@ export const SubscriptionPage = () => {
                 </h2>
                 <div className="w-24 h-1.5 bg-[#a4240e] mx-auto mb-6 rounded-full"></div>
                 <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-                  Todos os cafés são 100% arábica de Minas Gerais, com origem principal em Patrocínio – MG.
-                  Torra e moagem feitas em lotes quinzenais.
+                  Cafés 100% Arábica, torrados recentemente. Monte sua caixa: escolha os cafés e
+                  a quantidade de pacotes (500g) de cada um.
                 </p>
                 <p className="text-lg font-semibold text-[#a4240e] mt-4">
-                  Selecione de 2 a 4 cafés ({selectedCoffees.size} selecionados)
+                  {totalPackages > 0 ? `${totalPackages} ${totalPackages === 1 ? 'pacote' : 'pacotes'} / mês` : 'Mínimo de 2 pacotes por mês'}
                 </p>
               </div>
 
@@ -479,14 +480,14 @@ export const SubscriptionPage = () => {
               ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {subProducts.map((p) => {
-                  const sel = selectedCoffees.has(p.id);
+                  const qty = coffeeQty[p.id] || 0;
+                  const sel = qty > 0;
                   return (
                   <div
                     key={p.id}
-                    onClick={() => handleCoffeeSelection(p.id)}
-                    className={`bg-white rounded-3xl p-8 shadow-lg cursor-pointer transition-all duration-300 transform hover:scale-105 ${sel ? 'ring-4 ring-[#a4240e]' : ''}`}
+                    className={`bg-white rounded-3xl p-8 shadow-lg transition-all duration-300 ${sel ? 'ring-4 ring-[#a4240e]' : ''}`}
                   >
-                    <div className="relative mb-4">
+                    <div className="relative mb-4 cursor-pointer" onClick={() => toggleCoffee(p.id)}>
                       <div className="h-44 rounded-2xl bg-stone-50 flex items-center justify-center overflow-hidden">
                         <img src={p.image_url || '/saporino-logo.png'} alt={p.name}
                           onError={(e) => { (e.target as HTMLImageElement).src = '/saporino-logo.png'; }}
@@ -497,14 +498,25 @@ export const SubscriptionPage = () => {
                     <h3 className="text-xl font-bold text-gray-900 mb-1">{p.name}</h3>
                     {p.roast_type && <p className="text-sm text-gray-500 mb-2">{p.roast_type}</p>}
                     {p.flavor_notes && <p className="text-gray-600 mb-3 text-sm">{p.flavor_notes}</p>}
-                    <p className="text-lg font-bold text-[#a4240e]">R$ {unitPrice(p).toFixed(2).replace('.', ',')}<span className="text-sm font-normal text-gray-500"> /pacote</span></p>
+                    <p className="text-lg font-bold text-[#a4240e] mb-4">R$ {unitPrice(p).toFixed(2).replace('.', ',')}<span className="text-sm font-normal text-gray-500"> /pacote</span></p>
+                    {sel ? (
+                      <div className="flex items-center justify-between bg-stone-50 rounded-xl p-2">
+                        <button onClick={() => setQty(p.id, qty - 1)} className="w-10 h-10 rounded-lg bg-white border border-gray-200 text-[#a4240e] text-xl font-bold hover:bg-gray-50">−</button>
+                        <span className="font-bold text-gray-900">{qty} {qty === 1 ? 'pacote' : 'pacotes'}</span>
+                        <button onClick={() => setQty(p.id, qty + 1)} className="w-10 h-10 rounded-lg bg-white border border-gray-200 text-[#a4240e] text-xl font-bold hover:bg-gray-50">+</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => toggleCoffee(p.id)} className="w-full py-3 rounded-xl border-2 border-[#a4240e] text-[#a4240e] font-semibold hover:bg-[#a4240e] hover:text-white transition-colors">
+                        Adicionar
+                      </button>
+                    )}
                   </div>
                   );
                 })}
               </div>
               )}
 
-              {selectedCoffees.size >= 2 && (
+              {totalPackages >= 2 && (
                 <div className="mt-12 max-w-3xl mx-auto">
                   <div className="bg-stone-50 rounded-3xl p-8">
                     <h3 className="text-2xl font-bold text-gray-900 mb-6">
@@ -512,30 +524,6 @@ export const SubscriptionPage = () => {
                     </h3>
 
                     <div className="space-y-6">
-                      <div>
-                        <label className="block text-lg font-semibold text-gray-900 mb-3">
-                          Tipo de moagem:
-                        </label>
-                        <div className="grid grid-cols-3 gap-4">
-                          {[
-                            { value: 'beans', label: 'Em Grãos' },
-                            { value: 'coado', label: 'Coado' },
-                            { value: 'espresso', label: 'Espresso' },
-                          ].map((option) => (
-                            <button
-                              key={option.value}
-                              onClick={() => setGrindType(option.value as any)}
-                              className={`py-3 px-4 rounded-xl font-semibold transition-all ${grindType === option.value
-                                ? 'bg-[#a4240e] text-white'
-                                : 'bg-white text-gray-700 hover:bg-gray-100'
-                                }`}
-                            >
-                              {option.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
                       <div>
                         <label className="block text-lg font-semibold text-gray-900 mb-3">
                           Data de envio:
@@ -574,13 +562,15 @@ export const SubscriptionPage = () => {
                     </div>
 
                     {(() => {
-                      const sel = subProducts.filter((p) => selectedCoffees.has(p.id));
-                      const subtotal = sel.reduce((s, p) => s + unitPrice(p), 0);
+                      const subtotal = selectedIds.reduce((s, id) => {
+                        const p = subProducts.find((x) => x.id === id);
+                        return s + (p ? unitPrice(p) * coffeeQty[id] : 0);
+                      }, 0);
                       const pct = commitment?.discount_pct ?? 0;
                       const disc = subtotal * pct / 100;
                       return (
                         <div className="mt-6 border-t border-gray-200 pt-4 space-y-1.5 text-sm">
-                          <div className="flex justify-between"><span className="text-gray-600">Subtotal ({sel.length} cafés/mês)</span><span className="font-semibold">R$ {subtotal.toFixed(2).replace('.', ',')}</span></div>
+                          <div className="flex justify-between"><span className="text-gray-600">Subtotal ({totalPackages} {totalPackages === 1 ? 'pacote' : 'pacotes'}/mês)</span><span className="font-semibold">R$ {subtotal.toFixed(2).replace('.', ',')}</span></div>
                           {pct > 0 && <div className="flex justify-between text-green-700"><span>Desconto assinante (-{pct}%)</span><span>- R$ {disc.toFixed(2).replace('.', ',')}</span></div>}
                           <div className="flex justify-between text-lg font-bold pt-1"><span className="text-gray-900">Por mês</span><span className="text-[#a4240e]">R$ {(subtotal - disc).toFixed(2).replace('.', ',')}</span></div>
                           <p className="text-xs text-gray-400">+ frete calculado no checkout. A cobrança do 1º ciclo é feita agora.</p>
@@ -589,7 +579,7 @@ export const SubscriptionPage = () => {
                     })()}
 
                     <button
-                      onClick={() => { if (selectedCoffees.size < 2) { toast.error('Selecione pelo menos 2 cafés'); return; } setShowCheckout(true); }}
+                      onClick={() => { if (totalPackages < 2) { toast.error('Escolha pelo menos 2 pacotes'); return; } setShowCheckout(true); }}
                       className="w-full mt-6 bg-[#a4240e] hover:bg-[#8a1f0c] text-white py-4 rounded-full text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
                     >
                       Assinar agora
@@ -791,10 +781,10 @@ export const SubscriptionPage = () => {
       {showCheckout && accountType && (
         <SubscriptionCheckout
           accountType={accountType}
-          selectedCoffees={Array.from(selectedCoffees)}
+          selectedCoffees={selectedIds}
           grindType={grindType}
           shippingDate={shippingDate}
-          products={subProducts.filter((p) => selectedCoffees.has(p.id)).map((p) => ({ id: p.id, name: p.name, price: unitPrice(p) }))}
+          products={selectedIds.map((id) => { const p = subProducts.find((x) => x.id === id)!; return { id: p.id, name: p.name, price: unitPrice(p), qty: coffeeQty[id] }; })}
           discountPct={commitment?.discount_pct ?? 0}
           commitmentMonths={commitment?.months ?? 1}
           onClose={() => {

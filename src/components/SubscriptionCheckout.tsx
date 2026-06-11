@@ -10,7 +10,7 @@ interface SubscriptionCheckoutProps {
   selectedCoffees: string[];
   grindType: 'beans' | 'coado' | 'espresso';
   shippingDate: 1 | 15;
-  products?: { id: string; name: string; price: number }[];
+  products?: { id: string; name: string; price: number; qty?: number }[];
   discountPct?: number;
   commitmentMonths?: number;
   onClose: () => void;
@@ -50,7 +50,8 @@ export const SubscriptionCheckout = ({
 }: SubscriptionCheckoutProps) => {
   // Preco real dos produtos selecionados + desconto do plano.
   const discountFactor = 1 - (discountPct || 0) / 100;
-  const realSubtotal = selectedProducts.reduce((s, p) => s + (p.price || 0), 0);
+  const realSubtotal = selectedProducts.reduce((s, p) => s + (p.price || 0) * (p.qty || 1), 0);
+  const totalQty = selectedProducts.reduce((s, p) => s + (p.qty || 1), 0);
   const discountValue = realSubtotal * (discountPct || 0) / 100;
   const discountedSubtotal = realSubtotal - discountValue;
   const { user } = useAuth();
@@ -364,14 +365,15 @@ export const SubscriptionCheckout = ({
       if (orderData && products) {
         const orderItems = products.map((product) => {
           const unit = Math.round(product.price * discountFactor * 100) / 100;
+          const q = product.qty || 1;
           return {
             order_id: orderData.id,
             product_id: product.id,
             product_name: product.name,
             grind_type: grindType,
-            quantity: 1,
+            quantity: q,
             unit_price: unit,
-            subtotal: unit,
+            subtotal: Math.round(unit * q * 100) / 100,
           };
         });
 
@@ -385,7 +387,7 @@ export const SubscriptionCheckout = ({
         const preferenceResponse = await createPreference({
           items: products.map((product) => ({
             title: `${product.name} - Assinatura (${commitmentMonths === 1 ? 'mensal' : commitmentMonths + ' meses'})`,
-            quantity: 1,
+            quantity: product.qty || 1,
             unit_price: Math.round(product.price * discountFactor * 100) / 100,
             currency_id: 'BRL',
           })),
@@ -820,7 +822,7 @@ export const SubscriptionCheckout = ({
                         <span className="font-semibold">{commitmentMonths === 1 ? 'Mensal' : `${commitmentMonths} meses`}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Cafés ({selectedProducts.length}):</span>
+                        <span className="text-gray-600">Cafés ({totalQty} {totalQty === 1 ? 'pacote' : 'pacotes'}):</span>
                         <span className="font-semibold">R$ {realSubtotal.toFixed(2).replace('.', ',')}</span>
                       </div>
                       {discountPct > 0 && (
