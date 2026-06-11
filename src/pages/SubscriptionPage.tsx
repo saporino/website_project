@@ -75,9 +75,18 @@ export const SubscriptionPage = () => {
   const [showCheckout, setShowCheckout] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+  const [acceptingNew, setAcceptingNew] = useState(true);
+  const [tiers, setTiers] = useState<{ months: number; discount_pct: number }[]>([]);
 
   useEffect(() => {
     window.scrollTo(0, 0); // Scroll to top when page loads
+    (async () => {
+      const { data } = await supabase.from('subscription_settings').select('accepting_new, tiers').maybeSingle();
+      if (data) {
+        setAcceptingNew(data.accepting_new);
+        setTiers(Array.isArray(data.tiers) ? data.tiers : []);
+      }
+    })();
   }, []);
 
   const goHome = () => {
@@ -295,7 +304,7 @@ export const SubscriptionPage = () => {
         <div className="max-w-6xl mx-auto px-6 lg:px-8">
           <div className="text-center mb-12">
             <span className="inline-flex items-center gap-2 bg-[#a4240e] text-white text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
-              <Percent className="w-4 h-4" /> Assinantes economizam até 20%
+              <Percent className="w-4 h-4" /> Assinantes economizam até {tiers.length ? Math.max(...tiers.map(t => t.discount_pct)) : 20}%
             </span>
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Conheça o nosso café</h2>
             <div className="w-24 h-1.5 bg-[#a4240e] mx-auto rounded-full" />
@@ -380,13 +389,35 @@ export const SubscriptionPage = () => {
 
       <section id="cadastro" className="py-20 bg-gradient-to-b from-white to-stone-50">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="text-center mb-16">
+          <div className="text-center mb-12">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
               Escolha como deseja se cadastrar
             </h2>
             <div className="w-24 h-1.5 bg-[#a4240e] mx-auto rounded-full"></div>
           </div>
 
+          {/* Planos de desconto por compromisso */}
+          {acceptingNew && tiers.length > 0 && (
+            <div className="max-w-3xl mx-auto mb-12">
+              <p className="text-center text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Quanto mais meses, maior o desconto</p>
+              <div className="flex flex-wrap justify-center gap-3">
+                {tiers.map((t) => (
+                  <div key={t.months} className="bg-white border-2 border-[#ddd0cc] rounded-2xl px-5 py-3 text-center min-w-[110px]">
+                    <p className="text-2xl font-bold text-[#a4240e]">{t.discount_pct}%</p>
+                    <p className="text-xs text-gray-600">{t.months === 1 ? '1 mês' : `${t.months} meses`}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!acceptingNew ? (
+            <div className="max-w-2xl mx-auto bg-white border border-gray-200 rounded-3xl p-10 text-center shadow-xl">
+              <p className="text-2xl font-bold text-gray-900 mb-2">Assinaturas temporariamente indisponíveis</p>
+              <p className="text-gray-600">Estamos preparando novidades nos nossos planos de assinatura. Volte em breve! Enquanto isso, você pode comprar nossos cafés na loja.</p>
+              <button onClick={goHome} className="mt-6 inline-block bg-[#a4240e] hover:bg-[#8a1f0c] text-white px-8 py-3 rounded-full font-semibold transition-colors">Ir para a loja</button>
+            </div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
             <div
               onClick={() => {
@@ -453,6 +484,7 @@ export const SubscriptionPage = () => {
               </div>
             </div>
           </div>
+          )}
         </div>
       </section>
 

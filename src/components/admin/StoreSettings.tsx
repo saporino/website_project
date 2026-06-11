@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Save, Store, MapPin, CreditCard, Eye, EyeOff } from 'lucide-react';
 import { BannerManager } from './BannerManager';
+import { SubscriptionSettings } from './SubscriptionSettings';
 
 interface Settings {
   id: string;
@@ -94,6 +95,8 @@ export function StoreSettings() {
 
       <div className="space-y-8">
         <BannerManager />
+
+        <SubscriptionSettings />
 
         <div className="bg-white border border-gray-200 rounded-xl p-6">
           <div className="flex items-center space-x-3 mb-6">
