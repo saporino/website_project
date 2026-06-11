@@ -18,6 +18,7 @@ interface SubProduct {
   promotional_price: number | null;
   roast_type: string | null;
   flavor_notes: string | null;
+  image_url: string | null;
 }
 const unitPrice = (p: SubProduct) => (p.promotional_price && p.promotional_price > 0 ? p.promotional_price : p.price);
 
@@ -42,7 +43,7 @@ export const SubscriptionPage = () => {
     (async () => {
       const [{ data: settings }, { data: prods }] = await Promise.all([
         supabase.from('subscription_settings').select('accepting_new, tiers').maybeSingle(),
-        supabase.from('products').select('id, name, price, promotional_price, roast_type, flavor_notes')
+        supabase.from('products').select('id, name, price, promotional_price, roast_type, flavor_notes, image_url')
           .eq('subscription_enabled', true).order('display_order', { ascending: true }),
       ]);
       if (settings) {
@@ -389,10 +390,9 @@ export const SubscriptionPage = () => {
 
             <div
               onClick={() => {
-                setAccountType('PJ');
-                setShowCheckout(true);
+                toast.info('Para compras e condições PJ (atacado), fale com nosso representante comercial.');
               }}
-              className={`bg-white rounded-3xl p-10 shadow-xl cursor-pointer transition-all duration-300 transform hover:scale-105 hover:ring-4 hover:ring-[#a4240e]/50 ${accountType === 'PJ' ? 'ring-4 ring-[#a4240e]' : ''}`}
+              className="bg-white rounded-3xl p-10 shadow-xl cursor-pointer transition-all duration-300 transform hover:scale-105 hover:ring-4 hover:ring-[#a4240e]/50"
             >
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-3xl font-bold text-gray-900">Pessoa Jurídica (PJ)</h3>
@@ -530,11 +530,13 @@ export const SubscriptionPage = () => {
                     onClick={() => handleCoffeeSelection(p.id)}
                     className={`bg-white rounded-3xl p-8 shadow-lg cursor-pointer transition-all duration-300 transform hover:scale-105 ${sel ? 'ring-4 ring-[#a4240e]' : ''}`}
                   >
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="w-16 h-16 bg-stone-100 rounded-2xl flex items-center justify-center">
-                        <Coffee className="w-8 h-8 text-[#a4240e]" />
+                    <div className="relative mb-4">
+                      <div className="h-44 rounded-2xl bg-stone-50 flex items-center justify-center overflow-hidden">
+                        <img src={p.image_url || '/saporino-logo.png'} alt={p.name}
+                          onError={(e) => { (e.target as HTMLImageElement).src = '/saporino-logo.png'; }}
+                          className="max-h-full max-w-full object-contain" />
                       </div>
-                      {sel && <Check className="w-8 h-8 text-[#a4240e]" />}
+                      {sel && <span className="absolute top-2 right-2 w-9 h-9 rounded-full bg-[#a4240e] text-white flex items-center justify-center shadow-lg"><Check className="w-5 h-5" /></span>}
                     </div>
                     <h3 className="text-xl font-bold text-gray-900 mb-1">{p.name}</h3>
                     {p.roast_type && <p className="text-sm text-gray-500 mb-2">{p.roast_type}</p>}
