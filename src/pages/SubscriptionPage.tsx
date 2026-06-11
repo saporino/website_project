@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Check, Coffee, Package, Calendar, Truck, Shield, Award, Home, LogOut, User, ChevronDown } from 'lucide-react';
+import { Check, Coffee, Package, Calendar, Truck, Shield, Award, Home, LogOut, User, ChevronDown, Mountain, Flame, Percent, RefreshCcw, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -288,6 +288,94 @@ export const SubscriptionPage = () => {
         </div>
 
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white to-transparent" />
+      </section>
+
+      {/* NOSSO CAFÉ — origem, perfil sensorial, moagem fina */}
+      <section className="py-20 bg-white">
+        <div className="max-w-6xl mx-auto px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <span className="inline-flex items-center gap-2 bg-[#a4240e] text-white text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
+              <Percent className="w-4 h-4" /> Assinantes economizam 20%
+            </span>
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Conheça o nosso café</h2>
+            <div className="w-24 h-1.5 bg-[#a4240e] mx-auto rounded-full" />
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto mt-6 leading-relaxed">
+              O Café Saporino é <strong className="text-gray-900">100% Arábica do Cerrado Mineiro</strong>, com
+              <strong className="text-gray-900"> torrefação artesanal a lenha</strong> e moagem fina. Uma raiz mineira
+              tradicional, com qualidade comprovada e o sabor que faz parte da rotina de quem ama café.
+            </p>
+          </div>
+
+          {/* Especificações */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-10">
+            {[
+              { Icon: Mountain, t: 'Origem', s: 'Cerrado Mineiro (MG)' },
+              { Icon: Sparkles, t: 'Altitude', s: '900 a 1.200 metros' },
+              { Icon: Coffee, t: 'Composição', s: '100% Arábica' },
+              { Icon: Flame, t: 'Torra', s: 'Média, artesanal a lenha' },
+              { Icon: Package, t: 'Moagem', s: 'Fina (moinho de martelo)' },
+              { Icon: Award, t: 'Apresentação', s: 'Torrado e moído · 500g' },
+            ].map(({ Icon, t, s }) => (
+              <div key={t} className="bg-[#faf7f6] border border-[#ddd0cc] rounded-2xl p-5 flex items-center gap-4">
+                <div className="w-11 h-11 rounded-xl bg-white text-[#a4240e] flex items-center justify-center flex-shrink-0 border border-[#ddd0cc]">
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t}</p>
+                  <p className="text-base font-bold text-gray-900 leading-tight">{s}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Notas sensoriais */}
+          <div className="bg-[#a4240e] text-white rounded-3xl p-8 md:p-10 mb-10">
+            <p className="text-sm font-semibold uppercase tracking-wide text-white/70 mb-2">Notas sensoriais</p>
+            <p className="text-xl md:text-2xl font-light leading-relaxed">
+              Café <strong className="font-semibold">encorpado</strong>, com acidez equilibrada e leve toque frutado,
+              apresentando notas marcantes de <strong className="font-semibold">chocolate</strong> e
+              <strong className="font-semibold"> caramelo</strong>.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-6 pt-6 border-t border-white/20">
+              {[
+                { k: 'Corpo', v: '7,9' }, { k: 'Sabor', v: '7,9' }, { k: 'Fragrância', v: '7,8' },
+                { k: 'Finalização', v: '7,8' }, { k: 'Acidez', v: '7,5' },
+              ].map(({ k, v }) => (
+                <div key={k} className="text-center">
+                  <p className="text-3xl font-bold">{v}</p>
+                  <p className="text-xs text-white/70 uppercase tracking-wide">{k}</p>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-white/60 mt-4">
+              Perfil dos cafés Arábica do Cerrado Mineiro validado por estudos sensoriais recentes (2024–2026), publicados na <em>European Food Research and Technology</em>.
+            </p>
+          </div>
+
+          {/* Moagem fina = vantagem */}
+          <div className="border border-[#ddd0cc] rounded-3xl p-8 md:p-10">
+            <h3 className="text-2xl font-bold text-[#a4240e] mb-4">Moagem fina — mais sabor na xícara</h3>
+            <p className="text-gray-600 leading-relaxed mb-5">
+              Processado em moinho de martelo, o Saporino tem moagem fina — a granulometria padrão da indústria
+              brasileira, compatível com filtro de papel, coador de pano e cafeteira tradicional.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {[
+                { t: 'Sabor mais intenso', d: 'A moagem fina aumenta o contato do pó com a água, extraindo mais aroma, corpo e sabor do grão.' },
+                { t: 'Rende mais', d: 'Usa-se menos pó por preparo para a mesma intensidade — mais cafés ao longo do mês com o mesmo pacote.' },
+                { t: 'Padrão nacional', d: 'Coa em 4 a 5 minutos — o tempo certo para a água extrair o máximo do grão. Não é lentidão, é técnica.' },
+              ].map(({ t, d }) => (
+                <div key={t} className="flex flex-col">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Check className="w-5 h-5 text-[#a4240e]" />
+                    <p className="font-bold text-gray-900">{t}</p>
+                  </div>
+                  <p className="text-sm text-gray-600 leading-relaxed">{d}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </section>
 
       <section id="cadastro" className="py-20 bg-gradient-to-b from-white to-stone-50">
@@ -717,18 +805,23 @@ export const SubscriptionPage = () => {
           </h2>
           <div className="w-24 h-1.5 bg-[#a4240e] mx-auto mb-12 rounded-full"></div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-12">
-            {['Simples', 'Honesto', 'Café de família', 'Origem de Minas', 'Café fresco todo mês', 'Qualidade sem complicação'].map(
-              (reason) => (
-                <div
-                  key={reason}
-                  className="bg-white rounded-2xl p-6 shadow-lg transform transition-all duration-300 hover:scale-105"
-                >
-                  <Check className="w-8 h-8 text-[#a4240e] mx-auto mb-3" />
-                  <p className="text-lg font-semibold text-gray-900">{reason}</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12 text-left">
+            {[
+              { Icon: Percent, t: 'Economize 20%', d: 'Assinantes pagam menos do que comprando avulso, todo mês.' },
+              { Icon: Coffee, t: 'Sempre fresco', d: 'Torra recente a cada ciclo — o café chega no ponto, nunca parado na prateleira.' },
+              { Icon: Truck, t: 'Entrega programada', d: 'Chega na sua casa sem você precisar lembrar de comprar.' },
+              { Icon: Mountain, t: '100% Arábica do Cerrado', d: 'Origem mineira reconhecida, com perfil sensorial validado por estudos.' },
+              { Icon: RefreshCcw, t: 'Você no controle', d: 'Pause, altere a quantidade ou troque o café quando quiser.' },
+              { Icon: Shield, t: 'Sem fidelidade', d: 'Cancele a qualquer momento, sem multa e sem complicação.' },
+            ].map(({ Icon, t, d }) => (
+              <div key={t} className="bg-white rounded-2xl p-6 shadow-lg flex flex-col">
+                <div className="w-12 h-12 rounded-xl bg-[#f5f0ef] text-[#a4240e] flex items-center justify-center mb-4">
+                  <Icon className="w-6 h-6" />
                 </div>
-              )
-            )}
+                <p className="text-lg font-bold text-gray-900 mb-1">{t}</p>
+                <p className="text-sm text-gray-600 leading-relaxed">{d}</p>
+              </div>
+            ))}
           </div>
 
           <button

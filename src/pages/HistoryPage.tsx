@@ -43,7 +43,7 @@ export function HistoryPage() {
 
           <h2 className="text-2xl font-bold text-gray-900 pt-4">A essência começou bem antes da nossa fundação</h2>
           <p>
-            A história que nos inspira remonta a 1890, quando, sob o sol forte do Triângulo Mineiro, um jovem agricultor colhia grãos vermelhos que brilhavam como "ouro verde". Seu sonho era simples e grandioso ao mesmo tempo: ver o café de sua família conquistar São Paulo, o grande centro do comércio cafeeiro da época.
+            A história que nos inspira remonta a 1890, quando, sob o sol forte do Cerrado Mineiro, um jovem agricultor colhia grãos vermelhos que brilhavam como "ouro verde". Seu sonho era simples e grandioso ao mesmo tempo: ver o café de sua família conquistar São Paulo, o grande centro do comércio cafeeiro da época.
           </p>
           <p>
             As sacas, carregadas em carroças, seguiam até a estação mais próxima, de onde embarcavam em longas viagens de trem, cruzando o Rio Grande até Campinas e chegando finalmente à capital paulista. Cada grão levava consigo mais que aroma e sabor, levava a história de famílias inteiras que transformavam trabalho duro em tradição.
