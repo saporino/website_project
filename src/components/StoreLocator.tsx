@@ -87,8 +87,10 @@ export default function StoreLocator() {
         {results && (
           <div className="mt-8 text-left space-y-3">
             {results.length === 0 ? (
-              <p className="text-center text-gray-500 py-6">Ainda não temos pontos de venda cadastrados perto desse CEP. Em breve!</p>
-            ) : results.map((p) => (
+              <p className="text-center text-gray-500 py-6">Ainda não temos pontos de venda cadastrados. Em breve!</p>
+            ) : (<>
+            <p className="text-center text-sm text-gray-500 mb-2">Pontos de venda mais próximos de você (do mais perto ao mais distante):</p>
+            {results.map((p) => (
               <div key={p.id} className="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center gap-4">
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-gray-900">{p.nome || 'Ponto de venda'}</p>
@@ -109,6 +111,7 @@ export default function StoreLocator() {
                 </div>
               </div>
             ))}
+            </>)}
           </div>
         )}
       </div>

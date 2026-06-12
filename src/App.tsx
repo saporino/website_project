@@ -206,8 +206,8 @@ function AppContent() {
         setSelectedProduct={setSelectedProduct}
         onAuthOpen={openAuth}
       />
-      <About />
       <StoreLocator />
+      <About />
       <Contact />
       <Footer scrollToSection={scrollToSection} />
       <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} onAuthOpen={openAuth} />
