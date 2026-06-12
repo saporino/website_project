@@ -25,6 +25,7 @@ import RepCoIntelligence from './pages/RepCoIntelligence';
 import ProductDetail from './components/ProductDetail';
 import PromoPopup from './components/PromoPopup';
 import { trackVisit } from './lib/trackVisit';
+import StoreLocator from './components/StoreLocator';
 
 const logoImage = '/saporino-logo.png';
 const heroImage = '/hero-colheita.png';
@@ -206,6 +207,7 @@ function AppContent() {
         onAuthOpen={openAuth}
       />
       <About />
+      <StoreLocator />
       <Contact />
       <Footer scrollToSection={scrollToSection} />
       <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} onAuthOpen={openAuth} />
