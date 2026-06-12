@@ -22,6 +22,7 @@ import { OrderDetailPage } from './pages/OrderDetailPage';
 import { RepCoDashboard } from './pages/RepCoDashboard';
 import RepCoIntelligence from './pages/RepCoIntelligence';
 import ProductDetail from './components/ProductDetail';
+import PromoPopup from './components/PromoPopup';
 
 const logoImage = '/saporino-logo.png';
 const heroImage = '/hero-colheita.png';
@@ -210,6 +211,7 @@ function AppContent() {
         initialMode={authModalMode}
         loginContext={authLoginContext}
       />
+      <PromoPopup onAction={(link) => openAuth(link === 'cadastro' ? 'register' : 'login')} />
       <Toaster position="top-center" richColors />
     </div>
   );

@@ -1,0 +1,94 @@
+import { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+
+interface PopupCfg {
+  enabled: boolean;
+  image_url: string | null;
+  eyebrow: string | null;
+  headline: string | null;
+  subtext: string | null;
+  disclaimer: string | null;
+  button_text: string | null;
+  button_link: string | null;
+  show_days: number;
+}
+
+const SEEN_KEY = 'saporino-popup-seen';
+const logoImage = '/saporino-logo-tight.png';
+
+// Popup promocional editavel no admin. Aparece 1x por visitante (localStorage,
+// re-exibe apos show_days). onAction recebe o destino do botao (ex.: 'cadastro').
+export default function PromoPopup({ onAction }: { onAction?: (link: string) => void }) {
+  const [cfg, setCfg] = useState<PopupCfg | null>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('popup_settings')
+        .select('enabled, image_url, eyebrow, headline, subtext, disclaimer, button_text, button_link, show_days')
+        .maybeSingle();
+      if (!data || !data.enabled) return;
+      // Ja viu recentemente?
+      try {
+        const seen = localStorage.getItem(SEEN_KEY);
+        if (seen) {
+          const days = (Date.now() - Number(seen)) / (1000 * 60 * 60 * 24);
+          if (days < (data.show_days || 30)) return;
+        }
+      } catch { /* localStorage indisponivel */ }
+      setCfg(data as PopupCfg);
+      const t = setTimeout(() => setOpen(true), 1500);
+      return () => clearTimeout(t);
+    })();
+  }, []);
+
+  const close = () => {
+    setOpen(false);
+    try { localStorage.setItem(SEEN_KEY, String(Date.now())); } catch { /* ok */ }
+  };
+
+  const act = () => {
+    const link = cfg?.button_link || '';
+    close();
+    if (!link) return;
+    if (link === 'cadastro' || link === 'login') { onAction?.(link); return; }
+    if (/^https?:\/\//.test(link)) { window.open(link, '_blank', 'noopener'); return; }
+    window.history.pushState({}, '', link);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  };
+
+  if (!open || !cfg) return null;
+
+  return (
+    <div className="fixed inset-0 z-[1400] bg-black/50 flex items-center justify-center p-4" onClick={close}>
+      <div className="relative bg-white rounded-2xl overflow-hidden shadow-2xl max-w-3xl w-full grid md:grid-cols-2" onClick={(e) => e.stopPropagation()}>
+        <button onClick={close} aria-label="Fechar" className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-white/90 hover:bg-white text-gray-700 flex items-center justify-center shadow">
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Texto (esquerda) */}
+        <div className="p-8 md:p-10 order-2 md:order-1 flex flex-col justify-center">
+          <img src={logoImage} alt="Saporino" className="h-7 w-auto self-start mb-5" />
+          {cfg.eyebrow && <p className="text-xs font-bold uppercase tracking-wide text-[#8B2214] mb-2">{cfg.eyebrow}</p>}
+          {cfg.headline && <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 leading-tight mb-3">{cfg.headline}</h2>}
+          {cfg.subtext && <p className="text-gray-600 mb-5 leading-relaxed">{cfg.subtext}</p>}
+          {cfg.button_text && (
+            <button onClick={act} className="bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold px-6 py-3 rounded-full self-start transition-colors shadow-lg">
+              {cfg.button_text}
+            </button>
+          )}
+          {cfg.disclaimer && <p className="text-[11px] text-gray-400 mt-4 leading-snug">{cfg.disclaimer}</p>}
+        </div>
+
+        {/* Foto (direita) */}
+        {cfg.image_url && (
+          <div className="order-1 md:order-2 min-h-[180px] md:min-h-[420px] bg-stone-100">
+            <img src={cfg.image_url} alt="" className="w-full h-full object-cover" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
