@@ -293,16 +293,167 @@ export const ShippingPolicy = () => {
 };
 
 export const RefundPolicy = () => (
-    <PolicyLayout title="Política de Reembolso">
-        <p>Nossa política de devolução e reembolso...</p>
-        <p>Em construção...</p>
+    <PolicyLayout title="Política de Trocas, Devoluções e Reembolsos – Café Saporino Ltda.">
+        <p className="text-sm text-gray-500 mb-6"><strong>Última atualização:</strong> 19 de novembro de 2025</p>
+
+        <p className="mb-4">A Café Saporino Ltda. busca garantir a satisfação de seus clientes e, por isso, adota esta Política de Trocas, Devoluções e Reembolsos em conformidade com o Código de Defesa do Consumidor.</p>
+        <p className="mb-6">Ao realizar uma compra em nossos canais oficiais, o cliente declara estar ciente e de acordo com as condições abaixo.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">1. Orientações importantes</h2>
+        <p className="mb-2">Antes de solicitar qualquer troca ou devolução, recomendamos que o cliente:</p>
+        <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li>confira o produto no momento do recebimento;</li>
+            <li>verifique se a embalagem está íntegra;</li>
+            <li>confirme se o item recebido corresponde ao pedido realizado;</li>
+            <li>preserve a nota fiscal;</li>
+            <li>mantenha a embalagem original.</li>
+        </ul>
+        <p className="mb-4">Toda solicitação deverá ser realizada através do e-mail <a href="mailto:sac@cafesaporino.com.br" className="text-[#a4240e] hover:underline">sac@cafesaporino.com.br</a>.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">2. Direito de arrependimento</h2>
+        <p className="mb-2">Nos termos do artigo 49 do Código de Defesa do Consumidor, o cliente poderá desistir da compra realizada pela internet no prazo de até 7 (sete) dias corridos contados do recebimento do produto. Para que a devolução seja aceita:</p>
+        <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li>o produto deverá estar sem uso;</li>
+            <li>deverá permanecer lacrado quando aplicável;</li>
+            <li>deverá ser devolvido com a embalagem original;</li>
+            <li>deverá estar acompanhado da nota fiscal.</li>
+        </ul>
+        <p className="mb-4">Após o recebimento e análise do produto, o reembolso será processado conforme a forma de pagamento utilizada.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">3. Produtos alimentícios</h2>
+        <p className="mb-2">Por se tratar de produto alimentício, não será aceita devolução por arrependimento quando:</p>
+        <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li>a embalagem estiver aberta;</li>
+            <li>o lacre estiver rompido;</li>
+            <li>houver sinais de consumo;</li>
+            <li>o produto tiver sido armazenado inadequadamente após o recebimento.</li>
+        </ul>
+        <p className="mb-4">Essa restrição não se aplica aos casos de defeito, vício de qualidade ou divergência comprovada do produto.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">4. Produto recebido em desacordo com o pedido</h2>
+        <p className="mb-2">Caso o cliente receba produto diferente daquele adquirido, deverá comunicar a Café Saporino em até 7 (sete) dias corridos após o recebimento. Após análise da ocorrência, a empresa poderá:</p>
+        <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li>providenciar a substituição;</li>
+            <li>realizar o reembolso;</li>
+            <li>disponibilizar crédito para nova compra.</li>
+        </ul>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">5. Produto com avaria ou defeito</h2>
+        <p className="mb-2">Se o produto apresentar defeito de fabricação, avaria ou problema de qualidade, o cliente deverá comunicar a Café Saporino o mais rápido possível. Poderão ser solicitadas fotografias, vídeos, número do lote e informações complementares. Após análise, a Café Saporino poderá:</p>
+        <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li>substituir o produto;</li>
+            <li>reembolsar o valor pago;</li>
+            <li>gerar crédito para nova compra.</li>
+        </ul>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">6. Análise da devolução</h2>
+        <p className="mb-2">Todo produto devolvido passará por avaliação interna. Caso seja constatado uso indevido, consumo parcial, ausência de embalagem, violação do produto ou danos causados após o recebimento, a devolução poderá ser recusada.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">7. Reembolsos</h2>
+        <p className="mb-2"><strong>Cartão de crédito:</strong> o estorno será solicitado à administradora do cartão. O prazo dependerá exclusivamente da operadora e do banco emissor, podendo aparecer em até duas faturas subsequentes.</p>
+        <p className="mb-2"><strong>PIX:</strong> o reembolso será realizado para conta de mesma titularidade do comprador.</p>
+        <p className="mb-4"><strong>Boleto bancário:</strong> o reembolso será realizado mediante transferência bancária para conta de mesma titularidade do comprador.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">8. Vale-compra</h2>
+        <p className="mb-2">Em situações específicas, a Café Saporino poderá disponibilizar crédito para utilização em futuras compras, com validade informada no momento da emissão. O vale-compra é pessoal e intransferível, não poderá ser convertido em dinheiro (salvo quando exigido por lei) e somente poderá ser utilizado nos canais oficiais da Café Saporino.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">9. Pedidos com frete grátis</h2>
+        <p className="mb-4">Quando o pedido tiver recebido benefício de frete grátis em razão de campanhas promocionais ou regras de elegibilidade e ocorrer devolução parcial dos produtos, a Café Saporino poderá recalcular o benefício concedido. Caso a devolução faça com que o pedido deixe de atender aos requisitos da promoção, o valor correspondente ao frete originalmente subsidiado poderá ser descontado do valor a ser reembolsado, observada a legislação aplicável.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">10. Devoluções por endereço incorreto ou ausência</h2>
+        <p className="mb-2">Caso a encomenda retorne por endereço incorreto informado pelo cliente, destinatário desconhecido, mudança de endereço, ausência repetida do destinatário ou não retirada da encomenda quando exigido pela transportadora, o custo de novo envio poderá ser cobrado do cliente.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">11. Compras em marketplaces</h2>
+        <p className="mb-4">Compras realizadas através de Amazon, Mercado Livre, Shopee, TikTok Shop ou outras plataformas parceiras também poderão estar sujeitas às políticas de devolução, mediação, reembolso e proteção ao comprador da respectiva plataforma. Quando houver conflito entre procedimentos, poderão prevalecer as regras obrigatórias da plataforma utilizada para a compra.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">12. Produtos não elegíveis para troca por preferência pessoal</h2>
+        <p className="mb-2">Após abertura da embalagem ou consumo do produto, não serão aceitas solicitações de troca ou devolução motivadas exclusivamente por preferência de sabor, intensidade, aroma, torra ou expectativa subjetiva do consumidor. Essa restrição não afeta os direitos legais do consumidor nos casos de defeito, vício ou erro de envio.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">13. Prazo de análise</h2>
+        <p className="mb-4">Após o recebimento do produto devolvido, a Café Saporino poderá realizar análise técnica para validação da solicitação. O prazo médio de análise poderá ser de até 10 (dez) dias úteis, sem prejuízo de prazos menores quando possível.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">14. Contato</h2>
+        <p className="mb-1"><strong>Café Saporino Ltda.</strong> — CNPJ: 61.109.694/0001-94</p>
+        <p className="mb-1">Al. Rio Negro, 503 – Sala 2005 – Alphaville Industrial – Barueri/SP – CEP 06454-000</p>
+        <p className="mb-4">E-mail: <a href="mailto:sac@cafesaporino.com.br" className="text-[#a4240e] hover:underline">sac@cafesaporino.com.br</a></p>
+        <p className="text-sm text-gray-500 italic">Café Saporino — O Verdadeiro Sabor de Minas®</p>
     </PolicyLayout>
 );
 
 export const TermsOfService = () => (
-    <PolicyLayout title="Termos de Serviço">
-        <p>Termos e condições de uso do site...</p>
-        <p>Em construção...</p>
+    <PolicyLayout title="Termos de Serviço – Café Saporino Ltda.">
+        <p className="text-sm text-gray-500 mb-6"><strong>Última atualização:</strong> 19 de novembro de 2025</p>
+
+        <p className="mb-4">Bem-vindo ao site da Café Saporino Ltda. Ao acessar, navegar, cadastrar-se, realizar compras ou utilizar qualquer funcionalidade disponibilizada pela Café Saporino, o usuário declara que leu, compreendeu e concorda integralmente com estes Termos de Serviço.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">1. Identificação da empresa</h2>
+        <p className="mb-1"><strong>Razão Social:</strong> Café Saporino Ltda. — <strong>CNPJ:</strong> 61.109.694/0001-94</p>
+        <p className="mb-1">Al. Rio Negro, 503 – Sala 2005 – Alphaville Industrial – Barueri/SP – CEP 06454-000</p>
+        <p className="mb-4">E-mail: <a href="mailto:sac@cafesaporino.com.br" className="text-[#a4240e] hover:underline">sac@cafesaporino.com.br</a></p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">2. Objeto</h2>
+        <p className="mb-2">Os presentes Termos regulam o acesso e utilização dos serviços disponibilizados pela Café Saporino através de: site oficial, loja virtual, programas de assinatura, canais de atendimento, marketplaces parceiros e aplicativos ou plataformas eventualmente utilizados pela empresa.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">3. Aceitação dos termos</h2>
+        <p className="mb-2">Ao utilizar qualquer serviço da Café Saporino, o usuário declara que possui capacidade civil para contratar, fornecerá informações verdadeiras e atualizadas, utilizará os serviços de forma lícita, respeitará a legislação aplicável e concorda com as políticas publicadas pela empresa.</p>
+        <p className="mb-4">Caso o usuário não concorde com estes Termos, deverá interromper imediatamente a utilização do site e dos serviços.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">4. Cadastro de clientes</h2>
+        <p className="mb-2">Algumas funcionalidades poderão exigir cadastro. O cliente compromete-se a fornecer informações verdadeiras, completas e atualizadas. A Café Saporino poderá solicitar documentos para validação, realizar verificações cadastrais, suspender cadastros com informações inconsistentes e cancelar pedidos considerados suspeitos. O usuário é responsável pela confidencialidade de sua senha e dados de acesso.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">5. Produtos e serviços</h2>
+        <p className="mb-2">A Café Saporino comercializa produtos relacionados ao universo do café, incluindo cafés torrados e moídos, em grãos, gourmet, especiais e edição limitada, kits promocionais, programas de assinatura, xícaras, canecas, coadores, filtros e acessórios para preparo de café. A disponibilidade dos produtos poderá variar sem aviso prévio.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">6. Preços</h2>
+        <p className="mb-2">Todos os preços apresentados estão sujeitos a alteração sem aviso prévio. O valor válido para a compra será aquele exibido no momento da conclusão do pedido. Promoções poderão possuir regras específicas de participação e validade.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">7. Formas de pagamento</h2>
+        <p className="mb-2">Os pagamentos poderão ser realizados através dos meios disponibilizados durante o checkout, podendo incluir cartão de crédito, PIX, boleto bancário, carteiras digitais e outros meios disponibilizados futuramente. A aprovação da compra depende da validação do pagamento pelos respectivos processadores financeiros.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">8. Análise antifraude</h2>
+        <p className="mb-2">Para proteção dos consumidores e da própria empresa, os pedidos poderão ser submetidos a sistemas de análise de risco e prevenção à fraude. A Café Saporino poderá solicitar documentos adicionais, confirmar dados cadastrais, validar endereço, verificar titularidade do pagamento e cancelar pedidos suspeitos. A recusa de aprovação por mecanismos antifraude não gera obrigação de venda por parte da empresa.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">9. Entrega dos produtos</h2>
+        <p className="mb-2">As entregas serão realizadas por transportadoras parceiras ou pelos Correios (como Correios, Jadlog, Total Express, BBM Logística, BBM E-Commerce e outras). Os prazos informados são estimativas e passam a contar após a confirmação do pagamento, aprovação da análise antifraude e processamento do pedido. Mais informações estão disponíveis na Política de Frete.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">10. Assinaturas</h2>
+        <p className="mb-2">A Café Saporino poderá disponibilizar programas de assinatura com benefícios exclusivos:</p>
+        <ul className="list-disc pl-6 mb-2 space-y-2">
+            <li><strong>Plano Mensal:</strong> desconto de 5%, sem fidelidade, cancelamento a qualquer momento.</li>
+            <li><strong>Plano Semestral:</strong> desconto de 7%, fidelidade de 6 meses, frete grátis, brinde promocional conforme campanha vigente.</li>
+            <li><strong>Plano Anual:</strong> desconto de 12%, fidelidade de 12 meses, frete grátis, brindes promocionais conforme campanha vigente.</li>
+        </ul>
+        <p className="mb-4">As condições completas estão detalhadas na Política de Assinatura.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">11. Trocas, devoluções e reembolsos</h2>
+        <p className="mb-2">As solicitações de troca, devolução ou reembolso serão tratadas conforme a Política de Trocas, Devoluções e Reembolsos da Café Saporino e de acordo com a legislação brasileira aplicável.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">12. Propriedade intelectual</h2>
+        <p className="mb-2">Todo o conteúdo disponibilizado pela Café Saporino é protegido pelas leis de propriedade intelectual, incluindo marca, logotipos, imagens, fotografias, vídeos, textos, embalagens, layouts, materiais promocionais e conteúdo institucional. É proibida a reprodução, distribuição, modificação ou utilização sem autorização prévia e expressa da empresa.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">13. Limitação de responsabilidade</h2>
+        <p className="mb-2">A Café Saporino não será responsável por falhas de internet do usuário, indisponibilidade temporária de sistemas de terceiros, interrupções causadas por força maior, erros decorrentes de informações incorretas fornecidas pelo cliente, uso inadequado dos produtos após a entrega ou danos decorrentes de armazenamento inadequado realizado pelo consumidor.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">14. Marketplaces e plataformas parceiras</h2>
+        <p className="mb-2">Os produtos da Café Saporino poderão ser comercializados através do site oficial, Amazon, Mercado Livre, Shopee, TikTok Shop e outros marketplaces parceiros. Compras realizadas por essas plataformas também poderão estar sujeitas às políticas específicas de cada operador.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">15. Privacidade e proteção de dados</h2>
+        <p className="mb-2">O tratamento dos dados pessoais dos usuários é realizado conforme a Política de Privacidade, a Política de Cookies e a Lei Geral de Proteção de Dados (LGPD). Ao utilizar nossos serviços, o usuário declara estar ciente dessas políticas.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">16. Comunicações</h2>
+        <p className="mb-2">A Café Saporino poderá entrar em contato com o cliente através de e-mail, telefone, WhatsApp, SMS, notificações relacionadas aos pedidos, comunicações relacionadas à assinatura e comunicações necessárias para execução do contrato. As comunicações promocionais poderão ser canceladas pelo usuário quando aplicável.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">17. Alterações dos termos</h2>
+        <p className="mb-2">A Café Saporino poderá atualizar estes Termos de Serviço a qualquer momento para refletir alterações legais, operacionais ou comerciais. A versão vigente estará sempre disponível em seus canais oficiais. A continuidade da utilização dos serviços após a atualização constitui aceitação dos novos termos.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">18. Legislação aplicável e foro</h2>
+        <p className="mb-2">Os presentes Termos de Serviço serão interpretados de acordo com as leis da República Federativa do Brasil. Fica eleito o foro da Comarca de Barueri/SP para dirimir eventuais controvérsias decorrentes destes Termos, observadas as garantias legais do consumidor previstas na legislação brasileira.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">19. Contato</h2>
+        <p className="mb-1"><strong>Café Saporino Ltda.</strong> — CNPJ: 61.109.694/0001-94</p>
+        <p className="mb-1">Al. Rio Negro, 503 – Sala 2005 – Alphaville Industrial – Barueri/SP – CEP 06454-000</p>
+        <p className="mb-4">E-mail: <a href="mailto:sac@cafesaporino.com.br" className="text-[#a4240e] hover:underline">sac@cafesaporino.com.br</a></p>
+        <p className="text-sm text-gray-500 italic">Café Saporino — O Verdadeiro Sabor de Minas®</p>
     </PolicyLayout>
 );
 
