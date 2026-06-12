@@ -12,6 +12,7 @@ interface PopupCfg {
   button_text: string | null;
   button_link: string | null;
   show_days: number;
+  updated_at: string; // usado como "versao" — muda quando o admin edita
 }
 
 const SEEN_KEY = 'saporino-popup-seen';
@@ -27,17 +28,20 @@ export default function PromoPopup({ onAction }: { onAction?: (link: string) => 
     (async () => {
       const { data } = await supabase
         .from('popup_settings')
-        .select('enabled, image_url, eyebrow, headline, subtext, disclaimer, button_text, button_link, show_days')
+        .select('enabled, image_url, eyebrow, headline, subtext, disclaimer, button_text, button_link, show_days, updated_at')
         .maybeSingle();
       if (!data || !data.enabled) return;
-      // Ja viu recentemente?
+      // Ja viu? So pula se for a MESMA versao (updated_at) e dentro do prazo.
+      // Se o admin editou (updated_at mudou), reaparece para todos.
       try {
-        const seen = localStorage.getItem(SEEN_KEY);
-        if (seen) {
-          const days = (Date.now() - Number(seen)) / (1000 * 60 * 60 * 24);
-          if (days < (data.show_days || 30)) return;
+        const raw = localStorage.getItem(SEEN_KEY);
+        if (raw) {
+          const seen = JSON.parse(raw) as { v?: string; ts?: number };
+          const sameVersion = seen.v === data.updated_at;
+          const days = (Date.now() - (seen.ts || 0)) / (1000 * 60 * 60 * 24);
+          if (sameVersion && days < (data.show_days || 30)) return;
         }
-      } catch { /* localStorage indisponivel */ }
+      } catch { /* localStorage indisponivel ou formato antigo */ }
       setCfg(data as PopupCfg);
       const t = setTimeout(() => setOpen(true), 1500);
       return () => clearTimeout(t);
@@ -46,7 +50,7 @@ export default function PromoPopup({ onAction }: { onAction?: (link: string) => 
 
   const close = () => {
     setOpen(false);
-    try { localStorage.setItem(SEEN_KEY, String(Date.now())); } catch { /* ok */ }
+    try { localStorage.setItem(SEEN_KEY, JSON.stringify({ v: cfg?.updated_at, ts: Date.now() })); } catch { /* ok */ }
   };
 
   const act = () => {
