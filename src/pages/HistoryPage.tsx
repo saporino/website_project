@@ -7,7 +7,7 @@ const go = (path: string) => {
 };
 
 // Foto da secagem do café no terreiro — "onde tudo começa".
-const HERO_IMG = '/historia-hero.png';
+const HERO_IMG = '/historia-hero.webp';
 
 export function HistoryPage() {
   useEffect(() => { window.scrollTo(0, 0); }, []);

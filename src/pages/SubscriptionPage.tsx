@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 import { SubscriptionCheckout } from '../components/SubscriptionCheckout';
 import { AuthModal } from '../components/AuthModal';
 
-const subscriptionBg = '/assinatura-fundo.png';
+const subscriptionBg = '/assinatura-fundo.webp';
 const logoImage = '/SAPORINO LOGO transparente big-PNG.png';
 
 type AccountType = 'PF' | 'PJ' | null;

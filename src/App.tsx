@@ -26,17 +26,18 @@ import ProductDetail from './components/ProductDetail';
 import PromoPopup from './components/PromoPopup';
 import { trackVisit } from './lib/trackVisit';
 import StoreLocator from './components/StoreLocator';
+import NotFound from './components/NotFound';
 
 const logoImage = '/saporino-logo.png';
-const heroImage = '/hero-colheita.png';
+const heroImage = '/hero-colheita.webp';
 
 // Slides do carrossel de banners (entre o hero e "Nossa Linha de Cafes").
 // SUBSTITUIR pelos 4 banners gerados — ideal 1920x600px, kebab-case em /public:
 // promo-1.png ... promo-4.png. href opcional define para onde o clique leva.
 // (As imagens abaixo sao TEMPORARIAS so para visualizar o comportamento.)
 const PROMO_SLIDES: { src: string; alt: string; href?: string }[] = [
-  { src: '/hero-colheita.png',      alt: 'Siga nas redes sociais' },
-  { src: '/lavoura-cerrado.png',    alt: 'Seja um Representante Comercial' },
+  { src: '/hero-colheita.webp',      alt: 'Siga nas redes sociais' },
+  { src: '/lavoura-cerrado.webp',    alt: 'Seja um Representante Comercial' },
   { src: '/coffee-field.webp',      alt: 'Vendas para varejo e atacado' },
   { src: '/torrefacao-saporino.jpg', alt: 'Conheca a Linha de Cafes' },
 ];
@@ -131,7 +132,11 @@ function AppRouter() {
     return <OrderDetailPage orderId={orderId} />;
   }
 
-  return <AppContent />;
+  // Home (default) — rotas conhecidas acima; o resto e 404.
+  if (currentPath === '/' || currentPath === '' || currentPath === '/index.html') {
+    return <AppContent />;
+  }
+  return <NotFound />;
 }
 
 function AppContent() {
@@ -1325,7 +1330,7 @@ const About = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           <div className="relative order-2 lg:order-1">
             <div className="relative h-[460px] rounded-3xl overflow-hidden shadow-2xl bg-cover bg-center"
-              style={{ backgroundImage: `url('/historia-colheita.png')` }}>
+              style={{ backgroundImage: `url('/historia-colheita.webp')` }}>
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
             </div>
           </div>
@@ -1385,7 +1390,7 @@ const Contact = () => {
 
         {/* Banda de imagem — lavoura do Cerrado, sem atribuição de fornecedor */}
         <div className="mt-8 relative h-64 md:h-80 rounded-3xl overflow-hidden">
-          <img src="/lavoura-cerrado.png" alt="Lavoura de café no Cerrado Mineiro" className="w-full h-full object-cover" />
+          <img src="/lavoura-cerrado.webp" alt="Lavoura de café no Cerrado Mineiro" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/20 to-transparent flex items-end">
             <div className="p-8 md:p-10">
               <p className="text-2xl md:text-3xl font-bold text-white">Da roça à sua xícara</p>

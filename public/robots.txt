@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /repco
+Disallow: /meu-perfil
+Disallow: /rastrear
+
+Sitemap: https://www.cafesaporino.com.br/sitemap.xml
