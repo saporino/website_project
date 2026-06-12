@@ -20,6 +20,9 @@ export default function ProductDetail({ product, onBack, onAddToCart, isAdded, o
   const [hasActiveSub, setHasActiveSub] = useState(false);
   const [activeImg, setActiveImg] = useState(product.image_url || "/saporino-logo.png");
 
+  // Ao abrir o produto, rola para o topo.
+  useEffect(() => { window.scrollTo(0, 0); }, []);
+
   // Build gallery: main + additional (non-empty)
   const gallery = [
     product.image_url || "/saporino-logo.png",

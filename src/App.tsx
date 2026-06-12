@@ -195,8 +195,8 @@ function AppContent() {
         onCartOpen={() => setIsCartOpen(true)}
         onAuthOpen={openAuth}
       />
-      <Hero scrollToSection={scrollToSection} />
-      <PromoCarousel onAuthOpen={openAuth} />
+      {!selectedProduct && <Hero scrollToSection={scrollToSection} />}
+      {!selectedProduct && <PromoCarousel onAuthOpen={openAuth} />}
       <Products
         products={products}
         loading={loading}
@@ -206,9 +206,9 @@ function AppContent() {
         setSelectedProduct={setSelectedProduct}
         onAuthOpen={openAuth}
       />
-      <StoreLocator />
-      <About />
-      <Contact />
+      {!selectedProduct && <StoreLocator />}
+      {!selectedProduct && <About />}
+      {!selectedProduct && <Contact />}
       <Footer scrollToSection={scrollToSection} />
       <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} onAuthOpen={openAuth} />
       <AuthModal
