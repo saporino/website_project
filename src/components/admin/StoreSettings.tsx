@@ -4,6 +4,7 @@ import { Save, Store, MapPin, CreditCard, Eye, EyeOff } from 'lucide-react';
 import { BannerManager } from './BannerManager';
 import { SubscriptionSettings } from './SubscriptionSettings';
 import { PopupSettings } from './PopupSettings';
+import { VisitorInsights } from './VisitorInsights';
 
 interface Settings {
   id: string;
@@ -95,6 +96,8 @@ export function StoreSettings() {
       </div>
 
       <div className="space-y-8">
+        <VisitorInsights />
+
         <BannerManager />
 
         <PopupSettings />

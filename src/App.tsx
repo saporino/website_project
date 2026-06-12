@@ -24,6 +24,7 @@ import { RepCoDashboard } from './pages/RepCoDashboard';
 import RepCoIntelligence from './pages/RepCoIntelligence';
 import ProductDetail from './components/ProductDetail';
 import PromoPopup from './components/PromoPopup';
+import { trackVisit } from './lib/trackVisit';
 
 const logoImage = '/saporino-logo.png';
 const heroImage = '/hero-colheita.png';
@@ -55,6 +56,7 @@ function App() {
     };
     // Run once on load, then every 4 days
     keepAlive();
+    trackVisit(); // registra a visita por IP (1x por sessao)
     const interval = setInterval(keepAlive, 4 * 24 * 60 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
