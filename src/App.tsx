@@ -14,7 +14,7 @@ import { Product, CartItem } from './types';
 import { createPreference, MERCADO_PAGO_PUBLIC_KEY } from './lib/mercadopago';
 import { getCarrierQuotes, lookupCEP, formatCEP, calculateCartWeight, CarrierQuote } from './lib/shipping';
 import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
-import { PrivacyPolicy, ShippingPolicy, RefundPolicy, TermsOfService, SubscriptionPolicy, CookiePolicy, BusinessPage } from './pages/PolicyPages';
+import { PrivacyPolicy, ShippingPolicy, RefundPolicy, TermsOfService, SubscriptionPolicy, CookiePolicy, CareersPage, PressPage, PrivateLabelPage, GreenCoffeePage, BusinessPage } from './pages/PolicyPages';
 import CookieConsent from './components/CookieConsent';
 import { HistoryPage } from './pages/HistoryPage';
 import { PaymentSuccess, PaymentFailure, PaymentPending } from './pages/PaymentPages';
@@ -114,6 +114,10 @@ function AppRouter() {
   if (currentPath === '/termos-servico') return <TermsOfService />;
   if (currentPath === '/politica-assinatura') return <SubscriptionPolicy />;
   if (currentPath === '/politica-cookies') return <CookiePolicy />;
+  if (currentPath === '/trabalhe-conosco') return <CareersPage />;
+  if (currentPath === '/imprensa') return <PressPage />;
+  if (currentPath === '/marca-propria') return <PrivateLabelPage />;
+  if (currentPath === '/cafe-cru') return <GreenCoffeePage />;
   if (currentPath === '/para-seu-negocio') return <BusinessPage />;
   if (currentPath === '/nossa-historia' || currentPath === '/sobre') return <HistoryPage />;
 
@@ -1511,6 +1515,16 @@ const Footer = ({ scrollToSection }: any) => {
                     Termos de Serviço
                   </button>
                 </li>
+                <li>
+                  <button onClick={() => handleNavigation('/trabalhe-conosco')} className="text-white/80 hover:text-white transition-colors text-sm">
+                    Trabalhe Conosco
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => handleNavigation('/imprensa')} className="text-white/80 hover:text-white transition-colors text-sm">
+                    Imprensa
+                  </button>
+                </li>
               </ul>
             </div>
 
@@ -1560,6 +1574,18 @@ const Footer = ({ scrollToSection }: any) => {
               <p className="text-white/80 text-sm mb-4">
                 Cozinha Industrial, Escritórios, Padaria, Empório, Cafeterias e Etc.
               </p>
+              <ul className="space-y-3">
+                <li>
+                  <button onClick={() => handleNavigation('/marca-propria')} className="text-white/80 hover:text-white transition-colors text-sm">
+                    Marca Própria
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => handleNavigation('/cafe-cru')} className="text-white/80 hover:text-white transition-colors text-sm">
+                    Café Cru (Café Verde)
+                  </button>
+                </li>
+              </ul>
 
               <div className="mt-8">
                 <h3 className="text-lg font-bold mb-4 text-white">Redes Sociais</h3>

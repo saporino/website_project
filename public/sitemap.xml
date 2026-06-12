@@ -9,4 +9,8 @@
   <url><loc>https://www.cafesaporino.com.br/politica-frete</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
   <url><loc>https://www.cafesaporino.com.br/politica-reembolso</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
   <url><loc>https://www.cafesaporino.com.br/termos-servico</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://www.cafesaporino.com.br/marca-propria</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.cafesaporino.com.br/cafe-cru</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://www.cafesaporino.com.br/trabalhe-conosco</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://www.cafesaporino.com.br/imprensa</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
 </urlset>

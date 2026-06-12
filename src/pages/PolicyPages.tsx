@@ -627,6 +627,60 @@ export const SubscriptionPolicy = () => (
     </PolicyLayout>
 );
 
+export const CareersPage = () => (
+    <PolicyLayout title="Trabalhe Conosco">
+        <p className="mb-4">A Café Saporino está sempre em busca de pessoas apaixonadas por café, comprometidas com qualidade e que queiram crescer junto com a marca. Aqui, valorizamos dedicação, atitude e o verdadeiro sabor de fazer bem feito.</p>
+        <p className="mb-4">Se você quer fazer parte do nosso time — em áreas como produção, logística, comercial, atendimento ou representação — envie seu currículo e conte um pouco sobre você.</p>
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Como se candidatar</h2>
+        <p className="mb-2">Envie seu currículo e a área de interesse para:</p>
+        <p className="mb-4 text-lg"><a href="mailto:trabalheconosco@cafesaporino.com.br" className="text-[#a4240e] font-semibold hover:underline">trabalheconosco@cafesaporino.com.br</a></p>
+        <p className="text-sm text-gray-500">Analisamos todas as candidaturas e entramos em contato com os perfis compatíveis com as vagas disponíveis.</p>
+    </PolicyLayout>
+);
+
+export const PressPage = () => (
+    <PolicyLayout title="Imprensa">
+        <p className="mb-4">Esta é a área de imprensa da Café Saporino. Aqui, jornalistas, veículos de comunicação e criadores de conteúdo podem solicitar informações sobre a marca, entrevistas, materiais oficiais e imagens em alta resolução.</p>
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Solicitações de imprensa</h2>
+        <p className="mb-2">Para pautas, entrevistas, materiais de marca (logotipos, fotos, releases) e demais assuntos de imprensa, fale com a nossa assessoria:</p>
+        <p className="mb-4 text-lg"><a href="mailto:imprensa@cafesaporino.com.br" className="text-[#a4240e] font-semibold hover:underline">imprensa@cafesaporino.com.br</a></p>
+        <p className="text-sm text-gray-500">Pedimos que identifique o veículo, o assunto e o prazo da matéria para agilizarmos o atendimento.</p>
+    </PolicyLayout>
+);
+
+export const PrivateLabelPage = () => (
+    <PolicyLayout title="Marca Própria">
+        <p className="mb-4">A Café Saporino oferece soluções de <strong>marca própria (private label)</strong>: produzimos café de qualidade com a sua marca, do grão à embalagem. Ideal para supermercados, redes, cafeterias, restaurantes, padarias e empresas que desejam ter o próprio café.</p>
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">O que oferecemos</h2>
+        <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li>Café 100% Arábica selecionado, com torra e moagem conforme o perfil desejado;</li>
+            <li>Embalagem personalizada com a identidade da sua marca;</li>
+            <li>Padrão de qualidade e regularidade no fornecimento;</li>
+            <li>Atendimento próximo para definir blend, torra, granulometria e volumes.</li>
+        </ul>
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Fale com o time de marca própria</h2>
+        <p className="mb-4 text-lg"><a href="mailto:marcapropia@cafesaporino.com.br" className="text-[#a4240e] font-semibold hover:underline">marcapropia@cafesaporino.com.br</a></p>
+        <p className="text-sm text-gray-500">Conte sobre o seu projeto (segmento, volume estimado e perfil de café) que retornamos com uma proposta.</p>
+    </PolicyLayout>
+);
+
+export const GreenCoffeePage = () => (
+    <PolicyLayout title="Café Cru (Café Verde)">
+        <p className="mb-4">Além do café torrado, a Café Saporino também comercializa <strong>café cru (café verde)</strong> — grãos selecionados do Cerrado Mineiro para torrefações, cafeterias, indústrias e empresas que torram o próprio café.</p>
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Para quem é</h2>
+        <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li>Torrefações que buscam grãos de origem e qualidade consistente;</li>
+            <li>Cafeterias e microtorrefadores;</li>
+            <li>Indústrias e empresas que processam café;</li>
+            <li>Quem deseja café verde por saca ou em volumes definidos.</li>
+        </ul>
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Solicite cotação de café cru</h2>
+        <p className="mb-2">Informe a variedade, o volume desejado e o perfil de café que procura:</p>
+        <p className="mb-4 text-lg"><a href="mailto:cafecru@cafesaporino.com.br" className="text-[#a4240e] font-semibold hover:underline">cafecru@cafesaporino.com.br</a></p>
+        <p className="text-sm text-gray-500">Disponibilidade e preços conforme safra, lote e volume.</p>
+    </PolicyLayout>
+);
+
 export const BusinessPage = () => (
     <PolicyLayout title="Para Seu Negócio">
         <p>Soluções corporativas do Café Saporino...</p>
