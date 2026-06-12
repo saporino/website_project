@@ -1417,7 +1417,7 @@ const Footer = ({ scrollToSection }: any) => {
                 </li>
                 <li>
                   <button onClick={() => handleNavigation('/politica-assinatura')} className="text-white/80 hover:text-white transition-colors text-sm">
-                    Política de assinatura
+                    Política de Assinatura
                   </button>
                 </li>
                 <li>
@@ -1427,7 +1427,7 @@ const Footer = ({ scrollToSection }: any) => {
                 </li>
                 <li>
                   <button onClick={() => handleNavigation('/politica-reembolso')} className="text-white/80 hover:text-white transition-colors text-sm">
-                    Política de reembolso
+                    Política de Reembolso
                   </button>
                 </li>
                 <li>
@@ -1437,7 +1437,7 @@ const Footer = ({ scrollToSection }: any) => {
                 </li>
                 <li>
                   <button onClick={() => handleNavigation('/termos-servico')} className="text-white/80 hover:text-white transition-colors text-sm">
-                    Termos de serviço
+                    Termos de Serviço
                   </button>
                 </li>
               </ul>
