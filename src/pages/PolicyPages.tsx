@@ -221,76 +221,68 @@ export const PrivacyPolicy = () => {
     );
 };
 
-export const ShippingPolicy = () => {
-    const handleAccept = () => {
-        window.history.pushState({}, '', '/');
-        window.dispatchEvent(new PopStateEvent('popstate'));
-        window.scrollTo(0, 0);
-    };
+export const ShippingPolicy = () => (
+    <PolicyLayout title="Política de Frete e Entrega – Café Saporino Ltda.">
+        <p className="text-sm text-gray-500 mb-6"><strong>Última atualização:</strong> 19 de novembro de 2025</p>
 
-    return (
-        <PolicyLayout title="Política de Frete e Entrega – Café Saporino Ltda.">
-            <p className="text-sm text-gray-500 mb-6"><strong>Última atualização:</strong> 19 de novembro de 2025</p>
+        <p className="mb-4">A Café Saporino Ltda. busca oferecer transparência e segurança em todas as etapas do processo de compra. Esta Política de Frete e Entrega estabelece as condições aplicáveis às entregas realizadas por meio do site oficial, assinaturas e demais canais de venda da empresa.</p>
+        <p className="mb-6">Ao realizar uma compra, o cliente declara estar ciente e de acordo com as condições abaixo.</p>
 
-            <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">1. Informações Gerais</h2>
-            <p className="mb-4">
-                O cálculo do valor e do prazo de entrega é feito com base no CEP de destino. Insira seu CEP no carrinho ou durante o checkout para visualizar as opções e os prazos disponíveis.
-            </p>
-            <p className="mb-4">
-                Todos os prazos informados consideram dias úteis. Pedidos realizados ou aprovados em fins de semana e feriados serão processados a partir do próximo dia útil.
-            </p>
-            <p className="mb-4">
-                Para otimizar o envio e o custo de frete, recomenda-se agrupar todos os itens desejados em um único pedido.
-            </p>
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">1. Identificação da empresa</h2>
+        <p className="mb-1"><strong>Razão Social:</strong> Café Saporino Ltda. — <strong>CNPJ:</strong> 61.109.694/0001-94</p>
+        <p className="mb-1">Al. Rio Negro, 503 – Sala 2005 – Alphaville Industrial – Barueri/SP – CEP 06454-000</p>
+        <p className="mb-4">E-mail: <a href="mailto:sac@cafesaporino.com.br" className="text-[#a4240e] hover:underline">sac@cafesaporino.com.br</a></p>
 
-            <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">2. Modalidades de Envio</h2>
-            <p className="mb-2"><strong>Correios (PAC ou Sedex):</strong> Disponibilizamos as modalidades PAC (mais econômica, com prazo maior) e Sedex (entrega expressa) para a maioria dos endereços atendidos pelos Correios. A disponibilidade depende do CEP de entrega.</p>
-            <p className="mb-2"><strong>Transportadoras parceiras:</strong> Em algumas regiões ou para pedidos de maior volume, utilizamos transportadoras privadas que oferecem prazos competitivos. Caso haja restrição de atendimento no seu endereço, você será informado no momento da cotação.</p>
-            <p className="mb-4"><strong>Logística de marketplaces:</strong> Os pedidos efetuados em plataformas como Amazon, Mercado Livre e Shopee são enviados de acordo com as regras e opções de frete dessas plataformas, podendo variar conforme o vendedor e a localidade.</p>
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">2. Área de atendimento</h2>
+        <p className="mb-2">A Café Saporino realiza entregas para todo o território nacional, sujeitas à disponibilidade das transportadoras e operadores logísticos parceiros. Algumas localidades poderão possuir restrições operacionais, prazos diferenciados ou indisponibilidade temporária de entrega.</p>
 
-            <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">3. Prazos de Postagem e Rastreamento</h2>
-            <p className="mb-4">
-                O prazo de entrega começa a contar após a confirmação do pagamento. Para pagamentos via cartão de crédito ou pix, a confirmação é imediata; para boletos bancários, pode levar até 3 dias úteis.
-            </p>
-            <p className="mb-4">
-                Assim que o pedido for despachado, enviaremos o código de rastreamento por e‑mail em até 48 horas úteis, permitindo que você acompanhe a encomenda.
-            </p>
-            <p className="mb-4">
-                Caso haja algum atraso ou dificuldade na entrega, entre em contato com nosso atendimento pelo e‑mail <a href="mailto:sac@cafesaporino.com.br" className="text-[#a4240e] hover:underline">sac@cafesaporino.com.br</a> informando o número do pedido e o código de rastreio.
-            </p>
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">3. Formas de entrega</h2>
+        <p className="mb-2">As entregas poderão ser realizadas por empresas parceiras, incluindo, mas não se limitando a: Correios, Jadlog, Total Express, BBM Logística, BBM E-Commerce, transportadoras regionais e outras transportadoras contratadas pela Café Saporino. A escolha da modalidade de entrega será disponibilizada durante o checkout, quando aplicável. A disponibilidade de cada transportadora poderá variar conforme a região atendida.</p>
 
-            <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">4. Recebimento e Conferência</h2>
-            <p className="mb-4">
-                No ato da entrega, verifique se a embalagem está lacrada e se os itens recebidos estão de acordo com o pedido. Se houver indícios de violação ou divergência, recuse a entrega e avise nosso atendimento para que possamos tomar as providências.
-            </p>
-            <p className="mb-4">
-                Se a entrega não puder ser concluída por ausência do destinatário ou endereço incorreto, a encomenda retornará para nós. Será possível reprogramar o envio mediante pagamento de um novo frete.
-            </p>
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">4. Prazo de processamento dos pedidos</h2>
+        <p className="mb-2">Após a confirmação do pagamento, o pedido passará pelas etapas de aprovação financeira, validação antifraude (quando aplicável), separação, faturamento e expedição. O prazo de entrega informado ao cliente começa a contar após a conclusão dessas etapas.</p>
 
-            <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">5. Trocas, Devoluções e Direito de Arrependimento</h2>
-            <p className="mb-2"><strong>Arrependimento:</strong> você pode desistir da compra em até 7 dias corridos após o recebimento, conforme previsto no Código de Defesa do Consumidor. O produto deve ser devolvido sem sinais de uso, em perfeitas condições e na embalagem original. Solicite a devolução pelo e‑mail <a href="mailto:sac@cafesaporino.com.br" className="text-[#a4240e] hover:underline">sac@cafesaporino.com.br</a> para receber as instruções.</p>
-            <p className="mb-2"><strong>Produto divergente ou defeituoso:</strong> caso receba um item diferente do adquirido ou com defeito de fabricação, entre em contato em até 7 dias corridos após a entrega. Se o item correto não estiver disponível, você poderá escolher outro produto de igual valor ou solicitar reembolso.</p>
-            <p className="mb-4"><strong>Restituição de valores:</strong> após o recebimento e a verificação do item devolvido, procederemos ao estorno ou reembolso conforme a forma de pagamento original. Para pagamentos com cartão, o estorno será solicitado junto à administradora; para boleto ou transferência, efetuaremos depósito em conta a ser informada pelo cliente.</p>
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">5. Prazos de entrega</h2>
+        <p className="mb-2">Os prazos informados durante a compra são estimativas fornecidas pelas transportadoras e poderão sofrer alterações em razão de fatores externos, como condições climáticas, greves, acidentes, restrições logísticas, períodos de alta demanda, eventos de força maior e problemas operacionais das transportadoras. A Café Saporino não poderá ser responsabilizada por atrasos decorrentes de situações fora de seu controle razoável.</p>
 
-            <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">6. Observações Finais</h2>
-            <p className="mb-4">
-                Empenhamos todos os esforços para que os prazos de entrega sejam cumpridos. Contudo, atrasos podem ocorrer por fatores externos, como greves, restrições de transporte, condições climáticas ou problemas logísticos dos Correios e transportadoras. Caso haja qualquer imprevisto, comunicaremos você o quanto antes.
-            </p>
-            <p className="mb-8">
-                Nosso compromisso é proporcionar uma experiência de compra segura e satisfatória. Para dúvidas adicionais sobre frete, prazos ou devoluções, contate nosso atendimento pelo e‑mail <a href="mailto:sac@cafesaporino.com.br" className="text-[#a4240e] hover:underline">sac@cafesaporino.com.br</a>.
-            </p>
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">6. Frete grátis</h2>
+        <p className="mb-2">A Café Saporino poderá oferecer campanhas promocionais de frete grátis. Atualmente, pedidos com peso total igual ou superior a 5 kg possuem frete grátis para todo o Brasil através do site oficial, conforme disponibilidade logística.</p>
+        <p className="mb-4">As condições promocionais poderão ser alteradas, suspensas ou encerradas sem aviso prévio. As promoções vigentes serão sempre aquelas apresentadas no momento da compra.</p>
 
-            <div className="flex justify-center mt-12 mb-8">
-                <button
-                    onClick={handleAccept}
-                    className="px-8 py-4 bg-[#a4240e] text-white text-lg font-semibold rounded-full hover:bg-[#8a1f0c] transition-all shadow-lg"
-                >
-                    Li e Concordo
-                </button>
-            </div>
-        </PolicyLayout>
-    );
-};
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">7. Frete nas assinaturas</h2>
+        <p className="mb-2"><strong>Plano Mensal:</strong> o frete será cobrado normalmente conforme a região e modalidade escolhida.</p>
+        <p className="mb-2"><strong>Plano Semestral:</strong> frete grátis durante toda a vigência da assinatura.</p>
+        <p className="mb-2"><strong>Plano Anual:</strong> frete grátis durante toda a vigência da assinatura.</p>
+        <p className="mb-4">As condições completas encontram-se detalhadas na Política de Assinatura.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">8. Marketplaces</h2>
+        <p className="mb-2">Compras realizadas através de marketplaces poderão seguir regras próprias de frete definidas por cada plataforma, entre elas Amazon, Mercado Livre, Shopee e TikTok Shop. Os valores, prazos e condições de frete apresentados nesses canais poderão ser diferentes daqueles praticados no site oficial da Café Saporino.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">9. Responsabilidade do cliente</h2>
+        <p className="mb-2">O cliente é responsável por fornecer corretamente nome do destinatário, endereço completo, CEP, complementos e telefone para contato. A Café Saporino não se responsabiliza por atrasos ou falhas de entrega decorrentes de informações incorretas fornecidas pelo comprador.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">10. Tentativas de entrega</h2>
+        <p className="mb-2">As transportadoras poderão realizar tentativas de entrega conforme seus procedimentos internos. Caso a entrega não seja concluída por ausência do destinatário, endereço incorreto ou incompleto, recusa injustificada ou impossibilidade de acesso, o pedido poderá retornar ao remetente. Nesses casos, um novo frete poderá ser cobrado para reenvio.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">11. Conferência do pedido</h2>
+        <p className="mb-2">No momento do recebimento, recomendamos que o cliente verifique a integridade da embalagem, a quantidade recebida e as condições aparentes dos produtos. Caso seja identificada qualquer irregularidade, o cliente deverá comunicar imediatamente a Café Saporino através do e-mail <a href="mailto:sac@cafesaporino.com.br" className="text-[#a4240e] hover:underline">sac@cafesaporino.com.br</a>.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">12. Extravios e avarias</h2>
+        <p className="mb-2">Caso o pedido seja extraviado ou sofra danos durante o transporte, a Café Saporino realizará a análise da ocorrência junto à transportadora. Confirmada a responsabilidade logística, a empresa poderá reenviar os produtos, disponibilizar crédito ou efetuar o reembolso do valor pago.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">13. Devoluções e frete</h2>
+        <p className="mb-2">As regras para devoluções e reembolsos seguem a Política de Trocas, Devoluções e Reembolsos da Café Saporino. Nos casos previstos em lei, os custos de devolução serão tratados conforme a legislação aplicável.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">14. Alterações desta política</h2>
+        <p className="mb-4">A Café Saporino poderá atualizar esta Política de Frete e Entrega a qualquer momento para refletir alterações operacionais, comerciais ou legais. A versão vigente estará sempre disponível em seus canais oficiais.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">15. Contato</h2>
+        <p className="mb-1"><strong>Café Saporino Ltda.</strong> — CNPJ: 61.109.694/0001-94</p>
+        <p className="mb-1">Al. Rio Negro, 503 – Sala 2005 – Alphaville Industrial – Barueri/SP – CEP 06454-000</p>
+        <p className="mb-4">E-mail: <a href="mailto:sac@cafesaporino.com.br" className="text-[#a4240e] hover:underline">sac@cafesaporino.com.br</a></p>
+        <p className="text-sm text-gray-500 italic">Café Saporino — O Verdadeiro Sabor de Minas®</p>
+    </PolicyLayout>
+);
 
 export const RefundPolicy = () => (
     <PolicyLayout title="Política de Trocas, Devoluções e Reembolsos – Café Saporino Ltda.">
