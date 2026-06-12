@@ -306,6 +306,73 @@ export const TermsOfService = () => (
     </PolicyLayout>
 );
 
+export const CookiePolicy = () => (
+    <PolicyLayout title="Política de Cookies – Café Saporino Ltda.">
+        <p className="text-sm text-gray-500 mb-6"><strong>Última atualização:</strong> 19 de novembro de 2025</p>
+
+        <p className="mb-4">A presente Política de Cookies explica como a Café Saporino Ltda., inscrita no CNPJ nº 61.109.694/0001-94, utiliza cookies e tecnologias semelhantes em seu site.</p>
+        <p className="mb-6">Ao acessar e utilizar nossos serviços, você concorda com o uso de cookies conforme descrito nesta política, observadas as configurações escolhidas por você em seu navegador ou em nosso sistema de gerenciamento de consentimento.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">1. O que são cookies</h2>
+        <p className="mb-4">Cookies são pequenos arquivos de texto armazenados em seu dispositivo quando você visita um site. Esses arquivos permitem que determinadas informações sejam lembradas durante sua navegação, contribuindo para melhorar a experiência do usuário, aumentar a segurança e possibilitar análises estatísticas sobre o uso do site.</p>
+        <p className="mb-4">Os cookies não danificam seu dispositivo e ajudam a tornar a navegação mais eficiente.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">2. Por que utilizamos cookies</h2>
+        <p className="mb-2">A Café Saporino utiliza cookies para:</p>
+        <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li>permitir o funcionamento adequado do site;</li>
+            <li>manter sessões de login;</li>
+            <li>armazenar preferências de navegação;</li>
+            <li>lembrar itens adicionados ao carrinho;</li>
+            <li>melhorar a experiência do usuário;</li>
+            <li>medir desempenho e tráfego;</li>
+            <li>analisar comportamento de navegação;</li>
+            <li>personalizar conteúdos;</li>
+            <li>exibir anúncios mais relevantes;</li>
+            <li>realizar campanhas de marketing e remarketing;</li>
+            <li>prevenir fraudes e aumentar a segurança.</li>
+        </ul>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">3. Tipos de cookies utilizados</h2>
+        <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3">Cookies necessários</h3>
+        <p className="mb-2">Essenciais para o funcionamento do site. Sem eles, algumas funcionalidades podem não operar corretamente. Exemplos: autenticação de usuários, segurança, carrinho de compras e processamento de pedidos. Esses cookies não podem ser desativados pelos sistemas do site.</p>
+        <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3">Cookies de desempenho e análise</h3>
+        <p className="mb-2">Permitem compreender como os visitantes utilizam o site, para análise estatística, melhoria de conteúdo e navegação, e identificação de erros. Podemos utilizar ferramentas como Google Analytics, Google Tag Manager ou equivalentes.</p>
+        <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3">Cookies de funcionalidade</h3>
+        <p className="mb-2">Permitem memorizar escolhas do usuário, como idioma, região, preferências de navegação e configurações personalizadas.</p>
+        <h3 className="text-xl font-semibold text-gray-900 mt-6 mb-3">Cookies de marketing e publicidade</h3>
+        <p className="mb-4">Utilizados para exibir anúncios mais relevantes. Podem ser usados por parceiros para remarketing, personalização de anúncios, medição de conversões e segmentação de público. Podemos utilizar plataformas como Google Ads, Meta Ads (Facebook e Instagram), TikTok Ads e outras ferramentas de marketing digital.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">4. Cookies de terceiros</h2>
+        <p className="mb-4">Alguns cookies podem ser instalados por serviços de terceiros utilizados pela Café Saporino. Esses terceiros possuem suas próprias políticas de privacidade e cookies. A Café Saporino não controla diretamente a forma como terceiros tratam os dados coletados por seus próprios cookies. Recomendamos a leitura das respectivas políticas dos fornecedores utilizados.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">5. Gerenciamento dos cookies</h2>
+        <p className="mb-2">O usuário pode controlar ou excluir cookies diretamente nas configurações de seu navegador. A maioria dos navegadores permite:</p>
+        <ul className="list-disc pl-6 mb-4 space-y-2">
+            <li>visualizar cookies armazenados;</li>
+            <li>excluir cookies existentes;</li>
+            <li>bloquear cookies futuros;</li>
+            <li>definir preferências específicas para determinados sites.</li>
+        </ul>
+        <p className="mb-4">A desativação de determinados cookies poderá afetar funcionalidades do site.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">6. Consentimento</h2>
+        <p className="mb-4">Quando exigido pela legislação aplicável, especialmente pela Lei Geral de Proteção de Dados (LGPD), a Café Saporino solicitará o consentimento do usuário antes da instalação de determinados tipos de cookies. O consentimento poderá ser alterado ou revogado a qualquer momento por meio das configurações disponíveis no site ou no navegador utilizado.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">7. Proteção de dados</h2>
+        <p className="mb-2">As informações eventualmente coletadas por meio de cookies serão tratadas de acordo com nossa Política de Privacidade e com a legislação brasileira aplicável, observando os princípios de finalidade, necessidade, transparência, segurança, adequação e livre acesso.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">8. Alterações desta política</h2>
+        <p className="mb-4">A Café Saporino poderá atualizar esta Política de Cookies a qualquer momento para refletir alterações legais, operacionais ou tecnológicas. A versão vigente estará sempre disponível em nosso site.</p>
+
+        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">9. Contato</h2>
+        <p className="mb-1"><strong>Café Saporino Ltda.</strong> — CNPJ: 61.109.694/0001-94</p>
+        <p className="mb-1">Al. Rio Negro, 503 – Sala 2005 – Alphaville Industrial – Barueri/SP – CEP 06454-000</p>
+        <p className="mb-4">E-mail: <a href="mailto:sac@cafesaporino.com.br" className="text-[#a4240e] hover:underline">sac@cafesaporino.com.br</a></p>
+        <p className="text-sm text-gray-500 italic">Café Saporino — O Verdadeiro Sabor de Minas®</p>
+    </PolicyLayout>
+);
+
 export const SubscriptionPolicy = () => (
     <PolicyLayout title="Política de Assinatura – Café Saporino Ltda.">
         <p className="text-sm text-gray-500 mb-6"><strong>Última atualização:</strong> 19 de novembro de 2025</p>

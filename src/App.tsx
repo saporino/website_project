@@ -14,7 +14,8 @@ import { Product, CartItem } from './types';
 import { createPreference, MERCADO_PAGO_PUBLIC_KEY } from './lib/mercadopago';
 import { getCarrierQuotes, lookupCEP, formatCEP, calculateCartWeight, CarrierQuote } from './lib/shipping';
 import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
-import { PrivacyPolicy, ShippingPolicy, RefundPolicy, TermsOfService, SubscriptionPolicy, BusinessPage } from './pages/PolicyPages';
+import { PrivacyPolicy, ShippingPolicy, RefundPolicy, TermsOfService, SubscriptionPolicy, CookiePolicy, BusinessPage } from './pages/PolicyPages';
+import CookieConsent from './components/CookieConsent';
 import { HistoryPage } from './pages/HistoryPage';
 import { PaymentSuccess, PaymentFailure, PaymentPending } from './pages/PaymentPages';
 import { TrackingPage } from './pages/TrackingPage';
@@ -108,6 +109,7 @@ function AppRouter() {
   if (currentPath === '/politica-reembolso') return <RefundPolicy />;
   if (currentPath === '/termos-servico') return <TermsOfService />;
   if (currentPath === '/politica-assinatura') return <SubscriptionPolicy />;
+  if (currentPath === '/politica-cookies') return <CookiePolicy />;
   if (currentPath === '/para-seu-negocio') return <BusinessPage />;
   if (currentPath === '/nossa-historia' || currentPath === '/sobre') return <HistoryPage />;
 
@@ -212,6 +214,7 @@ function AppContent() {
         loginContext={authLoginContext}
       />
       <PromoPopup onAction={(link) => openAuth(link === 'cadastro' ? 'register' : 'login')} />
+      <CookieConsent />
       <Toaster position="top-center" richColors />
     </div>
   );
@@ -1425,6 +1428,11 @@ const Footer = ({ scrollToSection }: any) => {
                 <li>
                   <button onClick={() => handleNavigation('/politica-privacidade')} className="text-white/80 hover:text-white transition-colors text-sm">
                     Política de Privacidade
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => handleNavigation('/politica-cookies')} className="text-white/80 hover:text-white transition-colors text-sm">
+                    Política de Cookies
                   </button>
                 </li>
                 <li>
