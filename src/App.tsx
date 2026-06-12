@@ -478,6 +478,58 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
 
         </div>
       </header>
+
+      {/* Menu mobile (drawer) */}
+      {isMobileMenuOpen && (
+        <div className="lg:hidden fixed inset-0 z-40 bg-white pt-24 px-6 pb-8 overflow-y-auto">
+          <nav className="flex flex-col gap-1 max-w-md mx-auto">
+            {[
+              { label: 'Loja', act: () => scrollToSection('products') },
+              { label: 'Assinatura', act: () => { window.history.pushState({}, '', '/assinatura'); window.dispatchEvent(new PopStateEvent('popstate')); setIsMobileMenuOpen(false); } },
+              { label: 'Sobre', act: () => { window.history.pushState({}, '', '/nossa-historia'); window.dispatchEvent(new PopStateEvent('popstate')); setIsMobileMenuOpen(false); } },
+              { label: 'Jornada', act: () => scrollToSection('journey') },
+              { label: 'Contato', act: () => scrollToSection('contact') },
+            ].map((it) => (
+              <button key={it.label} onClick={it.act}
+                className="w-full text-left text-lg font-semibold text-gray-900 py-4 px-3 rounded-xl hover:bg-stone-50 border-b border-gray-100">
+                {it.label}
+              </button>
+            ))}
+
+            <div className="h-3" />
+
+            {user && profile ? (
+              <>
+                {profile.is_admin && (
+                  <button onClick={() => { window.history.pushState({}, '', '/admin'); window.dispatchEvent(new PopStateEvent('popstate')); setIsMobileMenuOpen(false); }}
+                    className="w-full text-left text-base font-medium text-[#8B2214] py-3.5 px-3 rounded-xl hover:bg-stone-50">Painel Admin</button>
+                )}
+                {(profile.is_admin || isRepresentative) && (
+                  <button onClick={() => { window.history.pushState({}, '', '/repco'); window.dispatchEvent(new PopStateEvent('popstate')); setIsMobileMenuOpen(false); }}
+                    className="w-full text-left text-base font-medium text-[#8B2214] py-3.5 px-3 rounded-xl hover:bg-stone-50">Portal RepCo</button>
+                )}
+                <button onClick={() => { window.history.pushState({}, '', '/meu-perfil'); window.dispatchEvent(new PopStateEvent('popstate')); setIsMobileMenuOpen(false); }}
+                  className="w-full text-left text-base font-medium text-gray-700 py-3.5 px-3 rounded-xl hover:bg-stone-50">Meu Perfil</button>
+                <button onClick={() => { signOut(); setIsMobileMenuOpen(false); }}
+                  className="w-full text-left text-base font-medium text-gray-500 py-3.5 px-3 rounded-xl hover:bg-stone-50">Sair</button>
+              </>
+            ) : (
+              <button onClick={() => { onAuthOpen('login'); setIsMobileMenuOpen(false); }}
+                className="w-full bg-[#8B2214] text-white text-lg font-semibold py-4 rounded-full hover:bg-[#6d1a10]">Entrar</button>
+            )}
+
+            <button onClick={() => { onCartOpen(); setIsMobileMenuOpen(false); }}
+              className="w-full mt-2 flex items-center justify-center gap-2 border border-gray-200 text-gray-900 text-base font-semibold py-3.5 rounded-full hover:bg-stone-50">
+              <ShoppingCart className="w-5 h-5" /> Carrinho{getCartCount() > 0 ? ` (${getCartCount()})` : ''}
+            </button>
+
+            <a href="https://www.instagram.com/cafesaporino" target="_blank" rel="noopener noreferrer"
+              className="w-full mt-2 flex items-center justify-center gap-2 text-gray-600 text-base font-medium py-3.5 rounded-full hover:bg-stone-50">
+              <Instagram className="w-5 h-5" /> Instagram
+            </a>
+          </nav>
+        </div>
+      )}
     </>
   );
 };
