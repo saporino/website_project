@@ -103,10 +103,17 @@ def main():
         nonlocal batch
         if not batch or args.no_load: batch = []; return
         body = json.dumps(batch).encode("utf-8")
-        req = urllib.request.Request(f"{SUPA}/rest/v1/prospects_b2b", data=body, method="POST",
-            headers={"apikey":KEY,"Authorization":f"Bearer {KEY}","Content-Type":"application/json",
-                     "Prefer":"resolution=merge-duplicates,return=minimal"})
-        urllib.request.urlopen(req, timeout=180).read(); batch = []
+        # Retry com backoff: em tabela grande o upsert pode estourar timeout/rede pontualmente.
+        for attempt in range(5):
+            try:
+                req = urllib.request.Request(f"{SUPA}/rest/v1/prospects_b2b", data=body, method="POST",
+                    headers={"apikey":KEY,"Authorization":f"Bearer {KEY}","Content-Type":"application/json",
+                             "Prefer":"resolution=merge-duplicates,return=minimal"})
+                urllib.request.urlopen(req, timeout=300).read(); batch = []; return
+            except Exception as e:
+                if attempt == 4:
+                    print(f"  [flush] falhou apos retries: {e}"); raise
+                time.sleep(3 * (attempt + 1))
 
     with zipfile.ZipFile(est_zip) as z, z.open(z.namelist()[0]) as fh:
         reader = csv.reader(io.TextIOWrapper(fh, encoding="latin-1"), delimiter=";", quotechar='"')
@@ -142,7 +149,7 @@ def main():
                 "email": (row[27] or None) if len(row) > 27 else None,
                 "lat": lat, "lng": lng, "geocode_status": gstatus,
             })
-            if len(batch) >= 1000: flush()
+            if len(batch) >= 500: flush()
             if args.limit and matched >= args.limit: break
     flush()
 
