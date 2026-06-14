@@ -108,10 +108,15 @@ export default function RepCoIntelligence() {
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         <div className="flex items-center gap-3">
           <button onClick={goBack} className="p-2 rounded-lg hover:bg-gray-100"><ArrowLeft className="w-5 h-5 text-gray-600" /></button>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-bold text-gray-900">Inteligência Comercial</h1>
             <p className="text-sm text-gray-500">Visão do Diretor — dados próprios da Saporino (todas as vendas concluídas)</p>
           </div>
+          <button
+            onClick={() => { window.history.pushState({}, '', '/repco/inteligencia/cobertura'); window.dispatchEvent(new PopStateEvent('popstate')); }}
+            className="flex items-center gap-2 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg flex-shrink-0">
+            <MapPin className="w-4 h-4" /> Mapa de cobertura B2B
+          </button>
         </div>
 
         {busy ? <Center><div className="animate-spin rounded-full h-10 w-10 border-b-4" style={{ borderColor: PRIMARY }} /></Center> : (

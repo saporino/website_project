@@ -22,6 +22,7 @@ import { TrackingPage } from './pages/TrackingPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
 import { RepCoDashboard } from './pages/RepCoDashboard';
 import RepCoIntelligence from './pages/RepCoIntelligence';
+import RepCoCoverageMap from './pages/RepCoCoverageMap';
 import ProductDetail from './components/ProductDetail';
 import PromoPopup from './components/PromoPopup';
 import { trackVisit } from './lib/trackVisit';
@@ -94,6 +95,10 @@ function AppRouter() {
 
   if (currentPath === '/meu-perfil' || currentPath === '/profile') {
     return <UserProfile />;
+  }
+
+  if (currentPath === '/repco/inteligencia/cobertura') {
+    return <RepCoCoverageMap />;
   }
 
   if (currentPath === '/repco/inteligencia') {
