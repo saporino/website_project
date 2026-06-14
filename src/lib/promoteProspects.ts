@@ -3,6 +3,7 @@
 // ProspectionManager usa (match por dígitos do CNPJ contra a carteira). Não reescreve a
 // dedup do importador de CSV — apenas reaproveita a chave forte (CNPJ) no momento da promoção.
 import { supabase } from './supabase';
+import { normName } from './leadMatch';
 
 const onlyDigits = (s?: string | null) => (s || '').replace(/\D/g, '');
 
@@ -91,4 +92,65 @@ export async function promoteMunicipio(params: {
   }
 
   return { listId, total: leads.length, novos: leads.length - dupCount, duplicados: dupCount };
+}
+
+export interface AddResult { adicionados: number; ignorados: number; }
+
+/**
+ * "Fechar o buraco": adiciona PDVs do universo (prospects_b2b) a uma LISTA EXISTENTE do rep,
+ * reusando o mesmo caminho/dedup. Pula quem já está na lista (por CNPJ ou nome normalizado) e
+ * marca como 'duplicate' quem já é cliente (CNPJ). Não duplica leads.
+ */
+export async function addProspectsToList(params: {
+  listId: string;
+  prospects: ProspectRow[];
+}): Promise<AddResult> {
+  const { listId, prospects } = params;
+  if (!prospects.length) return { adicionados: 0, ignorados: 0 };
+
+  // leads que já existem na lista (dedup por CNPJ e por nome normalizado)
+  const { data: existing } = await supabase
+    .from('prospect_leads').select('cnpj,company_name,trade_name').eq('prospect_list_id', listId);
+  const seenCnpj = new Set<string>();
+  const seenName = new Set<string>();
+  (existing || []).forEach(l => {
+    const d = onlyDigits(l.cnpj); if (d) seenCnpj.add(d);
+    const n = normName(l.trade_name || l.company_name); if (n) seenName.add(n);
+  });
+
+  // carteira de clientes (CNPJ) -> marca duplicate_of_client_id
+  const { data: clients } = await supabase.from('representative_clients').select('id,cnpj');
+  const clientByCnpj = new Map<string, string>();
+  (clients || []).forEach(c => { const d = onlyDigits(c.cnpj); if (d) clientByCnpj.set(d, c.id); });
+
+  const fresh = prospects.filter(p => {
+    const d = onlyDigits(p.cnpj);
+    const n = normName(p.nome_fantasia || p.razao_social);
+    if (d && seenCnpj.has(d)) return false;
+    if (n && seenName.has(n)) return false;
+    return true;
+  });
+
+  const leads = fresh.map(p => {
+    const dupClientId = clientByCnpj.get(onlyDigits(p.cnpj)) || null;
+    return {
+      prospect_list_id: listId,
+      company_name: p.razao_social || p.nome_fantasia || p.cnpj,
+      trade_name: p.nome_fantasia, cnpj: p.cnpj, category: p.cnae_descricao, source: 'rf_dados_abertos',
+      address: p.logradouro, number: p.numero, complement: p.complemento, district: p.bairro,
+      city: p.municipio, state: p.uf, zip_code: p.cep, lat: p.lat, lng: p.lng,
+      geocode_status: (p.lat != null && p.lng != null) ? 'success' : 'pending',
+      geocode_source: (p.lat != null) ? 'municipio_centroide' : null,
+      phone: p.telefone, email: p.email,
+      raw_data: { cnae_principal: p.cnae_principal, fonte: 'rf_dados_abertos', origem: 'fechar_buraco' },
+      status: dupClientId ? 'duplicate' : 'new', duplicate_of_client_id: dupClientId,
+    };
+  });
+
+  const B = 500;
+  for (let i = 0; i < leads.length; i += B) {
+    const { error } = await supabase.from('prospect_leads').insert(leads.slice(i, i + B));
+    if (error) throw error;
+  }
+  return { adicionados: leads.length, ignorados: prospects.length - leads.length };
 }
