@@ -102,11 +102,17 @@ def main():
     def flush():
         nonlocal batch
         if not batch or args.no_load: batch = []; return
-        body = json.dumps(batch).encode("utf-8")
-        # Retry com backoff: em tabela grande o upsert pode estourar timeout/rede pontualmente.
+        # Dedup intra-lote por CNPJ (merge-duplicates do PostgREST nao aceita 2x a mesma chave no payload).
+        seen = {}
+        for r in batch:
+            seen[r["cnpj"]] = r
+        payload = list(seen.values())
+        body = json.dumps(payload).encode("utf-8")
+        # on_conflict=cnpj -> upsert pela UNIQUE(cnpj), nao pela PK (id). Sem isso vira INSERT puro
+        # e re-rodar uma parte da 409 na UNIQUE. Retry com backoff p/ timeouts pontuais.
         for attempt in range(5):
             try:
-                req = urllib.request.Request(f"{SUPA}/rest/v1/prospects_b2b", data=body, method="POST",
+                req = urllib.request.Request(f"{SUPA}/rest/v1/prospects_b2b?on_conflict=cnpj", data=body, method="POST",
                     headers={"apikey":KEY,"Authorization":f"Bearer {KEY}","Content-Type":"application/json",
                              "Prefer":"resolution=merge-duplicates,return=minimal"})
                 urllib.request.urlopen(req, timeout=300).read(); batch = []; return
