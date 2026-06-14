@@ -169,5 +169,16 @@ def main():
     for c, n in sorted(stats_cnae.items(), key=lambda x: -x[1])[:12]:
         print(f"    {c} {CNAE.get(c,''):40s} {n}")
 
+    # Refresh da materialized view do mapa de cobertura (a agregacao ao vivo nao escala).
+    if not args.no_load:
+        try:
+            req = urllib.request.Request(f"{SUPA}/rest/v1/rpc/exec_migration", method="POST",
+                data=json.dumps({"q": "REFRESH MATERIALIZED VIEW CONCURRENTLY public.mv_repco_prospects_muni"}).encode(),
+                headers={"apikey": KEY, "Authorization": f"Bearer {KEY}", "Content-Type": "application/json"})
+            urllib.request.urlopen(req, timeout=300).read()
+            print("  mv_repco_prospects_muni: refresh OK")
+        except Exception as e:
+            print(f"  [aviso] refresh da MV falhou (rode manualmente): {e}")
+
 if __name__ == "__main__":
     main()

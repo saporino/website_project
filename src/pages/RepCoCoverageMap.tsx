@@ -54,15 +54,25 @@ export default function RepCoCoverageMap() {
     let active = true;
     (async () => {
       setBusy(true); setSelMuni(null); setProspects([]);
+      // leads pode passar de 1000 (cap do PostgREST) -> pagina via range() até um teto.
+      const fetchLeads = async () => {
+        const PAGE = 1000, CAP = 8000; let out: Lead[] = [];
+        for (let from = 0; from < CAP; from += PAGE) {
+          const { data } = await supabase.from('vw_repco_leads_geo').select('*').range(from, from + PAGE - 1);
+          const rows = (data as Lead[]) || []; out = out.concat(rows);
+          if (rows.length < PAGE) break;
+        }
+        return out;
+      };
       const [c, cl, lg] = await Promise.all([
         supabase.from('vw_repco_cobertura').select('*').eq('uf', uf),
         supabase.from('vw_repco_clientes_geo').select('*').eq('uf', uf),
-        supabase.from('vw_repco_leads_geo').select('*'),
+        fetchLeads(),
       ]);
       if (!active) return;
       setCobertura((c.data as Cobertura[]) || []);
       setClientes((cl.data as ClienteGeo[]) || []);
-      const allLeads = ((lg.data as Lead[]) || []).filter(l => toUf(l.state) === uf);
+      const allLeads = (lg || []).filter(l => toUf(l.state) === uf);
       setLeads(allLeads);
       setEnabledReps(new Set(allLeads.map(l => l.rep_id || 'sem').filter(Boolean) as string[]));
       setBusy(false);
