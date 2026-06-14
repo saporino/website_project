@@ -157,7 +157,9 @@ function maskCnpj(value: string | null | undefined) {
 // o NÚMERO do CNPJ — isso NÃO é nome: descartamos valores só-dígitos.
 function leadDisplayName(lead: ProspectLead): string | null {
   const cand = [lead.trade_name, lead.company_name].map(v => (v || '').trim()).find(v => v && !/^\d+$/.test(v));
-  return cand || null;
+  if (!cand) return null;
+  // Razão social de MEI vem como "NOME DA PESSOA 00000000000" (CPF no fim) — limpa o CPF.
+  return cand.replace(/\s+\d{11}$/, '').trim() || cand;
 }
 
 function formatDistance(km: number | null) {
