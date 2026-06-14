@@ -28,6 +28,9 @@ interface ProspectLead {
   email: string | null;
   website: string | null;
   raw_data: Record<string, unknown> | null;
+  rf_cnpj: string | null;
+  rf_razao: string | null;
+  rf_match_status: string | null;
   status: string;
   audit_notes: string | null;
   rejection_reason: string | null;
@@ -107,14 +110,16 @@ const REJECTION_REASONS = [
 const SELECT_FIELDS = `
   id, prospect_list_id, representative_id, representative_client_id, company_name, trade_name, cnpj, cpf, category, segment,
   address, number, district, city, state, zip_code, lat, lng,
-  phone, whatsapp, email, website, raw_data, status, audit_notes, rejection_reason, visited_at, converted_at, created_at,
+  phone, whatsapp, email, website, raw_data, rf_cnpj, rf_razao, rf_match_status,
+  status, audit_notes, rejection_reason, visited_at, converted_at, created_at,
   prospect_lists(name, assigned_representative_id)
 `;
 
 const SELECT_LIST_FIELDS = `
   id, prospect_list_id, representative_id, representative_client_id, company_name, trade_name, cnpj, cpf, category, segment,
   address, number, district, city, state, zip_code, lat, lng,
-  phone, whatsapp, email, website, raw_data, status, audit_notes, rejection_reason, visited_at, converted_at, created_at,
+  phone, whatsapp, email, website, raw_data, rf_cnpj, rf_razao, rf_match_status,
+  status, audit_notes, rejection_reason, visited_at, converted_at, created_at,
   prospect_lists!inner(name, assigned_representative_id)
 `;
 
@@ -783,6 +788,17 @@ export default function RepCoProspection({ representativeId, currentLat, current
                       </select>
                       {!selectedListId && lead.prospect_lists?.name && <span className="max-w-full truncate rounded-full bg-gray-100 px-1.5 py-0.5 text-gray-700">Lista: {lead.prospect_lists.name}</span>}
                     </div>
+                    {/* Match com a Receita (RF): CNPJ enriquecido (confirmado) ou pendente de confirmação */}
+                    {lead.rf_match_status === 'confirmed' && lead.rf_cnpj && (
+                      <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-green-50 border border-green-200 px-1.5 py-0.5 text-[11px] text-green-800" title={lead.rf_razao || ''}>
+                        <span className="font-semibold">RF ✓ CNPJ</span> {maskCnpj(lead.rf_cnpj)}
+                      </p>
+                    )}
+                    {lead.rf_match_status === 'pending' && (
+                      <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[11px] text-amber-800">
+                        RF? possível CNPJ — <span className="font-semibold">pendente de confirmação</span>
+                      </p>
+                    )}
                     {address && (
                       <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-relaxed text-gray-600">
                         <MapPin className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-gray-400" />

@@ -7,7 +7,7 @@ import PriceListManager from './PriceListManager';
 import RepCoOrdersManager from './RepCoOrdersManager';
 import RepCoCommissionsManager from './RepCoCommissionsManager';
 import RepCoPayoutBlocks from './RepCoPayoutBlocks';
-import ProspectionManager from './ProspectionManager';
+import ProspectionAdmin from './ProspectionAdmin';
 import RepCoMobilePreview from './RepCoMobilePreview';
 
 const RepCoLiveMap = lazy(() => import('./RepCoLiveMap'));
@@ -879,7 +879,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
             <p className="text-sm text-gray-500">Listas CSV e leads de prospecção para representantes</p>
           </div>
         </div>
-        <ProspectionManager refreshKey={refreshKey} />
+        <ProspectionAdmin refreshKey={refreshKey} />
       </div>
     );
   }
