@@ -44,8 +44,10 @@ Deno.serve(async (req) => {
         return json({ error: "Parametros: keywords[], uf, municipio." }, 400);
 
       const cap = Math.max(1, Math.min(Number(maxPlaces) || 100, 300)); // cap server-side
-      const area = [bairro, municipio, uf].filter(Boolean).join(", ");
-      const searchStringsArray = keywords.map((k: string) => `${k} ${area}`);
+      // GEO-BOUND: locationQuery prende a busca à cidade (senão o Google devolve PDVs de outras
+      // cidades). searchStrings ficam só com a keyword; a área entra no locationQuery.
+      const locationQuery = [bairro, municipio, uf, "Brasil"].filter(Boolean).join(", ");
+      const searchStringsArray = keywords.map((k: string) => String(k));
       const placesEstimate = cap * keywords.length;
       const cost = +(placesEstimate * COST_PER_PLACE).toFixed(2);
 
@@ -68,7 +70,7 @@ Deno.serve(async (req) => {
       const runId = runRow!.id;
 
       // dispara o actor (assincrono)
-      const input = { searchStringsArray, maxCrawledPlacesPerSearch: cap, language: "pt-BR", countryCode: "br" };
+      const input = { searchStringsArray, locationQuery, maxCrawledPlacesPerSearch: cap, language: "pt-BR", countryCode: "br" };
       const start = await fetch(`${APIFY}/acts/${ACTOR}/runs?token=${token}`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
       });

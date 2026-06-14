@@ -24,14 +24,18 @@ export interface ApifyImportParams {
 }
 
 export interface ApifyImportResult {
-  listId: string; criados: number; enriquecidos: number; pendentes: number; ignorados: number;
+  listId: string; criados: number; enriquecidos: number; pendentes: number; ignorados: number; fora: number;
 }
 
 interface RfRow { cnpj: string; nome_fantasia: string | null; razao_social: string | null; bairro: string | null; }
 
 export async function importApifyLeads(p: ApifyImportParams): Promise<ApifyImportResult> {
-  const places = (p.items || []).filter(it => (it.title || '').trim());
-  if (!places.length) throw new Error('Nenhum place retornado.');
+  // Rede de segurança geográfica: o Google às vezes devolve PDVs de outras cidades.
+  // Só entram no pool os que SÃO do município alvo (ou sem cidade preenchida).
+  const alvo = normName(p.municipio);
+  const fora = (p.items || []).filter(it => (it.title || '').trim() && it.city && normName(it.city) !== alvo).length;
+  const places = (p.items || []).filter(it => (it.title || '').trim() && (!it.city || normName(it.city) === alvo));
+  if (!places.length) throw new Error('Nenhum place do município retornado.');
   const muniStop = new Set(normName(p.municipio).split(' ').filter(Boolean));
 
   // 1) universo RF do município (só não-cobertos) para o match — paginado (cap PostgREST 1000)
@@ -151,5 +155,5 @@ export async function importApifyLeads(p: ApifyImportParams): Promise<ApifyImpor
     }).eq('id', p.runId);
   }
 
-  return { listId, criados, enriquecidos, pendentes, ignorados };
+  return { listId, criados, enriquecidos, pendentes, ignorados, fora };
 }

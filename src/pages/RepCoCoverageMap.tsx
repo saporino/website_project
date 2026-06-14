@@ -271,7 +271,7 @@ export default function RepCoCoverageMap() {
             items: r.items, uf: apifyRun.params.uf, municipio: apifyRun.params.municipio,
             category: apifyRun.params.category, segment: apifyRun.params.segment, runId: apifyRun.runId,
           });
-          setMsg(`Apify: ${res.criados} leads no pool · ${res.enriquecidos} com CNPJ da RF · ${res.pendentes} p/ confirmar · ${res.ignorados} repetidos. Atribua na Prospecção.`);
+          setMsg(`Apify: ${res.criados} leads no pool · ${res.enriquecidos} com CNPJ da RF · ${res.pendentes} p/ confirmar · ${res.ignorados} repetidos${res.fora ? ` · ${res.fora} fora da cidade (descartados)` : ''}. Atribua na Prospecção.`);
           setReloadKey(k => k + 1);
         } catch (e) { setMsg('Apify importou com erro: ' + (e instanceof Error ? e.message : String(e))); }
         setApifyRun(null);
