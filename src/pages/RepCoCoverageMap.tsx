@@ -50,6 +50,7 @@ export default function RepCoCoverageMap() {
   const [loadingMuni, setLoadingMuni] = useState(false);
   const [promoting, setPromoting] = useState(false);
   const [msg, setMsg] = useState('');
+  const [citySearch, setCitySearch] = useState('');
   const [showApify, setShowApify] = useState(false);
   const [apifyBusy, setApifyBusy] = useState(false);
   const [apifyRun, setApifyRun] = useState<{ runId: string; status: string; params: ApifyStartParams } | null>(null);
@@ -372,15 +373,30 @@ export default function RepCoCoverageMap() {
             <div className="bg-white border border-gray-200 rounded-xl p-4">
               {!selMuni ? (
                 <>
-                  <h3 className="font-bold text-gray-900 mb-3">Ranking de buracos</h3>
-                  <div className="space-y-1.5 max-h-[470px] overflow-y-auto">
-                    {[...cobertura].filter(c => c.prospects > 0).sort((a, b) => (a.clientes - b.clientes) || (b.prospects - a.prospects)).slice(0, 30).map(c => (
-                      <button key={c.municipio} onClick={() => openMuni(c.municipio)} className="w-full flex items-center justify-between text-left px-3 py-2 rounded-lg hover:bg-gray-50 border border-gray-100">
-                        <span className="text-sm text-gray-800 truncate">{c.municipio}</span>
-                        <span className="text-xs flex-shrink-0 ml-2"><span className="font-semibold" style={{ color: c.clientes ? GREEN : RED }}>{c.prospects}</span><span className="text-gray-400"> PDV · {c.clientes} cli</span></span>
-                      </button>
-                    ))}
+                  <h3 className="font-bold text-gray-900 mb-2">{citySearch.trim() ? 'Buscar cidade' : 'Ranking de buracos'}</h3>
+                  <div className="relative mb-2">
+                    <Search className="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <input value={citySearch} onChange={e => setCitySearch(e.target.value)} placeholder="Buscar qualquer cidade de SP…"
+                      className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 text-sm" />
                   </div>
+                  {(() => {
+                    const q = normName(citySearch);
+                    const list = q
+                      ? [...cobertura].filter(c => normName(c.municipio).includes(q)).sort((a, b) => b.prospects - a.prospects).slice(0, 60)
+                      : [...cobertura].filter(c => c.prospects > 0).sort((a, b) => (a.clientes - b.clientes) || (b.prospects - a.prospects)).slice(0, 30);
+                    return (
+                      <div className="space-y-1.5 max-h-[430px] overflow-y-auto">
+                        {!q && <p className="text-[11px] text-gray-400 mb-1">Top 30 de {cobertura.length} cidades (mais PDVs, menos clientes). Use a busca para qualquer outra.</p>}
+                        {list.map(c => (
+                          <button key={c.municipio} onClick={() => openMuni(c.municipio)} className="w-full flex items-center justify-between text-left px-3 py-2 rounded-lg hover:bg-gray-50 border border-gray-100">
+                            <span className="text-sm text-gray-800 truncate">{c.municipio}</span>
+                            <span className="text-xs flex-shrink-0 ml-2"><span className="font-semibold" style={{ color: c.clientes ? GREEN : RED }}>{c.prospects}</span><span className="text-gray-400"> PDV · {c.clientes} cli</span></span>
+                          </button>
+                        ))}
+                        {q && list.length === 0 && <p className="text-xs text-gray-400 py-3 text-center">Nenhuma cidade com "{citySearch}".</p>}
+                      </div>
+                    );
+                  })()}
                 </>
               ) : (
                 <>
