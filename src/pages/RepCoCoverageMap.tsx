@@ -3,9 +3,11 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { MapContainer, TileLayer, CircleMarker, Tooltip } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { ArrowLeft, Lock, MapPin, Store, Target, Loader2, Plus, Users } from 'lucide-react';
+import { ArrowLeft, Lock, MapPin, Store, Target, Loader2, Plus, Users, Search } from 'lucide-react';
 import { promoteMunicipio, addProspectsToList } from '../lib/promoteProspects';
 import { leadMatchesProspect, normName } from '../lib/leadMatch';
+import { importApifyLeads } from '../lib/importApifyLeads';
+import ApifyRunModal, { type ApifyStartParams } from '../components/repco/ApifyRunModal';
 
 const PRIMARY = '#8B2214';
 const GREEN = '#16a34a', GRAY = '#9ca3af', ORANGE = '#f59e0b', RED = '#dc2626';
@@ -48,6 +50,10 @@ export default function RepCoCoverageMap() {
   const [loadingMuni, setLoadingMuni] = useState(false);
   const [promoting, setPromoting] = useState(false);
   const [msg, setMsg] = useState('');
+  const [showApify, setShowApify] = useState(false);
+  const [apifyBusy, setApifyBusy] = useState(false);
+  const [apifyRun, setApifyRun] = useState<{ runId: string; status: string; params: ApifyStartParams } | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!profile?.is_admin) return;
@@ -78,7 +84,7 @@ export default function RepCoCoverageMap() {
       setBusy(false);
     })();
     return () => { active = false; };
-  }, [profile?.is_admin, uf]);
+  }, [profile?.is_admin, uf, reloadKey]);
 
   // representantes (com lead no mapa) + cor
   const reps = useMemo(() => {
@@ -193,6 +199,59 @@ export default function RepCoCoverageMap() {
     } catch (e) { setMsg('Erro: ' + (e instanceof Error ? e.message : String(e))); }
     setPromoting(false);
   }
+
+  // ---- Apify (Google Maps): dispara run assíncrono via Edge Function (token só no backend) ----
+  async function callApify(payload: Record<string, unknown>) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/apify-places`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify(payload),
+    });
+    return res.json();
+  }
+
+  async function handleApifyStart(params: ApifyStartParams) {
+    setApifyBusy(true); setMsg('');
+    try {
+      const r = await callApify({ action: 'start', ...params });
+      if (r.error) {
+        if (r.error === 'budget') setMsg('Orçamento mensal do Apify atingido — ' + (r.message || ''));
+        else if (r.error === 'no_credit') setMsg('Crédito Apify do mês esgotado — use o import CSV ou aguarde a renovação.');
+        else setMsg('Erro ao disparar Apify: ' + (r.message || r.error));
+        return;
+      }
+      setShowApify(false);
+      setApifyRun({ runId: r.runId, status: 'running', params });
+      setMsg(`Busca disparada (~${r.placesEstimate} places ≈ US$ ${r.cost}). Importo e aviso ao terminar — pode continuar usando o mapa.`);
+    } finally { setApifyBusy(false); }
+  }
+
+  // polling do run em andamento
+  useEffect(() => {
+    if (!apifyRun || apifyRun.status !== 'running') return;
+    let alive = true;
+    const tick = async () => {
+      const r = await callApify({ action: 'status', runId: apifyRun.runId });
+      if (!alive) return;
+      if (r.status === 'running') return;
+      if (r.status === 'succeeded') {
+        try {
+          const res = await importApifyLeads({
+            items: r.items, uf: apifyRun.params.uf, municipio: apifyRun.params.municipio,
+            category: apifyRun.params.category, segment: apifyRun.params.segment,
+            listId: null, representativeId: apifyRun.params.representativeId, runId: apifyRun.runId,
+          });
+          setMsg(`Apify concluído: ${res.criados} leads novos, ${res.duplicados} já clientes, ${res.ignorados} repetidos. Já no mapa e na Prospecção.`);
+          setReloadKey(k => k + 1);
+        } catch (e) { setMsg('Apify importou com erro: ' + (e instanceof Error ? e.message : String(e))); }
+        setApifyRun(null);
+      } else if (r.status === 'no_credit') { setMsg('Crédito Apify esgotado durante o run.'); setApifyRun(null); }
+      else { setMsg('Run Apify falhou: ' + (r.message || r.status)); setApifyRun(null); }
+    };
+    const id = setInterval(tick, 6000); tick();
+    return () => { alive = false; clearInterval(id); };
+  }, [apifyRun]);
 
   if (loading) return <Center><Loader2 className="w-9 h-9 animate-spin" style={{ color: PRIMARY }} /></Center>;
   if (!profile?.is_admin) return (
@@ -350,8 +409,13 @@ export default function RepCoCoverageMap() {
                     </button>
                   )}
                   <button onClick={handleCreateList} disabled={promoting || loadingMuni || prospects.length === 0}
-                    className="w-full flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 disabled:opacity-50 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg mb-3">
-                    <Plus className="w-4 h-4" /> Criar nova lista desta cidade
+                    className="w-full flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 disabled:opacity-50 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg mb-2">
+                    <Plus className="w-4 h-4" /> Criar nova lista desta cidade (base RF)
+                  </button>
+                  <button onClick={() => setShowApify(true)} disabled={!!apifyRun}
+                    className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 rounded-lg mb-3">
+                    {apifyRun ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                    {apifyRun ? 'Buscando no Google…' : 'Buscar leads reais (Apify)'}
                   </button>
                   {msg && <p className="text-xs mb-3 p-2 rounded bg-gray-50 border border-gray-100 text-gray-700">{msg}</p>}
 
@@ -372,6 +436,11 @@ export default function RepCoCoverageMap() {
           </div>
         )}
       </div>
+
+      {showApify && selMuni && (
+        <ApifyRunModal uf={uf} municipio={selMuni} busy={apifyBusy}
+          onStart={handleApifyStart} onClose={() => setShowApify(false)} />
+      )}
     </div>
   );
 }

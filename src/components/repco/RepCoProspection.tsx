@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle, Clock, ExternalLink, Globe2, Mail, MapPin, MessageCircle, Phone, RotateCcw, UserPlus, ChevronLeft, List } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
-import { SEGMENT_LABEL } from '../../constants/segments';
+import { CLIENT_SEGMENTS } from '../../constants/segments';
 
 interface ProspectLead {
   id: string;
@@ -104,20 +104,6 @@ const REJECTION_REASONS = [
   'Outro',
 ];
 
-const PROSPECT_SEGMENT_LABEL: Record<string, string> = {
-  padaria: 'Padaria',
-  cafeteria: 'cafeteria',
-  food_service: 'Food service',
-  hotelaria: 'Hotelaria',
-  alimentacao_coletiva: 'Alimentação coletiva',
-  distribuicao: 'Distribuição',
-  varejo: 'Varejo',
-  confeitaria: 'Confeitaria',
-  institucional: 'Institucional',
-  corporativo: 'Corporativo',
-  outros: 'Outros',
-};
-
 const SELECT_FIELDS = `
   id, prospect_list_id, representative_id, representative_client_id, company_name, trade_name, cnpj, cpf, category, segment,
   address, number, district, city, state, zip_code, lat, lng,
@@ -168,10 +154,6 @@ function formatDistance(km: number | null) {
   return `${km.toFixed(1).replace('.', ',')} km`;
 }
 
-function getSegmentLabel(segment: string | null) {
-  if (!segment) return '-';
-  return PROSPECT_SEGMENT_LABEL[segment] || SEGMENT_LABEL[segment] || segment;
-}
 
 function normalizeKey(key: string) {
   return key
@@ -787,9 +769,18 @@ export default function RepCoProspection({ representativeId, currentLat, current
                     </div>
                     {/* CNPJ mascarado como secundário (quando há nome no título) */}
                     {leadDisplayName(lead) && lead.cnpj && <p className="truncate text-xs text-gray-500">{maskCnpj(lead.cnpj)}</p>}
-                    <div className="mt-1.5 flex flex-wrap gap-1 text-[10px]">
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1 text-[10px]">
                       {lead.category && <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-gray-700">{lead.category}</span>}
-                      <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-gray-700">{getSegmentLabel(lead.segment)}</span>
+                      {/* Segmento editável (provisório até a conversão definir o definitivo) */}
+                      <select
+                        value={lead.segment || ''}
+                        onClick={e => e.stopPropagation()}
+                        onChange={e => { e.stopPropagation(); updateLead(lead, { segment: e.target.value || null }); }}
+                        title="Segmento provisório — o definitivo é confirmado na conversão"
+                        className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-700 border-0 cursor-pointer hover:bg-gray-200">
+                        <option value="">Segmento…</option>
+                        {CLIENT_SEGMENTS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                      </select>
                       {!selectedListId && lead.prospect_lists?.name && <span className="max-w-full truncate rounded-full bg-gray-100 px-1.5 py-0.5 text-gray-700">Lista: {lead.prospect_lists.name}</span>}
                     </div>
                     {address && (
