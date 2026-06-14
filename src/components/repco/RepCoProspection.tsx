@@ -146,6 +146,20 @@ function buildAddress(lead: ProspectLead) {
   return [lead.address, lead.number, lead.district, lead.city, lead.state].filter(Boolean).join(', ');
 }
 
+// CNPJ "00000000000000" -> "00.000.000/0000-00"
+function maskCnpj(value: string | null | undefined) {
+  const d = (value || '').replace(/\D/g, '');
+  if (d.length !== 14) return value || null;
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+}
+
+// Nome utilizável do lead. Leads da base RF sem razão social tiveram company_name gravado como
+// o NÚMERO do CNPJ — isso NÃO é nome: descartamos valores só-dígitos.
+function leadDisplayName(lead: ProspectLead): string | null {
+  const cand = [lead.trade_name, lead.company_name].map(v => (v || '').trim()).find(v => v && !/^\d+$/.test(v));
+  return cand || null;
+}
+
 function formatDistance(km: number | null) {
   if (km === null) return null;
   if (km < 1) return `${Math.round(km * 1000)} m`;
@@ -313,7 +327,7 @@ export default function RepCoProspection({ representativeId, currentLat, current
     function handleProspectionUpdated(event: Event) {
       const detail = (event as CustomEvent<{ representativeId?: string }>).detail;
       if (!detail?.representativeId || detail.representativeId === representativeId) {
-        fetchLeads();
+        fetchLeads({ silent: true });
       }
     }
 
@@ -325,8 +339,10 @@ export default function RepCoProspection({ representativeId, currentLat, current
     };
   }, [representativeId]);
 
-  async function fetchLeads() {
-    setLoading(true);
+  async function fetchLeads(opts?: { silent?: boolean }) {
+    // Refetch silencioso (foco da janela / após uma ação) NÃO mexe em `loading`, para não
+    // desmontar a lista aberta e perder o scroll do rep. Só o load inicial mostra spinner.
+    if (!opts?.silent) setLoading(true);
     const [
       { data: directLeads, error: directError },
       { data: listLeads, error: listError },
@@ -350,8 +366,7 @@ export default function RepCoProspection({ representativeId, currentLat, current
     ]);
 
     if (directError || listError) {
-      toast.error('Não foi possível carregar sua prospecção.');
-      setLoading(false);
+      if (!opts?.silent) { toast.error('Não foi possível carregar sua prospecção.'); setLoading(false); }
       return;
     }
 
@@ -398,16 +413,23 @@ export default function RepCoProspection({ representativeId, currentLat, current
   }
 
   function openDirections(lead: ProspectLead, app: 'google' | 'waze') {
-    // Navega pelo NOME + endereço — mais confiável que coordenadas brutas do Apify,
-    // que às vezes apontam para outro negócio na mesma quadra.
-    const address = buildAddress(lead);
-    const query = [lead.company_name || lead.trade_name, address].filter(Boolean).join(', ');
+    // Busca pelo NOME (razão/fantasia) + município + UF — mais confiável.
+    // NUNCA usa o CNPJ na query (poluía a busca) nem as coordenadas do endereço FISCAL da RF
+    // (que apontam para casa do dono/contador). Sem nome, cai para o endereço LIMPO.
+    const name = leadDisplayName(lead);
+    const query = name
+      ? [name, lead.city, lead.state].filter(Boolean).join(', ')
+      : buildAddress(lead);
+    if (!query) {
+      toast.info('Sem nome ou endereço para localizar.');
+      return;
+    }
     const encoded = encodeURIComponent(query);
     const url =
       app === 'waze'
         ? `https://waze.com/ul?q=${encoded}&navigate=yes`
         : `https://www.google.com/maps/search/?api=1&query=${encoded}`;
-    window.open(url, '_blank');
+    window.open(url, '_blank', 'noopener,noreferrer');
   }
 
   function handleCheckIn(lead: ProspectLead) {
@@ -755,13 +777,14 @@ export default function RepCoProspection({ representativeId, currentLat, current
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="min-w-0 flex-1 text-[13px] font-semibold text-gray-900">{lead.trade_name || lead.company_name}</h4>
+                      <h4 className="min-w-0 flex-1 text-[13px] font-semibold text-gray-900">{leadDisplayName(lead) || maskCnpj(lead.cnpj) || 'Sem nome cadastrado'}</h4>
                       <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${statusClass}`}>
                         {STATUS_LABEL[lead.status] || lead.status}
                       </span>
                       {distance !== null && <span className="rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">{formatDistance(distance)}</span>}
                     </div>
-                    {lead.trade_name && <p className="truncate text-xs text-gray-500">{lead.company_name}</p>}
+                    {/* CNPJ mascarado como secundário (quando há nome no título) */}
+                    {leadDisplayName(lead) && lead.cnpj && <p className="truncate text-xs text-gray-500">{maskCnpj(lead.cnpj)}</p>}
                     <div className="mt-1.5 flex flex-wrap gap-1 text-[10px]">
                       {lead.category && <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-gray-700">{lead.category}</span>}
                       <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-gray-700">{getSegmentLabel(lead.segment)}</span>
