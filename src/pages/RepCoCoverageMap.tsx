@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { MapContainer, TileLayer, CircleMarker, Tooltip } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Tooltip, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { ArrowLeft, Lock, MapPin, Store, Target, Loader2, Plus, Users, Search } from 'lucide-react';
 import { promoteMunicipio, addProspectsToList } from '../lib/promoteProspects';
-import { leadMatchesProspect, normName } from '../lib/leadMatch';
+import { leadMatchesProspect, normName, distMeters } from '../lib/leadMatch';
 import { importApifyLeads } from '../lib/importApifyLeads';
 import ApifyRunModal, { type ApifyStartParams } from '../components/repco/ApifyRunModal';
 
@@ -32,6 +32,12 @@ function goBack() { window.history.pushState({}, '', '/repco/inteligencia'); win
 const Center = ({ children }: { children: React.ReactNode }) => (
   <div className="min-h-screen bg-[#f8f7f5] flex items-center justify-center p-6">{children}</div>
 );
+
+// Clicar em qualquer ponto do mapa seleciona a cidade mais próxima (não precisa acertar a bolha).
+function MapClicker({ onPick }: { onPick: (lat: number, lng: number) => void }) {
+  useMapEvents({ click(e) { onPick(e.latlng.lat, e.latlng.lng); } });
+  return null;
+}
 const DEAD = ['rejected', 'invalid', 'duplicate'];
 
 export default function RepCoCoverageMap() {
@@ -164,6 +170,17 @@ export default function RepCoCoverageMap() {
     const cov = withCoord.filter(p => covered(p));
     return uncov.concat(cov).slice(0, MARKER_CAP);
   }, [prospects, cross]);
+
+  // clique no mapa -> seleciona a cidade (bolha) mais próxima do ponto clicado (até ~30 km)
+  function handleMapPick(lat: number, lng: number) {
+    let best: Cobertura | null = null, bestD = Infinity;
+    for (const c of shownBubbles) {
+      if (c.lat == null || c.lng == null) continue;
+      const d = distMeters([lat, lng], [c.lat, c.lng]);
+      if (d < bestD) { bestD = d; best = c; }
+    }
+    if (best && bestD < 30000) openMuni(best.municipio);
+  }
 
   async function openMuni(municipio: string) {
     setSelMuni(municipio); setLoadingMuni(true); setProspects([]); setMsg('');
@@ -320,6 +337,7 @@ export default function RepCoCoverageMap() {
               <div className="rounded-lg overflow-hidden border border-gray-100" style={{ height: 500 }}>
                 <MapContainer center={center} zoom={7} style={{ height: '100%', width: '100%' }} scrollWheelZoom={true}>
                   <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <MapClicker onPick={handleMapPick} />
                   {/* 1) bolhas de município */}
                   {shownBubbles.map(c => {
                     const col = c.clientes > 0 ? ORANGE : RED;
@@ -366,7 +384,7 @@ export default function RepCoCoverageMap() {
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full inline-block" style={{ background: ORANGE }} /> PDV sem atendimento</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full inline-block" style={{ background: GRAY }} /> coberto / já cliente</span>
               </div>
-              <p className="text-[11px] text-gray-400 mt-1">Fonte CNPJ: Receita Federal — Dados Abertos · leads da Prospecção · © OpenStreetMap contributors.</p>
+              <p className="text-[11px] text-gray-500 mt-1.5"><strong>Clique numa cidade no mapa</strong> (ou busque pelo nome) para abrir o painel e disparar a busca por setor. Fonte CNPJ: Receita Federal — Dados Abertos · © OpenStreetMap contributors.</p>
             </div>
 
             {/* Painel lateral */}
