@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { CLIENT_SEGMENTS, SEGMENT_LABEL } from '../../constants/segments';
 import type { ClientSegment } from '../../constants/segments';
 import BoletoCombinationPicker from './BoletoCombinationPicker';
+import { geocodeClientById } from '../../lib/geocodeClient';
 interface RepCoClient {
   id: string; representative_id: string; cnpj: string | null; cpf: string | null;
   nome_completo: string | null; razao_social: string | null; nome_fantasia: string | null;
@@ -10,6 +11,7 @@ interface RepCoClient {
   email_xml: string | null; nome_comprador: string | null; whatsapp_comprador: string | null;
   prazo_pagamento: string | null; forma_pagamento: string | null; limite_credito: number;
   cep: string | null; municipio: string | null; uf: string | null; bairro: string | null;
+  lat: number | null; lng: number | null;
   credito_score: number | null; score_serasa_pdf_url: string | null; score_serasa_pdf_filename: string | null;
   status: string; segment: ClientSegment | null; inscricao_estadual: string | null;
   last_order_at: string | null; inactivity_snoozed_until: string | null;
@@ -170,11 +172,24 @@ export default function RepCoClients({ representativeId, previewMode = false, re
       score_serasa_pdf_url:form.score_serasa_pdf_url||null,score_serasa_pdf_filename:form.score_serasa_pdf_filename||null,
       limite_credito:form.limite_credito||0,segment:form.segment||null,
       inscricao_estadual:form.inscricao_estadual||null,status:'active',is_active_client:true};
-    const{error}=view==='edit'&&sel
-      ? await supabase.from('representative_clients').update(p).eq('id',sel.id)
-      : await supabase.from('representative_clients').insert(p);
+    let savedId:string|null=null; let error:{message:string}|null=null;
+    if(view==='edit'&&sel){
+      const r=await supabase.from('representative_clients').update(p).eq('id',sel.id);
+      error=r.error; savedId=sel.id;
+    } else {
+      const r=await supabase.from('representative_clients').insert(p).select('id').single();
+      error=r.error; savedId=r.data?.id??null;
+    }
     if(error){setErr('Erro: '+error.message);}
-    else{setOk(view==='edit'?'Atualizado!':'Cadastrado!');fetchClients();notifyClientsUpdated();setView('list');setTimeout(()=>setOk(''),3000);}
+    else{
+      setOk(view==='edit'?'Atualizado!':'Cadastrado!');fetchClients();notifyClientsUpdated();setView('list');setTimeout(()=>setOk(''),3000);
+      // Geocodificação não-bloqueante: só quando ainda não há coordenada (cadastro novo ou
+      // edição de cliente sem lat). Best-effort — se falhar, o backfill recolhe depois.
+      const hadCoord=view==='edit'&&sel?.lat!=null&&sel?.lng!=null;
+      if(savedId&&!hadCoord){
+        void geocodeClientById(savedId,{cep:form.cep,endereco_completo:form.endereco_completo,municipio:form.municipio,uf:form.uf});
+      }
+    }
     setSaving(false);
   }
   async function handleDeleteClient(client: RepCoClient){
