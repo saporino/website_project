@@ -84,3 +84,30 @@ export function leadMatchesProspect(lead: MatchableLead, prospect: MatchablePros
   if (best >= 0.34 && near) return { match: true, reason: 'nome+geo', score: best };
   return { match: false, reason: '', score: best };
 }
+
+// ---- Match RF (scraper x prospects_b2b) por NOME + MESMO BAIRRO (sem metros) ----
+// O endereço da RF é FISCAL/centroide -> distância não é sinal. Bairro é o discriminador.
+export interface RfMatchLead { company_name?: string | null; trade_name?: string | null; district?: string | null; }
+export interface RfMatchProspect { nome_fantasia?: string | null; razao_social?: string | null; bairro?: string | null; }
+
+export function classifyRfMatch(lead: RfMatchLead, rf: RfMatchProspect, opts?: { extraStop?: Set<string> }):
+  { level: 'high' | 'medium' | 'none'; score: number; reason: string } {
+  const leadTok = coreTokens(lead.trade_name || lead.company_name, opts?.extraStop);
+  if (!leadTok.length) return { level: 'none', score: 0, reason: '' };
+  let best = 0, bestShared: string[] = [];
+  for (const n of [rf.nome_fantasia, rf.razao_social]) {
+    const t = coreTokens(n, opts?.extraStop);
+    if (!t.length) continue;
+    const st = tokenStats(leadTok, t);
+    if (st.jaccard > best) { best = st.jaccard; bestShared = st.shared; }
+  }
+  const nameStrong = best >= 0.5 && (bestShared.length >= 2 || bestShared.some(t => t.length >= 6));
+  const nameMedium = best >= 0.34;
+  const lb = normName(lead.district), rb = normName(rf.bairro);
+  const sameBairro = !!lb && !!rb && lb === rb;
+  // mesmo município é garantido pelo chamador (comparamos dentro do município).
+  if (nameStrong && sameBairro) return { level: 'high', score: best, reason: 'nome forte + mesmo bairro' };
+  if (nameStrong) return { level: 'medium', score: best, reason: 'nome forte, bairro difere/ausente' };
+  if (nameMedium) return { level: 'medium', score: best, reason: 'nome médio' };
+  return { level: 'none', score: best, reason: '' };
+}

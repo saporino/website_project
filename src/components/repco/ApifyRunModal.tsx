@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { supabase } from '../../lib/supabase';
 import { APIFY_KEYWORD_GROUPS } from '../../constants/prospectKeywords';
 import type { ClientSegment } from '../../constants/segments';
 import { SEGMENT_LABEL } from '../../constants/segments';
@@ -22,8 +21,6 @@ export default function ApifyRunModal({ uf, municipio, onStart, onClose, busy }:
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bairro, setBairro] = useState('');
   const [maxPlaces, setMaxPlaces] = useState(100);
-  const [reps, setReps] = useState<{ id: string; full_name: string }[]>([]);
-  const [repId, setRepId] = useState('');
 
   const group = APIFY_KEYWORD_GROUPS[catIdx];
 
@@ -31,11 +28,6 @@ export default function ApifyRunModal({ uf, municipio, onStart, onClose, busy }:
     // por padrão seleciona as 3 primeiras keywords da categoria (controle de custo)
     setSelected(new Set(group.keywords.slice(0, 3)));
   }, [catIdx]);
-
-  useEffect(() => {
-    supabase.from('representatives').select('id,full_name').eq('status', 'active').order('full_name')
-      .then(({ data }) => setReps((data as any[]) || []));
-  }, []);
 
   const places = maxPlaces * selected.size;
   const cost = (places * COST_PER_PLACE).toFixed(2);
@@ -85,13 +77,7 @@ export default function ApifyRunModal({ uf, municipio, onStart, onClose, busy }:
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Atribuir a um representante (opcional)</label>
-            <select value={repId} onChange={e => setRepId(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-              <option value="">— sem atribuir (você distribui depois) —</option>
-              {reps.map(r => <option key={r.id} value={r.id}>{r.full_name}</option>)}
-            </select>
-          </div>
+          <p className="text-[11px] text-gray-500">O resultado vira um <strong>pool não-atribuído</strong> em Prospecção — você distribui aos reps por bairro/quantidade depois.</p>
 
           <div className="rounded-lg bg-[#f5f0ef] p-3 text-sm">
             <div className="flex justify-between"><span className="text-gray-600">Estimativa</span><span className="font-semibold text-gray-900">~{places} places</span></div>
@@ -102,7 +88,7 @@ export default function ApifyRunModal({ uf, municipio, onStart, onClose, busy }:
 
         <div className="flex gap-2 p-5 border-t border-gray-100">
           <button onClick={onClose} className="flex-1 border border-gray-300 text-gray-700 rounded-lg py-2.5 text-sm font-semibold hover:bg-gray-50">Cancelar</button>
-          <button disabled={busy || selected.size === 0} onClick={() => onStart({ category: group.category, segment: group.segment, keywords: [...selected], uf, municipio, bairro: bairro.trim() || null, maxPlaces, representativeId: repId || null })}
+          <button disabled={busy || selected.size === 0} onClick={() => onStart({ category: group.category, segment: group.segment, keywords: [...selected], uf, municipio, bairro: bairro.trim() || null, maxPlaces, representativeId: null })}
             className="flex-1 flex items-center justify-center gap-2 bg-[#8B2214] hover:bg-[#6d1a10] disabled:opacity-50 text-white rounded-lg py-2.5 text-sm font-bold">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Disparar busca
           </button>

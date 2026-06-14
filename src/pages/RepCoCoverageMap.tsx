@@ -3,8 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { MapContainer, TileLayer, CircleMarker, Tooltip, useMapEvents, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { ArrowLeft, Lock, MapPin, Store, Target, Loader2, Plus, Users, Search } from 'lucide-react';
-import { promoteMunicipio, addProspectsToList } from '../lib/promoteProspects';
+import { ArrowLeft, Lock, MapPin, Store, Target, Loader2, Users, Search } from 'lucide-react';
 import { leadMatchesProspect, normName, distMeters } from '../lib/leadMatch';
 import { importApifyLeads } from '../lib/importApifyLeads';
 import ApifyRunModal, { type ApifyStartParams } from '../components/repco/ApifyRunModal';
@@ -25,7 +24,7 @@ const toUf = (s?: string | null) => { const t = (s || '').trim(); if (t.length =
 
 interface Cobertura { uf: string; municipio: string; clientes: number; prospects: number; prospects_nao_clientes: number; lat: number | null; lng: number | null; }
 interface ClienteGeo { id: string; nome: string | null; municipio: string | null; uf: string | null; lat: number; lng: number; }
-interface Prospect { id: string; cnpj: string; razao_social: string | null; nome_fantasia: string | null; cnae_principal: string | null; cnae_descricao: string | null; logradouro: string | null; numero: string | null; complemento: string | null; bairro: string | null; municipio: string | null; uf: string | null; cep: string | null; telefone: string | null; email: string | null; lat: number | null; lng: number | null; is_client: boolean; }
+interface Prospect { id: string; cnpj: string; razao_social: string | null; nome_fantasia: string | null; cnae_principal: string | null; cnae_descricao: string | null; logradouro: string | null; numero: string | null; complemento: string | null; bairro: string | null; municipio: string | null; uf: string | null; cep: string | null; telefone: string | null; email: string | null; lat: number | null; lng: number | null; is_client: boolean; covered_at: string | null; }
 interface Lead { id: string; company_name: string; trade_name: string | null; cnpj: string | null; municipio: string | null; state: string | null; lat: number; lng: number; status: string; rep_id: string | null; rep_nome: string | null; prospect_list_id: string; }
 
 function goBack() { window.history.pushState({}, '', '/repco/inteligencia'); window.dispatchEvent(new PopStateEvent('popstate')); }
@@ -65,9 +64,9 @@ export default function RepCoCoverageMap() {
   const [selMuni, setSelMuni] = useState<string | null>(null);
   const [prospects, setProspects] = useState<Prospect[]>([]);
   const [loadingMuni, setLoadingMuni] = useState(false);
-  const [promoting, setPromoting] = useState(false);
   const [msg, setMsg] = useState('');
   const [citySearch, setCitySearch] = useState('');
+  const [sectorFilter, setSectorFilter] = useState('');
   const [showApify, setShowApify] = useState(false);
   const [apifyBusy, setApifyBusy] = useState(false);
   const [apifyRun, setApifyRun] = useState<{ runId: string; status: string; params: ApifyStartParams } | null>(null);
@@ -155,23 +154,28 @@ export default function RepCoCoverageMap() {
         if (leadMatchesProspect(l, p, { extraStop }).match) { matchedProspectIds.add(p.id); matchedLeadIds.add(l.id); }
       }
     }
-    const faltantes = prospects.filter(p => !matchedProspectIds.has(p.id) && !p.is_client);
+    // faltantes = PDV da RF sem match, NÃO já-cliente e NÃO coberto (coberto = já virou lead via match alto)
+    const faltantesAll = prospects.filter(p => !matchedProspectIds.has(p.id) && !p.is_client && !p.covered_at);
+    const faltantes = sectorFilter ? faltantesAll.filter(p => (p.cnae_descricao || '—') === sectorFilter) : faltantesAll;
     return {
       ambos: matchedProspectIds.size,
       soScraper: muniLeads.filter(l => !matchedLeadIds.has(l.id)).length,
-      faltantes,
+      faltantes, faltantesTotal: faltantesAll.length,
       matchedProspectIds,
     };
-  }, [selMuni, prospects, muniLeads]);
+  }, [selMuni, prospects, muniLeads, sectorFilter]);
 
-  // lista do rep para "fechar o buraco" (a lista com mais leads neste município)
-  const targetList = useMemo(() => {
-    if (!muniLeads.length) return null;
-    const byList = new Map<string, { count: number; rep: string | null }>();
-    muniLeads.forEach(l => { const e = byList.get(l.prospect_list_id) || { count: 0, rep: l.rep_nome }; e.count++; byList.set(l.prospect_list_id, e); });
-    const top = [...byList.entries()].sort((a, b) => b[1].count - a[1].count)[0];
-    return { listId: top[0], rep: top[1].rep };
-  }, [muniLeads]);
+  // setores (CNAE) presentes nos faltantes, com contagem — alimenta o filtro
+  const sectorOptions = useMemo<[string, number][]>(() => {
+    if (!cross) return [];
+    const m = new Map<string, number>();
+    prospects.forEach(p => {
+      if (p.is_client || p.covered_at || cross.matchedProspectIds.has(p.id)) return;
+      const k = p.cnae_descricao || '—';
+      m.set(k, (m.get(k) || 0) + 1);
+    });
+    return [...m.entries()].sort((a, b) => b[1] - a[1]);
+  }, [prospects, cross]);
 
   // PostgREST limita a 1000 linhas/request -> paginamos via range() até um teto (4000) para
   // cidades grandes (ex.: capital com 9k+ PDVs) carregarem além das primeiras 1000.
@@ -200,7 +204,7 @@ export default function RepCoCoverageMap() {
 
   async function openMuni(municipio: string) {
     setSelMuni(municipio); setLoadingMuni(true); setProspects([]); setMsg('');
-    const cols = 'id,cnpj,razao_social,nome_fantasia,cnae_principal,cnae_descricao,logradouro,numero,complemento,bairro,municipio,uf,cep,telefone,email,lat,lng,is_client';
+    const cols = 'id,cnpj,razao_social,nome_fantasia,cnae_principal,cnae_descricao,logradouro,numero,complemento,bairro,municipio,uf,cep,telefone,email,lat,lng,is_client,covered_at';
     const PAGE = 1000, CAP = 4000;
     let all: Prospect[] = [];
     for (let from = 0; from < CAP; from += PAGE) {
@@ -212,26 +216,6 @@ export default function RepCoCoverageMap() {
     }
     setProspects(all);
     setLoadingMuni(false);
-  }
-
-  async function handleCreateList() {
-    if (!selMuni) return;
-    if (!confirm(`Criar lista de prospecção com os PDVs de ${selMuni}/${uf}?`)) return;
-    setPromoting(true); setMsg('');
-    try { const r = await promoteMunicipio({ uf, municipio: selMuni }); setMsg(`Lista criada: ${r.total} PDVs (${r.novos} novos, ${r.duplicados} já clientes).`); }
-    catch (e) { setMsg('Erro: ' + (e instanceof Error ? e.message : String(e))); }
-    setPromoting(false);
-  }
-
-  async function handleCloseGap() {
-    if (!targetList || !cross?.faltantes.length) return;
-    if (!confirm(`Adicionar ${cross.faltantes.length} PDVs que faltam à lista de ${targetList.rep || 'rep'}?\nDedup por CNPJ e nome evita repetir.`)) return;
-    setPromoting(true); setMsg('');
-    try {
-      const r = await addProspectsToList({ listId: targetList.listId, prospects: cross.faltantes as any });
-      setMsg(`Adicionados ${r.adicionados} PDVs à lista (${r.ignorados} já estavam). Aparecem na Prospecção do rep.`);
-    } catch (e) { setMsg('Erro: ' + (e instanceof Error ? e.message : String(e))); }
-    setPromoting(false);
   }
 
   // ---- Apify (Google Maps): dispara run assíncrono via Edge Function (token só no backend) ----
@@ -248,6 +232,18 @@ export default function RepCoCoverageMap() {
   async function handleApifyStart(params: ApifyStartParams) {
     setApifyBusy(true); setMsg('');
     try {
+      // guarda de re-scrape: já scrapeamos esta (cidade + setor)?
+      const { data: prev } = await supabase.from('prospect_runs')
+        .select('id,created_at,leads_created,prospect_list_id').eq('municipio', params.municipio).eq('category', params.category)
+        .eq('status', 'done').order('created_at', { ascending: false }).limit(1);
+      if (prev && prev.length) {
+        const r0 = prev[0] as any;
+        const dt = String(r0.created_at).slice(0, 10).split('-').reverse().join('/');
+        if (!confirm(`Já scrapeamos "${params.category}" em ${params.municipio} (${dt}, ${r0.leads_created ?? '?'} leads no pool).\n\nReaproveite o pool existente na Prospecção em vez de gastar de novo.\n\nQuer mesmo scrapear de novo?`)) {
+          setMsg(`Pool de "${params.category}" em ${params.municipio} já existe (${dt}). Atribua na Prospecção — sem gastar de novo.`);
+          return;
+        }
+      }
       const r = await callApify({ action: 'start', ...params });
       if (r.error) {
         if (r.error === 'budget') setMsg('Orçamento mensal do Apify atingido — ' + (r.message || ''));
@@ -273,10 +269,9 @@ export default function RepCoCoverageMap() {
         try {
           const res = await importApifyLeads({
             items: r.items, uf: apifyRun.params.uf, municipio: apifyRun.params.municipio,
-            category: apifyRun.params.category, segment: apifyRun.params.segment,
-            listId: null, representativeId: apifyRun.params.representativeId, runId: apifyRun.runId,
+            category: apifyRun.params.category, segment: apifyRun.params.segment, runId: apifyRun.runId,
           });
-          setMsg(`Apify concluído: ${res.criados} leads novos, ${res.duplicados} já clientes, ${res.ignorados} repetidos. Já no mapa e na Prospecção.`);
+          setMsg(`Apify: ${res.criados} leads no pool · ${res.enriquecidos} com CNPJ da RF · ${res.pendentes} p/ confirmar · ${res.ignorados} repetidos. Atribua na Prospecção.`);
           setReloadKey(k => k + 1);
         } catch (e) { setMsg('Apify importou com erro: ' + (e instanceof Error ? e.message : String(e))); }
         setApifyRun(null);
@@ -447,27 +442,25 @@ export default function RepCoCoverageMap() {
                     <div className="grid grid-cols-3 gap-2 mb-3 text-center">
                       <CrossBox label="Em ambos" value={cross.ambos} color={GRAY} />
                       <CrossBox label="Só scraper" value={cross.soScraper} color={PRIMARY} />
-                      <CrossBox label="Só CNPJ (faltam)" value={cross.faltantes.length} color={ORANGE} />
+                      <CrossBox label="Faltam (sinal)" value={cross.faltantes.length} color={ORANGE} />
                     </div>
                   )}
 
-                  {/* Ações */}
-                  {targetList && cross && cross.faltantes.length > 0 && (
-                    <button onClick={handleCloseGap} disabled={promoting || loadingMuni}
-                      className="w-full flex items-center justify-center gap-2 bg-[#8B2214] hover:bg-[#6d1a10] disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 rounded-lg mb-2">
-                      {promoting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                      Adicionar {cross.faltantes.length} faltantes à lista de {targetList.rep || 'rep'}
-                    </button>
+                  {/* Filtro de setor (CNAE) para enxergar/scrapear só uma fatia */}
+                  {!loadingMuni && (
+                    <select value={sectorFilter} onChange={e => setSectorFilter(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2">
+                      <option value="">Todos os setores ({cross?.faltantesTotal ?? 0} faltam)</option>
+                      {sectorOptions.map(([s, n]) => <option key={s} value={s}>{s} ({n})</option>)}
+                    </select>
                   )}
-                  <button onClick={handleCreateList} disabled={promoting || loadingMuni || prospects.length === 0}
-                    className="w-full flex items-center justify-center gap-2 border border-gray-300 hover:bg-gray-50 disabled:opacity-50 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg mb-2">
-                    <Plus className="w-4 h-4" /> Criar nova lista desta cidade (base RF)
-                  </button>
+
+                  {/* Disparar Apify (cria pool não-atribuído; atribuição é na Prospecção) */}
                   <button onClick={() => setShowApify(true)} disabled={!!apifyRun}
-                    className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 rounded-lg mb-3">
+                    className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 rounded-lg mb-2">
                     {apifyRun ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                     {apifyRun ? 'Buscando no Google…' : 'Buscar leads reais (Apify)'}
                   </button>
+                  <p className="text-[11px] text-gray-400 mb-2">Os faltantes da Receita são só <strong>sinal de mercado</strong>. Quem o rep trabalha é o lead do Apify (endereço/contato reais). A atribuição aos reps é na <strong>Prospecção</strong>.</p>
                   {msg && <p className="text-xs mb-3 p-2 rounded bg-gray-50 border border-gray-100 text-gray-700">{msg}</p>}
 
                   {/* Faltantes */}
