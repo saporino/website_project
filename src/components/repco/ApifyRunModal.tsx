@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabase';
 import { APIFY_KEYWORD_GROUPS } from '../../constants/prospectKeywords';
 import type { ClientSegment } from '../../constants/segments';
@@ -43,8 +44,8 @@ export default function ApifyRunModal({ uf, municipio, onStart, onClose, busy }:
     setSelected(s => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; });
   }
 
-  return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
+  return createPortal((
+    <div className="fixed inset-0 z-[9999] transform-gpu flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-gray-100">
@@ -108,5 +109,5 @@ export default function ApifyRunModal({ uf, municipio, onStart, onClose, busy }:
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 }

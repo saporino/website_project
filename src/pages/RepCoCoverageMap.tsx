@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { MapContainer, TileLayer, CircleMarker, Tooltip, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Tooltip, useMapEvents, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { ArrowLeft, Lock, MapPin, Store, Target, Loader2, Plus, Users, Search } from 'lucide-react';
 import { promoteMunicipio, addProspectsToList } from '../lib/promoteProspects';
@@ -36,6 +36,17 @@ const Center = ({ children }: { children: React.ReactNode }) => (
 // Clicar em qualquer ponto do mapa seleciona a cidade mais próxima (não precisa acertar a bolha).
 function MapClicker({ onPick }: { onPick: (lat: number, lng: number) => void }) {
   useMapEvents({ click(e) { onPick(e.latlng.lat, e.latlng.lng); } });
+  return null;
+}
+
+// Move a câmera: ao escolher cidade dá zoom nela; ao voltar, abre de volta no estado inteiro.
+function MapController({ target, home, homeZoom }: { target: [number, number] | null; home: [number, number]; homeZoom: number }) {
+  const map = useMap();
+  useEffect(() => {
+    if (target) map.flyTo(target, 11, { duration: 0.8 });
+    else map.flyTo(home, homeZoom, { duration: 0.8 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target ? target[0] : null, target ? target[1] : null]);
   return null;
 }
 const DEAD = ['rejected', 'invalid', 'duplicate'];
@@ -126,6 +137,11 @@ export default function RepCoCoverageMap() {
   const center: [number, number] = shownBubbles.length
     ? [shownBubbles.reduce((s, c) => s + (c.lat || 0), 0) / shownBubbles.length, shownBubbles.reduce((s, c) => s + (c.lng || 0), 0) / shownBubbles.length]
     : [-22.5, -48.5];
+  const selectedCoords = useMemo<[number, number] | null>(() => {
+    if (!selMuni) return null;
+    const c = cobertura.find(x => x.municipio === selMuni);
+    return (c && c.lat != null && c.lng != null) ? [c.lat, c.lng] : null;
+  }, [selMuni, cobertura]);
 
   // ===== município selecionado: cruzamento scraper x CNPJ =====
   const muniLeads = useMemo(() => selMuni ? leads.filter(l => normName(l.municipio) === normName(selMuni)) : [], [leads, selMuni]);
@@ -338,6 +354,7 @@ export default function RepCoCoverageMap() {
                 <MapContainer center={center} zoom={7} style={{ height: '100%', width: '100%' }} scrollWheelZoom={true}>
                   <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                   <MapClicker onPick={handleMapPick} />
+                  <MapController target={selectedCoords} home={center} homeZoom={7} />
                   {/* 1) bolhas de município */}
                   {shownBubbles.map(c => {
                     const col = c.clientes > 0 ? ORANGE : RED;
