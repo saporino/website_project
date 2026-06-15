@@ -53,14 +53,19 @@ Deno.serve(async (req) => {
     }
     const items: any[] = await r.json();
     const captured_at = new Date().toISOString();
+    // Mapeamento tolerante: nomes de campo variam por marketplace (ML vs Amazon vs ...).
+    const num = (v: any) => typeof v === 'number' ? v : (typeof v === 'string' && v.trim() && !isNaN(Number(v.replace(',', '.'))) ? Number(v.replace(',', '.')) : (typeof v?.value === 'number' ? v.value : null));
     const rows = items.map((raw) => ({
       company_id, captured_at, marketplace,
-      search_term: raw.searchTerm ?? null, listing_sku: raw.itemId ?? raw.sku ?? raw.asin ?? null, title: raw.title ?? '',
-      thumb_url: raw.thumbnail ?? null, url: raw.url ?? null, domain_id: raw.category ?? null,
-      price: typeof raw.price === 'number' ? raw.price : null, price_before: raw.originalPrice ?? null,
-      discount_pct: raw.discountPercentage ?? null, currency: raw.currency ?? 'BRL',
-      search_position: raw.position ?? null, is_sponsored: !!raw.isSponsored,
-      ...normalize(raw), raw,
+      search_term: raw.searchTerm ?? raw.search ?? null,
+      listing_sku: String(raw.itemId ?? raw.sku ?? raw.asin ?? raw.id ?? ''),
+      title: raw.title ?? raw.name ?? '',
+      thumb_url: raw.thumbnail ?? raw.image ?? raw.mainImage ?? (Array.isArray(raw.images) ? raw.images[0] : null) ?? null,
+      url: raw.url ?? raw.link ?? null, domain_id: raw.category ?? raw.domain_id ?? null,
+      price: num(raw.price), price_before: num(raw.originalPrice ?? raw.price_before),
+      discount_pct: raw.discountPercentage ?? raw.discount ?? null, currency: raw.currency ?? 'BRL',
+      search_position: raw.position ?? null, is_sponsored: !!(raw.isSponsored ?? raw.is_sponsored),
+      ...normalize({ ...raw, title: raw.title ?? raw.name ?? '', price: num(raw.price) }), raw,
     })).filter((r) => r.price != null && r.listing_sku && r.title);
 
     if (!rows.length) return json({ inserted: 0, captured_at, message: "Ator não retornou itens válidos." });
