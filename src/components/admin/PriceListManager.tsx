@@ -1,6 +1,15 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { CLIENT_SEGMENTS, MARKETPLACE_SEGMENTS, SEGMENT_LABEL } from '../../constants/segments';
+import EcommercePriceIntel from './EcommercePriceIntel';
+
+// segmento de marketplace (UI) -> chave do marketplace na inteligência de preços
+const MARKETPLACE_KEY: Record<string, { key: string; label: string }> = {
+  mercado_livre: { key: 'mercadolivre', label: 'Mercado Livre' },
+  amazon: { key: 'amazon', label: 'Amazon' },
+  shopee: { key: 'shopee', label: 'Shopee' },
+  tiktok_shop: { key: 'tiktok', label: 'TikTok Shop' },
+};
 
 interface Product { id: string; name: string; image_url: string | null; price: number; is_active: boolean; }
 interface PriceListEntry { id: string; product_id: string; segment: string; price: number; volume_discount: number; volume_min_qty: number; is_active: boolean; }
@@ -106,6 +115,13 @@ export default function PriceListManager({ fixedSegment, refreshKey = 0 }: Props
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 flex items-center gap-2">
           <span className="text-xs text-amber-700 font-medium">Segmento fixo:</span>
           <span className="text-sm font-semibold text-amber-900">{SEGMENT_LABEL[fixedSegment] ?? fixedSegment}</span>
+        </div>
+      )}
+
+      {/* Marketplace selecionado -> painel de inteligência de preços (concorrentes) acima da tabela */}
+      {MARKETPLACE_KEY[selectedSegment] && (
+        <div className="border border-gray-200 rounded-xl p-4 bg-[#f8f7f5]">
+          <EcommercePriceIntel marketplace={MARKETPLACE_KEY[selectedSegment].key} label={MARKETPLACE_KEY[selectedSegment].label} />
         </div>
       )}
 
