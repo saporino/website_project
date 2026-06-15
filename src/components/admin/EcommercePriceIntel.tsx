@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
-import { RefreshCw, Loader2, Search, Coffee, ExternalLink } from 'lucide-react';
+import { RefreshCw, Loader2, Search, Coffee, ExternalLink, Settings, Check } from 'lucide-react';
 
 const BRAND = '#B03220';
 const SEGS: { key: string; label: string }[] = [
@@ -28,14 +28,42 @@ export default function EcommercePriceIntel({ marketplace, label }: { marketplac
   const [q, setQ] = useState('');
   const [sapPrice, setSapPrice] = useState('');
   const [sapWeight, setSapWeight] = useState('500');
+  // config da fonte (ator + input) — editável pelo admin
+  const [showCfg, setShowCfg] = useState(false);
+  const [cfgActor, setCfgActor] = useState('');
+  const [cfgInput, setCfgInput] = useState('');
+  const [cfgEnabled, setCfgEnabled] = useState(false);
+  const [savingCfg, setSavingCfg] = useState(false);
+  const [cfgMsg, setCfgMsg] = useState('');
 
   async function load() {
     setLoading(true);
-    const { data } = await supabase.from('vw_ecommerce_latest').select('*').eq('marketplace', marketplace);
+    const [{ data }, { data: src }] = await Promise.all([
+      supabase.from('vw_ecommerce_latest').select('*').eq('marketplace', marketplace),
+      supabase.from('ecommerce_sources').select('*').eq('marketplace', marketplace).maybeSingle(),
+    ]);
     setRows((data as Row[]) || []);
+    if (src) {
+      setCfgActor((src as any).actor_id || '');
+      setCfgInput((src as any).default_input ? JSON.stringify((src as any).default_input, null, 2) : '');
+      setCfgEnabled(!!(src as any).enabled);
+    }
     setLoading(false);
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [marketplace]);
+
+  async function saveConfig() {
+    setSavingCfg(true); setCfgMsg('');
+    let parsed: any = null;
+    if (cfgInput.trim()) {
+      try { parsed = JSON.parse(cfgInput); } catch { setCfgMsg('O Input não é um JSON válido — copie certinho da aba "Input" do Apify.'); setSavingCfg(false); return; }
+    }
+    const { error } = await supabase.from('ecommerce_sources').update({
+      actor_id: cfgActor.trim() || null, default_input: parsed, enabled: cfgEnabled, updated_at: new Date().toISOString(),
+    }).eq('marketplace', marketplace);
+    setCfgMsg(error ? 'Erro: ' + error.message : 'Fonte salva! Agora clique em "Atualizar agora".');
+    setSavingCfg(false);
+  }
 
   async function refresh() {
     setRefreshing(true); setMsg('');
@@ -90,11 +118,41 @@ export default function EcommercePriceIntel({ marketplace, label }: { marketplac
           <h3 className="text-lg font-bold text-gray-900">Inteligência de preços — {label}</h3>
           <p className="text-sm text-gray-500">{rows.length} anúncios no último lote{lastCapture ? ` · coletado ${lastCapture}` : ' · nenhuma coleta ainda'}</p>
         </div>
-        <button onClick={refresh} disabled={refreshing} className="inline-flex items-center gap-2 text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50" style={{ background: BRAND }}>
-          {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Atualizar agora
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowCfg(v => !v)} className="inline-flex items-center gap-1.5 text-gray-600 border border-gray-300 hover:bg-gray-50 text-sm font-semibold px-3 py-2 rounded-lg">
+            <Settings className="w-4 h-4" /> Fonte {cfgEnabled ? '✓' : ''}
+          </button>
+          <button onClick={refresh} disabled={refreshing} className="inline-flex items-center gap-2 text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50" style={{ background: BRAND }}>
+            {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Atualizar agora
+          </button>
+        </div>
       </div>
       {msg && <p className="text-xs p-2 rounded bg-gray-50 border border-gray-100 text-gray-700">{msg}</p>}
+
+      {/* Configuração da fonte (Apify) — cole o Actor ID + Input e ligue */}
+      {showCfg && (
+        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+          <p className="text-sm font-semibold text-gray-800">Configurar fonte do {label} (Apify)</p>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Actor ID <span className="text-gray-400">(formato dono~nome — ex.: viralanalyzer~amazon-brazil-intelligence)</span></label>
+            <input value={cfgActor} onChange={e => setCfgActor(e.target.value)} placeholder="dono~nome" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Input (JSON da aba "Input" do Apify)</label>
+            <textarea value={cfgInput} onChange={e => setCfgInput(e.target.value)} rows={6} placeholder='{ "search": "café", ... }' className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono" />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" checked={cfgEnabled} onChange={e => setCfgEnabled(e.target.checked)} /> Ativar coleta deste marketplace
+          </label>
+          <div className="flex items-center gap-2">
+            <button onClick={saveConfig} disabled={savingCfg} className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50" style={{ background: BRAND }}>
+              {savingCfg ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Salvar fonte
+            </button>
+            {cfgMsg && <span className="text-xs text-gray-600">{cfgMsg}</span>}
+          </div>
+          <p className="text-[11px] text-gray-400">O <strong>token do Apify</strong> NÃO vai aqui — ele já está guardado em segredo no servidor. Aqui é só o ator e os termos de busca.</p>
+        </div>
+      )}
 
       {rows.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-gray-500">
