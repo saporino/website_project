@@ -26,8 +26,11 @@ export default function EcommercePriceIntel({ marketplace, label }: { marketplac
   const [seg, setSeg] = useState('torrado_moido');
   const [onlyArabica, setOnlyArabica] = useState(false);
   const [q, setQ] = useState('');
-  const [sapPrice, setSapPrice] = useState('');
-  const [sapWeight, setSapWeight] = useState('500');
+  // Preço Saporino persistido: digita 1x e vale pra TODOS os marketplaces (e ao recarregar).
+  const [sapPrice, setSapPrice] = useState(() => localStorage.getItem('saporino-eprice') || '');
+  const [sapWeight, setSapWeight] = useState(() => localStorage.getItem('saporino-eweight') || '500');
+  useEffect(() => { localStorage.setItem('saporino-eprice', sapPrice); }, [sapPrice]);
+  useEffect(() => { localStorage.setItem('saporino-eweight', sapWeight); }, [sapWeight]);
   // config da fonte (ator + input) — editável pelo admin
   const [showCfg, setShowCfg] = useState(false);
   const [cfgActor, setCfgActor] = useState('');
