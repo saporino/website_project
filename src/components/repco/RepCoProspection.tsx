@@ -367,17 +367,34 @@ export default function RepCoProspection({ representativeId, currentLat, current
 
     // Montar sumário de listas com as categorias reais dos leads
     const listMap = new Map<string, Set<string>>();
+    const countByList = new Map<string, { total: number; pending: number }>();
     mergedLeads.forEach(l => {
       if (!l.prospect_list_id) return;
       if (!listMap.has(l.prospect_list_id)) listMap.set(l.prospect_list_id, new Set());
       if (l.category) listMap.get(l.prospect_list_id)!.add(l.category);
+      const c = countByList.get(l.prospect_list_id) || { total: 0, pending: 0 };
+      c.total++; if (!['visited', 'converted', 'rejected', 'invalid'].includes(l.status)) c.pending++;
+      countByList.set(l.prospect_list_id, c);
     });
+
+    // Listas do rep = atribuídas a ele OU pools onde ele recebeu leads (atribuição por lead/bairro).
+    const assignedIds = new Set((assignedLists || []).map((pl: any) => pl.id));
+    const extraIds = [...new Set(mergedLeads.map(l => l.prospect_list_id).filter(Boolean))].filter(id => !assignedIds.has(id));
+    let extraLists: any[] = [];
+    if (extraIds.length) {
+      const { data } = await supabase.from('prospect_lists').select('id,name,segment').in('id', extraIds);
+      extraLists = data || [];
+    }
+    const union = [...(assignedLists || []), ...extraLists];
     setLists(
-      (assignedLists || []).map(pl => ({
-        id: pl.id, name: pl.name, segment: pl.segment,
-        pending_count: pl.pending_count ?? 0, total_count: pl.total_count ?? 0,
-        categories: Array.from(listMap.get(pl.id) || []).slice(0, 4),
-      }))
+      union.map((pl: any) => {
+        const c = countByList.get(pl.id) || { total: pl.total_count ?? 0, pending: pl.pending_count ?? 0 };
+        return {
+          id: pl.id, name: pl.name, segment: pl.segment,
+          pending_count: c.pending, total_count: c.total,
+          categories: Array.from(listMap.get(pl.id) || []).slice(0, 4),
+        };
+      })
     );
     setLoading(false);
   }
