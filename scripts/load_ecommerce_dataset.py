@@ -71,7 +71,11 @@ def main():
     for raw in items:
         title = raw.get("title") or raw.get("name") or ""
         price = num(raw.get("price"))
+        url = raw.get("url") or raw.get("link") or ""
         sku = str(raw.get("itemId") or raw.get("sku") or raw.get("asin") or raw.get("id") or "")
+        if not sku and url:  # alguns exports nao trazem ID -> extrai o ASIN da URL (/dp/XXXXXXXXXX)
+            m = re.search(r"/(?:dp|gp/product)/([A-Z0-9]{10})", url)
+            sku = m.group(1) if m else url
         if price is None or not sku or not title: continue
         rows.append({
             "company_id": company_id, "captured_at": captured, "marketplace": args.marketplace,
