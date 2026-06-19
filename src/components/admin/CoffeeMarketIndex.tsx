@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Coffee, Loader2, Plus, TrendingUp, TrendingDown, ExternalLink } from 'lucide-react';
+import { Coffee, Loader2, Plus, TrendingUp, TrendingDown, ExternalLink, RefreshCw } from 'lucide-react';
 
 const BRAND = '#8B2214';
 const brl = (v: number | null) => v == null ? '—' : `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -17,7 +17,22 @@ export default function CoffeeMarketIndex() {
   const [arabica, setArabica] = useState('');
   const [conilon, setConilon] = useState('');
   const [saving, setSaving] = useState(false);
+  const [autoBusy, setAutoBusy] = useState(false);
   const [msg, setMsg] = useState('');
+
+  async function autoUpdate() {
+    setAutoBusy(true); setMsg('');
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/cepea-cafe`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` }, body: '{}',
+      });
+      const r = await res.json();
+      if (r.ok) { await load(); setMsg(`Atualizado do CEPEA (${fmtDate(r.ref_date)}).`); }
+      else setMsg('Não consegui atualizar agora: ' + (r.message || r.error || 'fonte indisponível') + '. Você pode lançar manual.');
+    } catch (e) { setMsg('Erro: ' + (e instanceof Error ? e.message : String(e))); }
+    setAutoBusy(false);
+  }
 
   async function load() {
     setLoading(true);
@@ -61,6 +76,7 @@ export default function CoffeeMarketIndex() {
         </div>
         <div className="flex items-center gap-2">
           <a href="https://www.cepea.org.br/br/indicador/cafe.aspx" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800">CEPEA <ExternalLink className="w-3.5 h-3.5" /></a>
+          <button onClick={autoUpdate} disabled={autoBusy} className="inline-flex items-center gap-1 border border-gray-300 hover:bg-gray-50 disabled:opacity-50 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-lg">{autoBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Atualizar</button>
           <button onClick={() => setOpen(v => !v)} className="inline-flex items-center gap-1 text-white text-xs font-semibold px-3 py-1.5 rounded-lg" style={{ background: BRAND }}><Plus className="w-3.5 h-3.5" /> Lançar</button>
         </div>
       </div>
