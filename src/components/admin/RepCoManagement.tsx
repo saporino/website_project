@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 import PriceListManager from './PriceListManager';
+import CoffeeMarketIndex from './CoffeeMarketIndex';
 import RepCoOrdersManager from './RepCoOrdersManager';
 import RepCoCommissionsManager from './RepCoCommissionsManager';
 import RepCoPayoutBlocks from './RepCoPayoutBlocks';
@@ -940,6 +941,9 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
           )}
         </div>
       </div>
+
+      {/* Mercado do Café Cru (CEPEA/ESALQ) — referência de preço do grão verde */}
+      <CoffeeMarketIndex />
 
       {/* Row 2: Canal filter + Status filter */}
       <div className="flex flex-wrap items-center gap-3">
