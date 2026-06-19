@@ -19,6 +19,7 @@ interface Row {
 }
 
 export default function EcommercePriceIntel({ marketplace, label, readOnly = false }: { marketplace: string; label: string; readOnly?: boolean }) {
+  const isSuper = marketplace.startsWith('super_'); // supermercado VTEX (não Apify)
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -35,6 +36,7 @@ export default function EcommercePriceIntel({ marketplace, label, readOnly = fal
   const [showCfg, setShowCfg] = useState(false);
   const [cfgActor, setCfgActor] = useState('');
   const [cfgInput, setCfgInput] = useState('');
+  const [cfgVtex, setCfgVtex] = useState(''); // domínio VTEX (supermercado)
   const [cfgEnabled, setCfgEnabled] = useState(false);
   const [savingCfg, setSavingCfg] = useState(false);
   const [cfgMsg, setCfgMsg] = useState('');
@@ -54,6 +56,7 @@ export default function EcommercePriceIntel({ marketplace, label, readOnly = fal
       setCfgInput((src as any).default_input ? JSON.stringify((src as any).default_input, null, 2) : '');
       setCfgEnabled(!!(src as any).enabled);
       setVisibleToReps(!!(src as any).visible_to_reps);
+      setCfgVtex((src as any).default_input?.vtex_base || '');
     }
     setLoading(false);
   }
@@ -70,6 +73,15 @@ export default function EcommercePriceIntel({ marketplace, label, readOnly = fal
 
   async function saveConfig() {
     setSavingCfg(true); setCfgMsg('');
+    if (isSuper) {
+      if (!cfgVtex.trim()) { setCfgMsg('Informe o domínio VTEX da rede (ex.: https://www.atacadao.com.br).'); setSavingCfg(false); return; }
+      const { error } = await supabase.from('ecommerce_sources').update({
+        default_input: { vtex_base: cfgVtex.trim().replace(/\/+$/, ''), terms: ['café'], pages: 6 },
+        enabled: cfgEnabled, updated_at: new Date().toISOString(),
+      }).eq('marketplace', marketplace);
+      setCfgMsg(error ? 'Erro: ' + error.message : 'Domínio salvo! Agora clique em "Atualizar agora".');
+      setSavingCfg(false); return;
+    }
     let parsed: any = null;
     if (cfgInput.trim()) {
       try { parsed = JSON.parse(cfgInput); } catch { setCfgMsg('O Input não é um JSON válido — copie certinho da aba "Input" do Apify.'); setSavingCfg(false); return; }
@@ -85,13 +97,15 @@ export default function EcommercePriceIntel({ marketplace, label, readOnly = fal
     setRefreshing(true); setMsg('');
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ecommerce-scrape`, {
+      const endpoint = isSuper ? 'vtex-scrape' : 'ecommerce-scrape';
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${endpoint}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
         body: JSON.stringify({ marketplace }),
       });
       const r = await res.json();
-      if (r.error === 'not_configured') setMsg('Fonte ainda sem ator/input configurado. Me passe o Actor ID + Input do Apify que eu ligo.');
+      if (r.error === 'not_configured') setMsg(isSuper ? 'Rede sem domínio VTEX configurado. Clique em "Fonte" e cole o domínio.' : 'Fonte ainda sem ator/input configurado. Me passe o Actor ID + Input do Apify que eu ligo.');
       else if (r.error === 'no_credit') setMsg('Crédito Apify esgotado este mês.');
+      else if (r.inserted === 0) setMsg('Nenhum produto retornado (confira o domínio/termos).');
       else if (r.error) setMsg('Erro: ' + (r.message || r.error));
       else { setMsg(`Coletados ${r.inserted} anúncios.`); await load(); }
     } catch (e) { setMsg('Erro: ' + (e instanceof Error ? e.message : String(e))); }
@@ -152,7 +166,26 @@ export default function EcommercePriceIntel({ marketplace, label, readOnly = fal
       {msg && <p className="text-xs p-2 rounded bg-gray-50 border border-gray-100 text-gray-700">{msg}</p>}
 
       {/* Configuração da fonte (Apify) — cole o Actor ID + Input e ligue */}
-      {showCfg && (
+      {showCfg && isSuper && (
+        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+          <p className="text-sm font-semibold text-gray-800">Configurar fonte do {label} (VTEX)</p>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Domínio VTEX <span className="text-gray-400">(ex.: https://www.atacadao.com.br)</span></label>
+            <input value={cfgVtex} onChange={e => setCfgVtex(e.target.value)} placeholder="https://www.rede.com.br" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono" />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <input type="checkbox" checked={cfgEnabled} onChange={e => setCfgEnabled(e.target.checked)} /> Ativar coleta desta rede
+          </label>
+          <div className="flex items-center gap-2">
+            <button onClick={saveConfig} disabled={savingCfg} className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50" style={{ background: BRAND }}>
+              {savingCfg ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Salvar fonte
+            </button>
+            {cfgMsg && <span className="text-xs text-gray-600">{cfgMsg}</span>}
+          </div>
+          <p className="text-[11px] text-gray-400">Usa a <strong>API pública de catálogo da VTEX</strong> (sem Apify, sem token). Funciona só em redes na plataforma VTEX.</p>
+        </div>
+      )}
+      {showCfg && !isSuper && (
         <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
           <p className="text-sm font-semibold text-gray-800">Configurar fonte do {label} (Apify)</p>
           <div>
@@ -180,7 +213,9 @@ export default function EcommercePriceIntel({ marketplace, label, readOnly = fal
         <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-gray-500">
           {readOnly
             ? <>Ainda sem preços coletados para {label}. Assim que houver dados, eles aparecem aqui.</>
-            : <>Nenhuma coleta ainda. Clique em <strong>Atualizar agora</strong> (precisa do ator do Apify configurado para {label}).</>}
+            : isSuper
+              ? <>Nenhuma coleta ainda. Clique em <strong>Atualizar agora</strong> (precisa do domínio VTEX configurado em <strong>Fonte</strong> para {label}).</>
+              : <>Nenhuma coleta ainda. Clique em <strong>Atualizar agora</strong> (precisa do ator do Apify configurado para {label}).</>}
         </div>
       ) : (
         <>
