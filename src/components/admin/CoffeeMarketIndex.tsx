@@ -7,7 +7,8 @@ const brl = (v: number | null) => v == null ? '—' : `R$ ${v.toLocaleString('pt
 const today = () => new Date().toISOString().slice(0, 10);
 const fmtDate = (d: string) => d.split('-').reverse().join('/');
 
-interface Entry { id: number; ref_date: string; arabica: number | null; conilon: number | null; }
+interface Entry { id: number; ref_date: string; arabica: number | null; conilon: number | null; arabica_var: number | null; conilon_var: number | null; }
+const pct = (v: number | null) => v == null ? '' : `${v > 0 ? '+' : ''}${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 
 export default function CoffeeMarketIndex() {
   const [rows, setRows] = useState<Entry[]>([]);
@@ -36,7 +37,7 @@ export default function CoffeeMarketIndex() {
 
   async function load() {
     setLoading(true);
-    const { data } = await supabase.from('coffee_market_index').select('id,ref_date,arabica,conilon').order('ref_date', { ascending: false }).limit(30);
+    const { data } = await supabase.from('coffee_market_index').select('id,ref_date,arabica,conilon,arabica_var,conilon_var').order('ref_date', { ascending: false }).limit(30);
     setRows((data as Entry[]) || []);
     setLoading(false);
   }
@@ -109,13 +110,30 @@ export default function CoffeeMarketIndex() {
 
           {rows.length > 1 && (
             <div className="mt-3">
-              <p className="text-[11px] font-semibold text-gray-500 mb-1">Histórico</p>
-              <div className="flex flex-wrap gap-1.5">
-                {rows.slice(0, 8).map(r => (
-                  <span key={r.id} className="rounded-md border border-gray-100 px-2 py-1 text-[11px] text-gray-600">
-                    {fmtDate(r.ref_date)} · A {brl(r.arabica)} · C {brl(r.conilon)}
-                  </span>
-                ))}
+              <p className="text-[11px] font-semibold text-gray-500 mb-1">Histórico (R$/saca · variação dia)</p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-gray-400 text-left">
+                      <th className="font-medium py-1 pr-2">Data</th>
+                      <th className="font-medium py-1 pr-2 text-right">Arábica</th>
+                      <th className="font-medium py-1 pr-2 text-right">var/dia</th>
+                      <th className="font-medium py-1 pr-2 text-right">Conilon</th>
+                      <th className="font-medium py-1 text-right">var/dia</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.slice(0, 15).map(r => (
+                      <tr key={r.id} className="border-t border-gray-100">
+                        <td className="py-1 pr-2 text-gray-600">{fmtDate(r.ref_date)}</td>
+                        <td className="py-1 pr-2 text-right font-medium text-gray-900">{brl(r.arabica)}</td>
+                        <td className={`py-1 pr-2 text-right ${(r.arabica_var ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{pct(r.arabica_var)}</td>
+                        <td className="py-1 pr-2 text-right font-medium text-gray-900">{brl(r.conilon)}</td>
+                        <td className={`py-1 text-right ${(r.conilon_var ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>{pct(r.conilon_var)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}

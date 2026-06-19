@@ -12,15 +12,17 @@ const cors = {
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 const SRC = "https://www.noticiasagricolas.com.br/cotacoes/cafe";
 
-function firstRow(html: string, anchor: string): string[] | null {
+// todas as linhas da tabela daquele indicador: [[data, valor, var/dia], ...]
+function allRows(html: string, anchor: string): string[][] {
   const i = html.toLowerCase().indexOf(anchor);
-  if (i < 0) return null;
+  if (i < 0) return [];
   const tb = html.toLowerCase().indexOf("<tbody", i);
-  if (tb < 0) return null;
-  const seg = html.slice(tb, tb + 1000);
-  const row = seg.match(/<tr[^>]*>([\s\S]*?)<\/tr>/);
-  if (!row) return null;
-  return [...row[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map(m => m[1].replace(/<[^>]+>/g, "").trim());
+  if (tb < 0) return [];
+  const te = html.toLowerCase().indexOf("</tbody", tb);
+  const seg = html.slice(tb, te < 0 ? tb + 4000 : te);
+  return [...seg.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)]
+    .map(r => [...r[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map(m => m[1].replace(/<[^>]+>/g, "").trim()))
+    .filter(t => t.length >= 2 && /\d{2}\/\d{2}\/\d{4}/.test(t[0]));
 }
 const toNum = (s?: string) => s ? parseFloat(s.replace(/\./g, "").replace(",", ".")) : null;
 const toIso = (s?: string) => { if (!s) return null; const [d, m, y] = s.split("/"); return (d && m && y) ? `${y}-${m}-${d}` : null; };
@@ -47,20 +49,23 @@ Deno.serve(async (req) => {
     if (!res.ok) return json({ error: "fonte indisponivel", status: res.status }, 502);
     const html = await res.text();
 
-    const ar = firstRow(html, "cafe-arabica");      // [data, "1.495,05", "-0,67"]
-    const co = firstRow(html, "cafe-conillon");      // robusta/conilon (anchor com 2 L na fonte)
-    const arabica = toNum(ar?.[1]);
-    const conilon = toNum(co?.[1]);
-    const ref_date = toIso(ar?.[0]) || toIso(co?.[0]);
-    if (!ref_date || (arabica == null && conilon == null))
+    const arRows = allRows(html, "cafe-arabica");    // [[data, "1.495,05", "-0,67"], ...]
+    const coRows = allRows(html, "cafe-conillon");   // robusta/conilon (anchor com 2 L na fonte)
+    if (!arRows.length && !coRows.length)
       return json({ error: "parse_falhou", message: "Layout da fonte pode ter mudado." }, 502);
 
+    // merge por data -> 1 registro por dia com Arábica e Conilon
+    const byDate = new Map<string, any>();
+    for (const [d, v, vr] of arRows) { const iso = toIso(d); if (!iso) continue; const e = byDate.get(iso) || { ref_date: iso }; e.arabica = toNum(v); e.arabica_var = toNum(vr); byDate.set(iso, e); }
+    for (const [d, v, vr] of coRows) { const iso = toIso(d); if (!iso) continue; const e = byDate.get(iso) || { ref_date: iso }; e.conilon = toNum(v); e.conilon_var = toNum(vr); byDate.set(iso, e); }
+    const records = [...byDate.values()].map(e => ({ ...e, source: "cepea_auto", note: "via noticiasagricolas" }));
+
     const db = createClient(url, service);
-    const { error } = await db.from("coffee_market_index")
-      .upsert({ ref_date, arabica, conilon, source: "cepea_auto", note: "via noticiasagricolas" }, { onConflict: "ref_date" });
+    const { error } = await db.from("coffee_market_index").upsert(records, { onConflict: "ref_date" });
     if (error) return json({ error: error.message }, 500);
 
-    return json({ ok: true, ref_date, arabica, conilon });
+    const latest = records.sort((a, b) => a.ref_date < b.ref_date ? 1 : -1)[0];
+    return json({ ok: true, dias: records.length, ref_date: latest?.ref_date, arabica: latest?.arabica, conilon: latest?.conilon });
   } catch (e) {
     return json({ error: String(e instanceof Error ? e.message : e) }, 500);
   }

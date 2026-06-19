@@ -3,7 +3,9 @@ create table if not exists public.coffee_market_index (
   id         bigint generated always as identity primary key,
   ref_date   date not null unique,
   arabica    numeric(10,2),
+  arabica_var numeric(6,2),   -- variacao do dia (%)
   conilon    numeric(10,2),
+  conilon_var numeric(6,2),
   source     text default 'cepea_manual',   -- cepea_manual | cepea_auto
   note       text,
   created_at timestamptz not null default now()
