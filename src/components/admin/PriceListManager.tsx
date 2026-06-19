@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { CLIENT_SEGMENTS, MARKETPLACE_SEGMENTS, SEGMENT_LABEL } from '../../constants/segments';
+import { CLIENT_SEGMENTS, MARKETPLACE_SEGMENTS, SUPERMARKET_SEGMENTS, SEGMENT_LABEL } from '../../constants/segments';
 import EcommercePriceIntel from './EcommercePriceIntel';
 
 // segmento de marketplace (UI) -> chave do marketplace na inteligência de preços
@@ -10,6 +10,12 @@ const MARKETPLACE_KEY: Record<string, { key: string; label: string }> = {
   shopee: { key: 'shopee', label: 'Shopee' },
   tiktok_shop: { key: 'tiktok', label: 'TikTok Shop' },
 };
+
+// segmento de supermercado SP (UI) -> chave da fonte na inteligência de preços (mesma chave do banco)
+const SUPER_KEY: Record<string, { key: string; label: string }> = Object.fromEntries(
+  SUPERMARKET_SEGMENTS.map(s => [s.value, { key: s.value, label: s.label }])
+);
+const INTEL_KEY: Record<string, { key: string; label: string }> = { ...MARKETPLACE_KEY, ...SUPER_KEY };
 
 interface Product { id: string; name: string; image_url: string | null; price: number; is_active: boolean; }
 interface PriceListEntry { id: string; product_id: string; segment: string; price: number; volume_discount: number; volume_min_qty: number; is_active: boolean; }
@@ -108,6 +114,17 @@ export default function PriceListManager({ fixedSegment, refreshKey = 0 }: Props
               ))}
             </div>
           </div>
+          <div className="border-t border-amber-200 pt-3">
+            <p className="text-xs font-semibold text-teal-700 uppercase tracking-wide mb-2">Supermercados SP</p>
+            <div className="flex flex-wrap gap-2">
+              {SUPERMARKET_SEGMENTS.map(seg => (
+                <button key={seg.value} onClick={() => setSelectedSegment(seg.value)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${selectedSegment === seg.value ? 'bg-teal-700 text-white' : 'bg-white border border-teal-200 text-teal-700 hover:bg-teal-50'}`}>
+                  {seg.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
@@ -118,13 +135,15 @@ export default function PriceListManager({ fixedSegment, refreshKey = 0 }: Props
         </div>
       )}
 
-      {/* Marketplace selecionado -> painel de inteligência de preços (concorrentes) acima da tabela */}
-      {MARKETPLACE_KEY[selectedSegment] && (
+      {/* Marketplace/Supermercado selecionado -> painel de inteligência de preços (concorrentes) */}
+      {INTEL_KEY[selectedSegment] && (
         <div className="border border-gray-200 rounded-xl p-4 bg-[#f8f7f5]">
-          <EcommercePriceIntel marketplace={MARKETPLACE_KEY[selectedSegment].key} label={MARKETPLACE_KEY[selectedSegment].label} />
+          <EcommercePriceIntel marketplace={INTEL_KEY[selectedSegment].key} label={INTEL_KEY[selectedSegment].label} />
         </div>
       )}
 
+      {/* Tabela de preços da Saporino só faz sentido p/ segmentos de venda (B2B/marketplace), não p/ supermercado concorrente */}
+      {!SUPER_KEY[selectedSegment] && (<>
       <div className="flex items-center justify-between">
         <h4 className="font-semibold text-gray-800">Tabela de Preços — {SEGMENT_LABEL[selectedSegment] ?? selectedSegment}</h4>
         <span className="text-xs text-gray-500">{products.length} produtos</span>
@@ -168,6 +187,7 @@ export default function PriceListManager({ fixedSegment, refreshKey = 0 }: Props
           );
         })}
       </div>
+      </>)}
     </div>
   );
 }

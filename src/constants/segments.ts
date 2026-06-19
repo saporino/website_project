@@ -24,7 +24,21 @@ export const MARKETPLACE_SEGMENTS = [
 
 export type MarketplaceSegment = typeof MARKETPLACE_SEGMENTS[number]['value'];
 
-export const ALL_SEGMENTS = [...CLIENT_SEGMENTS, ...MARKETPLACE_SEGMENTS] as const;
+// Supermercados de SP — inteligência de preços de concorrentes (não é segmento de venda B2B).
+export const SUPERMARKET_SEGMENTS = [
+  { value: 'super_pao',       label: 'Pão de Açúcar' },
+  { value: 'super_carrefour', label: 'Carrefour' },
+  { value: 'super_extra',     label: 'Extra' },
+  { value: 'super_assai',     label: 'Assaí' },
+  { value: 'super_atacadao',  label: 'Atacadão' },
+  { value: 'super_tenda',     label: 'Tenda Atacado' },
+  { value: 'super_dia',       label: 'Dia' },
+  { value: 'super_stmarche',  label: 'St Marche' },
+] as const;
+
+export type SupermarketSegment = typeof SUPERMARKET_SEGMENTS[number]['value'];
+
+export const ALL_SEGMENTS = [...CLIENT_SEGMENTS, ...MARKETPLACE_SEGMENTS, ...SUPERMARKET_SEGMENTS] as const;
 
 export const SEGMENT_LABEL: Record<string, string> = Object.fromEntries(
   ALL_SEGMENTS.map(s => [s.value, s.label])

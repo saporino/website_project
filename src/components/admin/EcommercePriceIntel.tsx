@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
-import { RefreshCw, Loader2, Search, Coffee, ExternalLink, Settings, Check } from 'lucide-react';
+import { RefreshCw, Loader2, Search, Coffee, ExternalLink, Settings, Check, Smartphone } from 'lucide-react';
 
 const BRAND = '#B03220';
 const SEGS: { key: string; label: string }[] = [
@@ -18,7 +18,7 @@ interface Row {
   is_suspect: boolean; is_sponsored: boolean; captured_at: string;
 }
 
-export default function EcommercePriceIntel({ marketplace, label }: { marketplace: string; label: string }) {
+export default function EcommercePriceIntel({ marketplace, label, readOnly = false }: { marketplace: string; label: string; readOnly?: boolean }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -38,6 +38,9 @@ export default function EcommercePriceIntel({ marketplace, label }: { marketplac
   const [cfgEnabled, setCfgEnabled] = useState(false);
   const [savingCfg, setSavingCfg] = useState(false);
   const [cfgMsg, setCfgMsg] = useState('');
+  // liga/desliga: o representante vê (ou não) esta fonte no app do celular
+  const [visibleToReps, setVisibleToReps] = useState(false);
+  const [togglingVis, setTogglingVis] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -50,8 +53,18 @@ export default function EcommercePriceIntel({ marketplace, label }: { marketplac
       setCfgActor((src as any).actor_id || '');
       setCfgInput((src as any).default_input ? JSON.stringify((src as any).default_input, null, 2) : '');
       setCfgEnabled(!!(src as any).enabled);
+      setVisibleToReps(!!(src as any).visible_to_reps);
     }
     setLoading(false);
+  }
+
+  async function toggleVisibleToReps() {
+    setTogglingVis(true);
+    const next = !visibleToReps;
+    const { error } = await supabase.from('ecommerce_sources')
+      .update({ visible_to_reps: next, updated_at: new Date().toISOString() }).eq('marketplace', marketplace);
+    if (!error) setVisibleToReps(next);
+    setTogglingVis(false);
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [marketplace]);
 
@@ -121,7 +134,12 @@ export default function EcommercePriceIntel({ marketplace, label }: { marketplac
           <h3 className="text-lg font-bold text-gray-900">Inteligência de preços — {label}</h3>
           <p className="text-sm text-gray-500">{rows.length} anúncios no último lote{lastCapture ? ` · coletado ${lastCapture}` : ' · nenhuma coleta ainda'}</p>
         </div>
+        {!readOnly && (
         <div className="flex items-center gap-2">
+          <button onClick={toggleVisibleToReps} disabled={togglingVis} title="Liga/desliga: o representante vê estes preços no app do celular"
+            className={`inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-lg border disabled:opacity-50 ${visibleToReps ? 'bg-green-600 border-green-600 text-white hover:bg-green-700' : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+            {togglingVis ? <Loader2 className="w-4 h-4 animate-spin" /> : <Smartphone className="w-4 h-4" />} {visibleToReps ? 'Rep vê ✓' : 'Rep não vê'}
+          </button>
           <button onClick={() => setShowCfg(v => !v)} className="inline-flex items-center gap-1.5 text-gray-600 border border-gray-300 hover:bg-gray-50 text-sm font-semibold px-3 py-2 rounded-lg">
             <Settings className="w-4 h-4" /> Fonte {cfgEnabled ? '✓' : ''}
           </button>
@@ -129,6 +147,7 @@ export default function EcommercePriceIntel({ marketplace, label }: { marketplac
             {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Atualizar agora
           </button>
         </div>
+        )}
       </div>
       {msg && <p className="text-xs p-2 rounded bg-gray-50 border border-gray-100 text-gray-700">{msg}</p>}
 
@@ -159,7 +178,9 @@ export default function EcommercePriceIntel({ marketplace, label }: { marketplac
 
       {rows.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-gray-500">
-          Nenhuma coleta ainda. Clique em <strong>Atualizar agora</strong> (precisa do ator do Apify configurado para {label}).
+          {readOnly
+            ? <>Ainda sem preços coletados para {label}. Assim que houver dados, eles aparecem aqui.</>
+            : <>Nenhuma coleta ainda. Clique em <strong>Atualizar agora</strong> (precisa do ator do Apify configurado para {label}).</>}
         </div>
       ) : (
         <>

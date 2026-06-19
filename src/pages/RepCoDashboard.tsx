@@ -12,10 +12,11 @@ import RepCoHome from '../components/repco/RepCoHome';
 import RepCoProspection from '../components/repco/RepCoProspection';
 import RepCoDeliveries from '../components/repco/RepCoDeliveries';
 import RepCoFieldMap from '../components/repco/RepCoFieldMap';
+import RepCoMarketPrices from '../components/repco/RepCoMarketPrices';
 import RepCoCalculatorFab from '../components/repco/RepCoCalculatorFab';
 import { usePresence } from '../hooks/usePresence';
 import { useGeolocation } from '../hooks/useGeolocation';
-import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Home, ClipboardList, Radio, Truck, MoreHorizontal, Map } from 'lucide-react';
+import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Home, ClipboardList, Radio, Truck, MoreHorizontal, Map, Store } from 'lucide-react';
 import { useTrainingListener, espelhoTabToRepTab } from '../lib/training';
 
 
@@ -32,7 +33,7 @@ interface Representative {
   has_personal_delivery: boolean;
 }
 
-type RepCoTab = 'inicio' | 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido' | 'entregas' | 'prospection' | 'mapa';
+type RepCoTab = 'inicio' | 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido' | 'entregas' | 'prospection' | 'mapa' | 'mercado';
 
 export function RepCoDashboard() {
   const { user, profile, signOut } = useAuth();
@@ -50,6 +51,7 @@ export function RepCoDashboard() {
     entregas: 0,
     prospection: 0,
     mapa: 0,
+    mercado: 0,
   });
   const [preSelectedClientId, setPreSelectedClientId] = useState<string | null>(null);
   const [preFilledClientData, setPreFilledClientData] = useState<any>(null);
@@ -265,6 +267,7 @@ export function RepCoDashboard() {
     { id: 'entregas', label: 'Entregas', icon: Truck },
     { id: 'commissions', label: 'Comissões', icon: DollarSign },
     { id: 'performance', label: 'Performance', icon: TrendingUp },
+    { id: 'mercado', label: 'Mercado', icon: Store },
   ];
   // Mobile: barra inferior corporativa = 4 principais + "Mais" (o resto em sheet)
   const MOBILE_PRIMARY: RepCoTab[] = ['inicio', 'clients', 'novo_pedido', 'entregas'];
@@ -376,6 +379,7 @@ export function RepCoDashboard() {
             {activeTab === 'prospection' && <RepCoProspection representativeId={rep!.id} currentLat={coords?.lat} currentLng={coords?.lng} refreshKey={refreshVersion.prospection} />}
             {activeTab === 'commissions' && <RepCoCommissions repId={rep!.id} />}
             {activeTab === 'performance' && <RepCoPerformance repId={rep!.id} />}
+            {activeTab === 'mercado' && <RepCoMarketPrices />}
           </div>
         </div>
       </div>
