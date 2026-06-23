@@ -640,26 +640,26 @@ const PromoCarousel = ({ onAuthOpen }: { onAuthOpen?: (mode: 'login' | 'register
     window.dispatchEvent(new PopStateEvent('popstate'));
   };
 
-  const pausedRef = useRef(false);
   const touchX = useRef<number | null>(null);
   const n = slides.length;
   const go = (i: number) => setIndex(((i % n) + n) % n);
 
+  // Auto-rotacao robusta: timer reinicia a cada troca de slide (manual ou automatica),
+  // entao cada banner fica exatamente 5s e nunca trava. (Antes um ref de "pausa" no
+  // hover/toque podia ficar preso em true — ex.: touchcancel ao rolar no celular — e o
+  // carrossel congelava.)
   useEffect(() => {
     if (n <= 1) return;
-    const id = setInterval(() => { if (!pausedRef.current) setIndex(p => (p + 1) % n); }, 5000);
-    return () => clearInterval(id);
-  }, [n]);
+    const id = setTimeout(() => setIndex(p => (p + 1) % n), 5000);
+    return () => clearTimeout(id);
+  }, [index, n]);
 
   if (!n) return null;
   return (
     <section
       className="relative w-full overflow-hidden bg-[#f8f7f5] select-none"
-      onMouseEnter={() => { pausedRef.current = true; }}
-      onMouseLeave={() => { pausedRef.current = false; }}
-      onTouchStart={e => { pausedRef.current = true; touchX.current = e.touches[0].clientX; }}
+      onTouchStart={e => { touchX.current = e.touches[0].clientX; }}
       onTouchEnd={e => {
-        pausedRef.current = false;
         if (touchX.current == null) return;
         const dx = e.changedTouches[0].clientX - touchX.current;
         if (Math.abs(dx) > 40) go(index + (dx < 0 ? 1 : -1));

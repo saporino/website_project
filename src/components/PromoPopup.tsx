@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface PopupCfg {
+  id: string;
   enabled: boolean;
   image_url: string | null;
   eyebrow: string | null;
@@ -15,42 +16,50 @@ interface PopupCfg {
   updated_at: string; // usado como "versao" — muda quando o admin edita
 }
 
-const SEEN_KEY = 'saporino-popup-seen';
+const seenKey = (id: string) => `saporino-popup-seen-${id}`;
 const logoImage = '/saporino-logo-tight.png';
 
-// Popup promocional editavel no admin. Aparece 1x por visitante (localStorage,
+// Verifica se o visitante ainda está no período de "já viu" deste popup específico.
+function naoMostrar(p: PopupCfg): boolean {
+  try {
+    const raw = localStorage.getItem(seenKey(p.id));
+    if (!raw) return false;
+    const seen = JSON.parse(raw) as { v?: string; ts?: number };
+    const sameVersion = seen.v === p.updated_at; // admin editou → reaparece
+    const days = (Date.now() - (seen.ts || 0)) / (1000 * 60 * 60 * 24);
+    return sameVersion && days < (p.show_days || 30);
+  } catch { return false; }
+}
+
+// Popups promocionais editaveis no admin. Pode haver VARIOS ligados; o site escolhe
+// um (aleatorio) entre os elegiveis. Cada popup tem seu proprio "ja viu" (localStorage,
 // re-exibe apos show_days). onAction recebe o destino do botao (ex.: 'cadastro').
 export default function PromoPopup({ onAction }: { onAction?: (link: string) => void }) {
   const [cfg, setCfg] = useState<PopupCfg | null>(null);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
     (async () => {
       const { data } = await supabase
         .from('popup_settings')
-        .select('enabled, image_url, eyebrow, headline, subtext, disclaimer, button_text, button_link, show_days, updated_at')
-        .maybeSingle();
-      if (!data || !data.enabled) return;
-      // Ja viu? So pula se for a MESMA versao (updated_at) e dentro do prazo.
-      // Se o admin editou (updated_at mudou), reaparece para todos.
-      try {
-        const raw = localStorage.getItem(SEEN_KEY);
-        if (raw) {
-          const seen = JSON.parse(raw) as { v?: string; ts?: number };
-          const sameVersion = seen.v === data.updated_at;
-          const days = (Date.now() - (seen.ts || 0)) / (1000 * 60 * 60 * 24);
-          if (sameVersion && days < (data.show_days || 30)) return;
-        }
-      } catch { /* localStorage indisponivel ou formato antigo */ }
-      setCfg(data as PopupCfg);
-      const t = setTimeout(() => setOpen(true), 1500);
-      return () => clearTimeout(t);
+        .select('id, enabled, image_url, eyebrow, headline, subtext, disclaimer, button_text, button_link, show_days, updated_at')
+        .eq('enabled', true)
+        .order('sort_order');
+      const ligados = (data as PopupCfg[]) || [];
+      const elegiveis = ligados.filter(p => !naoMostrar(p));
+      if (!elegiveis.length) return;
+      // entre os ligados ainda não vistos, escolhe um ao acaso (rotação A/B)
+      const escolhido = elegiveis[Math.floor(Math.random() * elegiveis.length)];
+      setCfg(escolhido);
+      timer = setTimeout(() => setOpen(true), 1500);
     })();
+    return () => { if (timer) clearTimeout(timer); };
   }, []);
 
   const close = () => {
     setOpen(false);
-    try { localStorage.setItem(SEEN_KEY, JSON.stringify({ v: cfg?.updated_at, ts: Date.now() })); } catch { /* ok */ }
+    try { if (cfg) localStorage.setItem(seenKey(cfg.id), JSON.stringify({ v: cfg.updated_at, ts: Date.now() })); } catch { /* ok */ }
   };
 
   const act = () => {

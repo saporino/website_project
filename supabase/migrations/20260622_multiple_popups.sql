@@ -1,0 +1,5 @@
+-- Múltiplos popups promocionais: cada linha de popup_settings é um popup independente
+-- (liga/desliga próprio). name = rótulo no admin; sort_order = ordem na biblioteca.
+-- O site mostra um popup entre os ligados (rotação aleatória), cada um com "já viu" próprio.
+alter table public.popup_settings add column if not exists name text not null default 'Popup';
+alter table public.popup_settings add column if not exists sort_order int not null default 0;
