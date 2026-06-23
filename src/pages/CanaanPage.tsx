@@ -111,7 +111,7 @@ export default function CanaanPage() {
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Quer Canaan para o seu negócio?</h2>
           <p className="text-gray-600 mb-6">Atendemos atacado, varejo e food service com condições para CNPJ.</p>
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <a href="mailto:foodservice@cafesaporino.com.br?subject=Café Canaan — Food Service" className="bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold px-6 py-3 rounded-full transition-colors">Falar com Food Service</a>
+            <a href="mailto:comercial@cafesaporino.com.br?subject=Café Canaan — Comercial" className="bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold px-6 py-3 rounded-full transition-colors">Falar com o Comercial</a>
             <button onClick={goStore} className="border border-[#8B2214] text-[#8B2214] hover:bg-[#f5f0ef] font-semibold px-6 py-3 rounded-full transition-colors">Ver na loja</button>
           </div>
         </div>
