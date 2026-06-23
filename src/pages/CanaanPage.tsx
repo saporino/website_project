@@ -59,7 +59,7 @@ export default function CanaanPage() {
           O <strong>Café Canaan</strong> é uma marca tradicional, com história desde 1950, reconhecida pelo café <strong>100% Conilon puro</strong>, de <strong>origem capixaba (Espírito Santo)</strong>, e pelo sabor encorpado do dia a dia. Está disponível nas versões <strong>Tradicional</strong> e <strong>Extra Forte</strong>, em embalagens de 250g e 500g.
         </p>
         <p className="text-gray-600 leading-relaxed">
-          A <strong>Café Saporino</strong> é <strong>distribuidora oficial</strong> do <strong>Café Canaan</strong>, levando a marca ao varejo e ao seu negócio (food service, atacado e mercados) com a confiança de uma operação que cuida da entrega de ponta a ponta.
+          A <strong>Café Saporino</strong> é <strong>a distribuidora oficial</strong> do <strong>Café Canaan</strong>, levando a marca ao varejo e ao seu negócio (food service, atacado e mercados) com a confiança de uma operação que cuida da entrega de ponta a ponta.
         </p>
       </section>
 
