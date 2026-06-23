@@ -7,6 +7,7 @@ interface Diff { icon: any; t: string; d: string }
 interface Brand {
   name: string;
   logoUrl: string | null;
+  heroImage?: string | null; // foto de fundo do hero (cover); fica atras de um overlay escuro
   tagline: ReactNode;
   about: ReactNode[];
   diffs: Diff[];
@@ -26,6 +27,7 @@ export const BRANDS: Record<string, Brand> = {
   canaan: {
     name: 'Café Canaan',
     logoUrl: 'https://rsvoazrkxtdrcjnatzcm.supabase.co/storage/v1/object/public/product-images/popup/logo-1782183809227.png',
+    heroImage: '/hero-colheita.webp',
     tagline: <>Tradição desde 1950. Café <strong>100% Conilon puro</strong>, de origem <strong>capixaba (Espírito Santo)</strong>. Distribuído oficialmente pela Café Saporino.</>,
     about: [
       <>O <strong>Café Canaan</strong> é uma marca tradicional, com história desde 1950, reconhecida pelo café <strong>100% Conilon puro</strong>, de <strong>origem capixaba (Espírito Santo)</strong>, e pelo sabor encorpado do dia a dia. Está disponível nas versões <strong>Tradicional</strong> e <strong>Extra Forte</strong>, em embalagens de 250g e 500g.</>,
@@ -82,8 +84,14 @@ export default function BrandPage({ slug }: { slug: string }) {
         </div>
       </div>
 
-      <section className="bg-[#8B2214] text-white">
-        <div className="max-w-6xl mx-auto px-6 py-14 text-center">
+      <section className="relative overflow-hidden text-white" style={{ background: '#8B2214' }}>
+        {/* foto de cafe ao fundo (suave) */}
+        {brand.heroImage && (
+          <div className="absolute inset-0" style={{ backgroundImage: `url(${brand.heroImage})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.30 }} />
+        )}
+        {/* profundidade: claro em cima, escuro embaixo + leve vinheta (mata o vermelho chapado) */}
+        <div className="absolute inset-0" style={{ background: 'radial-gradient(130% 120% at 50% -10%, rgba(255,255,255,0.10), rgba(0,0,0,0) 42%), linear-gradient(180deg, rgba(139,34,20,0.55) 0%, rgba(139,34,20,0.80) 55%, #6d1a10 100%)' }} />
+        <div className="relative z-10 max-w-6xl mx-auto px-6 py-14 text-center">
           {brand.logoUrl && (
             <div className="inline-flex bg-white rounded-2xl px-10 py-8 mb-6 shadow-lg">
               <img src={brand.logoUrl} alt={brand.name} className="h-40 w-auto object-contain" />
