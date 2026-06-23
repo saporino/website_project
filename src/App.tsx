@@ -1416,8 +1416,7 @@ const Contact = () => {
   );
 };
 
-const BIZ_EMAIL = 'foodservice@cafesaporino.com.br';
-const BIZ_INFO: Record<string, { title: string; intro: string; bullets: string[] }> = {
+const BIZ_INFO: Record<string, { title: string; intro: string; bullets: string[]; email: string }> = {
   foodservice: {
     title: 'Food Service',
     intro: 'Atendemos cozinhas industriais, escritórios, padarias, empórios, cafeterias, restaurantes e lanchonetes com café de qualidade a preço de atacado.',
@@ -1426,6 +1425,7 @@ const BIZ_INFO: Record<string, { title: string; intro: string; bullets: string[]
       'Quanto maior o volume, melhor o preço por quilo.',
       'Atendimento por um representante da sua região.',
     ],
+    email: 'foodservice@cafesaporino.com.br',
   },
   marca_propria: {
     title: 'Marca Própria',
@@ -1435,6 +1435,7 @@ const BIZ_INFO: Record<string, { title: string; intro: string; bullets: string[]
       'Amostras antes de fechar; embalagem e rótulo personalizados.',
       'Pedido mínimo conforme o projeto — fale com a gente.',
     ],
+    email: 'marcapropria@cafesaporino.com.br',
   },
   cafe_cru: {
     title: 'Café Cru (Café Verde)',
@@ -1444,6 +1445,7 @@ const BIZ_INFO: Record<string, { title: string; intro: string; bullets: string[]
       'Cotação acompanha o indicador de mercado do dia.',
       'Logística combinada conforme o volume.',
     ],
+    email: 'cafecru@cafesaporino.com.br',
   },
 };
 
@@ -1693,9 +1695,9 @@ const Footer = ({ scrollToSection }: any) => {
               <div className="bg-[#f8f7f5] border border-[#ddd0cc] rounded-xl p-4">
                 <p className="text-sm font-semibold text-gray-800 mb-1">Fale com a gente</p>
                 <p className="text-xs text-gray-500 mb-3">Conte o que precisa (volume, cidade, tipo de negócio) que retornamos com a melhor proposta.</p>
-                <a href={`mailto:${BIZ_EMAIL}?subject=${encodeURIComponent(BIZ_INFO[bizInfo].title + ' — Café Saporino')}`}
-                  className="inline-flex items-center gap-2 bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold px-5 py-2.5 rounded-full transition-colors">
-                  <Mail className="w-4 h-4" /> {BIZ_EMAIL}
+                <a href={`mailto:${BIZ_INFO[bizInfo].email}?subject=${encodeURIComponent(BIZ_INFO[bizInfo].title + ' — Café Saporino')}`}
+                  className="inline-flex items-center gap-2 bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold px-5 py-2.5 rounded-full transition-colors break-all">
+                  <Mail className="w-4 h-4 flex-shrink-0" /> {BIZ_INFO[bizInfo].email}
                 </a>
               </div>
             </div>
