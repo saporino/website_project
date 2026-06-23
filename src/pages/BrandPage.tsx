@@ -27,7 +27,7 @@ export const BRANDS: Record<string, Brand> = {
   canaan: {
     name: 'Café Canaan',
     logoUrl: 'https://rsvoazrkxtdrcjnatzcm.supabase.co/storage/v1/object/public/product-images/popup/logo-1782183809227.png',
-    heroImage: '/hero-colheita.webp',
+    heroImage: null, // TODO: trocar pela arte da Canaan (1920x640, cover) quando o cliente enviar
     tagline: <>Tradição desde 1950. Café <strong>100% Conilon puro</strong>, de origem <strong>capixaba (Espírito Santo)</strong>. Distribuído oficialmente pela Café Saporino.</>,
     about: [
       <>O <strong>Café Canaan</strong> é uma marca tradicional, com história desde 1950, reconhecida pelo café <strong>100% Conilon puro</strong>, de <strong>origem capixaba (Espírito Santo)</strong>, e pelo sabor encorpado do dia a dia. Está disponível nas versões <strong>Tradicional</strong> e <strong>Extra Forte</strong>, em embalagens de 250g e 500g.</>,
