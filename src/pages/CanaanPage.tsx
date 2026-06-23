@@ -47,7 +47,6 @@ export default function CanaanPage() {
               <img src={logo} alt="Café Canaan" className="h-20 w-auto object-contain" />
             </div>
           )}
-          <span className="inline-block bg-white/15 text-white text-xs font-semibold tracking-wide uppercase px-3 py-1 rounded-full mb-4">Distribuidor Oficial</span>
           <h1 className="text-4xl md:text-5xl font-bold mb-3">Café Canaan</h1>
           <p className="text-white/85 text-lg max-w-2xl mx-auto">Tradição em café desde 1950. 100% puro, torrado e moído — o sabor de sempre que o brasileiro conhece e confia. Distribuído oficialmente pela Café Saporino.</p>
         </div>
