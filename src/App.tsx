@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, FormEvent, useCallback } from 'react';
 import { Toaster, toast } from 'sonner';
-import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Send, User, ChevronDown, ChevronLeft, ChevronRight, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck, Briefcase, MapPin, Flame, Coffee } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Send, User, ChevronDown, ChevronLeft, ChevronRight, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck, Briefcase, MapPin, Flame, Coffee, Mail } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CartProvider, useCart } from './contexts/CartContext';
 import { AuthModal } from './components/AuthModal';
@@ -1415,9 +1415,41 @@ const Contact = () => {
   );
 };
 
+const BIZ_EMAIL = 'foodservice@cafesaporino.com.br';
+const BIZ_INFO: Record<string, { title: string; intro: string; bullets: string[] }> = {
+  foodservice: {
+    title: 'Food Service',
+    intro: 'Atendemos cozinhas industriais, escritórios, padarias, empórios, cafeterias, restaurantes e lanchonetes com café de qualidade a preço de atacado.',
+    bullets: [
+      'Condições para CNPJ: boleto, prazo e entrega programada.',
+      'Quanto maior o volume, melhor o preço por quilo.',
+      'Atendimento por um representante da sua região.',
+    ],
+  },
+  marca_propria: {
+    title: 'Marca Própria',
+    intro: 'Produzimos café com a SUA marca: você define o blend, a torra, a embalagem e o rótulo — cuidamos da torra, empacotamento e logística.',
+    bullets: [
+      'Ideal para redes, cafeterias e mercados que querem marca própria.',
+      'Amostras antes de fechar; embalagem e rótulo personalizados.',
+      'Pedido mínimo conforme o projeto — fale com a gente.',
+    ],
+  },
+  cafe_cru: {
+    title: 'Café Cru (Café Verde)',
+    intro: 'Vendemos café verde (cru) em sacas para torrefadores e indústrias, com referência de mercado transparente (indicador CEPEA/ESALQ).',
+    bullets: [
+      'Arábica e Conilon — informe variedade, volume e prazo.',
+      'Cotação acompanha o indicador de mercado do dia.',
+      'Logística combinada conforme o volume.',
+    ],
+  },
+};
+
 const Footer = ({ scrollToSection }: any) => {
   const currentYear = new Date().getFullYear();
   const [products, setProducts] = useState<Product[]>([]);
+  const [bizInfo, setBizInfo] = useState<keyof typeof BIZ_INFO | null>(null);
   const [showContactModal, setShowContactModal] = useState(false);
   const [contactFormData, setContactFormData] = useState({ name: '', subject: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1579,17 +1611,19 @@ const Footer = ({ scrollToSection }: any) => {
             {/* Column 4: Para Seu Negócio */}
             <div>
               <h3 className="text-lg font-bold mb-6 text-white">Para Seu Negócio</h3>
-              <p className="text-white/80 text-sm mb-4">
-                Cozinha Industrial, Escritórios, Padaria, Empório, Cafeterias e Etc.
-              </p>
               <ul className="space-y-3">
                 <li>
-                  <button onClick={() => handleNavigation('/marca-propria')} className="text-white/80 hover:text-white transition-colors text-sm">
+                  <button onClick={() => setBizInfo('foodservice')} className="text-left text-white/80 hover:text-white transition-colors text-sm">
+                    Food Service — Cozinha Industrial, Escritórios, Padaria, Empório, Cafeterias e Etc.
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => setBizInfo('marca_propria')} className="text-white/80 hover:text-white transition-colors text-sm">
                     Marca Própria
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => handleNavigation('/cafe-cru')} className="text-white/80 hover:text-white transition-colors text-sm">
+                  <button onClick={() => setBizInfo('cafe_cru')} className="text-white/80 hover:text-white transition-colors text-sm">
                     Café Cru (Café Verde)
                   </button>
                 </li>
@@ -1635,6 +1669,38 @@ const Footer = ({ scrollToSection }: any) => {
           </div>
         </div>
       </footer>
+
+      {/* Modal "Para Seu Negócio" (Food Service / Marca Própria / Café Cru) */}
+      {bizInfo && (
+        <div className="fixed inset-0 z-[1300] overflow-y-auto" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setBizInfo(null)} />
+          <div className="relative min-h-full flex items-center justify-center p-4">
+            <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 md:p-8">
+              <button onClick={() => setBizInfo(null)} aria-label="Fechar" className="absolute top-4 right-4 w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center">
+                <X className="w-5 h-5" />
+              </button>
+              <span className="inline-block bg-[#8B2214] text-white text-[11px] font-semibold px-2.5 py-1 rounded-full mb-3">Para Seu Negócio</span>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3">{BIZ_INFO[bizInfo].title}</h3>
+              <p className="text-gray-600 leading-relaxed mb-4">{BIZ_INFO[bizInfo].intro}</p>
+              <ul className="space-y-2 mb-6">
+                {BIZ_INFO[bizInfo].bullets.map((b, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#8B2214] flex-shrink-0" />{b}
+                  </li>
+                ))}
+              </ul>
+              <div className="bg-[#f8f7f5] border border-[#ddd0cc] rounded-xl p-4">
+                <p className="text-sm font-semibold text-gray-800 mb-1">Fale com a gente</p>
+                <p className="text-xs text-gray-500 mb-3">Conte o que precisa (volume, cidade, tipo de negócio) que retornamos com a melhor proposta.</p>
+                <a href={`mailto:${BIZ_EMAIL}?subject=${encodeURIComponent(BIZ_INFO[bizInfo].title + ' — Café Saporino')}`}
+                  className="inline-flex items-center gap-2 bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold px-5 py-2.5 rounded-full transition-colors">
+                  <Mail className="w-4 h-4" /> {BIZ_EMAIL}
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Contact Modal */}
       {showContactModal && (
