@@ -17,6 +17,7 @@ import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
 import { PrivacyPolicy, ShippingPolicy, RefundPolicy, TermsOfService, SubscriptionPolicy, CookiePolicy, CareersPage, PressPage, PrivateLabelPage, GreenCoffeePage, BusinessPage } from './pages/PolicyPages';
 import CookieConsent from './components/CookieConsent';
 import { HistoryPage } from './pages/HistoryPage';
+import CanaanPage from './pages/CanaanPage';
 import { PaymentSuccess, PaymentFailure, PaymentPending } from './pages/PaymentPages';
 import { TrackingPage } from './pages/TrackingPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
@@ -121,6 +122,7 @@ function AppRouter() {
   if (currentPath === '/politica-cookies') return <CookiePolicy />;
   if (currentPath === '/trabalhe-conosco') return <CareersPage />;
   if (currentPath === '/imprensa') return <PressPage />;
+  if (currentPath === '/marcas/canaan') return <CanaanPage />;
   if (currentPath === '/marca-propria') return <PrivateLabelPage />;
   if (currentPath === '/cafe-cru') return <GreenCoffeePage />;
   if (currentPath === '/para-seu-negocio') return <BusinessPage />;
@@ -1514,6 +1516,14 @@ const Footer = ({ scrollToSection }: any) => {
                     className="text-white/80 hover:text-white transition-colors text-sm"
                   >
                     Todos os cafés
+                  </button>
+                </li>
+              </ul>
+              <h4 className="text-sm font-bold mt-7 mb-3 text-white">Nossas Marcas</h4>
+              <ul className="space-y-3">
+                <li>
+                  <button onClick={() => handleNavigation('/marcas/canaan')} className="text-white/80 hover:text-white transition-colors text-sm">
+                    Café Canaan
                   </button>
                 </li>
               </ul>
