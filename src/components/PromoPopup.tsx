@@ -85,7 +85,7 @@ export default function PromoPopup({ onAction }: { onAction?: (link: string) => 
 
         {/* Texto (esquerda) */}
         <div className="p-8 md:p-10 order-2 md:order-1 flex flex-col justify-center">
-          <img src={cfg.logo_url || logoImage} alt="" style={{ height: `${2.25 * (cfg.logo_scale || 1)}rem`, maxWidth: '280px' }} className="w-auto self-start mb-5 object-contain" />
+          <img src={cfg.logo_url || logoImage} alt="" style={{ height: `${2.25 * (cfg.logo_scale || 1)}rem`, maxWidth: '380px' }} className="w-auto self-start mb-5 object-contain" />
           {cfg.eyebrow && <p className="text-xs font-bold uppercase tracking-wide text-[#8B2214] mb-2">{cfg.eyebrow}</p>}
           {cfg.headline && <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 leading-tight mb-3">{cfg.headline}</h2>}
           {cfg.subtext && <p className="text-gray-600 mb-5 leading-relaxed">{cfg.subtext}</p>}
