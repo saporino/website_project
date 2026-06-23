@@ -48,7 +48,7 @@ export default function CanaanPage() {
             </div>
           )}
           <h1 className="text-4xl md:text-5xl font-bold mb-3">Café Canaan</h1>
-          <p className="text-white/85 text-lg max-w-2xl mx-auto">Tradição desde 1950. Café <strong>100% Conilon puro</strong>, de origem <strong>capixaba (Espírito Santo)</strong> — torrado e moído, o sabor de sempre. Distribuído oficialmente pela Café Saporino.</p>
+          <p className="text-white/85 text-lg max-w-3xl mx-auto">Tradição desde 1950. Café <strong>100% Conilon puro</strong>, de origem <strong>capixaba (Espírito Santo)</strong>. Distribuído oficialmente pela Café Saporino.</p>
         </div>
       </section>
 
