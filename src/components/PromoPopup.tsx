@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 interface PopupCfg {
   id: string;
   enabled: boolean;
+  logo_url: string | null;
   image_url: string | null;
   eyebrow: string | null;
   headline: string | null;
@@ -43,7 +44,7 @@ export default function PromoPopup({ onAction }: { onAction?: (link: string) => 
     (async () => {
       const { data } = await supabase
         .from('popup_settings')
-        .select('id, enabled, image_url, eyebrow, headline, subtext, disclaimer, button_text, button_link, show_days, updated_at')
+        .select('id, enabled, logo_url, image_url, eyebrow, headline, subtext, disclaimer, button_text, button_link, show_days, updated_at')
         .eq('enabled', true)
         .order('sort_order');
       const ligados = (data as PopupCfg[]) || [];
@@ -83,7 +84,7 @@ export default function PromoPopup({ onAction }: { onAction?: (link: string) => 
 
         {/* Texto (esquerda) */}
         <div className="p-8 md:p-10 order-2 md:order-1 flex flex-col justify-center">
-          <img src={logoImage} alt="Saporino" className="h-7 w-auto self-start mb-5" />
+          <img src={cfg.logo_url || logoImage} alt="" className="h-9 w-auto self-start mb-5 object-contain" />
           {cfg.eyebrow && <p className="text-xs font-bold uppercase tracking-wide text-[#8B2214] mb-2">{cfg.eyebrow}</p>}
           {cfg.headline && <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 leading-tight mb-3">{cfg.headline}</h2>}
           {cfg.subtext && <p className="text-gray-600 mb-5 leading-relaxed">{cfg.subtext}</p>}

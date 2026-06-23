@@ -6,6 +6,7 @@ interface Popup {
   id: string;
   name: string;
   enabled: boolean;
+  logo_url: string | null;
   image_url: string | null;
   eyebrow: string | null;
   headline: string | null;
@@ -96,22 +97,22 @@ export function PopupSettings() {
 }
 
 function PopupCard({ p, onUpdate, onRemove }: { p: Popup; onUpdate: (id: string, patch: Partial<Popup>) => void; onRemove: (p: Popup) => void }) {
-  const [uploading, setUploading] = useState(false);
+  const [uploading, setUploading] = useState<'logo_url' | 'image_url' | null>(null);
 
-  const handleUpload = async (file: File) => {
-    setUploading(true);
+  const handleUpload = async (file: File, key: 'logo_url' | 'image_url') => {
+    setUploading(key);
     try {
       const ext = (file.name.split('.').pop() || 'png').toLowerCase();
-      const path = `popup/${Date.now()}.${ext}`;
+      const path = `popup/${key === 'logo_url' ? 'logo-' : ''}${Date.now()}.${ext}`;
       const { data, error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
       if (error) throw error;
       const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(data.path);
-      onUpdate(p.id, { image_url: pub.publicUrl });
+      onUpdate(p.id, { [key]: pub.publicUrl } as Partial<Popup>);
     } catch (e) {
       console.error('Erro no upload do popup:', e);
       alert('Erro ao enviar a imagem.');
     } finally {
-      setUploading(false);
+      setUploading(null);
     }
   };
 
@@ -153,6 +154,22 @@ function PopupCard({ p, onUpdate, onRemove }: { p: Popup; onUpdate: (id: string,
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Logo (cabeçalho do popup)</label>
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-28 rounded-lg bg-gray-50 border border-gray-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                {p.logo_url ? <img src={p.logo_url} alt="" className="max-h-10 max-w-full object-contain" /> : <span className="text-[10px] text-gray-400 text-center px-1">Saporino (padrão)</span>}
+              </div>
+              <label className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg cursor-pointer text-white text-xs font-semibold ${uploading === 'logo_url' ? 'bg-gray-400' : 'bg-[#8B2214] hover:bg-[#6d1a10]'}`}>
+                {uploading === 'logo_url' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />} Trocar logo
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" disabled={uploading === 'logo_url'}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f, 'logo_url'); e.target.value = ''; }} />
+              </label>
+              {p.logo_url && (
+                <button onClick={() => onUpdate(p.id, { logo_url: null })} className="text-xs text-red-600 hover:bg-red-50 px-2 py-1.5 rounded-lg">Usar Saporino</button>
+              )}
+            </div>
+          </div>
           {field('Chapéu (linha pequena em cima)', 'eyebrow', 'Ex.: Café fresquinho, todo dia')}
           {field('Título', 'headline', 'Ex.: Ganhe 10% na primeira compra')}
           {field('Subtítulo', 'subtext', 'Ex.: Cadastre-se e receba seu cupom.')}
@@ -187,10 +204,10 @@ function PopupCard({ p, onUpdate, onRemove }: { p: Popup; onUpdate: (id: string,
               : <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">Sem foto</div>}
           </div>
           <div className="flex gap-2">
-            <label className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer text-white text-sm font-semibold ${uploading ? 'bg-gray-400' : 'bg-[#8B2214] hover:bg-[#6d1a10]'}`}>
-              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} Enviar foto
-              <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" disabled={uploading}
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ''; }} />
+            <label className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer text-white text-sm font-semibold ${uploading === 'image_url' ? 'bg-gray-400' : 'bg-[#8B2214] hover:bg-[#6d1a10]'}`}>
+              {uploading === 'image_url' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} Enviar foto
+              <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" disabled={uploading === 'image_url'}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f, 'image_url'); e.target.value = ''; }} />
             </label>
             {p.image_url && (
               <button onClick={() => onUpdate(p.id, { image_url: null })} className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50">
