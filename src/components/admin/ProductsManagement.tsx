@@ -26,6 +26,7 @@ interface Product {
   subscription_discount_pct?: number;
   display_order: number;
   barcode?: string | null;
+  pj_only?: boolean;
 }
 
 function BarcodeDisplay({ value }: { value: string }) {
@@ -72,6 +73,7 @@ export function ProductsManagement() {
     subscription_discount_pct: 20 as number,
     display_order: 0,
     barcode: '',
+    pj_only: false,
   });
   const [imageMode, setImageMode] = useState<'upload' | 'url'>('url');
   const [uploading, setUploading] = useState(false);
@@ -192,6 +194,7 @@ export function ProductsManagement() {
         subscription_discount_pct: formData.subscription_discount_pct || 20,
         display_order: Number.isNaN(Number(formData.display_order)) ? 0 : Number(formData.display_order),
         barcode: (formData as any).barcode || null,
+        pj_only: !!formData.pj_only,
       };
 
       if (isAdding) {
@@ -679,6 +682,20 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-100 text-gray-500 cursor-not-allowed"
           />
           <p className="text-xs text-gray-400 mt-1">Controlado pelo Inventario</p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Venda</label>
+          <div className="flex items-center justify-between border border-gray-200 rounded-lg p-3 h-[42px] box-content">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-800">Somente para PJ</p>
+              <p className="text-xs text-gray-500 truncate">Mostra "Venda somente para PJ" na loja</p>
+            </div>
+            <button type="button" onClick={() => setFormData({ ...formData, pj_only: !formData.pj_only })} role="switch" aria-checked={!!formData.pj_only}
+              className={`relative w-14 h-8 rounded-full transition-colors flex-shrink-0 ml-2 ${formData.pj_only ? 'bg-green-500' : 'bg-gray-300'}`}>
+              <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${formData.pj_only ? 'translate-x-6' : ''}`} />
+            </button>
+          </div>
         </div>
 
         <div className="col-span-2">

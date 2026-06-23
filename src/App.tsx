@@ -796,6 +796,9 @@ const Products = ({ products, loading, addedProducts, setAddedProducts, selected
                 {product.description && (
                   <p className="text-gray-400 mb-1 text-[10px] line-clamp-2 hidden sm:block">{product.description}</p>
                 )}
+                {(product as any).pj_only && (
+                  <p className="text-[11px] font-bold text-[#8B2214] mb-1">Venda somente para PJ</p>
+                )}
 
                 <div className="mt-auto">
                   <div className="flex items-center justify-between mb-2">
