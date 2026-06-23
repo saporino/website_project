@@ -47,8 +47,9 @@ export default function CanaanPage() {
               <img src={logo} alt="Café Canaan" className="h-20 w-auto object-contain" />
             </div>
           )}
+          <span className="inline-block bg-white/15 text-white text-xs font-semibold tracking-wide uppercase px-3 py-1 rounded-full mb-4">Distribuidor Oficial</span>
           <h1 className="text-4xl md:text-5xl font-bold mb-3">Café Canaan</h1>
-          <p className="text-white/85 text-lg max-w-2xl mx-auto">Tradição em café desde 1950. 100% puro, torrado e moído — o sabor de sempre que o brasileiro conhece e confia.</p>
+          <p className="text-white/85 text-lg max-w-2xl mx-auto">Tradição em café desde 1950. 100% puro, torrado e moído — o sabor de sempre que o brasileiro conhece e confia. Distribuído oficialmente pela Café Saporino.</p>
         </div>
       </section>
 
@@ -59,7 +60,7 @@ export default function CanaanPage() {
           O <strong>Café Canaan</strong> é uma marca tradicional, com história desde 1950, reconhecida pelo café <strong>100% puro</strong> e pelo sabor encorpado do dia a dia. Está disponível nas versões <strong>Tradicional</strong> e <strong>Extra Forte</strong>, em embalagens de 250g e 500g.
         </p>
         <p className="text-gray-600 leading-relaxed">
-          Pela Café Saporino, o Canaan é distribuído para o varejo e para o seu negócio (food service, atacado e marca própria), com a confiança de uma operação que cuida da cadeia do grão à entrega.
+          A <strong>Café Saporino</strong> é <strong>distribuidora oficial</strong> do Café Canaan, levando a marca ao varejo e ao seu negócio (food service, atacado e mercados) com a confiança de uma operação que cuida da entrega de ponta a ponta.
         </p>
       </section>
 
@@ -109,7 +110,7 @@ export default function CanaanPage() {
       <section className="bg-white border-t border-gray-200">
         <div className="max-w-4xl mx-auto px-6 py-12 text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Quer Canaan para o seu negócio?</h2>
-          <p className="text-gray-600 mb-6">Atendemos atacado, food service e marca própria com condições para CNPJ.</p>
+          <p className="text-gray-600 mb-6">Atendemos atacado, varejo e food service com condições para CNPJ.</p>
           <div className="flex flex-wrap items-center justify-center gap-3">
             <a href="mailto:foodservice@cafesaporino.com.br?subject=Café Canaan — Food Service" className="bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold px-6 py-3 rounded-full transition-colors">Falar com Food Service</a>
             <button onClick={goStore} className="border border-[#8B2214] text-[#8B2214] hover:bg-[#f5f0ef] font-semibold px-6 py-3 rounded-full transition-colors">Ver na loja</button>

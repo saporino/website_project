@@ -1519,7 +1519,7 @@ const Footer = ({ scrollToSection }: any) => {
                   </button>
                 </li>
               </ul>
-              <h4 className="text-sm font-bold mt-7 mb-3 text-white">Nossas Marcas</h4>
+              <h4 className="text-sm font-bold mt-7 mb-3 text-white">Marcas que Distribuímos</h4>
               <ul className="space-y-3">
                 <li>
                   <button onClick={() => handleNavigation('/marcas/canaan')} className="text-white/80 hover:text-white transition-colors text-sm">
