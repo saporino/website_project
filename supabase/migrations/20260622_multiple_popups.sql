@@ -6,3 +6,6 @@ alter table public.popup_settings add column if not exists sort_order int not nu
 
 -- Logo configuravel por popup (fallback p/ logo Saporino se vazio).
 alter table public.popup_settings add column if not exists logo_url text;
+
+-- Tamanho do logo por popup (multiplicador; logos com muita margem precisam maior).
+alter table public.popup_settings add column if not exists logo_scale numeric(4,2) not null default 1;

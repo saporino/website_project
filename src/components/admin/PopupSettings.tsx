@@ -7,6 +7,7 @@ interface Popup {
   name: string;
   enabled: boolean;
   logo_url: string | null;
+  logo_scale: number | null;
   image_url: string | null;
   eyebrow: string | null;
   headline: string | null;
@@ -168,6 +169,15 @@ function PopupCard({ p, onUpdate, onRemove }: { p: Popup; onUpdate: (id: string,
               {p.logo_url && (
                 <button onClick={() => onUpdate(p.id, { logo_url: null })} className="text-xs text-red-600 hover:bg-red-50 px-2 py-1.5 rounded-lg">Usar Saporino</button>
               )}
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-[11px] text-gray-500">Tamanho:</span>
+              {([['P', 0.8], ['M', 1], ['G', 1.3], ['GG', 1.7]] as [string, number][]).map(([lbl, val]) => (
+                <button key={lbl} type="button" onClick={() => onUpdate(p.id, { logo_scale: val })}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${Math.abs((p.logo_scale || 1) - val) < 0.01 ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-300 hover:border-[#8B2214]'}`}>
+                  {lbl}
+                </button>
+              ))}
             </div>
           </div>
           {field('Chapéu (linha pequena em cima)', 'eyebrow', 'Ex.: Café fresquinho, todo dia')}
