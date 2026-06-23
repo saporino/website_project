@@ -770,7 +770,8 @@ const Products = ({ products, loading, addedProducts, setAddedProducts, selected
               onClick={() => setSelectedProduct(product)} className="bg-white overflow-hidden transition-all duration-300 group flex flex-col cursor-pointer"
             >
               <div className="relative aspect-square bg-white overflow-hidden flex items-center justify-center">
-                <div className="absolute inset-0 opacity-0" />
+                {/* halo suave atras da embalagem (separa o pacote do fundo branco) */}
+                <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 46%, rgba(139,34,20,0.09) 0%, rgba(0,0,0,0.045) 38%, transparent 68%)' }} />
                 <img
                   src={(product.is_active && product.image_url && product.image_url.trim() !== '' ? product.image_url : '/saporino-logo.png')}
                   alt={product.name}
@@ -1456,12 +1457,12 @@ const Footer = ({ scrollToSection }: any) => {
 
   useEffect(() => {
     const fetchProducts = async () => {
+      // mostra os cafes mesmo quando inativos/esgotados (so escondemos os de teste)
       const { data } = await supabase
         .from('products')
         .select('*')
-        .eq('is_active', true)
         .order('display_order', { ascending: true })
-        .limit(5);
+        .limit(6);
       if (data) setProducts(data);
     };
     fetchProducts();
