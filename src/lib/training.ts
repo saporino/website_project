@@ -65,10 +65,12 @@ export function useTrainingListener(repId: string | undefined): TrainingState | 
   // repId na dependency: se mudar de rep no espelho, re-registra o listener
   }, [repId]);
 
-  // Supabase Realtime — funciona para reps em outros dispositivos/abas
+  // Supabase Realtime — funciona para reps em outros dispositivos/abas.
+  // IMPORTANTE: escutar o MESMO canal que o admin transmite (CHANNEL). Antes usava
+  // um nome unico por rep (-rx-<id>) onde ninguem enviava -> cross-device nao chegava.
   useEffect(() => {
     if (!repId) return;
-    const ch = supabase.channel(CHANNEL + '-rx-' + repId.slice(0, 8));
+    const ch = supabase.channel(CHANNEL);
     ch.on('broadcast', { event: 'state' }, ({ payload }) => {
       const s = payload as TrainingState;
       const targeted = s.targets === 'all' ||
