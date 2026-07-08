@@ -365,7 +365,9 @@ export function RepCoDashboard() {
             {activeTab === 'entregas' &&<RepCoDeliveries representativeId={rep!.id} currentLat={coords?.lat} currentLng={coords?.lng} refreshKey={refreshVersion.entregas}
               highlightOrderId={highlightDeliveryId} onHighlightConsumed={() => setHighlightDeliveryId(null)} />}
             {activeTab === 'mapa' && (
-              <div style={{height:'calc(100vh - 200px)'}}>
+              // relative + isolate = cria um contexto de empilhamento proprio, prendendo
+              // os z-index altos do Leaflet dentro do mapa (senao o mapa cobre o menu "Mais").
+              <div className="relative isolate" style={{height:'calc(100vh - 200px)'}}>
                 <RepCoFieldMap representativeId={rep!.id} currentLat={coords?.lat} currentLng={coords?.lng} refreshKey={refreshVersion.mapa}
                   onEditLead={(data) => { setPreFilledClientData(data); openTab('clients'); }}
                   onFinalizeDelivery={(orderId) => {
