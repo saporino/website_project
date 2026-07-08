@@ -6,13 +6,12 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // DESLIGADO durante a fase de desenvolvimento: o service worker fazia
-      // cache teimoso (F5 mostrava versao antiga; so atualizava ao fechar o
-      // navegador). selfDestroying gera um SW que se desinstala sozinho e
-      // limpa o cache em TODOS os navegadores que ja tinham a versao antiga
-      // (inclusive os reps). REATIVAR (selfDestroying: false) so na fase do
-      // app Google Play / PWABuilder. Ver CLAUDE.md sec.8 e sec.11.
-      selfDestroying: true,
+      // REATIVADO (23/06/2026) para a fase do app dos representantes: instalavel
+      // via "Adicionar a tela inicial" e, depois, Google Play via PWABuilder.
+      // As travas anti-tela-branca ja estao no workbox abaixo (navigateFallback +
+      // skipWaiting + clientsClaim + cleanupOutdatedCaches). Se voltar a dar
+      // cache teimoso/tela branca, reverter para selfDestroying: true e redeploy.
+      selfDestroying: false,
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon.svg'],
       manifest: {
