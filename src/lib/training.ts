@@ -18,6 +18,7 @@ export interface TrainingState {
   calcOpen?: boolean;     // calculadora aberta/fechada pelo instrutor
   calcState?: CalcState;  // valores digitados na calculadora (sincroniza ao vivo)
   calcScrollPct?: number; // posição de scroll dentro da calculadora (0–1)
+  mapView?: { lat: number; lng: number; zoom: number }; // posição/zoom do mapa (instrutor -> reps)
   instructor?: string;
   targets?: string[] | 'all';
 }

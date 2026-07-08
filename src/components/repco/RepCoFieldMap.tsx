@@ -16,6 +16,10 @@ interface Props {
   }) => void;
   /** Chamado ao finalizar entrega no mapa — navega para aba Entregas com aquele pedido destacado */
   onFinalizeDelivery?: (orderId: string) => void;
+  /** Treinamento ao vivo: reporta a posição/zoom do mapa (instrutor transmite) */
+  onViewChange?: (v: { lat: number; lng: number; zoom: number }) => void;
+  /** Treinamento ao vivo: aplica a posição/zoom recebida (rep/espelho segue o instrutor) */
+  syncView?: { lat: number; lng: number; zoom: number } | null;
 }
 
 type MapMode = 'visitar' | 'pedidos' | 'entregas';
@@ -74,7 +78,7 @@ interface DayBlock {
   items: Array<{ id: string; label: string; sublabel: string; status: string; time?: string; isPending: boolean }>;
 }
 
-export default function RepCoFieldMap({ representativeId, currentLat, currentLng, previewMode = false, refreshKey = 0, onEditLead, onFinalizeDelivery }: Props) {
+export default function RepCoFieldMap({ representativeId, currentLat, currentLng, previewMode = false, refreshKey = 0, onEditLead, onFinalizeDelivery, onViewChange, syncView }: Props) {
   const [mode, setMode] = useState<MapMode>('visitar');
   const [pins, setPins] = useState<MapPin[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,6 +94,13 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
   const leafletMap = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const userHasInteracted = useRef(false);
+  // Treinamento ao vivo: transmitir/obedecer a posição do mapa. Refs evitam listeners
+  // duplicados e closures velhas. applyingSyncRef impede loop (setView -> moveend -> broadcast).
+  const onViewChangeRef = useRef(onViewChange);
+  const syncViewRef = useRef(syncView);
+  const applyingSyncRef = useRef(false);
+  useEffect(() => { onViewChangeRef.current = onViewChange; }, [onViewChange]);
+  useEffect(() => { syncViewRef.current = syncView; }, [syncView]);
   // Controla fitBounds: só faz UMA vez por modo (na primeira carga).
   // Quando o usuário muda de aba, hasInitialFit reseta → fitBounds roda de novo.
   // Quando dados atualizam (fetchPins, GPS) → hasInitialFit já é true → sem reset.
@@ -353,6 +364,20 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
         leafletMap.current.on('movestart', (e: any) => {
           if (e.originalEvent) userHasInteracted.current = true; // só eventos reais do usuário
         });
+        // Treinamento: instrutor transmite a posição/zoom ao mover/dar zoom
+        const emitView = () => {
+          if (applyingSyncRef.current || !onViewChangeRef.current || !leafletMap.current) return;
+          const c = leafletMap.current.getCenter();
+          onViewChangeRef.current({ lat: c.lat, lng: c.lng, zoom: leafletMap.current.getZoom() });
+        };
+        leafletMap.current.on('moveend', emitView);
+        leafletMap.current.on('zoomend', emitView);
+        // Se já chegou uma posição do instrutor antes do mapa existir, aplica agora
+        if (syncViewRef.current) {
+          applyingSyncRef.current = true;
+          leafletMap.current.setView([syncViewRef.current.lat, syncViewRef.current.lng], syncViewRef.current.zoom);
+          setTimeout(() => { applyingSyncRef.current = false; }, 400);
+        }
       }
       setTimeout(() => leafletMap.current?.invalidateSize(), 50);
 
@@ -395,7 +420,7 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
       // fitBounds só na PRIMEIRA carga de cada modo.
       // Depois disso (GPS update, check-in, refresh) o zoom NÃO reseta.
       // Mudar de aba reseta hasInitialFit → fitBounds roda de novo ao entrar na aba.
-      if (!hasInitialFit.current && bounds.length > 0) {
+      if (!hasInitialFit.current && bounds.length > 0 && !syncViewRef.current) {
         hasInitialFit.current = true;
         if (bounds.length > 1) {
           leafletMap.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
@@ -408,6 +433,15 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
     initMap();
     return () => { if (!mapRef.current) { leafletMap.current?.remove(); leafletMap.current = null; } };
   }, [pins, pulsingId, loading, hasGps, currentLat, currentLng]);
+
+  // Treinamento: rep/espelho recebe a posição do instrutor e move o mapa pra lá.
+  useEffect(() => {
+    if (!syncView || !leafletMap.current) return;
+    applyingSyncRef.current = true;
+    leafletMap.current.setView([syncView.lat, syncView.lng], syncView.zoom, { animate: true });
+    const t = setTimeout(() => { applyingSyncRef.current = false; }, 500);
+    return () => clearTimeout(t);
+  }, [syncView?.lat, syncView?.lng, syncView?.zoom]);
 
   function navegar(pin: MapPin, app: 'google' | 'waze') {
     const query = [pin.label, pin.sublabel].filter(Boolean).join(', ');

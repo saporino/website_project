@@ -292,7 +292,11 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
 
     if (activeTab === 'mapa')
       return <RepCoFieldMap key={propsKey} representativeId={activeRep.id} previewMode={pm}
-        onFinalizeDelivery={() => setActiveTab('entregas')} />;
+        onFinalizeDelivery={() => setActiveTab('entregas')}
+        onViewChange={isTrainingMode && training
+          ? (v) => sendTraining({ active: true, tab: activeTab, calcOpen, calcState: calcStateLocal, mapView: v, instructor: 'Instrutor', targets: 'all' })
+          : undefined}
+        syncView={!isTrainingMode && trainingBroadcast?.active ? trainingBroadcast.mapView : undefined} />;
 
     if (activeTab === 'entregas')
       return <RepCoDeliveries key={propsKey} representativeId={activeRep.id} previewMode={pm} />;

@@ -369,6 +369,7 @@ export function RepCoDashboard() {
               // os z-index altos do Leaflet dentro do mapa (senao o mapa cobre o menu "Mais").
               <div className="relative isolate" style={{height:'calc(100vh - 200px)'}}>
                 <RepCoFieldMap representativeId={rep!.id} currentLat={coords?.lat} currentLng={coords?.lng} refreshKey={refreshVersion.mapa}
+                  syncView={training?.active ? training.mapView : undefined}
                   onEditLead={(data) => { setPreFilledClientData(data); openTab('clients'); }}
                   onFinalizeDelivery={(orderId) => {
                     setHighlightDeliveryId(orderId);
