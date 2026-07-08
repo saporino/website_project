@@ -36,7 +36,7 @@ interface Representative {
 type RepCoTab = 'inicio' | 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido' | 'entregas' | 'prospection' | 'mapa' | 'mercado';
 
 export function RepCoDashboard() {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, loading: authLoading } = useAuth();
   const [rep, setRep] = useState<Representative | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<RepCoTab>('inicio');
@@ -129,6 +129,16 @@ export function RepCoDashboard() {
     setSubmitting(false);
     if (!error) fetchRep();
   };
+
+  // Enquanto a sessao restaura (F5/refresh), NAO mostrar a tela de login — senao
+  // parece que deslogou e volta a pedir senha. Espera o loading do useAuth.
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#f8f7f5] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-[#a4240e]" />
+      </div>
+    );
+  }
 
   if (!user) {
     return (
