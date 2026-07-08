@@ -86,6 +86,16 @@ function AppRouter() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  // Título da aba por rota — usado tb. pelo "Adicionar à tela inicial" (atalho pega o título).
+  // No portal do rep vira "RepCo" para o atalho/app já nascer com esse nome.
+  useEffect(() => {
+    document.title = currentPath.startsWith('/repco')
+      ? 'RepCo'
+      : currentPath === '/admin'
+        ? 'Admin — Café Saporino'
+        : 'Café Saporino — O Verdadeiro Sabor de Minas';
+  }, [currentPath]);
+
   if (currentPath === '/admin') {
     return <AdminDashboard />;
   }

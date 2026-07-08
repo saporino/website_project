@@ -15,8 +15,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon.svg'],
       manifest: {
-        name: 'Café Saporino — RepCo',
-        short_name: 'RepCo Saporino',
+        name: 'RepCo — Café Saporino',
+        short_name: 'RepCo',
         description: 'Portal do Representante Comercial — Café Saporino',
         theme_color: '#8B2214',
         background_color: '#f8f7f5',
