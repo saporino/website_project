@@ -92,12 +92,14 @@ export function espelhoTabToRepTab(tab?: string): string {
     case 'inicio':      return 'inicio';
     case 'profile':     return 'profile';
     case 'prospection': return 'prospection';
+    case 'mapa':        return 'mapa';
     case 'clients':     return 'clients';
     case 'novo_pedido': return 'novo_pedido';
     case 'orders':      return 'orders';
     case 'entregas':    return 'entregas';
     case 'commissions': return 'commissions';
     case 'performance': return 'performance';
+    case 'mercado':     return 'mercado';
     default:            return 'inicio';
   }
 }
