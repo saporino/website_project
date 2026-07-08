@@ -1,29 +1,44 @@
-import { useState, useEffect, useRef, FormEvent, useCallback } from 'react';
+import { useState, useEffect, useRef, FormEvent, useCallback, lazy, Suspense } from 'react';
 import { Toaster, toast } from 'sonner';
 import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Send, User, ChevronDown, ChevronLeft, ChevronRight, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck, Briefcase, MapPin, Flame, Coffee, Mail } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CartProvider, useCart } from './contexts/CartContext';
 import { AuthModal } from './components/AuthModal';
 import { bannerButtonStyle } from './lib/bannerButton';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { ResetPassword } from './pages/ResetPassword';
-import { SubscriptionPage } from './pages/SubscriptionPage';
-import { UserProfile } from './pages/UserProfile';
+// Páginas pesadas carregadas sob demanda (code-splitting por rota) — o /repco não baixa
+// mais o Admin/Loja/checkout inteiros; cada rota puxa só o seu pedaço. Ver Suspense abaixo.
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const ResetPassword = lazy(() => import('./pages/ResetPassword').then(m => ({ default: m.ResetPassword })));
+const SubscriptionPage = lazy(() => import('./pages/SubscriptionPage').then(m => ({ default: m.SubscriptionPage })));
+const UserProfile = lazy(() => import('./pages/UserProfile').then(m => ({ default: m.UserProfile })));
 import { supabase } from './lib/supabase';
 import { Product, CartItem } from './types';
 import { createPreference, MERCADO_PAGO_PUBLIC_KEY } from './lib/mercadopago';
 import { getCarrierQuotes, lookupCEP, formatCEP, calculateCartWeight, CarrierQuote } from './lib/shipping';
 import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
-import { PrivacyPolicy, ShippingPolicy, RefundPolicy, TermsOfService, SubscriptionPolicy, CookiePolicy, CareersPage, PressPage, PrivateLabelPage, GreenCoffeePage, BusinessPage } from './pages/PolicyPages';
 import CookieConsent from './components/CookieConsent';
-import { HistoryPage } from './pages/HistoryPage';
-import BrandPage from './pages/BrandPage';
-import { PaymentSuccess, PaymentFailure, PaymentPending } from './pages/PaymentPages';
-import { TrackingPage } from './pages/TrackingPage';
-import { OrderDetailPage } from './pages/OrderDetailPage';
-import { RepCoDashboard } from './pages/RepCoDashboard';
-import RepCoIntelligence from './pages/RepCoIntelligence';
-import RepCoCoverageMap from './pages/RepCoCoverageMap';
+const P = () => import('./pages/PolicyPages');
+const PrivacyPolicy = lazy(() => P().then(m => ({ default: m.PrivacyPolicy })));
+const ShippingPolicy = lazy(() => P().then(m => ({ default: m.ShippingPolicy })));
+const RefundPolicy = lazy(() => P().then(m => ({ default: m.RefundPolicy })));
+const TermsOfService = lazy(() => P().then(m => ({ default: m.TermsOfService })));
+const SubscriptionPolicy = lazy(() => P().then(m => ({ default: m.SubscriptionPolicy })));
+const CookiePolicy = lazy(() => P().then(m => ({ default: m.CookiePolicy })));
+const CareersPage = lazy(() => P().then(m => ({ default: m.CareersPage })));
+const PressPage = lazy(() => P().then(m => ({ default: m.PressPage })));
+const PrivateLabelPage = lazy(() => P().then(m => ({ default: m.PrivateLabelPage })));
+const GreenCoffeePage = lazy(() => P().then(m => ({ default: m.GreenCoffeePage })));
+const BusinessPage = lazy(() => P().then(m => ({ default: m.BusinessPage })));
+const HistoryPage = lazy(() => import('./pages/HistoryPage').then(m => ({ default: m.HistoryPage })));
+const BrandPage = lazy(() => import('./pages/BrandPage'));
+const PaymentSuccess = lazy(() => import('./pages/PaymentPages').then(m => ({ default: m.PaymentSuccess })));
+const PaymentFailure = lazy(() => import('./pages/PaymentPages').then(m => ({ default: m.PaymentFailure })));
+const PaymentPending = lazy(() => import('./pages/PaymentPages').then(m => ({ default: m.PaymentPending })));
+const TrackingPage = lazy(() => import('./pages/TrackingPage').then(m => ({ default: m.TrackingPage })));
+const OrderDetailPage = lazy(() => import('./pages/OrderDetailPage').then(m => ({ default: m.OrderDetailPage })));
+const RepCoDashboard = lazy(() => import('./pages/RepCoDashboard').then(m => ({ default: m.RepCoDashboard })));
+const RepCoIntelligence = lazy(() => import('./pages/RepCoIntelligence'));
+const RepCoCoverageMap = lazy(() => import('./pages/RepCoCoverageMap'));
 import ProductDetail from './components/ProductDetail';
 import PromoPopup from './components/PromoPopup';
 import { trackVisit } from './lib/trackVisit';
@@ -68,7 +83,9 @@ function App() {
   return (
     <AuthProvider>
       <CartProvider>
-        <AppRouter />
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#f8f7f5]"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#8B2214]" /></div>}>
+          <AppRouter />
+        </Suspense>
       </CartProvider>
     </AuthProvider>
   );
