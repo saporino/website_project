@@ -23,10 +23,12 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/repco',
         scope: '/',
+        // Icones com fundo TRANSPARENTE (logo Saporino). Sem 'maskable' de proposito:
+        // maskable + transparente = o Android/Samsung enche o quadrado de PRETO no splash.
+        // Como 'any', o logo aparece sobre o background_color claro (sem quadrado preto).
         icons: [
-          { src: '/icons/pwa-192x192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/pwa-512x512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icons/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          { src: '/icons/pwa-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/icons/pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
         ],
       },
       workbox: {
