@@ -86,6 +86,18 @@ function AppRouter() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  // App instalado (RepCo) aberto e caindo na loja "/" -> manda pro portal do rep.
+  // Cobre o caso de "atalho" apontando pra "/" (atalho ignora o start_url do manifest).
+  // So no launch (uma vez); nao prende a navegacao se o rep escolher ir ao site depois.
+  useEffect(() => {
+    const standalone = window.matchMedia?.('(display-mode: standalone)').matches
+      || (window.navigator as any).standalone === true;
+    if (standalone && window.location.pathname === '/') {
+      window.history.replaceState({}, '', '/repco');
+      setCurrentPath('/repco');
+    }
+  }, []);
+
   // Título da aba por rota — usado tb. pelo "Adicionar à tela inicial" (atalho pega o título).
   // No portal do rep vira "RepCo" para o atalho/app já nascer com esse nome.
   useEffect(() => {
