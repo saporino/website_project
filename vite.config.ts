@@ -6,12 +6,13 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // REATIVADO (23/06/2026) para a fase do app dos representantes: instalavel
-      // via "Adicionar a tela inicial" e, depois, Google Play via PWABuilder.
-      // As travas anti-tela-branca ja estao no workbox abaixo (navigateFallback +
-      // skipWaiting + clientsClaim + cleanupOutdatedCaches). Se voltar a dar
-      // cache teimoso/tela branca, reverter para selfDestroying: true e redeploy.
-      selfDestroying: false,
+      // REVERTIDO (08/07/2026): a reativacao (selfDestroying:false) causou tela
+      // "carregando" travada no celular de um rep (SW servindo bundle velho/quebrado).
+      // selfDestroying:true instala um SW que se AUTODESTROI e limpa o cache em TODOS
+      // os aparelhos (inclusive os que pegaram a versao quebrada) -> portal volta a
+      // funcionar como site normal. Reativar o app so na fase dedicada, testando o SW
+      // com cuidado (staging/1 aparelho) antes de subir pra todos os reps.
+      selfDestroying: true,
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon.svg'],
       manifest: {
