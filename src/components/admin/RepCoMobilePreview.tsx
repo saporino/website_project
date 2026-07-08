@@ -198,14 +198,17 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
   const [training, setTraining] = useState(false);
   const [calcOpen, setCalcOpen] = useState(false); // calculadora aberta neste frame
   const [calcStateLocal, setCalcStateLocal] = useState<CalcState | undefined>(undefined); // valores da calc (instrutor)
+  const [mapViewLocal, setMapViewLocal] = useState<{ lat: number; lng: number; zoom: number } | undefined>(undefined); // posição do mapa (instrutor)
+  // SÓ a janela de Treinamento (isTrainingMode) transmite. O Espelho é receptor —
+  // se ele também transmitisse (apertar "Treinar" nele), brigaria e zerava o mapa.
   useEffect(() => {
-    if (!training) return;
-    sendTraining({ active: true, tab: activeTab, calcOpen, calcState: calcStateLocal, instructor: 'Instrutor', targets: 'all' });
+    if (!isTrainingMode || !training) return;
+    sendTraining({ active: true, tab: activeTab, calcOpen, calcState: calcStateLocal, mapView: mapViewLocal, instructor: 'Instrutor', targets: 'all' });
     return () => sendTraining({ active: false, targets: 'all' });
   }, [training, sendTraining]);
   useEffect(() => {
-    if (training) sendTraining({ active: true, tab: activeTab, calcOpen, calcState: calcStateLocal, instructor: 'Instrutor', targets: 'all' });
-  }, [activeTab, calcOpen, calcStateLocal, training, sendTraining]);
+    if (isTrainingMode && training) sendTraining({ active: true, tab: activeTab, calcOpen, calcState: calcStateLocal, mapView: mapViewLocal, instructor: 'Instrutor', targets: 'all' });
+  }, [activeTab, calcOpen, calcStateLocal, mapViewLocal, training, sendTraining]);
 
   // Broadcast de scroll: quando o instrutor rola, envia a posição (0–1) para os reps
   function handleScroll() {
@@ -294,7 +297,7 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
       return <RepCoFieldMap key={propsKey} representativeId={activeRep.id} previewMode={pm}
         onFinalizeDelivery={() => setActiveTab('entregas')}
         onViewChange={isTrainingMode && training
-          ? (v) => sendTraining({ active: true, tab: activeTab, calcOpen, calcState: calcStateLocal, mapView: v, instructor: 'Instrutor', targets: 'all' })
+          ? (v) => { setMapViewLocal(v); sendTraining({ active: true, tab: activeTab, calcOpen, calcState: calcStateLocal, mapView: v, instructor: 'Instrutor', targets: 'all' }); }
           : undefined}
         syncView={!isTrainingMode && trainingBroadcast?.active ? trainingBroadcast.mapView : undefined} />;
 
