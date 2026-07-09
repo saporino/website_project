@@ -32,7 +32,9 @@ export async function getCarrierQuotes(_cep: string, weightKg: number = 0.5): Pr
   try {
     const { data: carriers, error } = await supabase
       .from('shipping_carriers')
-      .select('*')
+      // Colunas explícitas (NUNCA api_password): o checkout é público (anon) e não deve
+      // trafegar credenciais. api_password fica revogada para o role anon (ver RLS).
+      .select('id, name, code, price_per_kg, fixed_price, delivery_time_days, is_active, logo_url, api_type, api_endpoint, api_key')
       .eq('is_active', true)
       .order('name');
 
