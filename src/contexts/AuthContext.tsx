@@ -120,12 +120,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const resetPassword = async (email: string) => {
-    const redirectUrl = `${window.location.origin}/reset-password`;
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: redirectUrl,
-    });
-    return { error };
+    // Envia via nossa Edge Function (Resend), não pelo e-mail padrão do Supabase.
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-password-reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, redirectTo: `${window.location.origin}/reset-password` }),
+      });
+      const r = await res.json().catch(() => ({}));
+      if (!res.ok || r.error) return { error: new Error(r.error || 'Não foi possível enviar o e-mail agora.') };
+      return { error: null };
+    } catch (e) {
+      return { error: e instanceof Error ? e : new Error('Falha de conexão.') };
+    }
   };
 
   return (
