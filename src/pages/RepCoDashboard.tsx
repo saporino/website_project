@@ -321,7 +321,7 @@ export function RepCoDashboard() {
               className="text-sm text-gray-600 hover:text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors">
               Voltar ao site
             </button>
-            <button onClick={async () => { await signOut(); window.history.pushState({}, '', '/'); window.dispatchEvent(new PopStateEvent('popstate')); }}
+            <button onClick={async () => { await signOut(); window.history.pushState({}, '', '/repco'); window.dispatchEvent(new PopStateEvent('popstate')); }}
               className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors" title="Sair">
               <LogOut className="w-4 h-4" />
             </button>
