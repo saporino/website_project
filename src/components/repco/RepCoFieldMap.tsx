@@ -109,6 +109,13 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
   const pulsingIdRef = useRef<string | null>(null);
   useEffect(() => { pulsingIdRef.current = pulsingId; }, [pulsingId]);
 
+  // GPS num ref: o GPS do celular atualiza toda hora; se ele entrar nas dependências
+  // de fetchPins/effects, cada atualização re-dispara a busca -> loop de spinner (bug).
+  // No ref, usamos a posição pra ordenar/mover o ponto SEM re-buscar.
+  const coordsRef = useRef<{ lat?: number; lng?: number }>({ lat: currentLat, lng: currentLng });
+  useEffect(() => { coordsRef.current = { lat: currentLat, lng: currentLng }; }, [currentLat, currentLng]);
+  const repMarkerRef = useRef<any>(null);
+
   const hasGps = currentLat !== undefined && currentLng !== undefined;
 
   // Supabase retorna a relação como objeto OU array dependendo do contexto —
@@ -138,6 +145,9 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
   const fetchPins = useCallback(async () => {
     setLoading(true);
     setSelectedPin(null);
+    // GPS lido do ref (não das deps) — ordena por distância sem re-buscar a cada update.
+    const { lat: gLat, lng: gLng } = coordsRef.current;
+    const gGps = gLat != null && gLng != null;
 
     if (mode === 'visitar') {
       const today = new Date().toISOString().split('T')[0];
@@ -152,8 +162,8 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
         .filter((l: any) => l?.lat != null && l?.lng != null
           // Concluídos saem do mapa ativo (ficam só no histórico abaixo)
           && !['visited', 'converted', 'rejected'].includes(l?.status || ''));
-      const sorted = hasGps
-        ? [...rows].sort((a: any, b: any) => haversineKm(currentLat!, currentLng!, a.lat, a.lng) - haversineKm(currentLat!, currentLng!, b.lat, b.lng))
+      const sorted = gGps
+        ? [...rows].sort((a: any, b: any) => haversineKm(gLat!, gLng!, a.lat, a.lng) - haversineKm(gLat!, gLng!, b.lat, b.lng))
         : rows;
       setPins(jitterPins(sorted.map((l: any, i: number) => ({
         id: l.id, number: i+1, lat: l.lat, lng: l.lng,
@@ -194,8 +204,8 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
       const rows = (data || [])
         .map((o: any) => ({ ...o, _c: getClient(o) }))
         .filter((o: any) => o._c?.lat != null && o._c?.lng != null);
-      const sorted = hasGps
-        ? [...rows].sort((a: any, b: any) => haversineKm(currentLat!, currentLng!, a._c.lat, a._c.lng) - haversineKm(currentLat!, currentLng!, b._c.lat, b._c.lng))
+      const sorted = gGps
+        ? [...rows].sort((a: any, b: any) => haversineKm(gLat!, gLng!, a._c.lat, a._c.lng) - haversineKm(gLat!, gLng!, b._c.lat, b._c.lng))
         : rows;
       setPins(jitterPins(sorted.map((o: any, i: number) => ({
         id: o.id, number: i+1, lat: o._c.lat, lng: o._c.lng,
@@ -209,7 +219,7 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
     // ── HISTÓRICO DIÁRIO ──
     await fetchHistory();
     setLoading(false);
-  }, [mode, representativeId, currentLat, currentLng, refreshKey]);
+  }, [mode, representativeId, refreshKey]);
 
   const fetchHistory = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0];
@@ -340,11 +350,12 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
     if (pending.length === 0) { setPulsingId(null); return; }
     const currentStillPending = pending.find(p => p.id === pulsingIdRef.current);
     if (currentStillPending) return; // atual ainda pendente → mantém
-    const nearest = hasGps
-      ? [...pending].sort((a, b) => haversineKm(currentLat!, currentLng!, a.lat, a.lng) - haversineKm(currentLat!, currentLng!, b.lat, b.lng))[0]
+    const { lat: gLat, lng: gLng } = coordsRef.current;
+    const nearest = (gLat != null && gLng != null)
+      ? [...pending].sort((a, b) => haversineKm(gLat, gLng, a.lat, a.lng) - haversineKm(gLat, gLng, b.lat, b.lng))[0]
       : pending[0];
     setPulsingId(nearest.id);
-  }, [pins, mode, loading, hasGps, currentLat, currentLng]);
+  }, [pins, mode, loading]);
 
   // Renderiza o mapa Leaflet
   useEffect(() => {
@@ -354,7 +365,8 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
     async function initMap() {
       L = (await import('leaflet')).default;
       if (!leafletMap.current) {
-        const mapCenter = hasGps ? [currentLat!, currentLng!] : [-23.185, -47.010];
+        const mapCenter = (coordsRef.current.lat != null && coordsRef.current.lng != null)
+          ? [coordsRef.current.lat, coordsRef.current.lng] : [-23.185, -47.010];
         leafletMap.current = L.map(mapRef.current!, {
           zoomControl: true, attributionControl: false, scrollWheelZoom: true,
           center: mapCenter, zoom: 13,
@@ -385,17 +397,19 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
       markersRef.current.forEach(m => m.remove());
       markersRef.current = [];
 
-      // GPS do rep
-      if (hasGps) {
+      // GPS do rep — ponto "você está aqui" (guardado em ref p/ mover sem re-render)
+      const { lat: rLat, lng: rLng } = coordsRef.current;
+      const rGps = rLat != null && rLng != null;
+      if (rGps) {
         const repIcon = L.divIcon({
           html: `<div style="width:18px;height:18px;background:#8B2214;border:3px solid white;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4)"></div>`,
           className: '', iconSize: [18, 18], iconAnchor: [9, 9],
         });
-        L.marker([currentLat, currentLng], { icon: repIcon }).addTo(leafletMap.current);
+        repMarkerRef.current = L.marker([rLat, rLng], { icon: repIcon }).addTo(leafletMap.current);
       }
 
       // Pinos dos dados
-      const bounds: [number,number][] = hasGps ? [[currentLat!, currentLng!]] : [];
+      const bounds: [number,number][] = rGps ? [[rLat!, rLng!]] : [];
       pins.forEach(pin => {
         const isPulsing = pin.id === pulsingId;
         const icon = L.divIcon({
@@ -432,7 +446,15 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
 
     initMap();
     return () => { if (!mapRef.current) { leafletMap.current?.remove(); leafletMap.current = null; } };
-  }, [pins, pulsingId, loading, hasGps, currentLat, currentLng]);
+    // GPS (currentLat/Lng) NÃO entra aqui: senão o mapa se redesenha a cada update do
+    // GPS -> piscava/recarregava em loop. O ponto "você está aqui" é movido no effect abaixo.
+  }, [pins, pulsingId, loading]);
+
+  // Move só o ponto GPS quando a localização muda — sem reconstruir o mapa/pinos.
+  useEffect(() => {
+    if (currentLat == null || currentLng == null || !repMarkerRef.current) return;
+    try { repMarkerRef.current.setLatLng([currentLat, currentLng]); } catch { /* mapa recriando */ }
+  }, [currentLat, currentLng]);
 
   // Treinamento: rep/espelho recebe a posição do instrutor e move o mapa pra lá.
   useEffect(() => {

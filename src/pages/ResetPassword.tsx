@@ -64,6 +64,8 @@ export const ResetPassword = () => {
       setError('Erro ao atualizar senha. Tente novamente.');
       setLoading(false);
     } else {
+      // Segurança: trocou a senha -> derruba as OUTRAS sessões (outros aparelhos/abas).
+      try { await supabase.auth.signOut({ scope: 'others' }); } catch { /* ok */ }
       setSuccess(true);
       setTimeout(() => {
         window.location.href = '/';
