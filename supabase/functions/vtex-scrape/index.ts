@@ -90,9 +90,12 @@ Deno.serve(async (req) => {
       const discount_pct = price_before ? Math.round((1 - price / price_before) * 100) : null;
       const title: string = prod.productName ?? "";
       const category = Array.isArray(prod.categories) ? prod.categories[0] : null;
-      // a busca ft=café pode trazer não-café (pão com "café" na descrição); só mantém café de fato
-      const isCoffee = /caf[ée]/i.test(title) || /caf[ée]/i.test(String(category)) || /caf[ée]/i.test(String(prod.brand ?? ""));
-      if (!isCoffee) return null;
+      // a busca ft=café traz muito não-café: exige "café" no TÍTULO e exclui acessórios
+      // (sandália/caneca cor café, coador, pote, etc.). Preço 0 = indisponível -> filtrado abaixo.
+      const t = title.toLowerCase();
+      const isCoffee = /caf[ée]/.test(t);
+      const isAccessory = /sand[áa]lia|chinelo|pote|caneca|x[íi]cara|coador|suporte|garrafa|moedor|bebedouro|leiteira|prateleira|organizador|tapete|capacho|caneco|bule|filtro de papel/.test(t);
+      if (!isCoffee || isAccessory) return null;
       return {
         company_id, captured_at, marketplace,
         search_term: terms.join(","),
@@ -104,7 +107,7 @@ Deno.serve(async (req) => {
         search_position: null, is_sponsored: false,
         ...normalize({ title, price, category }), raw: prod,
       };
-    }).filter((r) => r && r.price != null && r.listing_sku && r.title);
+    }).filter((r) => r && r.price != null && r.price > 0 && r.listing_sku && r.title);
 
     if (!rows.length) return json({ inserted: 0, captured_at, message: "Sem itens com preço válido." });
     const { error } = await db.from("ecommerce_price_snapshots").insert(rows);
