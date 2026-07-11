@@ -25,21 +25,15 @@ export const MARKETPLACE_SEGMENTS = [
 export type MarketplaceSegment = typeof MARKETPLACE_SEGMENTS[number]['value'];
 
 // Supermercados de SP — inteligência de preços de concorrentes (não é segmento de venda B2B).
-// SÓ redes que operam em São Paulo. (Prezunic/Zona Sul=RJ, Giassi=SC, GBarbosa=NE — removidas.)
+// SÓ redes de SP com API VTEX pública (grátis, tempo real). As redes que bloqueiam
+// (Pão/Carrefour/Extra/Assaí/Tenda/Dia/St Marche) foram removidas: só dava pra alcançar
+// via Google Shopping pago (caro e cobertura fraca) — descartado.
 export const SUPERMARKET_SEGMENTS = [
   { value: 'super_atacadao',  label: 'Atacadão' },
   { value: 'super_sams',      label: "Sam's Club" },
   { value: 'super_savegnago', label: 'Savegnago' },
   { value: 'super_mambo',     label: 'Mambo' },
   { value: 'super_muffato',   label: 'Super Muffato' },
-  // ainda sem API pública (bloqueiam / não-VTEX) — entram via Google Shopping (fase 2):
-  { value: 'super_pao',       label: 'Pão de Açúcar' },
-  { value: 'super_carrefour', label: 'Carrefour' },
-  { value: 'super_extra',     label: 'Extra' },
-  { value: 'super_assai',     label: 'Assaí' },
-  { value: 'super_tenda',     label: 'Tenda Atacado' },
-  { value: 'super_dia',       label: 'Dia' },
-  { value: 'super_stmarche',  label: 'St Marche' },
 ] as const;
 
 export type SupermarketSegment = typeof SUPERMARKET_SEGMENTS[number]['value'];

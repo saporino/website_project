@@ -18,12 +18,8 @@ interface Row {
   is_suspect: boolean; is_sponsored: boolean; captured_at: string;
 }
 
-// redes sem API pública (bloqueiam) — coletadas via Google Shopping (Apify), não VTEX
-const GOOGLE_SHOPPING = ['super_pao', 'super_carrefour', 'super_extra', 'super_assai', 'super_tenda', 'super_dia', 'super_stmarche'];
-
 export default function EcommercePriceIntel({ marketplace, label, readOnly = false }: { marketplace: string; label: string; readOnly?: boolean }) {
-  const isGoogleShopping = GOOGLE_SHOPPING.includes(marketplace);
-  const isSuper = marketplace.startsWith('super_') && !isGoogleShopping; // supermercado VTEX (não Apify)
+  const isSuper = marketplace.startsWith('super_'); // supermercado VTEX (não Apify)
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -101,7 +97,7 @@ export default function EcommercePriceIntel({ marketplace, label, readOnly = fal
     setRefreshing(true); setMsg('');
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const endpoint = isGoogleShopping ? 'google-shopping-scrape' : isSuper ? 'vtex-scrape' : 'ecommerce-scrape';
+      const endpoint = isSuper ? 'vtex-scrape' : 'ecommerce-scrape';
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${endpoint}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
         body: JSON.stringify({ marketplace }),
@@ -109,15 +105,8 @@ export default function EcommercePriceIntel({ marketplace, label, readOnly = fal
       const r = await res.json();
       if (r.error === 'not_configured') setMsg(isSuper ? 'Rede sem domínio VTEX configurado. Clique em "Fonte" e cole o domínio.' : 'Fonte ainda sem ator/input configurado. Me passe o Actor ID + Input do Apify que eu ligo.');
       else if (r.error === 'no_credit') setMsg('Crédito Apify esgotado este mês.');
-      else if (r.error === 'actor_locked') setMsg('O actor do Google Shopping precisa ser alugado/habilitado na conta Apify. Enquanto isso, esta rede fica sem dados.');
-      else if (r.error === 'apify_aborted') setMsg('O Google bloqueou a coleta agora (proteção anti-robô por excesso de tentativas). Espere alguns minutos e clique de novo.');
       else if (r.inserted === 0) setMsg('Nenhum produto retornado (confira o domínio/termos).');
       else if (r.error) setMsg('Erro: ' + (r.message || r.error));
-      else if (isGoogleShopping) {
-        const by = r.byMarketplace || {};
-        const resumo = Object.entries(by).map(([k, v]) => `${k.replace('super_', '')}: ${v}`).join(' · ');
-        setMsg(`Google Shopping: ${r.total} ofertas nas redes bloqueadas${resumo ? ` (${resumo})` : ''}. Todas atualizadas de uma vez.`); await load();
-      }
       else { setMsg(`Coletados ${r.inserted} anúncios.`); await load(); }
     } catch (e) { setMsg('Erro: ' + (e instanceof Error ? e.message : String(e))); }
     setRefreshing(false);
@@ -176,15 +165,6 @@ export default function EcommercePriceIntel({ marketplace, label, readOnly = fal
       </div>
       {msg && <p className="text-xs p-2 rounded bg-gray-50 border border-gray-100 text-gray-700">{msg}</p>}
 
-      {/* Google Shopping: sem config — o botão "Atualizar" já busca as redes bloqueadas */}
-      {showCfg && isGoogleShopping && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2">
-          <p className="text-sm font-semibold text-gray-800">Fonte do {label}: Google Shopping (Apify)</p>
-          <p className="text-xs text-gray-600">Esta rede bloqueia coleta direta, então os preços vêm do <strong>Google Shopping</strong>. Não precisa configurar nada — clique em <strong>Atualizar agora</strong>. Uma busca já traz as ofertas de <strong>todas</strong> as redes bloqueadas de uma vez (Pão de Açúcar, Carrefour, Extra, Assaí, Tenda, Dia, St Marche).</p>
-          <p className="text-[11px] text-gray-400">Consome crédito Apify por resultado. Rode sob demanda ou 1x/semana.</p>
-        </div>
-      )}
-
       {/* Configuração da fonte (Apify) — cole o Actor ID + Input e ligue */}
       {showCfg && isSuper && (
         <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
@@ -233,11 +213,9 @@ export default function EcommercePriceIntel({ marketplace, label, readOnly = fal
         <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-gray-500">
           {readOnly
             ? <>Ainda sem preços coletados para {label}. Assim que houver dados, eles aparecem aqui.</>
-            : isGoogleShopping
-              ? <>Nenhuma coleta ainda. Clique em <strong>Atualizar agora</strong> — os preços do {label} vêm do <strong>Google Shopping</strong> (junto com as outras redes bloqueadas).</>
-              : isSuper
-                ? <>Nenhuma coleta ainda. Clique em <strong>Atualizar agora</strong> (precisa do domínio VTEX configurado em <strong>Fonte</strong> para {label}).</>
-                : <>Nenhuma coleta ainda. Clique em <strong>Atualizar agora</strong> (precisa do ator do Apify configurado para {label}).</>}
+            : isSuper
+              ? <>Nenhuma coleta ainda. Clique em <strong>Atualizar agora</strong> (precisa do domínio VTEX configurado em <strong>Fonte</strong> para {label}).</>
+              : <>Nenhuma coleta ainda. Clique em <strong>Atualizar agora</strong> (precisa do ator do Apify configurado para {label}).</>}
         </div>
       ) : (
         <>
