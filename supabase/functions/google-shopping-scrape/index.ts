@@ -65,26 +65,38 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const requested: string | undefined = body?.marketplace; // pra reportar contagem daquela aba
-    const terms: string[] = Array.isArray(body?.terms) && body.terms.length ? body.terms : ["café"];
-    const maxResults: number = Math.min(Math.max(body?.maxResults ?? 100, 20), 200);
+    // máx 3 buscas por chamada: o modo síncrono do Apify estoura o timeout do gateway (~150s) acima disso.
+    const defaultTerms = ["café", "café em grãos", "café solúvel"];
+    const terms: string[] = (Array.isArray(body?.terms) && body.terms.length ? body.terms : defaultTerms).slice(0, 3);
+    const maxResults: number = Math.min(Math.max(body?.maxResults ?? 150, 20), 200);
 
     const db = createClient(url, service);
     const { data: comp } = await db.from("companies").select("id").order("created_at").limit(1).single();
     const company_id = comp?.id;
     if (!company_id) return json({ error: "sem company_id" }, 500);
 
-    // dispara o actor SÍNCRONO e já pega os itens do dataset
+    // dispara o actor SÍNCRONO e já pega os itens do dataset.
+    // O actor ABORTA de vez em quando (Google bloqueia scraper) -> tenta até 3x.
     const runUrl = `${APIFY}/acts/${ACTOR}/run-sync-get-dataset-items?token=${token}`;
-    const resp = await fetch(runUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ queries: terms, country: "br", language: "pt", maxResults }),
-    });
-    if (resp.status === 402) return json({ error: "no_credit", message: "Crédito Apify do mês esgotado." }, 402);
-    if (resp.status === 403 || resp.status === 401) return json({ error: "actor_locked", message: "O actor de Google Shopping precisa ser alugado/habilitado na sua conta Apify (deu só uns runs grátis de teste)." }, 402);
-    if (!resp.ok) return json({ error: "apify_error", message: `Apify retornou ${resp.status}.` }, 502);
-    const items: any[] = await resp.json().catch(() => []);
-    if (!Array.isArray(items) || !items.length) return json({ inserted: 0, message: "Google Shopping não retornou itens." });
+    const runInput = JSON.stringify({ queries: terms, country: "br", language: "pt", maxResults });
+    let items: any[] = [];
+    let lastErr = "";
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      const resp = await fetch(runUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: runInput });
+      if (resp.status === 402) return json({ error: "no_credit", message: "Crédito Apify do mês esgotado." }, 402);
+      if (resp.status === 403 || resp.status === 401) {
+        const bodyTxt = await resp.text().catch(() => "");
+        return json({ error: "actor_locked", message: "O actor de Google Shopping precisa ser alugado/habilitado na sua conta Apify.", apify_status: resp.status, apify_body: bodyTxt.slice(0, 400) }, 402);
+      }
+      if (resp.ok) {
+        const parsed = await resp.json().catch(() => []);
+        if (Array.isArray(parsed) && parsed.length) { items = parsed; break; }
+        lastErr = "sem itens";
+      } else {
+        lastErr = `Apify ${resp.status}: ${(await resp.text().catch(() => "")).slice(0, 200)}`;
+      }
+    }
+    if (!items.length) return json({ error: "apify_aborted", message: "O Google bloqueou/abortou a coleta agora (proteção anti-robô). Tente de novo em alguns minutos.", detail: lastErr }, 502);
 
     const captured_at = new Date().toISOString();
     const perMk: Record<string, Set<string>> = {}; // dedup por rede
@@ -97,6 +109,9 @@ Deno.serve(async (req) => {
       const isCoffee = /caf[ée]/.test(t);
       const isNotCoffee = /caf[ée] da manh[ãa]|biscoito|bolo|iogurte|cereal|wafer|cookie|torta|p[ãa]o de|bebida l[áa]ctea|achocolatado|sorvete|gelatina|pudim|barra de|sand[áa]lia|chinelo|pote|caneca|x[íi]cara|coador|suporte|garrafa|moedor|bebedouro|leiteira|prateleira|organizador|tapete|capacho|caneco|bule|filtro de papel/.test(t);
       if (!isCoffee || isNotCoffee) continue;
+      // guarda-Brasil: o Google às vezes vaza resultado de fora (Amazon CA, Walmart.ca).
+      // só aceita item com preço em Real ("R$") — mata moeda estrangeira disfarçada.
+      if (!/r\$/i.test(String(item.price ?? item.priceText ?? ""))) continue;
       const mName = (item.merchant ?? item.seller ?? item.store ?? "?");
       merchantsSeen[mName] = (merchantsSeen[mName] ?? 0) + 1;
 

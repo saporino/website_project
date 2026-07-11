@@ -110,6 +110,7 @@ export default function EcommercePriceIntel({ marketplace, label, readOnly = fal
       if (r.error === 'not_configured') setMsg(isSuper ? 'Rede sem domínio VTEX configurado. Clique em "Fonte" e cole o domínio.' : 'Fonte ainda sem ator/input configurado. Me passe o Actor ID + Input do Apify que eu ligo.');
       else if (r.error === 'no_credit') setMsg('Crédito Apify esgotado este mês.');
       else if (r.error === 'actor_locked') setMsg('O actor do Google Shopping precisa ser alugado/habilitado na conta Apify. Enquanto isso, esta rede fica sem dados.');
+      else if (r.error === 'apify_aborted') setMsg('O Google bloqueou a coleta agora (proteção anti-robô por excesso de tentativas). Espere alguns minutos e clique de novo.');
       else if (r.inserted === 0) setMsg('Nenhum produto retornado (confira o domínio/termos).');
       else if (r.error) setMsg('Erro: ' + (r.message || r.error));
       else if (isGoogleShopping) {
