@@ -14,19 +14,37 @@ const cors = {
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
-async function vtexPage(base: string, term: string, from: number, to: number): Promise<any[]> {
-  const url = `${base}/api/catalog_system/pub/products/search?ft=${encodeURIComponent(term)}&_from=${from}&_to=${to}`;
+async function getJson(u: string): Promise<any> {
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(), 15000);
   try {
-    const r = await fetch(url, { headers: { "User-Agent": UA, "Accept": "application/json" }, signal: ctrl.signal });
-    if (!r.ok && r.status !== 206) return [];
-    const ct = r.headers.get("content-type") || "";
-    if (!ct.includes("json")) return [];
-    const j = await r.json();
-    return Array.isArray(j) ? j : [];
-  } catch { return []; }
+    const r = await fetch(u, { headers: { "User-Agent": UA, "Accept": "application/json" }, signal: ctrl.signal });
+    if (!r.ok && r.status !== 206) return null;
+    if (!(r.headers.get("content-type") || "").includes("json")) return null;
+    return await r.json();
+  } catch { return null; }
   finally { clearTimeout(tid); }
+}
+
+// CEP -> regionId (necessario para precos regionais na Intelligent Search).
+async function getRegionId(base: string, cep: string): Promise<string | null> {
+  const j = await getJson(`${base}/api/checkout/pub/regions?country=BRA&postalCode=${encodeURIComponent(cep)}`);
+  return Array.isArray(j) && j[0]?.id ? j[0].id : null;
+}
+
+// Busca antiga (catalog_system) — usada quando nao ha CEP configurado.
+async function catalogPage(base: string, term: string, from: number, to: number): Promise<any[]> {
+  const j = await getJson(`${base}/api/catalog_system/pub/products/search?ft=${encodeURIComponent(term)}&_from=${from}&_to=${to}`);
+  return Array.isArray(j) ? j : [];
+}
+
+// Busca NOVA (Intelligent Search) + regionId — traz o catalogo regional completo (com preco),
+// igual ao site. Resolve redes como o Atacadao que zeram o preco na API antiga.
+async function isPage(base: string, term: string, from: number, to: number, regionId: string | null): Promise<any[]> {
+  const rid = regionId ? `&regionId=${encodeURIComponent(regionId)}` : "";
+  const u = `${base}/api/io/_v/api/intelligent-search/product_search/trade-policy/1?query=${encodeURIComponent(term)}&locale=pt-BR&hideUnavailableItems=true&from=${from}&to=${to}${rid}`;
+  const j = await getJson(u);
+  return Array.isArray(j?.products) ? j.products : [];
 }
 
 Deno.serve(async (req) => {
@@ -57,6 +75,11 @@ Deno.serve(async (req) => {
     }
     const terms: string[] = Array.isArray(src.default_input?.terms) && src.default_input.terms.length ? src.default_input.terms : ["café"];
     const pages: number = Math.min(Math.max(src.default_input?.pages ?? 5, 1), 10);
+    // CEP configurado -> usa a Intelligent Search com regionId (catalogo regional completo).
+    const cep: string | undefined = src.default_input?.cep;
+    const baseUrl = base.replace(/\/+$/, "");
+    const regionId = cep ? await getRegionId(baseUrl, cep) : null;
+    const useIS = !!regionId;
 
     const { data: comp } = await db.from("companies").select("id").order("created_at").limit(1).single();
     const company_id = comp?.id;
@@ -68,7 +91,9 @@ Deno.serve(async (req) => {
     for (const term of terms) {
       for (let p = 0; p < pages; p++) {
         const from = p * 50, to = from + 49;
-        const page = await vtexPage(base.replace(/\/+$/, ""), term, from, to);
+        const page = useIS
+          ? await isPage(baseUrl, term, from, to, regionId)
+          : await catalogPage(baseUrl, term, from, to);
         if (!page.length) break;
         for (const prod of page) {
           const id = String(prod.productId ?? prod.productReference ?? prod.linkText ?? "");
