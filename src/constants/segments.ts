@@ -34,6 +34,9 @@ export const SUPERMARKET_SEGMENTS = [
   { value: 'super_savegnago', label: 'Savegnago' },
   { value: 'super_mambo',     label: 'Mambo' },
   { value: 'super_muffato',   label: 'Super Muffato' },
+  { value: 'super_covabra',   label: 'Covabra' },
+  { value: 'super_oba',       label: 'Oba Hortifruti' },
+  { value: 'super_natural',   label: 'Natural da Terra' },
 ] as const;
 
 export type SupermarketSegment = typeof SUPERMARKET_SEGMENTS[number]['value'];
