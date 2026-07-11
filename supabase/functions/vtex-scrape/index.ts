@@ -119,8 +119,9 @@ Deno.serve(async (req) => {
       // (sandália/caneca cor café, coador, pote, etc.). Preço 0 = indisponível -> filtrado abaixo.
       const t = title.toLowerCase();
       const isCoffee = /caf[ée]/.test(t);
-      const isAccessory = /sand[áa]lia|chinelo|pote|caneca|x[íi]cara|coador|suporte|garrafa|moedor|bebedouro|leiteira|prateleira|organizador|tapete|capacho|caneco|bule|filtro de papel/.test(t);
-      if (!isCoffee || isAccessory) return null;
+      // exclui: "café da manhã" (bolo/iogurte/cereal), doces/laticínios e acessórios cor café
+      const isNotCoffee = /caf[ée] da manh[ãa]|biscoito|bolo|iogurte|cereal|wafer|cookie|torta|p[ãa]o de|bebida l[áa]ctea|achocolatado|sorvete|gelatina|pudim|barra de|sand[áa]lia|chinelo|pote|caneca|x[íi]cara|coador|suporte|garrafa|moedor|bebedouro|leiteira|prateleira|organizador|tapete|capacho|caneco|bule|filtro de papel/.test(t);
+      if (!isCoffee || isNotCoffee) return null;
       return {
         company_id, captured_at, marketplace,
         search_term: terms.join(","),
