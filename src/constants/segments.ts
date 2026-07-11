@@ -37,6 +37,9 @@ export const SUPERMARKET_SEGMENTS = [
   { value: 'super_covabra',   label: 'Covabra' },
   { value: 'super_oba',       label: 'Oba Hortifruti' },
   { value: 'super_natural',   label: 'Natural da Terra' },
+  { value: 'super_giga',      label: 'Giga Atacado' },
+  { value: 'super_hortifruti', label: 'Hortifruti (SP)' },
+  { value: 'super_santaluzia', label: 'Casa Santa Luzia' },
 ] as const;
 
 export type SupermarketSegment = typeof SUPERMARKET_SEGMENTS[number]['value'];
