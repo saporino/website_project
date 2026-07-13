@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { KeyRound, Copy, Check, Loader2, Plus, Clock } from 'lucide-react';
+import { KeyRound, Copy, Check, Loader2, Plus, Clock, Trash2 } from 'lucide-react';
 
 const BRAND = '#8B2214';
 
@@ -45,6 +45,14 @@ export default function RepCoInviteCodes() {
     navigator.clipboard.writeText(code).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); });
   }
 
+  async function remove(code: string) {
+    if (!confirm(`Apagar o código ${code}? Ele não poderá mais ser usado.`)) return;
+    const { error } = await supabase.rpc('repco_delete_invite', { p_code: code });
+    if (error) { alert('Erro ao apagar: ' + error.message); return; }
+    if (fresh === code) setFresh(null);
+    load();
+  }
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
       <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between">
@@ -78,6 +86,9 @@ export default function RepCoInviteCodes() {
                 </button>
               </div>
               <p className="text-[11px] text-gray-400 mt-1 flex items-center justify-center gap-1"><Clock className="w-3 h-3" /> expira em 24 horas · uso único</p>
+              <button onClick={() => remove(fresh)} className="mt-2 inline-flex items-center gap-1 text-xs text-gray-400 hover:text-red-600">
+                <Trash2 className="w-3.5 h-3.5" /> Apagar este código
+              </button>
             </div>
           )}
 
@@ -91,6 +102,9 @@ export default function RepCoInviteCodes() {
                     <span className="font-mono font-bold tracking-wider text-gray-800">{i.code}</span>
                     {i.note && <span className="text-xs text-gray-400 truncate">· {i.note}</span>}
                     <span className={`ml-auto text-[11px] font-semibold rounded-full px-2 py-0.5 ${s.cls}`}>{s.label}</span>
+                    <button onClick={() => remove(i.code)} title="Apagar código" className="text-gray-300 hover:text-red-600 flex-shrink-0">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 );
               })}
