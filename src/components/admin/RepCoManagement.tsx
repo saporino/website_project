@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 import PriceListManager from './PriceListManager';
-import RepCoInviteCodes from './RepCoInviteCodes';
+import RepCoInviteCodes, { RepInviteBadge } from './RepCoInviteCodes';
 import CoffeeMarketIndex from './CoffeeMarketIndex';
 import RepCoOrdersManager from './RepCoOrdersManager';
 import RepCoCommissionsManager from './RepCoCommissionsManager';
@@ -511,6 +511,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
               {statusBadge(selectedRep.status)}
               <span className="text-sm text-gray-500">CPF: {selectedRep.cpf || '—'}</span>
               {selectedRep.phone && <a href={`https://wa.me/55${selectedRep.phone.replace(/\D/g,'')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-sm text-green-600 hover:underline"><Phone className="w-3.5 h-3.5" />{selectedRep.phone}</a>}
+              {selectedRep.user_id && <RepInviteBadge userId={selectedRep.user_id} />}
             </div>
           </div>
           <div className="flex gap-2">

@@ -83,7 +83,7 @@ export default function RepCoInviteCodes() {
 
           {invites.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-gray-500">Últimos códigos</p>
+              <p className="text-xs font-semibold text-gray-500">Códigos ativos (ainda válidos)</p>
               {invites.map(i => {
                 const s = statusOf(i);
                 return (
@@ -99,5 +99,24 @@ export default function RepCoInviteCodes() {
         </div>
       )}
     </div>
+  );
+}
+
+// Selo do código de convite que ESTE representante usou pra se cadastrar (aparece no perfil dele).
+export function RepInviteBadge({ userId }: { userId: string }) {
+  const [code, setCode] = useState<string | null>(null);
+  useEffect(() => {
+    let ok = true;
+    supabase.rpc('repco_code_used_by', { p_user: userId }).then(({ data }) => {
+      const row = Array.isArray(data) ? data[0] : null;
+      if (ok) setCode(row?.code ?? null);
+    });
+    return () => { ok = false; };
+  }, [userId]);
+  if (!code) return null;
+  return (
+    <span className="flex items-center gap-1 text-xs text-gray-500" title="Código de convite usado no cadastro">
+      <KeyRound className="w-3.5 h-3.5 text-[#8B2214]" /> convite <span className="font-mono font-semibold text-gray-700">{code}</span>
+    </span>
   );
 }
