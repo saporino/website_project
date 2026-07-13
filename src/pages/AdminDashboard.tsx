@@ -10,14 +10,16 @@ import { Dashboard } from '../components/admin/Dashboard';
 import { RepCoManagement } from '../components/admin/RepCoManagement';
 import { AdminNotificationBell } from '../components/admin/AdminNotificationBell';
 import BatchManagement from '../components/admin/BatchManagement';
+import Messenger from '../components/chat/Messenger';
 
-type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 'settings' | 'repco' | 'inventory';
+type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 'settings' | 'repco' | 'inventory' | 'messages';
 
 export function AdminDashboard() {
   const { user, profile, signOut, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [refreshVersion, setRefreshVersion] = useState<Record<TabType, number>>({
     dashboard: 0,
+    messages: 0,
     orders: 0,
     products: 0,
     customers: 0,
@@ -82,6 +84,7 @@ export function AdminDashboard() {
     { id: 'customers' as TabType, label: 'Clientes' },
     { id: 'shipping' as TabType, label: 'Transportadoras' },
     { id: 'repco' as TabType, label: 'RepCo' },
+    { id: 'messages' as TabType, label: 'Mensagens' },
     { id: 'inventory' as TabType, label: 'Inventário' },
     { id: 'settings' as TabType, label: 'Configurações' },
   ];
@@ -153,6 +156,7 @@ export function AdminDashboard() {
             {activeTab === 'customers' && <CustomersManagement refreshKey={refreshVersion.customers} />}
             {activeTab === 'shipping' && <ShippingManagement />}
             {activeTab === 'repco' && <RepCoManagement refreshKey={refreshVersion.repco} />}
+            {activeTab === 'messages' && <Messenger currentUserId={user!.id} />}
             {activeTab === 'inventory' && <BatchManagement refreshKey={refreshVersion.inventory} />}
             {activeTab === 'settings' && <StoreSettings />}
           </div>

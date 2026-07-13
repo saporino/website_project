@@ -13,10 +13,11 @@ import RepCoProspection from '../components/repco/RepCoProspection';
 import RepCoDeliveries from '../components/repco/RepCoDeliveries';
 import RepCoFieldMap from '../components/repco/RepCoFieldMap';
 import RepCoMarketPrices from '../components/repco/RepCoMarketPrices';
+import Messenger from '../components/chat/Messenger';
 import RepCoCalculatorFab from '../components/repco/RepCoCalculatorFab';
 import { usePresence } from '../hooks/usePresence';
 import { useGeolocation } from '../hooks/useGeolocation';
-import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Home, ClipboardList, Radio, Truck, MoreHorizontal, Map, Store } from 'lucide-react';
+import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Home, ClipboardList, Radio, Truck, MoreHorizontal, Map, Store, MessageCircle } from 'lucide-react';
 import { useTrainingListener, espelhoTabToRepTab } from '../lib/training';
 
 
@@ -33,7 +34,7 @@ interface Representative {
   has_personal_delivery: boolean;
 }
 
-type RepCoTab = 'inicio' | 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido' | 'entregas' | 'prospection' | 'mapa' | 'mercado';
+type RepCoTab = 'inicio' | 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido' | 'entregas' | 'prospection' | 'mapa' | 'mercado' | 'mensagens';
 
 export function RepCoDashboard() {
   const { user, profile, signOut, loading: authLoading } = useAuth();
@@ -42,6 +43,7 @@ export function RepCoDashboard() {
   const [activeTab, setActiveTab] = useState<RepCoTab>('inicio');
   const [refreshVersion, setRefreshVersion] = useState<Record<RepCoTab, number>>({
     inicio: 0,
+    mensagens: 0,
     profile: 0,
     clients: 0,
     orders: 0,
@@ -278,6 +280,7 @@ export function RepCoDashboard() {
     { id: 'commissions', label: 'Comissões', icon: DollarSign },
     { id: 'performance', label: 'Performance', icon: TrendingUp },
     { id: 'mercado', label: 'Mercado', icon: Store },
+    { id: 'mensagens', label: 'Mensagens', icon: MessageCircle },
   ];
   // Mobile: barra inferior corporativa = 4 principais + "Mais" (o resto em sheet)
   const MOBILE_PRIMARY: RepCoTab[] = ['inicio', 'clients', 'novo_pedido', 'entregas'];
@@ -389,6 +392,7 @@ export function RepCoDashboard() {
             {activeTab === 'commissions' && <RepCoCommissions repId={rep!.id} />}
             {activeTab === 'performance' && <RepCoPerformance repId={rep!.id} />}
             {activeTab === 'mercado' && <RepCoMarketPrices />}
+            {activeTab === 'mensagens' && <Messenger currentUserId={user!.id} />}
           </div>
         </div>
       </div>
