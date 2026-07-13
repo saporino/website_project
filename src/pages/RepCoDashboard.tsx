@@ -60,6 +60,11 @@ export function RepCoDashboard() {
   const [highlightDeliveryId, setHighlightDeliveryId] = useState<string | null>(null);
   const [showRegForm, setShowRegForm] = useState(false);
   const [regForm, setRegForm] = useState({ full_name: profile?.full_name || '', cpf: '', phone: '', cnpj: '' });
+  const [inviteCode, setInviteCode] = useState('');
+  const [codeOk, setCodeOk] = useState(false);
+  const [codeMsg, setCodeMsg] = useState('');
+  const [checkingCode, setCheckingCode] = useState(false);
+  const [regError, setRegError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -117,19 +122,29 @@ export function RepCoDashboard() {
     setLoading(false);
   };
 
+  const validateCode = async () => {
+    if (!inviteCode.trim()) return;
+    setCheckingCode(true); setCodeMsg('');
+    const { data, error } = await supabase.rpc('repco_validate_invite', { p_code: inviteCode.trim() });
+    setCheckingCode(false);
+    if (error) { setCodeMsg('Erro ao validar. Tente novamente.'); return; }
+    if (data === true) { setCodeOk(true); setCodeMsg(''); }
+    else setCodeMsg('Código inválido ou expirado. Peça um novo código ao administrador.');
+  };
+
   const handleRegister = async () => {
     if (!regForm.full_name || !regForm.cpf) return;
-    setSubmitting(true);
-    const { error } = await supabase.from('representatives').insert({
-      user_id: user!.id,
-      full_name: regForm.full_name,
-      cpf: regForm.cpf,
-      phone: regForm.phone,
-      cnpj: regForm.cnpj || null,
-      status: 'pending',
+    setSubmitting(true); setRegError('');
+    const { error } = await supabase.rpc('repco_register_with_code', {
+      p_code: inviteCode.trim(), p_full_name: regForm.full_name, p_cpf: regForm.cpf,
+      p_phone: regForm.phone, p_cnpj: regForm.cnpj || null,
     });
     setSubmitting(false);
-    if (!error) fetchRep();
+    if (error) {
+      setRegError(/inv[aá]lido|expirado/i.test(error.message) ? 'Código inválido ou expirado. Peça um novo ao administrador.' : 'Erro ao enviar cadastro: ' + error.message);
+      return;
+    }
+    fetchRep();
   };
 
   // Enquanto a sessao restaura (F5/refresh), NAO mostrar a tela de login — senao
@@ -180,7 +195,7 @@ export function RepCoDashboard() {
             <Briefcase className="w-8 h-8 text-[#a4240e]" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Portal RepCo</h2>
-          <p className="text-gray-500 mb-6">Você ainda não possui cadastro como Representante Comercial Saporino.</p>
+          <p className="text-gray-500 mb-6">Você ainda não possui cadastro como Representante Comercial Saporino. O cadastro é <strong>só por convite</strong> — você vai precisar do código enviado pelo administrador.</p>
           <button onClick={() => setShowRegForm(true)}
             className="w-full px-6 py-3 bg-[#a4240e] text-white font-semibold rounded-xl hover:bg-[#8a1f0c] transition-colors">
             Cadastrar como RepCo
@@ -194,12 +209,41 @@ export function RepCoDashboard() {
     );
   }
 
+  // Passo do código de convite (rep só se cadastra com código válido de 24h enviado pelo admin)
+  if (!rep && showRegForm && !codeOk) {
+    return (
+      <div className="min-h-screen bg-[#f8f7f5] flex items-center justify-center px-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Briefcase className="w-8 h-8 text-[#a4240e]" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Código de Convite</h2>
+          <p className="text-gray-500 mb-6 text-sm">O cadastro de representante é só por convite. Digite o código que o administrador Saporino enviou para você (válido por 24 horas).</p>
+          <input value={inviteCode} onChange={e => { setInviteCode(e.target.value.toUpperCase()); setCodeMsg(''); }}
+            onKeyDown={e => { if (e.key === 'Enter') validateCode(); }}
+            placeholder="Ex.: A1B2C3" maxLength={12}
+            className="w-full text-center tracking-widest font-mono text-lg px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent uppercase" />
+          {codeMsg && <p className="text-sm text-red-600 mt-2">{codeMsg}</p>}
+          <button onClick={validateCode} disabled={checkingCode || !inviteCode.trim()}
+            className="w-full mt-4 px-6 py-3 bg-[#a4240e] text-white font-semibold rounded-xl hover:bg-[#8a1f0c] transition-colors disabled:opacity-60">
+            {checkingCode ? 'Verificando...' : 'Validar código'}
+          </button>
+          <button onClick={() => { setShowRegForm(false); setInviteCode(''); setCodeMsg(''); }}
+            className="w-full mt-3 px-6 py-3 text-gray-600 font-medium rounded-xl hover:bg-gray-50 transition-colors">
+            Voltar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // Registration form
-  if (!rep && showRegForm) {
+  if (!rep && showRegForm && codeOk) {
     return (
       <div className="min-h-screen bg-[#f8f7f5] flex items-center justify-center px-4">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 max-w-md w-full">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Cadastro de Representante Comercial</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-1">Cadastro de Representante Comercial</h2>
+          <p className="text-xs text-green-600 mb-6">✓ Código válido — preencha seus dados</p>
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nome Completo *</label>
@@ -225,12 +269,13 @@ export function RepCoDashboard() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent" />
             </div>
           </div>
+          {regError && <p className="text-sm text-red-600 mt-4">{regError}</p>}
           <div className="flex gap-3 mt-6">
             <button onClick={handleRegister} disabled={submitting}
               className="flex-1 px-6 py-3 bg-[#a4240e] text-white font-semibold rounded-xl hover:bg-[#8a1f0c] transition-colors disabled:opacity-60">
               {submitting ? 'Enviando...' : 'Enviar Cadastro'}
             </button>
-            <button onClick={() => setShowRegForm(false)}
+            <button onClick={() => { setShowRegForm(false); setCodeOk(false); setInviteCode(''); setRegError(''); }}
               className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors">
               Cancelar
             </button>

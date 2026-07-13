@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
 import PriceListManager from './PriceListManager';
+import RepCoInviteCodes from './RepCoInviteCodes';
 import CoffeeMarketIndex from './CoffeeMarketIndex';
 import RepCoOrdersManager from './RepCoOrdersManager';
 import RepCoCommissionsManager from './RepCoCommissionsManager';
@@ -888,6 +889,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   // LIST VIEW
   return (
     <div className="space-y-6">
+      <RepCoInviteCodes />
       {/* Row 1: Title + Action buttons */}
       <div className="space-y-3">
         <div>
