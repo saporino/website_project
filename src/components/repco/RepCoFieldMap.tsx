@@ -92,6 +92,7 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<any>(null);
+  const resizeObsRef = useRef<ResizeObserver | null>(null);
   const markersRef = useRef<any[]>([]);
   const userHasInteracted = useRef(false);
   // Treinamento ao vivo: transmitir/obedecer a posição do mapa. Refs evitam listeners
@@ -391,7 +392,13 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
           setTimeout(() => { applyingSyncRef.current = false; }, 400);
         }
       }
-      setTimeout(() => leafletMap.current?.invalidateSize(), 50);
+      // Recalcula o tamanho quando o container muda/aparece (aba trocada, layout assentando).
+      // Sem isso os tiles do Leaflet renderizam quebrados/desalinhados ao montar em aba oculta.
+      if (!resizeObsRef.current && mapRef.current && typeof ResizeObserver !== 'undefined') {
+        resizeObsRef.current = new ResizeObserver(() => leafletMap.current?.invalidateSize());
+        resizeObsRef.current.observe(mapRef.current);
+      }
+      [60, 250, 600].forEach(ms => setTimeout(() => leafletMap.current?.invalidateSize(), ms));
 
       // Remove markers antigos
       markersRef.current.forEach(m => m.remove());
@@ -445,7 +452,7 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
     }
 
     initMap();
-    return () => { if (!mapRef.current) { leafletMap.current?.remove(); leafletMap.current = null; } };
+    return () => { if (!mapRef.current) { resizeObsRef.current?.disconnect(); resizeObsRef.current = null; leafletMap.current?.remove(); leafletMap.current = null; } };
     // GPS (currentLat/Lng) NÃO entra aqui: senão o mapa se redesenha a cada update do
     // GPS -> piscava/recarregava em loop. O ponto "você está aqui" é movido no effect abaixo.
   }, [pins, pulsingId, loading]);
