@@ -202,7 +202,22 @@ export default function RepCoClients({ representativeId, previewMode = false, re
       .select('id', { count: 'exact', head: true })
       .eq('representative_client_id', client.id);
     if(ordersError){setErr('Não foi possível verificar pedidos vinculados.');setDeleting(false);return;}
-    if((orderCount||0)>0){setErr('Este cliente tem pedido vinculado e não pode ser excluído.');setDeleting(false);return;}
+    if((orderCount||0)>0){
+      // Trava de segurança: por padrão bloqueia. Se o admin liberou em Configurações
+      // (modo teste), faz a exclusão forçada em cascata via Edge Function (só admin).
+      const { data: flag } = await supabase.from('site_settings').select('value').eq('key','allow_delete_clients_with_orders').maybeSingle();
+      if(!flag?.value){ setErr('Este cliente tem pedido vinculado e não pode ser excluído. (Fase de teste: o admin pode liberar em Configurações da Loja → "Exclusão de clientes com pedidos".)'); setDeleting(false); return; }
+      const { data:{ session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/repco-delete-client`, {
+        method:'POST', headers:{ 'Content-Type':'application/json', Authorization:`Bearer ${session?.access_token}` },
+        body: JSON.stringify({ client_id: client.id }),
+      });
+      const r = await res.json().catch(()=>({}));
+      if(!res.ok || r.error){ setErr(r.message || r.error || 'Não foi possível excluir o cliente.'); setDeleting(false); return; }
+      setOk(`Cliente excluído (com ${r.deleted_orders||0} pedido(s) e arquivos).`);
+      setClients(current=>current.filter(c=>c.id!==client.id)); setSel(null); setHist([]); setView('list');
+      notifyClientsUpdated(); notifyProspectionUpdated([]); fetchClients(); setDeleting(false); return;
+    }
 
     const { data: linkedLeads, error: linkedLeadsError } = await supabase
       .from('prospect_leads')

@@ -7,6 +7,7 @@ import { PopupSettings } from './PopupSettings';
 import { VisitorInsights } from './VisitorInsights';
 import { PointsOfSaleManager } from './PointsOfSaleManager';
 import DistributedBrandsManager from './DistributedBrandsManager';
+import DeleteLockToggle from './DeleteLockToggle';
 
 interface Settings {
   id: string;
@@ -107,6 +108,8 @@ export function StoreSettings() {
         <PopupSettings />
 
         <DistributedBrandsManager />
+
+        <DeleteLockToggle />
 
         <SubscriptionSettings />
 
