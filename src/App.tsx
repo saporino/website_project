@@ -214,6 +214,7 @@ function AppContent() {
       const { data, error } = await supabase
         .from('products')
         .select('*')
+        .eq('hidden_from_store', false)
         .order('display_order', { ascending: true });
       if (error) throw error;
       setProducts((data || []).sort((a, b) => {
@@ -1497,18 +1498,22 @@ const Footer = ({ scrollToSection }: any) => {
   const [showContactModal, setShowContactModal] = useState(false);
   const [contactFormData, setContactFormData] = useState({ name: '', subject: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showBrands, setShowBrands] = useState(false); // seção "Marcas que Distribuímos" (liga/desliga no admin)
 
   useEffect(() => {
     const fetchProducts = async () => {
-      // mostra os cafes mesmo quando inativos/esgotados (so escondemos os de teste)
+      // mostra os cafes mesmo quando inativos/esgotados; esconde os desligados da loja
       const { data } = await supabase
         .from('products')
         .select('*')
+        .eq('hidden_from_store', false)
         .order('display_order', { ascending: true })
         .limit(6);
       if (data) setProducts(data);
     };
     fetchProducts();
+    supabase.from('site_settings').select('value').eq('key', 'show_distributed_brands').maybeSingle()
+      .then(({ data }) => setShowBrands(!!data?.value));
   }, []);
 
   const handleNavigation = (path: string) => {
@@ -1558,19 +1563,23 @@ const Footer = ({ scrollToSection }: any) => {
                   </button>
                 </li>
               </ul>
-              <h4 className="text-sm font-bold mt-7 mb-3 text-white">Marcas que Distribuímos</h4>
-              <ul className="space-y-3">
-                <li>
-                  <button onClick={() => handleNavigation('/marcas/canaan')} className="text-white/80 hover:text-white transition-colors text-sm">
-                    Café Canaan
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => handleNavigation('/marcas/fazendinha')} className="text-white/80 hover:text-white transition-colors text-sm">
-                    Café Fazendinha
-                  </button>
-                </li>
-              </ul>
+              {showBrands && (
+                <>
+                  <h4 className="text-sm font-bold mt-7 mb-3 text-white">Marcas que Distribuímos</h4>
+                  <ul className="space-y-3">
+                    <li>
+                      <button onClick={() => handleNavigation('/marcas/canaan')} className="text-white/80 hover:text-white transition-colors text-sm">
+                        Café Canaan
+                      </button>
+                    </li>
+                    <li>
+                      <button onClick={() => handleNavigation('/marcas/fazendinha')} className="text-white/80 hover:text-white transition-colors text-sm">
+                        Café Fazendinha
+                      </button>
+                    </li>
+                  </ul>
+                </>
+              )}
             </div>
 
             {/* Column 2: Institucional */}

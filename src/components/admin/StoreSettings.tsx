@@ -6,6 +6,7 @@ import { SubscriptionSettings } from './SubscriptionSettings';
 import { PopupSettings } from './PopupSettings';
 import { VisitorInsights } from './VisitorInsights';
 import { PointsOfSaleManager } from './PointsOfSaleManager';
+import DistributedBrandsToggle from './DistributedBrandsToggle';
 
 interface Settings {
   id: string;
@@ -104,6 +105,8 @@ export function StoreSettings() {
         <BannerManager />
 
         <PopupSettings />
+
+        <DistributedBrandsToggle />
 
         <SubscriptionSettings />
 

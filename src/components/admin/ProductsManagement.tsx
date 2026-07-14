@@ -15,6 +15,7 @@ interface Product {
   weight_grams: number;
   stock: number;
   is_active: boolean;
+  hidden_from_store?: boolean;
   category: string;
   product_line?: string | null;
   featured: boolean;
@@ -63,6 +64,7 @@ export function ProductsManagement() {
     weight_grams: 500,
     stock: 0,
     is_active: true,
+    hidden_from_store: false,
     category: 'café',
     featured: false,
     roast_type: '',
@@ -161,6 +163,7 @@ export function ProductsManagement() {
       weight_grams: 500,
       stock: 0,
       is_active: true,
+      hidden_from_store: false,
       category: 'café',
       featured: false,
       roast_type: '',
@@ -183,6 +186,7 @@ export function ProductsManagement() {
         weight_grams: formData.weight_grams || 500,
         // stock removido — controlado exclusivamente pelos lotes ativos
         is_active: formData.is_active,
+        hidden_from_store: formData.hidden_from_store ?? false,
         category: formData.category || 'café',
         product_line: (formData.product_line || '').trim() || null,
         featured: formData.featured,
@@ -391,6 +395,11 @@ export function ProductsManagement() {
                       {!product.is_active && (
                         <span className="px-2 py-1 bg-gray-400 text-white text-xs font-semibold rounded">
                           Inativo
+                        </span>
+                      )}
+                      {product.hidden_from_store && (
+                        <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded">
+                          Oculto na loja
                         </span>
                       )}
                     </div>
@@ -878,6 +887,16 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             className="w-5 h-5 accent-[#8B2214] border-gray-300 rounded"
           />
           <span className="text-sm font-medium text-gray-700">Produto Ativo</span>
+        </label>
+
+        <label className="flex items-center space-x-2">
+          <input
+            type="checkbox"
+            checked={!(formData.hidden_from_store ?? false)}
+            onChange={(e) => setFormData({ ...formData, hidden_from_store: !e.target.checked })}
+            className="w-5 h-5 accent-[#8B2214] border-gray-300 rounded"
+          />
+          <span className="text-sm font-medium text-gray-700">Mostrar na loja <span className="text-xs text-gray-400 font-normal">(desmarque para sumir da loja)</span></span>
         </label>
 
         <label className="flex items-center space-x-2">
