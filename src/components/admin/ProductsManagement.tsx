@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Edit, Trash2, Save, X, Image as ImageIcon, ChevronUp, ChevronDown } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Image as ImageIcon, ChevronUp, ChevronDown, Eye, EyeOff } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
 
 interface Product {
@@ -123,25 +123,27 @@ export function ProductsManagement() {
     }
   };
 
-  // Reordena trocando o display_order com o produto vizinho (setas ↑↓).
-  const moveProduct = async (idx: number, dir: -1 | 1) => {
-    const j = idx + dir;
-    if (j < 0 || j >= products.length) return;
-    const a = products[idx], b = products[j];
-    // Garante valores distintos e nao-zero antes de trocar (evita empate).
-    const oa = a.display_order || idx + 1;
-    const ob = b.display_order || j + 1;
-    // Atualiza local (otimista) para a UI responder na hora.
-    setProducts(prev => {
-      const copy = [...prev];
-      [copy[idx], copy[j]] = [copy[j], copy[idx]];
-      return copy;
-    });
-    await Promise.all([
-      supabase.from('products').update({ display_order: ob }).eq('id', a.id),
-      supabase.from('products').update({ display_order: oa }).eq('id', b.id),
-    ]);
-    loadProducts();
+  const [showHidden, setShowHidden] = useState(false); // seção "Ocultos na loja" recolhida por padrão
+
+  // Reordena SÓ os produtos visíveis, renumerando 1..N sequencial (mata zeros/empates
+  // que faziam a seta "não mover"). Sem loadProducts() no fim — evita o re-sort que revertia.
+  const moveProduct = async (visIdx: number, dir: -1 | 1) => {
+    const list = products.filter(p => !p.hidden_from_store || p.id === editingId);
+    const others = products.filter(p => p.hidden_from_store && p.id !== editingId);
+    const j = visIdx + dir;
+    if (j < 0 || j >= list.length) return;
+    const reordered = [...list];
+    [reordered[visIdx], reordered[j]] = [reordered[j], reordered[visIdx]];
+    const withOrder = reordered.map((p, k) => ({ ...p, display_order: k + 1 }));
+    setProducts([...withOrder, ...others]); // otimista
+    const changed = withOrder.filter(p => products.find(x => x.id === p.id)?.display_order !== p.display_order);
+    await Promise.all(changed.map(p => supabase.from('products').update({ display_order: p.display_order }).eq('id', p.id)));
+  };
+
+  // Mostrar/ocultar produto da loja (usado na seção compacta de ocultos).
+  const updateHidden = async (id: string, hidden: boolean) => {
+    setProducts(ps => ps.map(p => p.id === id ? { ...p, hidden_from_store: hidden } : p));
+    await supabase.from('products').update({ hidden_from_store: hidden }).eq('id', id);
   };
 
   const handleEdit = (product: Product) => {
@@ -363,7 +365,7 @@ export function ProductsManagement() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {products.map((product, idx) => (
+        {products.filter(p => !p.hidden_from_store || p.id === editingId).map((product, idx) => (
           <div
             key={product.id}
             className={`bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow ${editingId === product.id ? 'border-2 border-[#a4240e]' : 'border border-gray-200'
@@ -426,7 +428,7 @@ export function ProductsManagement() {
                       </button>
                       <button
                         onClick={() => moveProduct(idx, 1)}
-                        disabled={idx === products.length - 1}
+                        disabled={idx === products.filter(p => !p.hidden_from_store || p.id === editingId).length - 1}
                         title="Descer (aparece depois na loja)"
                         className="p-1 text-gray-500 hover:bg-gray-100 rounded disabled:opacity-30 disabled:hover:bg-transparent"
                       >
@@ -476,6 +478,36 @@ export function ProductsManagement() {
           </div>
         ))}
       </div>
+
+      {/* Ocultos na loja — lista compacta recolhida (igual aos banners) */}
+      {products.some(p => p.hidden_from_store && p.id !== editingId) && (
+        <div className="mt-8 border-t border-gray-200 pt-4">
+          <button onClick={() => setShowHidden(v => !v)}
+            className="flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-gray-900">
+            <EyeOff className="w-4 h-4" />
+            Ocultos na loja ({products.filter(p => p.hidden_from_store && p.id !== editingId).length}) {showHidden ? '▲' : '▼'}
+          </button>
+          {showHidden && (
+            <div className="space-y-2 mt-3">
+              {products.filter(p => p.hidden_from_store && p.id !== editingId).map(p => (
+                <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50">
+                  <img src={(p.image_url && p.image_url.trim() ? p.image_url : '/saporino-logo.png')} alt="" className="w-12 h-12 object-cover rounded flex-shrink-0 border border-gray-200" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-700 truncate">{p.name}</p>
+                    <p className="text-xs text-gray-400">{p.weight_grams}g · {p.category}{!p.is_active ? ' · inativo' : ''}</p>
+                  </div>
+                  <button onClick={() => updateHidden(p.id, false)}
+                    className="px-2.5 py-1 rounded text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100 flex items-center gap-1 flex-shrink-0">
+                    <Eye className="w-3.5 h-3.5" /> Mostrar
+                  </button>
+                  <button onClick={() => handleEdit(p)} title="Editar" className="p-1.5 text-blue-600 hover:bg-blue-50 rounded flex-shrink-0"><Edit className="w-4 h-4" /></button>
+                  <button onClick={() => handleDelete(p.id)} title="Remover" className="p-1.5 text-red-600 hover:bg-red-50 rounded flex-shrink-0"><Trash2 className="w-4 h-4" /></button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
