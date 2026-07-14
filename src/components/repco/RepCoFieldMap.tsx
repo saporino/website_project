@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import 'leaflet/dist/leaflet.css'; // CSS do Leaflet — SEM isto os tiles renderizam quebrados/em escada
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { MapPin, Navigation2, CheckCircle, AlertCircle, RotateCcw, Truck, ShoppingBag, Users, Edit2, UserPlus } from 'lucide-react';
