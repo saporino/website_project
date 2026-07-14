@@ -36,6 +36,9 @@ export function BannerManager() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [showInactive, setShowInactive] = useState(false); // seção "Desativados" recolhida por padrão
+  const [expanded, setExpanded] = useState<Set<string>>(new Set()); // banners desativados abertos p/ edição
+  const toggleExpand = (id: string) => setExpanded(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const load = async () => {
     const { data } = await supabase
@@ -166,9 +169,10 @@ export function BannerManager() {
           Nenhum banner ainda. Clique em "Adicionar banner" para enviar a primeira imagem.
         </div>
       ) : (
+        <>
         <div className="space-y-6">
-          {banners.map((b, i) => (
-            <div key={b.id} className={`p-4 rounded-xl border ${b.active ? 'border-gray-200' : 'border-gray-200 bg-gray-50 opacity-70'}`}>
+          {banners.filter(bb => bb.active || expanded.has(bb.id)).map((b) => { const i = banners.indexOf(b); return (
+            <div key={b.id} className={`p-4 rounded-xl border ${b.active ? 'border-gray-200' : 'border-amber-200 bg-amber-50/40'}`}>
               {/* Preview GRANDE com botao arrastavel proporcional */}
               <div
                 className="relative w-full aspect-[3/1] rounded-lg overflow-hidden bg-gray-100 border border-gray-200"
@@ -311,6 +315,12 @@ export function BannerManager() {
                     {b.active ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                     {b.active ? 'Ativo' : 'Oculto'}
                   </button>
+                  {!b.active && expanded.has(b.id) && (
+                    <button onClick={() => toggleExpand(b.id)} title="Fechar edição"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold w-full justify-center bg-white border border-gray-200 text-gray-500 hover:bg-gray-50">
+                      Recolher
+                    </button>
+                  )}
                   <div className="flex gap-1 w-full">
                     <button onClick={() => move(i, -1)} disabled={i === 0} title="Subir"
                       className="flex-1 flex items-center justify-center py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30">
@@ -328,8 +338,41 @@ export function BannerManager() {
                 </div>
               </div>
             </div>
-          ))}
+          ); })}
         </div>
+
+        {/* Desativados — lista compacta, recolhida por padrão (não ocupa espaço) */}
+        {banners.some(b => !b.active) && (
+          <div className="mt-6 border-t border-gray-100 pt-4">
+            <button onClick={() => setShowInactive(v => !v)}
+              className="flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-gray-900">
+              <EyeOff className="w-4 h-4" />
+              Desativados ({banners.filter(b => !b.active).length}) {showInactive ? '▲' : '▼'}
+            </button>
+            {showInactive && (
+              <div className="space-y-2 mt-3">
+                {banners.filter(b => !b.active && !expanded.has(b.id)).map((b) => (
+                  <div key={b.id} className="flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50">
+                    <img src={b.image_url} alt="" className="w-16 h-10 object-cover rounded flex-shrink-0 border border-gray-200" draggable={false} />
+                    <span className="flex-1 text-sm text-gray-600 truncate">{b.title || 'Banner sem título'}</span>
+                    <button onClick={() => update(b.id, { active: true })}
+                      className="px-2.5 py-1 rounded text-xs font-semibold bg-green-50 text-green-700 hover:bg-green-100 flex items-center gap-1 flex-shrink-0">
+                      <Eye className="w-3.5 h-3.5" /> Ativar
+                    </button>
+                    <button onClick={() => toggleExpand(b.id)}
+                      className="px-2.5 py-1 rounded text-xs font-semibold bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 flex-shrink-0">
+                      Editar
+                    </button>
+                    <button onClick={() => remove(b)} title="Remover" className="text-gray-300 hover:text-red-600 flex-shrink-0">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        </>
       )}
     </div>
   );
