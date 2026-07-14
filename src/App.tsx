@@ -1499,6 +1499,7 @@ const Footer = ({ scrollToSection }: any) => {
   const [contactFormData, setContactFormData] = useState({ name: '', subject: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showBrands, setShowBrands] = useState(false); // seção "Marcas que Distribuímos" (liga/desliga no admin)
+  const [brands, setBrands] = useState<{ name: string; url: string | null }[]>([]); // marcas distribuídas (geridas no admin)
 
   useEffect(() => {
     const fetchProducts = async () => {
@@ -1514,6 +1515,8 @@ const Footer = ({ scrollToSection }: any) => {
     fetchProducts();
     supabase.from('site_settings').select('value').eq('key', 'show_distributed_brands').maybeSingle()
       .then(({ data }) => setShowBrands(!!data?.value));
+    supabase.from('distributed_brands').select('name, url').eq('is_active', true).order('sort_order')
+      .then(({ data }) => setBrands(data || []));
   }, []);
 
   const handleNavigation = (path: string) => {
@@ -1563,20 +1566,27 @@ const Footer = ({ scrollToSection }: any) => {
                   </button>
                 </li>
               </ul>
-              {showBrands && (
+              {showBrands && brands.length > 0 && (
                 <>
                   <h4 className="text-sm font-bold mt-7 mb-3 text-white">Marcas que Distribuímos</h4>
                   <ul className="space-y-3">
-                    <li>
-                      <button onClick={() => handleNavigation('/marcas/canaan')} className="text-white/80 hover:text-white transition-colors text-sm">
-                        Café Canaan
-                      </button>
-                    </li>
-                    <li>
-                      <button onClick={() => handleNavigation('/marcas/fazendinha')} className="text-white/80 hover:text-white transition-colors text-sm">
-                        Café Fazendinha
-                      </button>
-                    </li>
+                    {brands.map((b, i) => (
+                      <li key={i}>
+                        {b.url ? (
+                          b.url.startsWith('/') ? (
+                            <button onClick={() => handleNavigation(b.url!)} className="text-white/80 hover:text-white transition-colors text-sm">
+                              {b.name}
+                            </button>
+                          ) : (
+                            <a href={b.url} target="_blank" rel="noopener noreferrer" className="text-white/80 hover:text-white transition-colors text-sm">
+                              {b.name}
+                            </a>
+                          )
+                        ) : (
+                          <span className="text-white/80 text-sm">{b.name}</span>
+                        )}
+                      </li>
+                    ))}
                   </ul>
                 </>
               )}
