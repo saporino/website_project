@@ -130,6 +130,15 @@ export default function RepCoCoverageMap() {
     cidadesComLead: new Set(leads.map(l => normName(l.municipio))).size,
   }), [shownLeads, clientes, leads]);
 
+  // Semáforo por cidade: verde = tem cliente · amarelo = já buscada (tem lead) · vermelho = a buscar
+  const cityClientSet = useMemo(() => new Set(clientes.map(c => normName(c.municipio))), [clientes]);
+  const cityLeadSet = useMemo(() => new Set(leads.map(l => normName(l.municipio))), [leads]);
+  const cityStatus = (c: City) => {
+    if (cityClientSet.has(c.nome_norm)) return { color: GREEN, r: 6, label: 'cliente' };
+    if (cityLeadSet.has(c.nome_norm)) return { color: '#f59e0b', r: 5, label: 'já buscada' };
+    return { color: '#dc2626', r: 3, label: 'a buscar' };
+  };
+
   const center: [number, number] = [-22.5, -48.5];
   const selectedCoords = useMemo<[number, number] | null>(() => {
     if (!selCity) return null;
@@ -267,14 +276,17 @@ export default function RepCoCoverageMap() {
                   <TileLayer attribution='&copy; OpenStreetMap contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                   <MapClicker onPick={handleMapPick} />
                   <MapController target={selectedCoords} home={center} homeZoom={7} />
-                  {/* pontos de cidade (clicáveis) */}
-                  {showCities && cities.map(c => (
-                    <CircleMarker key={`city-${c.nome}`} center={[c.lat, c.lng]} radius={selCity === c.nome ? 7 : 3}
-                      pathOptions={{ color: selCity === c.nome ? PRIMARY : '#94a3b8', fillColor: selCity === c.nome ? PRIMARY : '#cbd5e1', fillOpacity: 0.6, weight: 1 }}
-                      eventHandlers={{ click: () => { setSelCity(c.nome); setMsg(''); } }}>
-                      <Tooltip>{c.nome}</Tooltip>
-                    </CircleMarker>
-                  ))}
+                  {/* pontos de cidade — semáforo (vermelho=a buscar, amarelo=já buscada, verde=cliente) */}
+                  {showCities && cities.map(c => {
+                    const st = cityStatus(c); const sel = selCity === c.nome;
+                    return (
+                      <CircleMarker key={`city-${c.nome}`} center={[c.lat, c.lng]} radius={sel ? st.r + 3 : st.r}
+                        pathOptions={{ color: sel ? PRIMARY : st.color, fillColor: st.color, fillOpacity: sel ? 0.9 : 0.55, weight: sel ? 2 : 1 }}
+                        eventHandlers={{ click: () => { setSelCity(c.nome); setMsg(''); } }}>
+                        <Tooltip>{c.nome} — {st.label}</Tooltip>
+                      </CircleMarker>
+                    );
+                  })}
                   {/* leads em trabalho (cor por rep/status) */}
                   {shownLeads.map(l => {
                     const col = leadColor(l);
@@ -295,9 +307,10 @@ export default function RepCoCoverageMap() {
                 </MapContainer>
               </div>
               <div className="flex flex-wrap gap-3 text-xs text-gray-500 mt-2">
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full inline-block" style={{ background: GREEN }} /> cliente ativo</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full inline-block" style={{ background: '#dc2626' }} /> cidade a buscar</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full inline-block" style={{ background: '#f59e0b' }} /> já buscada (na prospecção)</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full inline-block" style={{ background: GREEN }} /> cidade com cliente</span>
                 <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full inline-block" style={{ background: PRIMARY }} /> lead em trabalho</span>
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full inline-block" style={{ background: '#94a3b8' }} /> cidade (clique para buscar)</span>
               </div>
               <p className="text-[11px] text-gray-500 mt-1.5"><strong>Clique numa cidade</strong> (ou busque pelo nome) → escolha o setor e a quantidade → <strong>Buscar no Apify</strong>. Os leads reais aparecem no mapa e vão pro pool da Prospecção. © OpenStreetMap contributors.</p>
             </div>
