@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Papa from 'papaparse';
-import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, ExternalLink, FileText, Mail, MessageCircle, Phone, Trash2, Upload } from 'lucide-react';
+import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, FileText, Mail, MessageCircle, Phone, Trash2, Upload, Instagram, Facebook, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -1607,7 +1607,7 @@ function ContactPreview({ lead }: { lead: ParsedLead | StoredProspectLead }) {
         </a>
       )}
       {links.phoneDigits && links.phoneDigits !== links.whatsappDigits && (
-        <a href={`tel:${links.phoneDigits}`} className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
+        <a href={`tel:${links.phoneDigits}`} className="inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-700">
           <Phone className="h-3 w-3" />
           Telefone · {formatPhone(links.phoneDigits)}
         </a>
@@ -1618,9 +1618,21 @@ function ContactPreview({ lead }: { lead: ParsedLead | StoredProspectLead }) {
           Email
         </a>
       )}
-      {links.instagram && <ExternalContactLink href={links.instagram} label="Instagram" />}
-      {links.facebook && <ExternalContactLink href={links.facebook} label="Facebook" />}
-      {links.site && <ExternalContactLink href={links.site} label="Site" />}
+      {links.instagram && (
+        <a href={links.instagram} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-pink-200 bg-pink-50 px-1.5 py-0.5 text-[11px] font-medium text-pink-600">
+          <Instagram className="h-3 w-3" /> Instagram
+        </a>
+      )}
+      {links.facebook && (
+        <a href={links.facebook} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-blue-300 bg-blue-50 px-1.5 py-0.5 text-[11px] font-medium text-blue-700">
+          <Facebook className="h-3 w-3" /> Página do Face
+        </a>
+      )}
+      {links.site && (
+        <a href={links.site} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
+          <Globe className="h-3 w-3" /> Site
+        </a>
+      )}
     </div>
   );
 }
@@ -1637,15 +1649,6 @@ function AddressPreview({ lead }: { lead: ParsedLead | StoredProspectLead }) {
       {address && <p className="text-gray-700">{address}</p>}
       {(city || zipCode) && <p className="text-gray-500">{[city, zipCode].filter(Boolean).join(' - ')}</p>}
     </div>
-  );
-}
-
-function ExternalContactLink({ href, label }: { href: string; label: string }) {
-  return (
-    <a href={href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border border-gray-200 px-1.5 py-0.5 text-[11px] font-medium text-gray-600">
-      <ExternalLink className="h-3 w-3" />
-      {label}
-    </a>
   );
 }
 
