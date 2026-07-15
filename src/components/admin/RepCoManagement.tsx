@@ -208,6 +208,14 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   // mesmo que estivesse na Tabela de Preços / Prospecção / detalhe de um rep.
   useEffect(() => { setAdminView('list'); setSelectedRep(null); fetchReps(); fetchSnoozedClients(); }, [refreshKey]);
 
+  // Deep-link: ao voltar do mapa de prospecção, abre direto a sub-view Prospecção (não a lista).
+  useEffect(() => {
+    if (localStorage.getItem('repco-initial-view') === 'prospection') {
+      setAdminView('prospection');
+      localStorage.removeItem('repco-initial-view');
+    }
+  }, []);
+
   useEffect(() => {
     function handleRefresh() {
       fetchReps();

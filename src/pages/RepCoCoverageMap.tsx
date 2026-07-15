@@ -29,7 +29,12 @@ interface City { nome: string; nome_norm: string; lat: number; lng: number; }
 interface ClienteGeo { id: string; nome: string | null; municipio: string | null; uf: string | null; lat: number; lng: number; }
 interface Lead { id: string; company_name: string; trade_name: string | null; municipio: string | null; state: string | null; lat: number; lng: number; status: string; rep_id: string | null; rep_nome: string | null; prospect_list_id: string; }
 
-function goBack() { window.history.pushState({}, '', '/repco/inteligencia'); window.dispatchEvent(new PopStateEvent('popstate')); }
+// Volta para a Prospecção (Admin → RepCo → Prospecção), de onde o mapa é aberto.
+function goBack() {
+  try { localStorage.setItem('admin-initial-tab', 'repco'); localStorage.setItem('repco-initial-view', 'prospection'); } catch { /* ok */ }
+  window.history.pushState({}, '', '/admin');
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
 const Center = ({ children }: { children: React.ReactNode }) => (
   <div className="min-h-screen bg-[#f8f7f5] flex items-center justify-center p-6">{children}</div>
 );
