@@ -9,6 +9,7 @@ import { PointsOfSaleManager } from './PointsOfSaleManager';
 import DistributedBrandsManager from './DistributedBrandsManager';
 import DeleteLockToggle from './DeleteLockToggle';
 import CompanyManagement from './CompanyManagement';
+import RepCoHelpAdmin from './RepCoHelpAdmin';
 
 interface Settings {
   id: string;
@@ -101,6 +102,8 @@ export function StoreSettings() {
 
       <div className="space-y-8">
         <CompanyManagement />
+
+        <RepCoHelpAdmin />
 
         <VisitorInsights />
 
