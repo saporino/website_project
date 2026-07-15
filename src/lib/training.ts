@@ -103,6 +103,7 @@ export function espelhoTabToRepTab(tab?: string): string {
     case 'commissions': return 'commissions';
     case 'performance': return 'performance';
     case 'mercado':     return 'mercado';
+    case 'mensagens':   return 'mensagens';
     default:            return 'inicio';
   }
 }

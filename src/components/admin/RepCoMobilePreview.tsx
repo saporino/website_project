@@ -1,7 +1,8 @@
 // RepCoApp — espelho mobile do portal RepCoWeb.
 // Deve ter TODAS as abas do RepCoWeb para o rep ter acesso completo.
 import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ElementType } from 'react';
-import { Home, ClipboardList, Users, ShoppingBag, RefreshCw, X, Minus, GripHorizontal, Radio, Truck, DollarSign, TrendingUp, User, Plus, FileText } from 'lucide-react';
+import { Home, ClipboardList, Users, ShoppingBag, RefreshCw, X, Minus, GripHorizontal, Radio, Truck, DollarSign, TrendingUp, User, Plus, FileText, MessageCircle, Store } from 'lucide-react';
+import RepCoMarketPrices from '../repco/RepCoMarketPrices';
 import { useTrainingBroadcast, useTrainingListener, espelhoTabToRepTab, type CalcState } from '../../lib/training';
 import RepCoHome from '../repco/RepCoHome';
 import RepCoProspection from '../repco/RepCoProspection';
@@ -38,7 +39,7 @@ interface Props {
 }
 
 // Todas as abas do RepCoApp — idêntico ao RepCoWeb
-type PreviewTab = 'inicio' | 'profile' | 'prospection' | 'mapa' | 'clients' | 'novo_pedido' | 'orders' | 'entregas' | 'commissions' | 'performance';
+type PreviewTab = 'inicio' | 'profile' | 'prospection' | 'mapa' | 'clients' | 'novo_pedido' | 'orders' | 'entregas' | 'commissions' | 'performance' | 'mercado' | 'mensagens';
 
 interface PreviewOrder {
   id: string;
@@ -60,6 +61,8 @@ const WORK_TABS: { id: PreviewTab; label: string; icon: ElementType }[] = [
   { id: 'novo_pedido', label: 'Novo Pedido', icon: Plus        },
   { id: 'orders',      label: 'Pedidos',     icon: ShoppingBag },
   { id: 'entregas',    label: 'Entregas',    icon: Truck       },
+  { id: 'mercado',     label: 'Mercado',     icon: Store       },
+  { id: 'mensagens',   label: 'Mensagens',   icon: MessageCircle },
 ];
 
 // Abas do MENU (⋯) — acesso pessoal/relatórios, fora do fluxo de trabalho
@@ -303,6 +306,18 @@ export default function RepCoMobilePreview({ representatives, initialRepresentat
 
     if (activeTab === 'entregas')
       return <RepCoDeliveries key={propsKey} representativeId={activeRep.id} previewMode={pm} />;
+
+    if (activeTab === 'mercado')
+      return <RepCoMarketPrices key={propsKey} />;
+
+    if (activeTab === 'mensagens')
+      return (
+        <div key={propsKey} className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#f5f0ef]"><MessageCircle className="h-7 w-7 text-[#8B2214]" /></span>
+          <p className="text-sm font-semibold text-gray-800">Mensagens (chat interno)</p>
+          <p className="text-xs text-gray-500 max-w-xs">Aqui o representante conversa em tempo real com o administrador e com outros reps — texto, foto, documento e áudio. No app real do rep, o chat funciona de verdade; no espelho de treinamento mostramos só onde fica.</p>
+        </div>
+      );
 
     if (activeTab === 'commissions')
       return (
