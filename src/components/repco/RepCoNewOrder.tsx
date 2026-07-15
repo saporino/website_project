@@ -15,6 +15,9 @@ interface Client {
   segment: string | null;
   forma_pagamento: string | null;
   default_fiscal_order_type: FiscalOrderType | null;
+  desconto_financeiro_pct: number | null;
+  desconto_logistico_pct: number | null;
+  bonificacao_padrao: string | null;
 }
 interface Product { id: string; name: string; image_url: string | null; stock: number; in_stock: boolean; }
 interface PriceEntry { product_id: string; segment: string; price: number; volume_discount: number; volume_min_qty: number; }
@@ -52,7 +55,11 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   const [clientOrderNumber, setClientOrderNumber] = useState('');
   const [hasClientOrderNumber, setHasClientOrderNumber] = useState(true);
   const [paymentTerm, setPaymentTerm] = useState(0);
-  const [discountPercentage, setDiscountPercentage] = useState(0);
+  // Condições comerciais: descontos financeiro/logístico (líquido → NF e comissão) + bonificação (item grátis)
+  const [descFinanceiro, setDescFinanceiro] = useState(0);
+  const [descLogistico, setDescLogistico] = useState(0);
+  const [bonusItems, setBonusItems] = useState<{ productId: string; quantity: number }[]>([]);
+  const [bonusPick, setBonusPick] = useState('');
   const [, setPaymentTerms] = useState<number[]>([0,7,14,21,28,30]);
   const [boletoOffsets, setBoletoOffsets] = useState<number[]>([]);
   const [fiscalOrderType, setFiscalOrderType] = useState<FiscalOrderType>('non_taxpayer_consumer');
@@ -68,7 +75,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   }, [preSelectedClientId, clients]);
 
   async function fetchClients() {
-    const { data } = await supabase.from('representative_clients').select('id,razao_social,nome_fantasia,cnpj,cpf,segment,forma_pagamento,prazo_pagamento,default_fiscal_order_type').eq('representative_id', representativeId).eq('company_id', activeCompanyId).eq('status','active').order('razao_social');
+    const { data } = await supabase.from('representative_clients').select('id,razao_social,nome_fantasia,cnpj,cpf,segment,forma_pagamento,prazo_pagamento,default_fiscal_order_type,desconto_financeiro_pct,desconto_logistico_pct,bonificacao_padrao').eq('representative_id', representativeId).eq('company_id', activeCompanyId).eq('status','active').order('razao_social');
     if (data) setClients(data);
     const { data: blk } = await supabase.from('vw_repco_clientes_bloqueados').select('client_id,vencido_em');
     const map: Record<string, string> = {};
@@ -117,6 +124,10 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
     setBoletoOffsets(_prazoNums);
     setPaymentTerm(_prazoNums.length ? _prazoNums[_prazoNums.length - 1] : 0);
     setFiscalOrderType(client.default_fiscal_order_type || (hasValidCnpj(client) ? 'resale' : 'non_taxpayer_consumer'));
+    // condições comerciais padrão do cliente (o rep pode ajustar na Revisão)
+    setDescFinanceiro(Number(client.desconto_financeiro_pct) || 0);
+    setDescLogistico(Number(client.desconto_logistico_pct) || 0);
+    setBonusItems([]); setBonusPick('');
     fetchProductsAndPrices(client.segment);
     setStep('products');
   }
@@ -147,6 +158,8 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   }
 
   const calcTotal = () => items.reduce((s, item) => s + effectivePrice(item.price, item.quantity) * item.quantity, 0);
+  const combinedDiscount = Math.min(100, Math.max(0, (Number(descFinanceiro) || 0) + (Number(descLogistico) || 0)));
+  const netTotal = () => calcTotal() * (1 - combinedDiscount / 100);
   const fmt = (v: string) => v.replace(/\D/g,'').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5');
   const getDigits = (value: string | null | undefined) => value?.replace(/\D/g, '') ?? '';
   const hasValidCnpj = (client: Client) => getDigits(client.cnpj).length === 14;
@@ -172,8 +185,14 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
 
     setSubmitting(true); setError('');
     const originalAmount = calcTotal();
-    const finalAmount = originalAmount * (1 - discountPercentage / 100);
-    const description = items.map(i => `${i.product.name} x${i.quantity} (R$ ${effectivePrice(i.price, i.quantity).toFixed(2)})`).join(', ');
+    const finalAmount = originalAmount * (1 - combinedDiscount / 100);
+    const bonusDesc = bonusItems
+      .map(b => { const p = products.find(x => x.id === b.productId); return p ? `${p.name} x${b.quantity} (bonificação)` : ''; })
+      .filter(Boolean).join(', ');
+    const description = [
+      items.map(i => `${i.product.name} x${i.quantity} (R$ ${effectivePrice(i.price, i.quantity).toFixed(2)})`).join(', '),
+      bonusDesc,
+    ].filter(Boolean).join(', ');
 
     const { data: createdOrder, error: err } = await supabase.from('representative_orders').insert({
       representative_id: representativeId,
@@ -182,7 +201,9 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
       description,
       total_amount: finalAmount,
       original_amount: originalAmount,
-      discount_percentage: discountPercentage,
+      discount_percentage: combinedDiscount,
+      desconto_financeiro_pct: Number(descFinanceiro) || 0,
+      desconto_logistico_pct: Number(descLogistico) || 0,
       payment_method: paymentTerm === 0 ? paymentMethod : 'boleto',
       payment_term: paymentTerm,
       is_personal_delivery: isPersonalDelivery,
@@ -206,8 +227,19 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
       quantity: i.quantity,
       unit: i.unit,
       unit_price: effectivePrice(i.price, i.quantity),
+      is_bonus: false,
     }));
-    const { error: itemsErr } = await supabase.from('representative_order_items').insert(itemRows);
+    // bonificação: itens grátis (R$ 0), sem receita nem comissão
+    const bonusRows = bonusItems.filter(b => b.quantity > 0).map(b => ({
+      order_id: createdOrder.id,
+      product_id: b.productId,
+      representative_id: representativeId,
+      quantity: b.quantity,
+      unit: 'pacote',
+      unit_price: 0,
+      is_bonus: true,
+    }));
+    const { error: itemsErr } = await supabase.from('representative_order_items').insert([...itemRows, ...bonusRows]);
     if (itemsErr) {
       setSubmitting(false);
       setError('Pedido criado, mas houve erro ao registrar os itens.');
@@ -383,7 +415,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                 </div>
               </div>
             );})}
-            <div className="flex justify-between border-t border-gray-200 pt-2 font-bold"><span>Total</span><span className="text-[#a4240e]">R$ {calcTotal().toFixed(2)}</span></div>
+            <div className="flex justify-between border-t border-gray-200 pt-2 text-sm text-gray-600"><span>Subtotal produtos</span><span>R$ {calcTotal().toFixed(2)}</span></div>
             <button type="button" onClick={()=>setStep('products')} className="text-xs text-[#a4240e] font-medium hover:underline">+ Adicionar mais produtos</button>
           </div>
           <div className="space-y-3">
@@ -457,24 +489,47 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                 </p>
               )}
             </div>
-            {/* Desconto */}
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Desconto ao cliente (%) <span className="text-gray-400 font-normal">— comissão calculada sobre preço com desconto</span>
-              </label>
-              <div className="flex gap-2 items-center">
-                <input type="number" value={discountPercentage}
-                  onChange={e=>setDiscountPercentage(Math.min(15,Math.max(0,parseFloat(e.target.value)||0)))}
-                  min="0" max="15" step="0.5"
-                  className="w-24 h-[34px] px-3 text-sm border border-gray-300 rounded focus:outline-none"/>
-                <span className="text-sm text-gray-500">%</span>
-                {discountPercentage>0&&(
-                  <div className="flex gap-3 text-xs">
-                    <span className="text-gray-400 line-through">R$ {calcTotal().toFixed(2)}</span>
-                    <span className="text-green-600 font-medium">R$ {(calcTotal()*(1-discountPercentage/100)).toFixed(2)}</span>
-                    {paymentTerm===0&&paymentMethod==='pix'&&activeCompany?.commission_model==='formula'&&<span className="text-amber-600">PIX: +0.5% bônus</span>}
-                  </div>
-                )}
+            {/* Condições comerciais — descontos financeiro/logístico (líquido → NF e comissão) */}
+            <div className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
+              <p className="text-xs font-semibold text-gray-600">Condições comerciais <span className="text-gray-400 font-normal">— comissão sobre o valor líquido</span></p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] text-gray-500 mb-1">Desconto financeiro (%)</label>
+                  <input type="number" value={descFinanceiro} onChange={e=>setDescFinanceiro(Math.min(100,Math.max(0,parseFloat(e.target.value)||0)))} min="0" max="100" step="0.5" className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded focus:outline-none"/>
+                </div>
+                <div>
+                  <label className="block text-[11px] text-gray-500 mb-1">Desconto logístico (%)</label>
+                  <input type="number" value={descLogistico} onChange={e=>setDescLogistico(Math.min(100,Math.max(0,parseFloat(e.target.value)||0)))} min="0" max="100" step="0.5" className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded focus:outline-none"/>
+                </div>
+              </div>
+              <div className="space-y-1 pt-1 border-t border-gray-100 text-sm">
+                <div className="flex justify-between text-gray-500"><span>Subtotal</span><span>R$ {calcTotal().toFixed(2)}</span></div>
+                {combinedDiscount>0&&<div className="flex justify-between text-green-600"><span>Desconto ({combinedDiscount}%)</span><span>− R$ {(calcTotal()*combinedDiscount/100).toFixed(2)}</span></div>}
+                <div className="flex justify-between font-bold"><span>Total da NF</span><span className="text-[#a4240e]">R$ {netTotal().toFixed(2)}</span></div>
+                {paymentTerm===0&&paymentMethod==='pix'&&activeCompany?.commission_model==='formula'&&<p className="text-[11px] text-amber-600">PIX à vista: +0,5% de bônus na comissão.</p>}
+              </div>
+            </div>
+            {/* Bonificação — itens grátis (R$ 0), sem comissão */}
+            <div className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-gray-600">Bonificação <span className="text-gray-400 font-normal">— produto grátis, sem comissão</span></p>
+              </div>
+              {selectedClient?.bonificacao_padrao&&<p className="text-[11px] text-amber-700 bg-amber-50 rounded px-2 py-1">Combinado: {selectedClient.bonificacao_padrao}</p>}
+              {bonusItems.map((b,idx)=>{ const p=products.find(x=>x.id===b.productId); return (
+                <div key={idx} className="flex items-center gap-2 text-sm">
+                  <span className="flex-1 truncate text-gray-700">{p?.name||'Produto'}</span>
+                  <button type="button" onClick={()=>setBonusItems(prev=>prev.map((x,i)=>i===idx?{...x,quantity:Math.max(1,x.quantity-1)}:x))} className="w-6 h-6 rounded-full border border-gray-300 text-gray-600">−</button>
+                  <span className="w-6 text-center">{b.quantity}</span>
+                  <button type="button" onClick={()=>setBonusItems(prev=>prev.map((x,i)=>i===idx?{...x,quantity:x.quantity+1}:x))} className="w-6 h-6 rounded-full bg-[#a4240e] text-white">+</button>
+                  <button type="button" onClick={()=>setBonusItems(prev=>prev.filter((_,i)=>i!==idx))} className="text-xs text-red-500 ml-1">remover</button>
+                </div>
+              );})}
+              <div className="flex gap-2">
+                <select value={bonusPick} onChange={e=>setBonusPick(e.target.value)} className="flex-1 h-[34px] px-2 text-sm border border-gray-300 rounded">
+                  <option value="">+ Adicionar produto bonificado…</option>
+                  {products.filter(p=>!bonusItems.some(b=>b.productId===p.id)).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <button type="button" disabled={!bonusPick} onClick={()=>{ if(bonusPick){setBonusItems(prev=>[...prev,{productId:bonusPick,quantity:1}]);setBonusPick('');} }} className="px-3 h-[34px] text-sm bg-gray-700 text-white rounded disabled:opacity-40">Add</button>
               </div>
             </div>
             {/* Entrega pessoal */}
@@ -485,7 +540,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
             <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2} placeholder="Observações..." className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-[#a4240e] outline-none resize-none"/>
           </div>
           <button onClick={handleSubmit} disabled={submitting} className="w-full bg-[#a4240e] text-white py-3 rounded-xl font-bold text-sm hover:bg-[#8a1f0c] disabled:opacity-50">
-            {submitting?'Enviando...':`Confirmar Pedido — R$ ${(calcTotal()*(1-discountPercentage/100)).toFixed(2)}`}
+            {submitting?'Enviando...':`Confirmar Pedido — R$ ${netTotal().toFixed(2)}`}
           </button>
         </div>
       )}

@@ -16,6 +16,7 @@ interface RepCoClient {
   lat: number | null; lng: number | null;
   credito_score: number | null; score_serasa_pdf_url: string | null; score_serasa_pdf_filename: string | null;
   status: string; segment: ClientSegment | null; inscricao_estadual: string | null;
+  desconto_financeiro_pct: number | null; desconto_logistico_pct: number | null; bonificacao_padrao: string | null;
   last_order_at: string | null; inactivity_snoozed_until: string | null;
   snooze_count: number; snooze_admin_alert: boolean; is_active_client: boolean; created_at: string;
 }
@@ -31,6 +32,7 @@ const emptyForm = {
   cep:'', municipio:'', uf:'', bairro:'',
   credito_score:'' as number|'', score_serasa_pdf_url:'', score_serasa_pdf_filename:'',
   inscricao_estadual:'', is_pj:true,
+  desconto_financeiro_pct:'' as number|'', desconto_logistico_pct:'' as number|'', bonificacao_padrao:'',
 };
 type ViewMode = 'list'|'detail'|'edit'|'new';
 function fmtCNPJ(v:string){return v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5');}
@@ -123,7 +125,10 @@ export default function RepCoClients({ representativeId, previewMode = false, re
       forma_pagamento:c.forma_pagamento||'',limite_credito:c.limite_credito||0,
       cep:c.cep||'',municipio:c.municipio||'',uf:c.uf||'',bairro:c.bairro||'',
       credito_score:c.credito_score!=null?c.credito_score:'' as number|'',score_serasa_pdf_url:c.score_serasa_pdf_url||'',score_serasa_pdf_filename:c.score_serasa_pdf_filename||'',
-      segment:c.segment||'',inscricao_estadual:c.inscricao_estadual||'',is_pj:!c.cpf});
+      segment:c.segment||'',inscricao_estadual:c.inscricao_estadual||'',is_pj:!c.cpf,
+      desconto_financeiro_pct:c.desconto_financeiro_pct!=null?c.desconto_financeiro_pct:'' as number|'',
+      desconto_logistico_pct:c.desconto_logistico_pct!=null?c.desconto_logistico_pct:'' as number|'',
+      bonificacao_padrao:c.bonificacao_padrao||''});
     setView('edit');setErr('');
   }
   function openNew(){if (previewMode) { alert('Ação desativada no espelho.'); return; } setForm(emptyForm);setView('new');setErr('');}
@@ -183,7 +188,10 @@ export default function RepCoClients({ representativeId, previewMode = false, re
       credito_score:form.credito_score===''?null:Math.max(0,Math.min(1000,Number(form.credito_score))),
       score_serasa_pdf_url:form.score_serasa_pdf_url||null,score_serasa_pdf_filename:form.score_serasa_pdf_filename||null,
       limite_credito:form.limite_credito||0,segment:form.segment||null,
-      inscricao_estadual:form.inscricao_estadual||null,status:'active',is_active_client:true};
+      inscricao_estadual:form.inscricao_estadual||null,status:'active',is_active_client:true,
+      desconto_financeiro_pct:form.desconto_financeiro_pct===''?0:Math.max(0,Math.min(100,Number(form.desconto_financeiro_pct))),
+      desconto_logistico_pct:form.desconto_logistico_pct===''?0:Math.max(0,Math.min(100,Number(form.desconto_logistico_pct))),
+      bonificacao_padrao:form.bonificacao_padrao||null};
     let savedId:string|null=null; let error:{message:string}|null=null;
     if(view==='edit'&&sel){
       const r=await supabase.from('representative_clients').update(p).eq('id',sel.id);
@@ -353,6 +361,19 @@ export default function RepCoClients({ representativeId, previewMode = false, re
               {form.score_serasa_pdf_filename?`📎 ${form.score_serasa_pdf_filename}`:'Anexar PDF…'}
             </button>
           </div>
+        </div>
+        {/* Condições comerciais padrão — puxadas automaticamente na Revisão do pedido (o rep pode ajustar por pedido) */}
+        <div className="border-t border-gray-200 pt-3 mt-1">
+          <p className="text-xs font-semibold text-gray-600 mb-2">Condições comerciais (padrão do cliente)</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div><label className={lbl}>Desconto financeiro (%)</label>
+              <input type="number" min="0" max="100" step="0.5" value={form.desconto_financeiro_pct} onChange={e=>setForm(p=>({...p,desconto_financeiro_pct:e.target.value===''?'':Number(e.target.value)}))} placeholder="0" className={inp}/></div>
+            <div><label className={lbl}>Desconto logístico (%)</label>
+              <input type="number" min="0" max="100" step="0.5" value={form.desconto_logistico_pct} onChange={e=>setForm(p=>({...p,desconto_logistico_pct:e.target.value===''?'':Number(e.target.value)}))} placeholder="0" className={inp}/></div>
+            <div><label className={lbl}>Bonificação combinada</label>
+              <input type="text" value={form.bonificacao_padrao} onChange={e=>setForm(p=>({...p,bonificacao_padrao:e.target.value}))} placeholder="ex.: 1 pacote grátis a cada 10" className={inp}/></div>
+          </div>
+          <p className="text-[11px] text-gray-400 mt-1">Descontos abatem no valor da NF e a comissão é sobre o líquido. A bonificação vira item grátis (R$ 0) no pedido, sem comissão.</p>
         </div>
         {form.endereco_completo&&<div><label className={lbl}>Endereço</label>
           <input type="text" value={form.endereco_completo} onChange={e=>setForm(p=>({...p,endereco_completo:e.target.value}))} className={inp}/></div>}
