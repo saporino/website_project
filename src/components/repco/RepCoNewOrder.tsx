@@ -188,7 +188,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
       is_personal_delivery: isPersonalDelivery,
       client_order_number: hasClientOrderNumber ? (clientOrderNumber || null) : null,
       has_client_order_number: hasClientOrderNumber,
-      pix_bonus_eligible: paymentTerm === 0 && paymentMethod === 'pix',
+      pix_bonus_eligible: paymentTerm === 0 && paymentMethod === 'pix' && activeCompany?.commission_model === 'formula',
       channel: 'repco',
       status: 'new',
       fiscal_order_type: fiscalOrderType,
@@ -425,8 +425,10 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                   ))}
                 </div>
                 {paymentMethod === 'pix'
-                  ? <p className="text-[11px] text-amber-600 mt-1">PIX à vista com NF → +0,5% de comissão.</p>
-                  : <p className="text-[11px] text-gray-400 mt-1">{paymentMethod === 'dinheiro' ? 'Dinheiro recebido na hora' : 'Depósito bancário'} → depositado na conta da empresa com NF (sem bônus PIX).</p>}
+                  ? (activeCompany?.commission_model === 'formula'
+                      ? <p className="text-[11px] text-amber-600 mt-1">PIX à vista com NF → +0,5% de comissão.</p>
+                      : <p className="text-[11px] text-gray-400 mt-1">PIX à vista, na conta da empresa com NF.</p>)
+                  : <p className="text-[11px] text-gray-400 mt-1">{paymentMethod === 'dinheiro' ? 'Dinheiro recebido na hora' : 'Depósito bancário'} → depositado na conta da empresa com NF.</p>}
               </div>
             )}
             {/* Tipo fiscal/comercial */}
@@ -469,7 +471,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                   <div className="flex gap-3 text-xs">
                     <span className="text-gray-400 line-through">R$ {calcTotal().toFixed(2)}</span>
                     <span className="text-green-600 font-medium">R$ {(calcTotal()*(1-discountPercentage/100)).toFixed(2)}</span>
-                    {paymentTerm===0&&paymentMethod==='pix'&&<span className="text-amber-600">PIX: +0.5% bônus</span>}
+                    {paymentTerm===0&&paymentMethod==='pix'&&activeCompany?.commission_model==='formula'&&<span className="text-amber-600">PIX: +0.5% bônus</span>}
                   </div>
                 )}
               </div>

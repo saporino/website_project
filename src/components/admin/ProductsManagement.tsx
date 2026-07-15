@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Plus, Edit, Trash2, Save, X, Image as ImageIcon, ChevronUp, ChevronDown, Eye, EyeOff } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
+import { useCompany } from '../../contexts/CompanyContext';
 
 interface Product {
   id: string;
@@ -46,6 +47,7 @@ function BarcodeDisplay({ value }: { value: string }) {
 }
 
 export function ProductsManagement() {
+  const { activeCompanyId } = useCompany();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeBatches, setActiveBatches] = useState<Record<string, string[]>>({});
@@ -80,7 +82,7 @@ export function ProductsManagement() {
   const [imageMode, setImageMode] = useState<'upload' | 'url'>('url');
   const [uploading, setUploading] = useState(false);
 
-  useEffect(() => { loadProducts(); }, []);
+  useEffect(() => { if (activeCompanyId) loadProducts(); }, [activeCompanyId]);
 
   useEffect(() => {
     if (!editingId) { setHasLots(false); return; }
@@ -94,8 +96,8 @@ export function ProductsManagement() {
   const loadProducts = async () => {
     try {
       const [{ data, error }, { data: batches }] = await Promise.all([
-        supabase.from('products').select('*').order('display_order', { ascending: true }),
-        supabase.from('green_coffee_lots').select('product_id,batch_number,status').eq('status', 'active')
+        supabase.from('products').select('*').eq('company_id', activeCompanyId).order('display_order', { ascending: true }),
+        supabase.from('green_coffee_lots').select('product_id,batch_number,status').eq('status', 'active').eq('company_id', activeCompanyId)
       ]);
 
       if (error) throw error;
@@ -188,6 +190,7 @@ export function ProductsManagement() {
         weight_grams: formData.weight_grams || 500,
         // stock removido — controlado exclusivamente pelos lotes ativos
         is_active: formData.is_active,
+        company_id: activeCompanyId,
         hidden_from_store: formData.hidden_from_store ?? false,
         category: formData.category || 'café',
         product_line: (formData.product_line || '').trim() || null,
