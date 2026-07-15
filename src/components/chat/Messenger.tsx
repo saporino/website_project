@@ -97,7 +97,7 @@ export default function Messenger({ currentUserId }: { currentUserId: string }) 
   return (
     <div className="flex h-[calc(100vh-140px)] min-h-[520px] bg-white border border-gray-200 rounded-xl overflow-hidden">
       {/* LISTA */}
-      <div className={`${mobileThread ? 'hidden' : 'flex'} md:flex flex-col w-full md:w-[340px] border-r border-gray-200`}>
+      <div className={`${mobileThread ? 'hidden' : 'flex'} md:flex flex-col w-full md:w-[340px] min-w-0 border-r border-gray-200`}>
         <div className="p-3 border-b border-gray-100 flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="w-4 h-4 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -131,7 +131,7 @@ export default function Messenger({ currentUserId }: { currentUserId: string }) 
       </div>
 
       {/* THREAD */}
-      <div className={`${mobileThread ? 'flex' : 'hidden'} md:flex flex-col flex-1 bg-[#f8f7f5]`}>
+      <div className={`${mobileThread ? 'flex' : 'hidden'} md:flex flex-col flex-1 min-w-0 bg-[#f8f7f5]`}>
         {!active ? (
           <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">Selecione uma conversa</div>
         ) : (
@@ -145,7 +145,7 @@ export default function Messenger({ currentUserId }: { currentUserId: string }) 
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-1.5">
+            <div className="flex-1 min-w-0 overflow-y-auto px-4 py-3 space-y-1.5">
               {messages.map((m, i) => {
                 const mine = m.sender_id === currentUserId;
                 const showDay = i === 0 || dayLabel(messages[i - 1].created_at) !== dayLabel(m.created_at);
@@ -209,7 +209,7 @@ function Attachment({ m, mine }: { m: ChatMessage; mine: boolean }) {
   if (m.attachment_type === 'image')
     return <a href={m.attachment_url} target="_blank" rel="noreferrer"><img src={m.attachment_url} className="rounded-lg max-w-full max-h-64 mb-1" loading="lazy" /></a>;
   if (m.attachment_type === 'audio')
-    return <audio controls src={m.attachment_url} className="max-w-[220px] mb-1" />;
+    return <audio controls src={m.attachment_url} className="w-full max-w-[240px] mb-1" style={{ minWidth: 0 }} />;
   return (
     <a href={m.attachment_url} target="_blank" rel="noreferrer" className={`flex items-center gap-2 mb-1 underline ${mine ? 'text-white' : 'text-gray-700'}`}>
       <FileText className="w-4 h-4" /> <span className="text-xs truncate">{m.attachment_name || 'Documento'}</span>
