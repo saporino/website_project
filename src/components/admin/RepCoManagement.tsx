@@ -118,13 +118,20 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   const [editing, setEditing] = useState(false);
   const [savingRep, setSavingRep] = useState(false);
   const [editForm, setEditForm] = useState({ full_name: '', email: '', phone: '', cpf: '', cnpj: '', commission_rate: 5, has_personal_delivery: false });
-  function openEditRep() {
+  // % fixo do rep NESTA empresa (modelo flat, ex. Fazendinha) — tabela representative_company_settings
+  const [flatRate, setFlatRate] = useState<number>(0);
+  async function openEditRep() {
     if (!selectedRep) return;
     setEditForm({
       full_name: selectedRep.full_name || '', email: selectedRep.email || '', phone: selectedRep.phone || '',
       cpf: selectedRep.cpf || '', cnpj: selectedRep.cnpj || '',
       commission_rate: selectedRep.commission_rate ?? 5, has_personal_delivery: !!selectedRep.has_personal_delivery,
     });
+    if (isFlatCommission && activeCompanyId) {
+      const { data } = await supabase.from('representative_company_settings')
+        .select('commission_rate').eq('representative_id', selectedRep.id).eq('company_id', activeCompanyId).maybeSingle();
+      setFlatRate(Number(data?.commission_rate ?? 0));
+    }
     setEditing(true);
   }
   async function handleSaveRep() {
@@ -135,6 +142,13 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
       cpf: editForm.cpf || null, cnpj: editForm.cnpj || null,
       commission_rate: Number(editForm.commission_rate) || 0, has_personal_delivery: editForm.has_personal_delivery,
     }).eq('id', selectedRep.id);
+    // No modelo flat, grava o % fixo do rep para a empresa ativa (não afeta a fórmula Saporino)
+    if (!error && isFlatCommission && activeCompanyId) {
+      const { error: e2 } = await supabase.from('representative_company_settings')
+        .upsert({ representative_id: selectedRep.id, company_id: activeCompanyId, commission_rate: Number(flatRate) || 0, active: true },
+          { onConflict: 'representative_id,company_id' });
+      if (e2) { setSavingRep(false); toast.error('Erro ao salvar % da empresa: ' + e2.message); return; }
+    }
     setSavingRep(false);
     if (error) { toast.error('Erro ao salvar: ' + error.message); return; }
     toast.success('Dados do representante atualizados');
@@ -569,6 +583,13 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
                     <input value={(editForm as any)[f.k]} onChange={e => setEditForm(p => ({ ...p, [f.k]: e.target.value }))} className="h-[34px] w-full rounded border border-gray-300 px-3 text-sm" />
                   </div>
                 ))}
+                {isFlatCommission ? (
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-gray-600">% de comissão em {activeCompany?.fantasia || 'nesta empresa'} (fixo)</label>
+                    <input type="number" step="0.5" value={flatRate} onChange={e => setFlatRate(parseFloat(e.target.value) || 0)} className="h-[34px] w-full rounded border border-gray-300 px-3 text-sm" />
+                    <p className="mt-1 text-[11px] text-gray-400">% fixo sobre a venda, sem bônus de PIX/entrega. Vale só para esta empresa.</p>
+                  </div>
+                ) : (<>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-600">Comissão base (%)</label>
                   <input type="number" step="0.5" value={editForm.commission_rate} onChange={e => setEditForm(p => ({ ...p, commission_rate: parseFloat(e.target.value) || 0 }))} className="h-[34px] w-full rounded border border-gray-300 px-3 text-sm" />
@@ -577,6 +598,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
                   <input type="checkbox" checked={editForm.has_personal_delivery} onChange={e => setEditForm(p => ({ ...p, has_personal_delivery: e.target.checked }))} />
                   Entrega pessoal liberada (+2,5%)
                 </label>
+                </>)}
               </div>
               <div className="flex justify-end gap-2 border-t border-gray-100 p-4">
                 <button onClick={() => setEditing(false)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50">Cancelar</button>

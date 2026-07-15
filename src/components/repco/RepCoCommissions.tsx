@@ -61,6 +61,9 @@ const fmtShort = (d: Date) =>
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+const payMethodLabel = (m: string | null) =>
+  m === 'pix' ? 'PIX' : m === 'boleto' ? 'Boleto' : m === 'deposito' ? 'Depósito' : m === 'dinheiro' ? 'Dinheiro' : 'Transferência';
+
 // Previsão de pagamento de um boleto: 1ª segunda após a sexta da semana do vencimento
 // (mesma regra do gatilho repco_commission_cycle: cf = vencimento + dias até sexta; +3 = segunda).
 function previsaoBoleto(due: string | null): Date | null {
@@ -140,7 +143,8 @@ export function RepCoCommissions({ repId }: Props) {
   const orderOf = (p: Payout) => p.representative_commissions?.representative_orders;
   const clientOf = (p: Payout) => orderOf(p)?.representative_clients?.razao_social || 'Cliente';
 
-  const avista = payouts.filter(p => p.payment_method === 'pix' && p.status === 'scheduled');
+  // à vista = tudo que não é boleto (pix, depósito, dinheiro): cai no mesmo ciclo
+  const avista = payouts.filter(p => p.payment_method !== 'boleto' && p.status === 'scheduled');
   const aprazoScheduled = payouts.filter(p => p.payment_method === 'boleto' && p.status === 'scheduled');
   const paid = payouts.filter(p => p.status === 'paid');
 
@@ -246,7 +250,7 @@ export function RepCoCommissions({ repId }: Props) {
                     <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">Pagas</p>
                     {paid.slice(0, 5).map(p => (
                       <div key={p.id} className="rounded-xl border border-green-200 bg-green-50 p-3 text-xs">
-                        <div className="flex justify-between"><span className="font-medium text-green-800">{p.payment_method === 'pix' ? 'PIX' : 'Transferência'}</span><span className="font-bold text-green-800">R$ {p.amount?.toFixed(2).replace('.', ',')}</span></div>
+                        <div className="flex justify-between"><span className="font-medium text-green-800">{payMethodLabel(p.payment_method)}</span><span className="font-bold text-green-800">R$ {p.amount?.toFixed(2).replace('.', ',')}</span></div>
                         {p.scheduled_payment_date && <p className="text-green-700 mt-0.5">Pago em {new Date(p.scheduled_payment_date).toLocaleDateString('pt-BR')}</p>}
                       </div>
                     ))}
