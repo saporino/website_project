@@ -210,7 +210,7 @@ export default function RepCoCoverageMap() {
             items: r.items, uf: apifyRun.params.uf, municipio: apifyRun.params.municipio,
             category: apifyRun.params.category, segment: apifyRun.params.segment, runId: apifyRun.runId,
           });
-          setMsg(`✓ ${res.criados} leads reais de ${apifyRun.params.municipio} no pool${res.ignorados ? ` · ${res.ignorados} repetidos` : ''}${res.fora ? ` · ${res.fora} fora da cidade (descartados)` : ''}. Vá em Prospecção → Atribuir pools pra distribuir aos reps.`);
+          setMsg(`✓ ${res.criados} leads do ramo de alimentos em ${apifyRun.params.municipio}${res.foraDoRamo ? ` · ${res.foraDoRamo} fora do ramo (descartados)` : ''}${res.ignorados ? ` · ${res.ignorados} repetidos` : ''}${res.fora ? ` · ${res.fora} de outra cidade` : ''}. Vá em Prospecção → Atribuir pools pra distribuir aos reps.`);
           setReloadKey(k => k + 1);
         } catch (e) { setMsg('Apify importou com erro: ' + (e instanceof Error ? e.message : String(e))); }
         setApifyRun(null);

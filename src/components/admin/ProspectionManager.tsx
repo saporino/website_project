@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Papa from 'papaparse';
-import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, FileText, Mail, MessageCircle, Phone, Trash2, Upload, Instagram, Facebook, Globe } from 'lucide-react';
+import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, FileText, Mail, MessageCircle, Phone, Trash2, Upload, Instagram, Facebook, Globe, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -428,6 +428,23 @@ function markExistingClient(lead: ParsedLead, clients: RepresentativeClient[]): 
 
 function isLeadAssignable(lead: Pick<ParsedLead, 'isValid' | 'duplicate_of_client_id'>) {
   return lead.isValid && !lead.duplicate_of_client_id;
+}
+
+// Baixa a lista de leads em CSV (abre no Excel). Separador ';' + BOM para acentos.
+async function downloadListCsv(list: { id: string; name: string }) {
+  const { data } = await supabase.from('prospect_leads')
+    .select('company_name,category,segment,address,district,city,state,zip_code,phone,whatsapp,email,website')
+    .eq('prospect_list_id', list.id).limit(5000);
+  const rows = (data as any[]) || [];
+  if (!rows.length) { alert('Lista sem leads para exportar.'); return; }
+  const headers = ['Nome', 'Categoria', 'Segmento', 'Endereço', 'Bairro', 'Cidade', 'UF', 'CEP', 'Telefone', 'WhatsApp', 'Email', 'Site'];
+  const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const body = rows.map(r => [r.company_name, r.category, r.segment, r.address, r.district, r.city, r.state, r.zip_code, r.phone, r.whatsapp, r.email, r.website].map(esc).join(';'));
+  const csv = '﻿' + [headers.join(';'), ...body].join('\r\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = `${(list.name || 'lista').replace(/[^\w]+/g, '_')}.csv`;
+  a.click(); URL.revokeObjectURL(url);
 }
 
 function getContactLinks(lead: Pick<ParsedLead, 'phone' | 'whatsapp' | 'email' | 'website' | 'raw_data'>) {
@@ -1332,13 +1349,23 @@ export default function ProspectionManager({ refreshKey = 0 }: { refreshKey?: nu
                   <tr key={list.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <p className="font-semibold text-gray-900">{list.name}</p>
-                      <button
-                        type="button"
-                        onClick={() => handleOpenList(list)}
-                        className="mt-1 text-xs font-semibold text-[#a4240e] hover:underline"
-                      >
-                        Ver lista
-                      </button>
+                      <div className="mt-1 flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenList(list)}
+                          className="text-xs font-semibold text-[#a4240e] hover:underline"
+                        >
+                          Ver lista
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => downloadListCsv(list)}
+                          title="Baixar em CSV (abre no Excel)"
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-gray-800"
+                        >
+                          <Download className="h-3.5 w-3.5" /> Baixar CSV
+                        </button>
+                      </div>
                       <p className="text-xs text-gray-500">
                         {[list.source_name, list.segment ? PROSPECT_SEGMENT_LABEL[list.segment] || SEGMENT_LABEL[list.segment] || list.segment : null].filter(Boolean).join(' | ') || '-'}
                       </p>

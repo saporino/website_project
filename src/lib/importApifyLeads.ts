@@ -2,6 +2,7 @@
 // Fonte ÚNICA: Google (endereço/telefone reais). SEM cruzamento com a Receita.
 import { supabase } from './supabase';
 import { leadMatchesProspect, normName } from './leadMatch';
+import { isFoodRelevant } from './foodRelevance';
 import type { ClientSegment } from '../constants/segments';
 
 export interface ApifyPlace {
@@ -20,15 +21,18 @@ export interface ApifyImportParams {
 }
 
 export interface ApifyImportResult {
-  listId: string; criados: number; ignorados: number; fora: number;
+  listId: string; criados: number; ignorados: number; fora: number; foraDoRamo: number;
 }
 
 export async function importApifyLeads(p: ApifyImportParams): Promise<ApifyImportResult> {
   // Rede de segurança geográfica: o Google às vezes devolve PDVs de outras cidades.
   const alvo = normName(p.municipio);
   const fora = (p.items || []).filter(it => (it.title || '').trim() && it.city && normName(it.city) !== alvo).length;
-  const places = (p.items || []).filter(it => (it.title || '').trim() && (!it.city || normName(it.city) === alvo));
-  if (!places.length) throw new Error('Nenhum place do município retornado.');
+  const naCidade = (p.items || []).filter(it => (it.title || '').trim() && (!it.city || normName(it.city) === alvo));
+  // Filtro de RELEVÂNCIA: só entra quem é do ramo de café/alimentos (descarta vidro/pneu/bateria/açaí...).
+  const places = naCidade.filter(it => isFoodRelevant(it.title, it.categoryName));
+  const foraDoRamo = naCidade.length - places.length;
+  if (!places.length) throw new Error('Nenhum estabelecimento do ramo de alimentos retornado nesta busca.');
 
   // leads já existentes no município (não reimportar o mesmo PDV)
   const { data: existing } = await supabase.from('prospect_leads')
@@ -87,5 +91,5 @@ export async function importApifyLeads(p: ApifyImportParams): Promise<ApifyImpor
     }).eq('id', p.runId);
   }
 
-  return { listId, criados, ignorados, fora };
+  return { listId, criados, ignorados, fora, foraDoRamo };
 }
