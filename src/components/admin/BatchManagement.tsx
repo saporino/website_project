@@ -1,7 +1,8 @@
 ﻿import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { useCompany } from "../../contexts/CompanyContext";
-import { Package, Plus, Edit2, Trash2, ChevronDown, ChevronUp, Building2, X, Save, UserPlus, Phone, Mail, MessageCircle } from "lucide-react";
+import { lookupCnpj } from "../../lib/cnpjLookup";
+import { Package, Plus, Edit2, Trash2, ChevronDown, ChevronUp, Building2, X, Save, UserPlus, Phone, Mail, MessageCircle, Search } from "lucide-react";
 import { CurrencyInput } from "../CurrencyInput";
 import { formatBRL } from "../../utils/currency";
 import DocumentUploadButton from "./DocumentUploadButton";
@@ -60,6 +61,32 @@ export default function BatchManagement({ refreshKey = 0 }: { refreshKey?: numbe
   const [transfers, setTransfers] = useState<any[]>([]);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [transferForm, setTransferForm] = useState<any>({ kind:'green', kg_amount:null, to_lot_id:'', notes:'' });
+  const [cnpjLoading, setCnpjLoading] = useState(false);
+
+  // Puxa dados da Receita (BrasilAPI) pelo CNPJ e preenche o form da torrefadora.
+  // IE não vem da base federal do CNPJ — continua manual.
+  async function fillFromCnpj() {
+    setCnpjLoading(true);
+    try {
+      const d = await lookupCnpj(companyForm.cnpj || "");
+      setCompanyForm((prev:any) => ({
+        ...prev,
+        name: d.nome_fantasia || d.razao_social || prev.name,
+        city: d.cidade || prev.city,
+        state: d.uf || prev.state,
+        cep: d.cep || prev.cep,
+        email: d.email || prev.email,
+        whatsapp: d.telefone || prev.whatsapp,
+        director_name: prev.director_name || d.socio,
+        notes: prev.notes || (d.endereco ? `Endereço (Receita): ${d.endereco}` : prev.notes),
+      }));
+      showToast(d.situacao && d.situacao !== "ATIVA" ? `Preenchido — situação: ${d.situacao}` : "Dados preenchidos pela Receita!");
+    } catch (e:any) {
+      showToast(e?.message || "Erro ao consultar CNPJ");
+    } finally {
+      setCnpjLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (editingBatch) {
@@ -665,6 +692,13 @@ export default function BatchManagement({ refreshKey = 0 }: { refreshKey?: numbe
                 <div key={k} className={span}><label className="block text-xs font-semibold text-gray-600 mb-1">{l}</label>
                   <input type={t} value={companyForm[k]||""} onChange={e=>setCompanyForm({...companyForm,[k]:t==="number"?Number(e.target.value):e.target.value})} className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"/></div>
               ))}
+              <div className="sm:col-span-2 -mt-1">
+                <button type="button" onClick={fillFromCnpj} disabled={cnpjLoading||!companyForm.cnpj}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#8B2214] border border-[#ddd0cc] bg-[#f8f7f5] rounded-lg px-3 py-1.5 hover:bg-[#f0e9e7] disabled:opacity-50">
+                  <Search className="w-3.5 h-3.5"/>{cnpjLoading?"Consultando Receita...":"Preencher pelo CNPJ (Receita)"}
+                </button>
+                <p className="text-[11px] text-gray-400 mt-1">Puxa razão/fantasia, cidade, UF, CEP, e-mail e telefone. A Inscrição Estadual não vem da Receita federal — preencha à mão.</p>
+              </div>
               <div className="sm:col-span-2"><label className="block text-xs font-semibold text-gray-600 mb-1">Observacoes</label>
                 <textarea value={companyForm.notes||""} onChange={e=>setCompanyForm({...companyForm,notes:e.target.value})} rows={2} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-[#8B2214] focus:border-transparent"/></div>
             </div>

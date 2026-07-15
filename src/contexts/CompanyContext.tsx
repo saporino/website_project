@@ -6,7 +6,7 @@ export interface Company {
   id: string; name: string; fantasia: string | null; cnpj: string | null;
   logo_url: string | null; commission_model: string; sort_order: number; is_active: boolean;
   endereco: string | null; cidade: string | null; uf: string | null; cep: string | null;
-  allow_cash: boolean; is_b2c: boolean;
+  allow_cash: boolean; is_b2c: boolean; order_prefix: string | null;
 }
 
 interface Ctx {

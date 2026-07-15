@@ -55,7 +55,7 @@ function CompanyRow({ company, onSaved }: { company: Company; onSaved: () => voi
       name: f.name, fantasia: f.fantasia || null, cnpj: (f.cnpj || '').replace(/\D/g, '') || null,
       endereco: f.endereco || null, cidade: f.cidade || null, uf: f.uf || null, cep: f.cep || null,
       logo_url: f.logo_url || null, commission_model: f.commission_model, is_active: f.is_active,
-      allow_cash: f.allow_cash,
+      allow_cash: f.allow_cash, order_prefix: (f.order_prefix || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4) || null,
     }).eq('id', company.id);
     setSaving(false);
     if (error) { alert('Erro ao salvar: ' + error.message); return; }
@@ -81,6 +81,7 @@ function CompanyRow({ company, onSaved }: { company: Company; onSaved: () => voi
           <Field label="Razão social"><input value={f.name || ''} onChange={e => set('name', e.target.value)} className="inp" /></Field>
           <Field label="Nome fantasia"><input value={f.fantasia || ''} onChange={e => set('fantasia', e.target.value)} className="inp" /></Field>
           <Field label="CNPJ"><input value={f.cnpj || ''} onChange={e => set('cnpj', e.target.value)} className="inp" /></Field>
+          <Field label="Prefixo do pedido (ex: CS, CF)"><input value={f.order_prefix || ''} onChange={e => set('order_prefix', e.target.value.toUpperCase())} maxLength={4} placeholder="CS" className="inp uppercase" /></Field>
           <Field label="Modelo de comissão">
             <select value={f.commission_model} onChange={e => set('commission_model', e.target.value)} className="inp">
               <option value="formula">Fórmula Saporino (5% + bônus PIX/entrega, cap 8%)</option>
