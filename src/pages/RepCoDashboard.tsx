@@ -448,11 +448,14 @@ export function RepCoDashboard() {
         </div>
       </div>
 
-      {/* Calculadora de Preço — botão flutuante; segue o instrutor no treinamento */}
-      <RepCoCalculatorFab open={calcOpen} onOpenChange={setCalcOpen}
-        syncState={training?.active ? training.calcState : undefined}
-        readOnly={!!training?.active}
-        contentScrollPct={training?.active ? training.calcScrollPct : undefined} />
+      {/* Calculadora de Preço — botão flutuante; segue o instrutor no treinamento.
+          Escondida nas abas de chat/ajuda para não cobrir o campo de mensagem. */}
+      {activeTab !== 'mensagens' && activeTab !== 'ajuda' && (
+        <RepCoCalculatorFab open={calcOpen} onOpenChange={setCalcOpen}
+          syncState={training?.active ? training.calcState : undefined}
+          readOnly={!!training?.active}
+          contentScrollPct={training?.active ? training.calcScrollPct : undefined} />
+      )}
 
       {/* Barra de navegação inferior (mobile) — padrão corporativo */}
       <nav className="fixed bottom-0 inset-x-0 z-30 flex border-t border-gray-200 bg-white shadow-[0_-1px_8px_rgba(0,0,0,0.06)] md:hidden">

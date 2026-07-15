@@ -172,12 +172,16 @@ export default function Messenger({ currentUserId }: { currentUserId: string }) 
               <button onClick={() => fileRef.current?.click()} disabled={uploading} className="text-gray-500 hover:text-gray-700 disabled:opacity-50" title="Anexar foto/documento">
                 {uploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Paperclip className="w-5 h-5" />}
               </button>
-              <AudioRecorder onRecorded={(blob) => handleFile(new File([blob], `audio-${Date.now()}.webm`, { type: 'audio/webm' }))} />
               <input value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendText(); } }}
-                placeholder="Mensagem…" className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm" />
-              <button onClick={handleSendText} disabled={!text.trim() || sending} className="w-10 h-10 flex items-center justify-center rounded-full text-white disabled:opacity-40 flex-shrink-0" style={{ background: BRAND }}>
-                <Send className="w-5 h-5" />
-              </button>
+                placeholder="Mensagem…" className="flex-1 min-w-0 border border-gray-300 rounded-full px-4 py-2 text-sm" />
+              {/* Estilo WhatsApp: microfone quando vazio, botão de enviar quando há texto */}
+              {text.trim()
+                ? <button onClick={handleSendText} disabled={sending} className="w-10 h-10 flex items-center justify-center rounded-full text-white disabled:opacity-40 flex-shrink-0" style={{ background: BRAND }} title="Enviar">
+                    <Send className="w-5 h-5" />
+                  </button>
+                : <div className="min-w-[40px] h-10 flex items-center justify-center flex-shrink-0">
+                    <AudioRecorder onRecorded={(blob) => handleFile(new File([blob], `audio-${Date.now()}.webm`, { type: 'audio/webm' }))} />
+                  </div>}
             </div>
           </>
         )}
