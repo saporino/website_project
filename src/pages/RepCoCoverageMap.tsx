@@ -7,7 +7,10 @@ import { ArrowLeft, Lock, Store, Target, Loader2, Users, Search } from 'lucide-r
 import { normName, distMeters } from '../lib/leadMatch';
 import { SEGMENT_LABEL } from '../constants/segments';
 import { importApifyLeads } from '../lib/importApifyLeads';
-import ApifyRunModal, { type ApifyStartParams } from '../components/repco/ApifyRunModal';
+import type { ApifyStartParams } from '../components/repco/ApifyRunModal';
+import { APIFY_KEYWORD_GROUPS } from '../constants/prospectKeywords';
+
+const COST_PER_PLACE = 0.004;
 
 const PRIMARY = '#8B2214';
 const GREEN = '#16a34a', GRAY = '#9ca3af';
@@ -61,8 +64,9 @@ export default function RepCoCoverageMap() {
   const [selCity, setSelCity] = useState<string | null>(null);
   const [citySearch, setCitySearch] = useState('');
   const [msg, setMsg] = useState('');
-  const [showApify, setShowApify] = useState(false);
   const [apifyBusy, setApifyBusy] = useState(false);
+  const [catIdx, setCatIdx] = useState(0);      // setor escolhido (índice em APIFY_KEYWORD_GROUPS)
+  const [maxPlaces, setMaxPlaces] = useState(100); // quantidade (teto por palavra-chave)
   const [apifyRun, setApifyRun] = useState<{ runId: string; status: string; params: ApifyStartParams } | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -188,7 +192,6 @@ export default function RepCoCoverageMap() {
         else setMsg('Erro ao disparar Apify: ' + (r.message || r.error));
         return;
       }
-      setShowApify(false);
       setApifyRun({ runId: r.runId, status: 'running', params });
       setMsg(`Busca disparada (~${r.placesEstimate} lugares ≈ US$ ${r.cost}). Importo e aviso ao terminar — pode continuar usando o mapa.`);
     } finally { setApifyBusy(false); }
@@ -341,12 +344,47 @@ export default function RepCoCoverageMap() {
                   <h3 className="font-bold text-gray-900">{selCity}/{uf}</h3>
                   <p className="text-sm text-gray-500 mb-3">{leadsNaCidade > 0 ? `${leadsNaCidade} leads já no pool desta cidade` : 'Nenhum lead ainda nesta cidade'}</p>
 
-                  <button onClick={() => setShowApify(true)} disabled={!!apifyRun}
-                    className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 rounded-lg mb-2">
-                    {apifyRun ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                    {apifyRun ? 'Buscando no Google…' : 'Buscar leads reais (Apify)'}
-                  </button>
-                  <p className="text-[11px] text-gray-400 mb-2">Escolha o setor e a quantidade na próxima tela. O Google traz nome, endereço e telefone reais. Depois é só ir em <strong>Prospecção → Atribuir pools</strong> pra distribuir aos reps por setor e quantidade.</p>
+                  {/* Setor */}
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Setor</label>
+                  <select value={catIdx} onChange={e => setCatIdx(Number(e.target.value))} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3">
+                    {APIFY_KEYWORD_GROUPS.map((g, i) => <option key={g.category} value={i}>{g.category}{g.segment ? ` → ${SEGMENT_LABEL[g.segment]}` : ''}</option>)}
+                  </select>
+
+                  {/* Quantidade */}
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Quantidade (teto de estabelecimentos)</label>
+                  <input type="number" min={10} max={500} value={maxPlaces}
+                    onChange={e => setMaxPlaces(Math.max(10, Math.min(500, Number(e.target.value) || 10)))}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                  <div className="flex gap-1 mt-1 mb-2">
+                    {[100, 300, 500].map(n => (
+                      <button key={n} type="button" onClick={() => setMaxPlaces(n)}
+                        className={`flex-1 rounded-md py-1 text-xs border ${maxPlaces === n ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'border-gray-300 text-gray-600'}`}>{n}</button>
+                    ))}
+                  </div>
+
+                  {/* Custo estimado */}
+                  {(() => {
+                    const g = APIFY_KEYWORD_GROUPS[catIdx];
+                    const kws = g.keywords.slice(0, 3);
+                    const places = maxPlaces * kws.length;
+                    const cost = (places * COST_PER_PLACE).toFixed(2);
+                    return (
+                      <>
+                        <div className="rounded-lg bg-[#f5f0ef] p-2.5 text-xs mb-2">
+                          <div className="flex justify-between"><span className="text-gray-600">Vai buscar até</span><span className="font-semibold text-gray-900">~{places} lugares</span></div>
+                          <div className="flex justify-between"><span className="text-gray-600">Custo aproximado</span><span className="font-bold text-[#8B2214]">≈ US$ {cost}</span></div>
+                        </div>
+                        <button
+                          onClick={() => handleApifyStart({ category: g.category, segment: g.segment, keywords: kws, uf, municipio: selCity!, bairro: null, maxPlaces, representativeId: null })}
+                          disabled={!!apifyRun || apifyBusy}
+                          className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 rounded-lg mb-2">
+                          {(apifyRun || apifyBusy) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                          {apifyRun ? 'Buscando no Google…' : 'Buscar leads reais (Apify)'}
+                        </button>
+                      </>
+                    );
+                  })()}
+                  <p className="text-[11px] text-gray-400 mb-2">O Google traz nome, endereço e telefone reais. Depois é só ir em <strong>Prospecção → Atribuir pools</strong> pra distribuir aos reps.</p>
                   {msg && <p className="text-xs mb-3 p-2 rounded bg-gray-50 border border-gray-100 text-gray-700">{msg}</p>}
                 </>
               )}
@@ -355,10 +393,6 @@ export default function RepCoCoverageMap() {
         )}
       </div>
 
-      {showApify && selCity && (
-        <ApifyRunModal uf={uf} municipio={selCity} busy={apifyBusy}
-          onStart={handleApifyStart} onClose={() => setShowApify(false)} />
-      )}
     </div>
   );
 }
