@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
+import { useCompany } from "../../contexts/CompanyContext";
 import { Package, Plus, Edit2, Trash2, ChevronDown, ChevronUp, Building2, X, Save, UserPlus, Phone, Mail, MessageCircle } from "lucide-react";
 import { CurrencyInput } from "../CurrencyInput";
 import { formatBRL } from "../../utils/currency";
@@ -28,6 +29,9 @@ const STATUS_LABELS:Record<string,string> = { active:"Ativo", consumed:"Consumid
 const STATUS_COLORS:Record<string,string> = { active:"bg-green-100 text-green-800", consumed:"bg-gray-100 text-gray-600", reserved:"bg-amber-100 text-amber-800", cancelled:"bg-red-100 text-red-800" };
 const ROLES = ["Diretor","Torra Master","Gerente Comercial","Coordenador Logistico","Financeiro","Fiscal","Controle de Qualidade","Outros"];
 export default function BatchManagement({ refreshKey = 0 }: { refreshKey?: number }) {
+  // activeCompanyId = empresa-tenant ativa (Saporino/Fazendinha). NÃO confundir com
+  // roasting_company_id / company_id de contato, que são a TORREFADORA (terceiro).
+  const { activeCompanyId } = useCompany();
   const [tab, setTab] = useState<"batches"|"companies">("batches");
   const [batches, setBatches] = useState<Batch[]>([]);
   const [companies, setCompanies] = useState<RoastingCompany[]>([]);
@@ -73,7 +77,7 @@ export default function BatchManagement({ refreshKey = 0 }: { refreshKey?: numbe
     setPackagingForm((prev:any) => ({ ...prev, quantity_packages: pacotesCalc }));
   }, [packagingForm.packaged_kg, editingBatch?.product_id, products]);
 
-  useEffect(() => { loadAll(); }, [refreshKey]);
+  useEffect(() => { loadAll(); }, [refreshKey, activeCompanyId]);
   useEffect(() => {
     function handleRefresh() {
       loadAll();
@@ -107,9 +111,9 @@ export default function BatchManagement({ refreshKey = 0 }: { refreshKey?: numbe
   async function loadAll() {
     setLoading(true);
     const [{ data: b }, { data: c }, { data: p }, { data: ct }] = await Promise.all([
-      supabase.from("green_coffee_lots").select("*, products(name), roasting_companies(name)").order("created_at", { ascending: false }),
-      supabase.from("roasting_companies").select("*").order("company_code"),
-      supabase.from("products").select("id,name,stock,weight_grams").order("name"),
+      supabase.from("green_coffee_lots").select("*, products(name), roasting_companies(name)").eq("company_id", activeCompanyId).order("created_at", { ascending: false }),
+      supabase.from("roasting_companies").select("*").eq("company_id", activeCompanyId).order("company_code"),
+      supabase.from("products").select("id,name,stock,weight_grams").eq("company_id", activeCompanyId).order("name"),
       supabase.from("roasting_company_contacts").select("*").eq("active", true)
     ]);
     setBatches((b||[]).map((x:any)=>({...x})));
@@ -118,7 +122,7 @@ export default function BatchManagement({ refreshKey = 0 }: { refreshKey?: numbe
     const ctMap:Record<string,Contact[]> = {};
     (ct||[]).forEach((x:Contact)=>{ if(!ctMap[x.company_id]) ctMap[x.company_id]=[]; ctMap[x.company_id].push(x); });
     setContacts(ctMap);
-    const { data: tsData, error: tsError } = await supabase.from('lot_transfers').select('*').order('transferred_at', { ascending: false });
+    const { data: tsData, error: tsError } = await supabase.from('lot_transfers').select('*').eq("company_id", activeCompanyId).order('transferred_at', { ascending: false });
     if (!tsError) setTransfers(tsData || []);
     setLoading(false);
   }
@@ -130,7 +134,7 @@ export default function BatchManagement({ refreshKey = 0 }: { refreshKey?: numbe
     const payload = buildBatchPayload(batchForm, !editingBatch, userEditedBatch);
     const {error}=editingBatch
       ?await supabase.from("green_coffee_lots").update(payload).eq("id",editingBatch.id)
-      :await supabase.from("green_coffee_lots").insert([payload]);
+      :await supabase.from("green_coffee_lots").insert([{ ...payload, company_id: activeCompanyId }]);
     setSaving(false);
     if(error){console.error('saveBatch error:', JSON.stringify(error)); showToast("Erro: "+error.message);return;}
     showToast(editingBatch?"Lote atualizado!":"Lote criado!"); setShowBatchForm(false); setEditingBatch(null); setBatchForm(EMPTY_BATCH); setUserEditedBatch(false); loadAll();
@@ -246,7 +250,7 @@ export default function BatchManagement({ refreshKey = 0 }: { refreshKey?: numbe
       unitCost = realBal.cost_per_kg_torrado_bruto;
     }
     setSaving(true);
-    const { error } = await supabase.from('lot_transfers').insert({ from_lot_id:editingBatch.id, to_lot_id:transferForm.to_lot_id, kind:transferForm.kind, kg_amount:kg, unit_cost_brl:unitCost, notes:transferForm.notes||null });
+    const { error } = await supabase.from('lot_transfers').insert({ from_lot_id:editingBatch.id, to_lot_id:transferForm.to_lot_id, kind:transferForm.kind, kg_amount:kg, unit_cost_brl:unitCost, notes:transferForm.notes||null, company_id:activeCompanyId });
     setSaving(false);
     if (error) { alert('Erro: ' + error.message); return; }
     setShowTransferModal(false);
@@ -256,7 +260,7 @@ export default function BatchManagement({ refreshKey = 0 }: { refreshKey?: numbe
 
   async function saveCompany(){
     setSaving(true);
-    const {error}=editingCompany?await supabase.from("roasting_companies").update(companyForm).eq("id",editingCompany.id):await supabase.from("roasting_companies").insert([companyForm]);
+    const {error}=editingCompany?await supabase.from("roasting_companies").update(companyForm).eq("id",editingCompany.id):await supabase.from("roasting_companies").insert([{ ...companyForm, company_id: activeCompanyId }]);
     setSaving(false);
     if(error){showToast("Erro: "+error.message);return;}
     showToast(editingCompany?"Torrefadora atualizada!":"Torrefadora cadastrada!"); setShowCompanyForm(false); setEditingCompany(null); setCompanyForm(EMPTY_COMPANY); loadAll();
