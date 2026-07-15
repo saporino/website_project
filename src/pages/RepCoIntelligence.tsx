@@ -115,7 +115,7 @@ export default function RepCoIntelligence() {
           <button
             onClick={() => { window.history.pushState({}, '', '/repco/inteligencia/cobertura'); window.dispatchEvent(new PopStateEvent('popstate')); }}
             className="flex items-center gap-2 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg flex-shrink-0">
-            <MapPin className="w-4 h-4" /> Mapa de cobertura B2B
+            <MapPin className="w-4 h-4" /> Mapa de prospecção (buscar leads)
           </button>
         </div>
 
