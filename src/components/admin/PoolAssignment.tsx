@@ -18,6 +18,7 @@ export default function PoolAssignment() {
   const [repId, setRepId] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [pickCount, setPickCount] = useState(25); // seleção rápida por quantidade
 
   async function loadPools() {
     setLoading(true);
@@ -71,6 +72,11 @@ export default function PoolAssignment() {
   const pickedUnassigned = [...picked];
 
   function toggleLead(id: string) { setPicked(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; }); }
+  // Seleção rápida: pega os próximos N não-atribuídos e ainda não selecionados.
+  function pickNext(n: number) {
+    const next = leads.filter(l => !l.representative_id && !picked.has(l.id)).slice(0, n).map(l => l.id);
+    setPicked(s => { const nn = new Set(s); next.forEach(id => nn.add(id)); return nn; });
+  }
   function toggleBairro(rows: Lead[]) {
     const unass = rows.filter(l => !l.representative_id).map(l => l.id);
     setPicked(s => { const n = new Set(s); const allIn = unass.every(id => n.has(id)); unass.forEach(id => allIn ? n.delete(id) : n.add(id)); return n; });
@@ -128,6 +134,19 @@ export default function PoolAssignment() {
             className="flex items-center justify-center gap-2 bg-[#8B2214] hover:bg-[#6d1a10] disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg sm:w-48">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />} Atribuir {picked.size}
           </button>
+        </div>
+        {/* Seleção rápida por quantidade: escolhe quantos vão pra este rep sem clicar um a um */}
+        <div className="flex flex-wrap items-center gap-2 mt-2 text-xs">
+          <span className="text-gray-500">Selecionar rápido:</span>
+          <input type="number" min={1} value={pickCount} onChange={e => setPickCount(Math.max(1, Number(e.target.value) || 1))}
+            className="w-16 border border-gray-300 rounded-md px-2 py-1" />
+          <button onClick={() => pickNext(pickCount)} className="rounded-md border border-gray-300 text-gray-700 px-2 py-1 hover:bg-gray-50 font-semibold">
+            + Selecionar próximos {pickCount}
+          </button>
+          <button onClick={() => setPicked(new Set(leads.filter(l => !l.representative_id).map(l => l.id)))} className="rounded-md border border-gray-300 text-gray-600 px-2 py-1 hover:bg-gray-50">
+            todos ({sel.remaining})
+          </button>
+          {picked.size > 0 && <button onClick={() => setPicked(new Set())} className="text-gray-500 underline">limpar seleção ({picked.size})</button>}
         </div>
         {msg && <p className="text-xs mt-2 text-green-700">{msg}</p>}
       </div>
