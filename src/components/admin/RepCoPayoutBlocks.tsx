@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useCompany } from '../../contexts/CompanyContext';
 
 interface Payout {
   id: string;
@@ -16,13 +17,14 @@ interface Payout {
 interface Props { representativeId?: string | null; refreshKey?: number; }
 
 export default function RepCoPayoutBlocks({ representativeId, refreshKey = 0 }: Props) {
+  const { activeCompanyId } = useCompany();
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [loading, setLoading] = useState(false);
   const [paying, setPaying] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingKey = useRef<string | null>(null);
 
-  useEffect(() => { fetchPayouts(); }, [representativeId, refreshKey]);
+  useEffect(() => { fetchPayouts(); }, [representativeId, refreshKey, activeCompanyId]);
 
   async function fetchPayouts() {
     setLoading(true);
@@ -31,6 +33,7 @@ export default function RepCoPayoutBlocks({ representativeId, refreshKey = 0 }: 
       .select('id,representative_id,amount,payment_method,cycle_start,cycle_end,scheduled_payment_date,status,representatives(full_name)')
       .eq('status', 'scheduled')
       .order('scheduled_payment_date', { ascending: true });
+    if (activeCompanyId) q = q.eq('company_id', activeCompanyId);
     if (representativeId) q = q.eq('representative_id', representativeId);
     const { data } = await q;
     setPayouts(((data as any[]) || []).map(p => ({ ...p, rep_name: p.representatives?.full_name || '–' })));
@@ -75,6 +78,7 @@ export default function RepCoPayoutBlocks({ representativeId, refreshKey = 0 }: 
         .eq('representative_id', g.representative_id)
         .eq('payment_method', g.payment_method)
         .eq('status', 'scheduled');
+      if (activeCompanyId) upd = upd.eq('company_id', activeCompanyId);
       upd = g.cycle_start ? upd.eq('cycle_start', g.cycle_start) : upd.is('cycle_start', null);
       upd = g.cycle_end ? upd.eq('cycle_end', g.cycle_end) : upd.is('cycle_end', null);
       await upd;

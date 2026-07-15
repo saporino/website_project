@@ -6,13 +6,14 @@ export interface Company {
   id: string; name: string; fantasia: string | null; cnpj: string | null;
   logo_url: string | null; commission_model: string; sort_order: number; is_active: boolean;
   endereco: string | null; cidade: string | null; uf: string | null; cep: string | null;
-  allow_cash: boolean;
+  allow_cash: boolean; is_b2c: boolean;
 }
 
 interface Ctx {
   companies: Company[];
   activeCompanyId: string | null;
   activeCompany: Company | null;
+  storeCompanyId: string | null; // empresa da loja B2C (Saporino)
   setActiveCompanyId: (id: string) => void;
   reloadCompanies: () => Promise<void>;
   loading: boolean;
@@ -42,9 +43,10 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
 
   const setActiveCompanyId = (id: string) => { localStorage.setItem(LS_KEY, id); setActive(id); };
   const activeCompany = companies.find(c => c.id === activeCompanyId) || null;
+  const storeCompanyId = (companies.find(c => c.is_b2c) || companies[0])?.id || null;
 
   return (
-    <CompanyContext.Provider value={{ companies, activeCompanyId, activeCompany, setActiveCompanyId, reloadCompanies: load, loading }}>
+    <CompanyContext.Provider value={{ companies, activeCompanyId, activeCompany, storeCompanyId, setActiveCompanyId, reloadCompanies: load, loading }}>
       {children}
     </CompanyContext.Provider>
   );

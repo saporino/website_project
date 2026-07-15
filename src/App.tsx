@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, FormEvent, useCallback, lazy, Suspense } f
 import { Toaster, toast } from 'sonner';
 import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Send, User, ChevronDown, ChevronLeft, ChevronRight, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck, Briefcase, MapPin, Flame, Coffee, Mail } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { CompanyProvider } from './contexts/CompanyContext';
+import { CompanyProvider, useCompany } from './contexts/CompanyContext';
 import { CartProvider, useCart } from './contexts/CartContext';
 import { AuthModal } from './components/AuthModal';
 import { bannerButtonStyle } from './lib/bannerButton';
@@ -193,6 +193,7 @@ function AppRouter() {
 }
 
 function AppContent() {
+  const { storeCompanyId } = useCompany();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
@@ -204,12 +205,13 @@ function AppContent() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   useEffect(() => {
-    loadProducts();
     window.scrollTo(0, 0); // Scroll to top on page load/refresh
     const handleVis = () => { if (document.visibilityState === 'visible') loadProducts(); };
     document.addEventListener('visibilitychange', handleVis);
     return () => document.removeEventListener('visibilitychange', handleVis);
   }, []);
+  // Loja B2C = só a empresa da loja (Saporino). Carrega quando souber o id.
+  useEffect(() => { if (storeCompanyId) loadProducts(); }, [storeCompanyId]);
 
   const loadProducts = async () => {
     try {
@@ -218,6 +220,7 @@ function AppContent() {
         .from('products')
         .select('*')
         .eq('hidden_from_store', false)
+        .eq('company_id', storeCompanyId)
         .order('display_order', { ascending: true });
       if (error) throw error;
       setProducts((data || []).sort((a, b) => {
@@ -1496,6 +1499,7 @@ const BIZ_INFO: Record<string, { title: string; intro: string; bullets: string[]
 
 const Footer = ({ scrollToSection }: any) => {
   const currentYear = new Date().getFullYear();
+  const { storeCompanyId } = useCompany();
   const [products, setProducts] = useState<Product[]>([]);
   const [bizInfo, setBizInfo] = useState<keyof typeof BIZ_INFO | null>(null);
   const [showContactModal, setShowContactModal] = useState(false);
@@ -1505,11 +1509,13 @@ const Footer = ({ scrollToSection }: any) => {
   const [brands, setBrands] = useState<{ name: string; url: string | null }[]>([]); // marcas distribuídas (geridas no admin)
 
   useEffect(() => {
+    if (!storeCompanyId) return;
     const fetchProducts = async () => {
       // mostra os cafes mesmo quando inativos/esgotados; esconde os desligados da loja
       const { data } = await supabase
         .from('products')
         .select('*')
+        .eq('company_id', storeCompanyId)
         .eq('hidden_from_store', false)
         .order('display_order', { ascending: true })
         .limit(6);
@@ -1520,7 +1526,7 @@ const Footer = ({ scrollToSection }: any) => {
       .then(({ data }) => setShowBrands(!!data?.value));
     supabase.from('distributed_brands').select('name, url').eq('is_active', true).order('sort_order')
       .then(({ data }) => setBrands(data || []));
-  }, []);
+  }, [storeCompanyId]);
 
   const handleNavigation = (path: string) => {
     window.history.pushState({}, '', path);

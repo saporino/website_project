@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useCompany } from '../../contexts/CompanyContext';
 import { toast } from 'sonner';
 import { Truck, MapPin, Camera, CheckCircle, Navigation2 } from 'lucide-react';
 
@@ -34,6 +35,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 };
 
 export default function RepCoDeliveries({ representativeId, currentLat, currentLng, previewMode = false, refreshKey = 0, highlightOrderId, onHighlightConsumed }: Props) {
+  const { activeCompanyId } = useCompany();
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -45,6 +47,7 @@ export default function RepCoDeliveries({ representativeId, currentLat, currentL
       .from('representative_orders')
       .select('id,order_number,total_amount,delivery_status,delivery_proof_url,delivery_proof_filename,delivered_at,representative_clients(razao_social,nome_fantasia,endereco_completo,municipio,uf,lat,lng)')
       .eq('representative_id', representativeId)
+      .eq('company_id', activeCompanyId)
       .order('created_at', { ascending: false });
     const rows: Delivery[] = (data || []).map((o: any) => ({
       ...o,
@@ -53,7 +56,7 @@ export default function RepCoDeliveries({ representativeId, currentLat, currentL
     setDeliveries(rows);
     setLoading(false);
   }
-  useEffect(() => { fetchDeliveries(); /* eslint-disable-next-line */ }, [representativeId, refreshKey]);
+  useEffect(() => { if (activeCompanyId) fetchDeliveries(); /* eslint-disable-next-line */ }, [representativeId, refreshKey, activeCompanyId]);
 
   // Quando vem do mapa (finalizar entrega), destaca o pedido e abre o upload de canhoto
   useEffect(() => {

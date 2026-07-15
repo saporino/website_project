@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, type ReactNode } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useCompany } from '../../contexts/CompanyContext';
 import { TrendingUp, DollarSign, ShoppingBag, Award, ChevronLeft, ChevronRight, Sunrise, Sun, Moon } from 'lucide-react';
 
 interface Props { repId: string; }
@@ -21,6 +22,7 @@ const fmtMonth = (ym: string) => { const [y, m] = ym.split('-'); return `${MONTH
 const weekIdxMon = (dow: number) => (dow + 6) % 7;
 
 export function RepCoPerformance({ repId }: Props) {
+  const { activeCompanyId } = useCompany();
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [totalCommission, setTotalCommission] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -33,10 +35,12 @@ export function RepCoPerformance({ repId }: Props) {
       const { data: ord } = await supabase.from('representative_orders')
         .select('total_amount, created_at')
         .eq('representative_id', repId)
+        .eq('company_id', activeCompanyId)
         .eq('status', 'completed');
       const { data: comms } = await supabase.from('representative_commissions')
         .select('commission_amount')
-        .eq('representative_id', repId);
+        .eq('representative_id', repId)
+        .eq('company_id', activeCompanyId);
       if (!active) return;
       const rows: OrderRow[] = (ord || []).map(o => ({ ts: o.created_at as string, amount: o.total_amount as number }));
       setOrders(rows);
@@ -44,7 +48,7 @@ export function RepCoPerformance({ repId }: Props) {
       setLoading(false);
     })();
     return () => { active = false; };
-  }, [repId]);
+  }, [repId, activeCompanyId]);
 
   // Lista contínua de meses: do mês do pedido mais antigo até o mês atual.
   const months = useMemo(() => {

@@ -1,5 +1,6 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useCompany } from '../../contexts/CompanyContext';
 import { DollarSign, CheckCircle, Clock, Hourglass } from 'lucide-react';
 
 interface Payout {
@@ -75,6 +76,7 @@ function previsaoBoleto(due: string | null): Date | null {
 type Tab = 'todas' | 'avista' | 'aprazo' | 'pagas';
 
 export function RepCoCommissions({ repId }: Props) {
+  const { activeCompanyId } = useCompany();
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [boletoComms, setBoletoComms] = useState<BoletoComm[]>([]);
   const [instByOrder, setInstByOrder] = useState<Record<string, Installment[]>>({});
@@ -90,12 +92,14 @@ export function RepCoCommissions({ repId }: Props) {
         .from('representative_commission_payouts')
         .select('id, amount, payment_method, scheduled_payment_date, cycle_start, cycle_end, status, paid_at, proof_url, proof_filename, representative_commissions ( total_rate, base_rate, pix_bonus, delivery_bonus, representative_orders ( order_number, description, representative_clients ( razao_social ) ) )')
         .eq('representative_id', repId)
+        .eq('company_id', activeCompanyId)
         .order('scheduled_payment_date', { ascending: false });
 
       const { data: bc } = await supabase
         .from('representative_commissions')
         .select('id, order_id, order_amount, commission_amount, total_rate, representative_orders ( order_number, representative_clients ( razao_social ) ), representative_commission_payouts ( amount )')
         .eq('representative_id', repId)
+        .eq('company_id', activeCompanyId)
         .eq('payment_method', 'boleto')
         .order('created_at', { ascending: false });
 
@@ -121,7 +125,7 @@ export function RepCoCommissions({ repId }: Props) {
       setLoading(false);
     })();
     return () => { active = false; };
-  }, [repId]);
+  }, [repId, activeCompanyId]);
 
   useEffect(() => {
     payouts

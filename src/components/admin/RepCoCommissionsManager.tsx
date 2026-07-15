@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useCompany } from '../../contexts/CompanyContext';
 
 interface Commission {
   id: string; representative_id: string; order_id: string;
@@ -12,6 +13,7 @@ interface Commission {
 }
 
 export default function RepCoCommissionsManager({ representativeId, refreshKey = 0 }: { representativeId?: string; refreshKey?: number }) {
+  const { activeCompanyId } = useCompany();
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all'|'pending'|'paid'>('pending');
@@ -20,7 +22,7 @@ export default function RepCoCommissionsManager({ representativeId, refreshKey =
   const fileRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string|null>(null);
 
-  useEffect(() => { fetchCommissions(); }, [representativeId, filter, paymentFilter, refreshKey]);
+  useEffect(() => { fetchCommissions(); }, [representativeId, filter, paymentFilter, refreshKey, activeCompanyId]);
   useEffect(() => {
     function handleRefresh() {
       fetchCommissions();
@@ -40,6 +42,7 @@ export default function RepCoCommissionsManager({ representativeId, refreshKey =
     let query = supabase.from('representative_commissions')
       .select('*, representatives(full_name), representative_orders(order_number, representative_clients(nome_fantasia, razao_social))')
       .order('scheduled_payment_date', { ascending: true });
+    if (activeCompanyId) query = query.eq('company_id', activeCompanyId);
     if (representativeId) query = query.eq('representative_id', representativeId);
     if (filter !== 'all') query = query.eq('status', filter);
     if (paymentFilter === 'pix') query = query.in('payment_method', ['pix','a_vista']);

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useCompany } from '../../contexts/CompanyContext';
 import { useGeolocation } from '../../hooks/useGeolocation';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { googleCalendarLink, outlookCalendarLink, downloadICS } from '../../utils/calendarLinks';
@@ -26,6 +27,7 @@ export default function RepCoHome({ representativeId, onNavigateToRoute, onNavig
   const [calendarModal, setCalendarModal] = useState<UpcomingStop | null>(null);
   const [snoozingClient, setSnoozingClient] = useState<string | null>(null);
 
+  const { activeCompanyId } = useCompany();
   const { permission, requestPermission, sendNotification } = usePushNotifications();
 
   const handleProximityAlert = useCallback((alert: ProximityAlert) => {
@@ -40,7 +42,7 @@ export default function RepCoHome({ representativeId, onNavigateToRoute, onNavig
     onProximityAlert: handleProximityAlert,
   });
 
-  useEffect(() => { fetchAll(); }, [representativeId, refreshKey]);
+  useEffect(() => { if (activeCompanyId) fetchAll(); }, [representativeId, refreshKey, activeCompanyId]);
 
   useEffect(() => {
     function handleRefresh() {
@@ -67,9 +69,9 @@ export default function RepCoHome({ representativeId, onNavigateToRoute, onNavig
   async function fetchStats() {
     const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
     const [{ data: orders }, { data: commissions }, { count: clientCount }] = await Promise.all([
-      supabase.from('representative_orders').select('total_amount,status').eq('representative_id', representativeId).gte('created_at', firstDay),
-      supabase.from('representative_commissions').select('commission_amount,status').eq('representative_id', representativeId).eq('status', 'pending'),
-      supabase.from('representative_clients').select('id', { count: 'exact', head: true }).eq('representative_id', representativeId).eq('status', 'active'),
+      supabase.from('representative_orders').select('total_amount,status').eq('representative_id', representativeId).eq('company_id', activeCompanyId).gte('created_at', firstDay),
+      supabase.from('representative_commissions').select('commission_amount,status').eq('representative_id', representativeId).eq('company_id', activeCompanyId).eq('status', 'pending'),
+      supabase.from('representative_clients').select('id', { count: 'exact', head: true }).eq('representative_id', representativeId).eq('company_id', activeCompanyId).eq('status', 'active'),
     ]);
     setStats(prev => ({
       ...prev,
@@ -84,7 +86,7 @@ export default function RepCoHome({ representativeId, onNavigateToRoute, onNavig
     const threshold = new Date(); threshold.setDate(threshold.getDate() - INACTIVITY_DAYS);
     const { data } = await supabase.from('representative_clients')
       .select('id,nome_fantasia,razao_social,last_order_at,inactivity_snoozed_until')
-      .eq('representative_id', representativeId).eq('status', 'active').eq('inactivity_alert_dismissed', false);
+      .eq('representative_id', representativeId).eq('company_id', activeCompanyId).eq('status', 'active').eq('inactivity_alert_dismissed', false);
     if (!data) return;
     const now = new Date();
     setInactiveClients(
@@ -108,7 +110,7 @@ export default function RepCoHome({ representativeId, onNavigateToRoute, onNavig
   async function fetchRecentOrders() {
     const { data } = await supabase.from('representative_orders')
       .select('id,order_number,total_amount,status,created_at,representative_clients(nome_fantasia,razao_social)')
-      .eq('representative_id', representativeId).order('created_at', { ascending: false }).limit(5);
+      .eq('representative_id', representativeId).eq('company_id', activeCompanyId).order('created_at', { ascending: false }).limit(5);
     if (data) setRecentOrders(data.map((o: any) => ({ id: o.id, order_number: o.order_number, total_amount: o.total_amount, status: o.status, created_at: o.created_at, client_name: o.representative_clients?.nome_fantasia || o.representative_clients?.razao_social || '—' })));
   }
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useCompany } from '../../contexts/CompanyContext';
 import { toast } from 'sonner';
 import { Truck, Camera } from 'lucide-react';
 import OrderInstallmentsPanel from './OrderInstallmentsPanel';
@@ -35,6 +36,7 @@ const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string }>
 };
 
 export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }: { representativeId?: string; refreshKey?: number }) {
+  const { activeCompanyId } = useCompany();
   const [orders, setOrders] = useState<RepCoOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [channelFilter, setChannelFilter] = useState<'all' | 'pix' | 'boleto'>('all');
@@ -44,7 +46,7 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
   const [nfUploadStatus, setNfUploadStatus] = useState<Record<string, NFUploadStatus>>({});
   const [uploadingProof, setUploadingProof] = useState<string | null>(null);
 
-  useEffect(() => { fetchOrders(); }, [representativeId, channelFilter, statusFilter, refreshKey]);
+  useEffect(() => { fetchOrders(); }, [representativeId, channelFilter, statusFilter, refreshKey, activeCompanyId]);
   useEffect(() => {
     function handleRefresh() {
       fetchOrders();
@@ -79,6 +81,7 @@ export default function RepCoOrdersManager({ representativeId, refreshKey = 0 }:
     let query = supabase.from('representative_orders')
       .select('*, representative_clients(nome_fantasia, razao_social), representatives(full_name)')
       .order('created_at', { ascending: false });
+    if (activeCompanyId) query = query.eq('company_id', activeCompanyId);
     if (representativeId) query = query.eq('representative_id', representativeId);
     if (channelFilter === 'pix') query = query.in('payment_method', ['pix', 'a_vista']);
     if (channelFilter === 'boleto') query = query.eq('payment_method', 'boleto');

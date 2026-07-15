@@ -2,6 +2,7 @@ import { useState, useEffect, Suspense, lazy, useMemo, useRef } from 'react';
 import { CheckCircle, XCircle, Eye, Plus, Upload, Phone, Mail, Map, Search, Smartphone, ArrowRightLeft, Tag, ExternalLink, BarChart3, Users, Pencil } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCompany } from '../../contexts/CompanyContext';
 import { toast } from 'sonner';
 import PriceListManager from './PriceListManager';
 import RepCoInviteCodes, { RepInviteBadge } from './RepCoInviteCodes';
@@ -73,7 +74,9 @@ const NO_COMMISSION_NOTE = 'SEM COMISSÃO - admin marcou como não-comissionáve
 
 export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   const { profile } = useAuth();
+  const { activeCompanyId, activeCompany } = useCompany();
   const isAdmin = profile?.is_admin === true;
+  const isFlatCommission = activeCompany?.commission_model === 'flat';
   const [adminTab, setAdminTab] = useState<AdminTab>('list');
   const [adminView, setAdminView] = useState<'list' | 'map' | 'price-list' | 'prospection'>('list');
   const [detailTab, setDetailTab] = useState<'pedidos' | 'clientes' | 'comissoes' | 'precos'>('pedidos');
@@ -150,7 +153,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   const [payCommission, setPayCommission] = useState(true);
 
   const fetchOrderProducts = async () => {
-    const { data } = await supabase.from('products').select('id, name, price, image_url, stock, in_stock').eq('is_active', true).order('name');
+    const { data } = await supabase.from('products').select('id, name, price, image_url, stock, in_stock').eq('company_id', activeCompanyId).eq('is_active', true).order('name');
     if (data) setOrderProducts(data);
   };
 
@@ -208,6 +211,9 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   // mesmo que estivesse na Tabela de Preços / Prospecção / detalhe de um rep.
   useEffect(() => { setAdminView('list'); setSelectedRep(null); fetchReps(); fetchSnoozedClients(); }, [refreshKey]);
 
+  // Ao trocar de empresa, recarrega reps + volta pra lista (o detalhe é por empresa)
+  useEffect(() => { setAdminTab('list'); setSelectedRep(null); fetchReps(); fetchSnoozedClients(); /* eslint-disable-next-line */ }, [activeCompanyId]);
+
   // Deep-link: ao voltar do mapa de prospecção, abre direto a sub-view Prospecção (não a lista).
   useEffect(() => {
     if (localStorage.getItem('repco-initial-view') === 'prospection') {
@@ -248,6 +254,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     const { data } = await supabase
       .from('representative_clients')
       .select('id, nome_fantasia, razao_social, snooze_count')
+      .eq('company_id', activeCompanyId)
       .eq('snooze_admin_alert', true)
       .eq('is_active_client', true);
     if (data) setSnoozedClients(data);
@@ -279,6 +286,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
       .from('representative_clients')
       .select('id, razao_social, nome_fantasia, nome_completo, cnpj, cpf, segment, status')
       .eq('representative_id', representativeId)
+      .eq('company_id', activeCompanyId)
       .eq('status', 'active')
       .order('razao_social', { ascending: true });
 
@@ -303,14 +311,17 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
       supabase.from('representative_orders')
         .select('*, representative_clients(razao_social, cnpj)')
         .eq('representative_id', rep.id)
+        .eq('company_id', activeCompanyId)
         .order('created_at', { ascending: false }),
       supabase.from('representative_commissions')
         .select('*, representative_orders(order_number)')
         .eq('representative_id', rep.id)
+        .eq('company_id', activeCompanyId)
         .order('created_at', { ascending: false }),
       supabase.from('representative_clients')
         .select('id, razao_social, nome_fantasia, nome_completo, cnpj, cpf, segment, status')
         .eq('representative_id', rep.id)
+        .eq('company_id', activeCompanyId)
         .eq('status', 'active')
         .order('razao_social', { ascending: true }),
     ]);
@@ -363,12 +374,14 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     const { data: order, error } = await supabase.from('representative_orders').insert({
       representative_id: representativeId,
       representative_client_id: orderForm.representative_client_id || null,
+      company_id: activeCompanyId,
       description,
       total_amount: total,
       original_amount: total,
       payment_method: manualPixBonus ? 'pix' : orderForm.payment_method,
       is_personal_delivery: manualDeliveryBonus || orderForm.is_personal_delivery,
-      pix_bonus_eligible: manualPixBonus,
+      // bônus PIX/entrega só existem no modelo fórmula (Saporino); Fazendinha = % fixo
+      pix_bonus_eligible: manualPixBonus && !isFlatCommission,
       channel: 'repco',
       status: 'new',
     }).select().single();
@@ -800,6 +813,11 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
                 {/* Comissão manual */}
                 <div className="space-y-2 border-t border-amber-200 pt-3 mt-1">
                   <p className="text-xs font-medium text-gray-600">Comissão do representante:</p>
+                  {isFlatCommission ? (
+                    <p className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                      {activeCompany?.fantasia || 'Esta empresa'} usa <strong>% fixo por representante</strong> — sem bônus de PIX ou entrega.
+                    </p>
+                  ) : (<>
                   <div className="flex items-center gap-2">
                     <input type="checkbox" id="manual_delivery" checked={manualDeliveryBonus}
                       onChange={e => setManualDeliveryBonus(e.target.checked)}
@@ -812,6 +830,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
                       className="w-4 h-4 accent-[#a4240e]" />
                     <label htmlFor="manual_pix" className="text-sm text-gray-700">Pagamento PIX (+0,5%)</label>
                   </div>
+                  </>)}
                   <div className="flex items-center gap-2">
                     <input type="checkbox" id="pay_commission" checked={payCommission}
                       onChange={e => setPayCommission(e.target.checked)}

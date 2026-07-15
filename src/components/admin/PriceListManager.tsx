@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { CLIENT_SEGMENTS, MARKETPLACE_SEGMENTS, SUPERMARKET_SEGMENTS, SEGMENT_LABEL } from '../../constants/segments';
 import EcommercePriceIntel from './EcommercePriceIntel';
 import MarketOverviewSP from './MarketOverviewSP';
+import { useCompany } from '../../contexts/CompanyContext';
 
 const SUPER_OVERVIEW = 'super_todos';
 
@@ -25,6 +26,7 @@ interface PriceListEntry { id: string; product_id: string; segment: string; pric
 interface Props { fixedSegment?: string; refreshKey?: number; }
 
 export default function PriceListManager({ fixedSegment, refreshKey = 0 }: Props) {
+  const { activeCompanyId } = useCompany();
   const [products, setProducts] = useState<Product[]>([]);
   const [priceLists, setPriceLists] = useState<PriceListEntry[]>([]);
   const [selectedSegment, setSelectedSegment] = useState(fixedSegment ?? CLIENT_SEGMENTS[0].value);
@@ -35,7 +37,7 @@ export default function PriceListManager({ fixedSegment, refreshKey = 0 }: Props
 
   // If fixedSegment changes from parent, sync it
   useEffect(() => { if (fixedSegment) setSelectedSegment(fixedSegment); }, [fixedSegment]);
-  useEffect(() => { fetchData(); }, [refreshKey]);
+  useEffect(() => { if (activeCompanyId) fetchData(); }, [refreshKey, activeCompanyId]);
   useEffect(() => {
     function handleRefresh() {
       fetchData();
@@ -51,8 +53,8 @@ export default function PriceListManager({ fixedSegment, refreshKey = 0 }: Props
   async function fetchData() {
     setLoading(true);
     const [{ data: prods }, { data: prices }] = await Promise.all([
-      supabase.from('products').select('id,name,image_url,price,is_active').eq('is_active', true).order('name'),
-      supabase.from('price_lists').select('*'),
+      supabase.from('products').select('id,name,image_url,price,is_active').eq('is_active', true).eq('company_id', activeCompanyId).order('name'),
+      supabase.from('price_lists').select('*').eq('company_id', activeCompanyId),
     ]);
     if (prods) setProducts(prods);
     if (prices) {
@@ -82,7 +84,7 @@ export default function PriceListManager({ fixedSegment, refreshKey = 0 }: Props
     const existing = getEntry(pid, seg);
     const payload = { price, volume_discount: parseFloat(vals.volume_discount) || 0, volume_min_qty: parseInt(vals.volume_min_qty) || 1, is_active: true };
     if (existing) await supabase.from('price_lists').update(payload).eq('id', existing.id);
-    else await supabase.from('price_lists').insert({ product_id: pid, segment: seg, ...payload });
+    else await supabase.from('price_lists').insert({ product_id: pid, segment: seg, company_id: activeCompanyId, ...payload });
     await fetchData();
     window.dispatchEvent(new CustomEvent('admin:price-list-updated'));
     setSaving(null); setSaved(k); setTimeout(() => setSaved(null), 2000);
