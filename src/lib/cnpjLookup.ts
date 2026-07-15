@@ -7,6 +7,7 @@ export interface CnpjData {
   cidade: string;
   uf: string;
   cep: string;
+  bairro: string;
   endereco: string;       // logradouro, número, bairro
   email: string;
   telefone: string;       // só dígitos
@@ -36,6 +37,7 @@ export async function lookupCnpj(cnpjRaw: string): Promise<CnpjData> {
     cidade: d.municipio || '',
     uf: d.uf || '',
     cep: d.cep ? String(d.cep).replace(/\D/g, '') : '',
+    bairro: d.bairro || '',
     endereco,
     email: d.email || '',
     telefone: d.ddd_telefone_1 ? String(d.ddd_telefone_1).replace(/\D/g, '') : '',

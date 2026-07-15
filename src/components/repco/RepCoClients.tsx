@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { CLIENT_SEGMENTS, SEGMENT_LABEL } from '../../constants/segments';
 import type { ClientSegment } from '../../constants/segments';
 import { useCompany } from '../../contexts/CompanyContext';
+import { lookupCnpj } from '../../lib/cnpjLookup';
 import BoletoCombinationPicker from './BoletoCombinationPicker';
 import { geocodeClientById } from '../../lib/geocodeClient';
 interface RepCoClient {
@@ -55,6 +56,7 @@ export default function RepCoClients({ representativeId, previewMode = false, re
   const [saving,setSaving]=useState(false);
   const [deleting,setDeleting]=useState(false);
   const [searching,setSearching]=useState(false);
+  const [lastCnpj,setLastCnpj]=useState('');
   const [err,setErr]=useState('');
   const [ok,setOk]=useState('');
   const [search,setSearch]=useState('');
@@ -125,19 +127,27 @@ export default function RepCoClients({ representativeId, previewMode = false, re
     setView('edit');setErr('');
   }
   function openNew(){if (previewMode) { alert('Ação desativada no espelho.'); return; } setForm(emptyForm);setView('new');setErr('');}
-  async function searchCNPJ(){
-    const cnpj=form.cnpj.replace(/\D/g,'');
+  // Busca dados da Receita (BrasilAPI) e preenche o cadastro. Campos já digitados
+  // pelo rep (email/whatsapp/comprador) não são sobrescritos. IE não vem do CNPJ federal.
+  async function searchCNPJ(cnpjArg?:string){
+    const cnpj=(cnpjArg??form.cnpj).replace(/\D/g,'');
     if(cnpj.length!==14){setErr('CNPJ deve ter 14 dígitos.');return;}
     setSearching(true);setErr('');
     try{
-      const r=await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
-      if(!r.ok)throw new Error();
-      const d=await r.json();
-      setForm(p=>({...p,razao_social:d.razao_social||'',nome_fantasia:d.nome_fantasia||'',
-        situacao_receita:d.descricao_situacao_cadastral||'',
-        municipio:d.municipio||'',uf:d.uf||'',cep:d.cep||'',bairro:d.bairro||'',
-        endereco_completo:[d.logradouro,d.numero,d.complemento,d.bairro,d.municipio,d.uf,d.cep].filter(Boolean).join(', ')}));
-    }catch{setErr('CNPJ não encontrado. Preencha manualmente.');}
+      const d=await lookupCnpj(cnpj);
+      setLastCnpj(cnpj);
+      setForm(p=>({...p,
+        razao_social:d.razao_social||p.razao_social,
+        nome_fantasia:d.nome_fantasia||p.nome_fantasia,
+        situacao_receita:d.situacao||p.situacao_receita,
+        municipio:d.cidade||p.municipio,uf:d.uf||p.uf,cep:d.cep||p.cep,bairro:d.bairro||p.bairro,
+        endereco_completo:[d.endereco,d.cidade,d.uf,d.cep].filter(Boolean).join(', ')||p.endereco_completo,
+        email_comprador:p.email_comprador||d.email,email_xml:p.email_xml||d.email,
+        whatsapp_comprador:p.whatsapp_comprador||d.telefone,
+        nome_comprador:p.nome_comprador||d.socio,
+      }));
+      if(d.situacao&&d.situacao!=='ATIVA')setErr(`Atenção: situação na Receita = ${d.situacao}`);
+    }catch(e:any){setErr(e?.message||'CNPJ não encontrado. Preencha manualmente.');}
     setSearching(false);
   }
   function uploadSerasaPdf(){
@@ -281,9 +291,14 @@ export default function RepCoClients({ representativeId, previewMode = false, re
             <label className={lbl}>CNPJ *</label>
             <div className="flex gap-2">
               <input type="text" value={fmtCNPJ(form.cnpj.replace(/\D/g,'').slice(0,14))}
-                onChange={e=>setForm(p=>({...p,cnpj:e.target.value.replace(/\D/g,'')}))}
+                onChange={e=>{
+                  const digits=e.target.value.replace(/\D/g,'').slice(0,14);
+                  setForm(p=>({...p,cnpj:digits}));
+                  // puxa sozinho assim que completa o CNPJ (sem precisar clicar em Buscar)
+                  if(digits.length===14&&digits!==lastCnpj&&!searching)searchCNPJ(digits);
+                }}
                 placeholder="00.000.000/0000-00" className={`flex-1 ${inp}`}/>
-              <button onClick={searchCNPJ} disabled={searching} className="bg-gray-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-800 disabled:opacity-50">
+              <button onClick={()=>searchCNPJ()} disabled={searching} className="bg-gray-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-800 disabled:opacity-50">
                 {searching?'...':'Buscar'}
               </button>
             </div>
