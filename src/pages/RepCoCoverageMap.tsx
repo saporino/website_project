@@ -8,7 +8,7 @@ import { normName, distMeters } from '../lib/leadMatch';
 import { SEGMENT_LABEL } from '../constants/segments';
 import { importApifyLeads } from '../lib/importApifyLeads';
 import type { ApifyStartParams } from '../components/repco/ApifyRunModal';
-import { APIFY_KEYWORD_GROUPS } from '../constants/prospectKeywords';
+import { APIFY_KEYWORD_GROUPS, apifyTerm } from '../constants/prospectKeywords';
 
 const COST_PER_PLACE = 0.002; // compass/crawler-google-places: ~US$1,50/1000 real; US$2/1000 c/ folga
 
@@ -360,11 +360,13 @@ export default function RepCoCoverageMap() {
                   {/* Custo estimado (1 lugar buscado = 1 estabelecimento) */}
                   {(() => {
                     const g = APIFY_KEYWORD_GROUPS[catIdx];
-                    const kws = [g.keywords[0]];
+                    const term = apifyTerm(g);
+                    const kws = [term];
                     const places = maxPlaces;
                     const cost = (places * COST_PER_PLACE).toFixed(2);
                     return (
                       <>
+                        <p className="text-[11px] text-gray-500 mb-2">Busca no Google: <span className="font-semibold text-gray-700">«{term}» em {selCity}</span></p>
                         <div className="rounded-lg bg-[#f5f0ef] p-2.5 text-xs mb-2">
                           <div className="flex justify-between"><span className="text-gray-600">Vai buscar até</span><span className="font-semibold text-gray-900">~{places} lugares</span></div>
                           <div className="flex justify-between"><span className="text-gray-600">Custo aproximado</span><span className="font-bold text-[#8B2214]">≈ US$ {cost}</span></div>

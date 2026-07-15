@@ -10,13 +10,21 @@ export interface KeywordGroup {
   places: boolean;                    // true = serve para o Apify (negócio com endereço no mapa)
   channel?: 'apify' | 'fora_do_mapa'; // fora_do_mapa = LinkedIn/busca (cargo/intenção)
   note?: string;
+  apifyPrimary?: string;              // termo ÚNICO que vai pro Google Maps (o melhor/mais amplo do ramo). Sem isto = keywords[0].
   keywords: string[];
+}
+
+// Melhor termo único de busca por categoria (usado no Apify). Amplo o bastante p/ pegar o ramo,
+// e o filtro de relevância (foodRelevance) tira o que não é alimento.
+export function apifyTerm(g: KeywordGroup): string {
+  return g.apifyPrimary || g.keywords[0];
 }
 
 export const PROSPECT_KEYWORDS: KeywordGroup[] = [
   {
     category: 'Distribuidoras',
     segment: 'distribuidora', places: true, channel: 'apify',
+    apifyPrimary: 'distribuidora de alimentos',
     keywords: [
       'distribuidora de café', 'distribuidora de alimentos', 'distribuidora de produtos alimentícios',
       'distribuidora food service', 'distribuidora de bebidas', 'distribuidora de mercearia',
@@ -30,6 +38,7 @@ export const PROSPECT_KEYWORDS: KeywordGroup[] = [
   {
     category: 'Atacadistas / Atacarejo',
     segment: 'atacado', places: true, channel: 'apify',
+    apifyPrimary: 'atacadista de alimentos',
     keywords: [
       'distribuidora atacadista', 'atacadista de café', 'atacado de café', 'atacado de alimentos',
       'atacado de bebidas', 'cash and carry', 'atacarejo', 'supermercado atacado', 'empório atacadista',
@@ -75,6 +84,7 @@ export const PROSPECT_KEYWORDS: KeywordGroup[] = [
   {
     category: 'Cozinha Industrial / Food Service',
     segment: 'cozinha_industrial', places: true, channel: 'apify',
+    apifyPrimary: 'cozinha industrial',
     keywords: [
       'restaurante corporativo', 'restaurante industrial', 'buffet', 'buffet corporativo', 'catering',
       'empresa de catering', 'alimentação coletiva', 'empresa de alimentação', 'refeitório',
@@ -106,6 +116,7 @@ export const PROSPECT_KEYWORDS: KeywordGroup[] = [
   {
     category: 'Mini mercado / Mercearia',
     segment: 'mini_mercado', places: true, channel: 'apify',
+    apifyPrimary: 'mercearia',
     keywords: ['mini mercado', 'mercado de bairro', 'mercadinho', 'mercearia', 'armazém'],
   },
   {
