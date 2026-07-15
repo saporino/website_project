@@ -350,23 +350,18 @@ export default function RepCoCoverageMap() {
                     {APIFY_KEYWORD_GROUPS.map((g, i) => <option key={g.category} value={i}>{g.category}{g.segment ? ` → ${SEGMENT_LABEL[g.segment]}` : ''}</option>)}
                   </select>
 
-                  {/* Quantidade */}
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Quantidade (teto de estabelecimentos)</label>
-                  <input type="number" min={10} max={500} value={maxPlaces}
-                    onChange={e => setMaxPlaces(Math.max(10, Math.min(500, Number(e.target.value) || 10)))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-                  <div className="flex gap-1 mt-1 mb-2">
-                    {[100, 300, 500].map(n => (
-                      <button key={n} type="button" onClick={() => setMaxPlaces(n)}
-                        className={`flex-1 rounded-md py-1 text-xs border ${maxPlaces === n ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'border-gray-300 text-gray-600'}`}>{n}</button>
-                    ))}
-                  </div>
+                  {/* Quantidade — livre, você digita quanto quiser */}
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Quantidade (nº de estabelecimentos a buscar)</label>
+                  <input type="number" min={10} max={1000} step={10} value={maxPlaces}
+                    onChange={e => setMaxPlaces(Math.max(10, Math.min(1000, Number(e.target.value) || 10)))}
+                    placeholder="ex.: 150"
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2" />
 
-                  {/* Custo estimado */}
+                  {/* Custo estimado (1 lugar buscado = 1 estabelecimento) */}
                   {(() => {
                     const g = APIFY_KEYWORD_GROUPS[catIdx];
-                    const kws = g.keywords.slice(0, 3);
-                    const places = maxPlaces * kws.length;
+                    const kws = [g.keywords[0]];
+                    const places = maxPlaces;
                     const cost = (places * COST_PER_PLACE).toFixed(2);
                     return (
                       <>
