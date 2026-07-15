@@ -1,20 +1,12 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { useState } from 'react';
 import ProspectionManager from './ProspectionManager';
 import PoolAssignment from './PoolAssignment';
-import RfMatchQueue from './RfMatchQueue';
-import { List, Users, Link2 } from 'lucide-react';
+import { List, Users } from 'lucide-react';
 
-type Tab = 'listas' | 'pools' | 'match';
+type Tab = 'listas' | 'pools';
 
 export default function ProspectionAdmin({ refreshKey }: { refreshKey?: number }) {
   const [tab, setTab] = useState<Tab>('listas');
-  const [pendentes, setPendentes] = useState(0);
-
-  useEffect(() => {
-    supabase.from('lead_rf_candidates').select('id', { count: 'exact', head: true }).eq('status', 'pending')
-      .then(({ count }) => setPendentes(count || 0));
-  }, [tab]);
 
   const TabBtn = ({ id, icon, label, badge }: { id: Tab; icon: React.ReactNode; label: string; badge?: number }) => (
     <button onClick={() => setTab(id)}
@@ -29,11 +21,9 @@ export default function ProspectionAdmin({ refreshKey }: { refreshKey?: number }
       <div className="flex flex-wrap gap-1 mb-4 bg-white border border-gray-200 rounded-xl p-1 w-fit">
         <TabBtn id="listas" icon={<List className="w-4 h-4" />} label="Listas / Importar" />
         <TabBtn id="pools" icon={<Users className="w-4 h-4" />} label="Atribuir pools" />
-        <TabBtn id="match" icon={<Link2 className="w-4 h-4" />} label="Confirmar match RF" badge={pendentes} />
       </div>
       {tab === 'listas' && <ProspectionManager refreshKey={refreshKey} />}
       {tab === 'pools' && <PoolAssignment />}
-      {tab === 'match' && <RfMatchQueue />}
     </div>
   );
 }
