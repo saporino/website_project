@@ -14,7 +14,7 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
 const ACTOR = "compass~crawler-google-places";
-const COST_PER_PLACE = 0.004;          // ~US$4 / 1000 places
+const COST_PER_PLACE = 0.002;          // compass/crawler-google-places = US$1,50/1000 real; US$2/1000 c/ folga
 const MONTHLY_PLACES_CAP = 1000;       // teto mensal (plano FREE ~1200; folga de seguranca)
 const APIFY = "https://api.apify.com/v2";
 

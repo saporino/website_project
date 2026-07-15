@@ -10,7 +10,7 @@ import { importApifyLeads } from '../lib/importApifyLeads';
 import type { ApifyStartParams } from '../components/repco/ApifyRunModal';
 import { APIFY_KEYWORD_GROUPS } from '../constants/prospectKeywords';
 
-const COST_PER_PLACE = 0.004;
+const COST_PER_PLACE = 0.002; // compass/crawler-google-places: ~US$1,50/1000 real; US$2/1000 c/ folga
 
 const PRIMARY = '#8B2214';
 const GREEN = '#16a34a', GRAY = '#9ca3af';
