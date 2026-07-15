@@ -220,6 +220,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
       const t0 = Date.now();
       const rows = offsets.map((off, idx) => ({
         order_id: createdOrder.id,
+        company_id: activeCompanyId,
         installment_number: idx + 1,
         amount: (idx === offsets.length - 1 ? cents - base * (offsets.length - 1) : base) / 100,
         due_date: new Date(t0 + off * 86400000).toISOString().slice(0, 10),
