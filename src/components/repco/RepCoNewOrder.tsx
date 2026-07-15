@@ -34,7 +34,7 @@ function StockIndicator({ stock, inStock }: { stock: number; inStock: boolean })
 }
 
 export default function RepCoNewOrder({ representativeId, onOrderCreated, preSelectedClientId }: Props) {
-  const { activeCompanyId } = useCompany();
+  const { activeCompanyId, activeCompany } = useCompany();
   const [step, setStep] = useState<'client'|'products'|'review'>('client');
   const [clients, setClients] = useState<Client[]>([]);
   const [blocked, setBlocked] = useState<Record<string, string>>({});
@@ -58,6 +58,8 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   const [fiscalOrderType, setFiscalOrderType] = useState<FiscalOrderType>('non_taxpayer_consumer');
 
   useEffect(() => { if (activeCompanyId) fetchClients(); }, [representativeId, activeCompanyId]);
+  // Empresa que não aceita dinheiro (ex.: Fazendinha) nunca fica em "dinheiro".
+  useEffect(() => { if (activeCompany && !activeCompany.allow_cash && paymentMethod === 'dinheiro') setPaymentMethod('pix'); }, [activeCompany, paymentMethod]);
   useEffect(() => {
     if (preSelectedClientId && clients.length > 0) {
       const c = clients.find(c => c.id === preSelectedClientId);
@@ -410,21 +412,21 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                 setPaymentMethod(offs.length ? 'boleto' : 'pix');
               }}
             />
-            {/* À vista: PIX ou Dinheiro (recebe na hora, mas sempre na conta da empresa com NF) */}
+            {/* À vista: PIX / Depósito / Dinheiro (Dinheiro só se a empresa aceita). Sempre na conta da empresa com NF. */}
             {paymentTerm === 0 && (
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Forma (à vista) — sempre na conta da empresa, com NF</label>
-                <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden">
-                  {[['pix', 'PIX'], ['dinheiro', 'Dinheiro']].map(([m, lbl]) => (
+                <div className="inline-flex flex-wrap rounded-lg border border-gray-200 overflow-hidden">
+                  {([['pix', 'PIX'], ['deposito', 'Depósito bancário'], ...(activeCompany?.allow_cash ? [['dinheiro', 'Dinheiro']] : [])] as [string, string][]).map(([m, lbl]) => (
                     <button key={m} type="button" onClick={() => setPaymentMethod(m)}
-                      className={`px-4 py-1.5 text-sm font-semibold ${paymentMethod === m ? 'bg-[#a4240e] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+                      className={`px-4 py-1.5 text-sm font-semibold border-r border-gray-200 last:border-r-0 ${paymentMethod === m ? 'bg-[#a4240e] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
                       {lbl}
                     </button>
                   ))}
                 </div>
                 {paymentMethod === 'pix'
                   ? <p className="text-[11px] text-amber-600 mt-1">PIX à vista com NF → +0,5% de comissão.</p>
-                  : <p className="text-[11px] text-gray-400 mt-1">Dinheiro recebido na hora, depositado na conta da empresa com NF (sem bônus PIX).</p>}
+                  : <p className="text-[11px] text-gray-400 mt-1">{paymentMethod === 'dinheiro' ? 'Dinheiro recebido na hora' : 'Depósito bancário'} → depositado na conta da empresa com NF (sem bônus PIX).</p>}
               </div>
             )}
             {/* Tipo fiscal/comercial */}

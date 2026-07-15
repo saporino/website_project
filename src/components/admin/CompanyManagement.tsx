@@ -55,6 +55,7 @@ function CompanyRow({ company, onSaved }: { company: Company; onSaved: () => voi
       name: f.name, fantasia: f.fantasia || null, cnpj: (f.cnpj || '').replace(/\D/g, '') || null,
       endereco: f.endereco || null, cidade: f.cidade || null, uf: f.uf || null, cep: f.cep || null,
       logo_url: f.logo_url || null, commission_model: f.commission_model, is_active: f.is_active,
+      allow_cash: f.allow_cash,
     }).eq('id', company.id);
     setSaving(false);
     if (error) { alert('Erro ao salvar: ' + error.message); return; }
@@ -97,6 +98,9 @@ function CompanyRow({ company, onSaved }: { company: Company; onSaved: () => voi
       <div className="flex items-center justify-end gap-3 mt-3">
         <label className="flex items-center gap-1.5 text-xs text-gray-600 mr-auto cursor-pointer">
           <input type="checkbox" checked={f.is_active} onChange={e => set('is_active', e.target.checked)} /> Ativa (aparece no seletor)
+        </label>
+        <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer" title="Permite receber em dinheiro na hora (venda na hora)">
+          <input type="checkbox" checked={f.allow_cash} onChange={e => set('allow_cash', e.target.checked)} /> Aceita dinheiro
         </label>
         <button onClick={save} disabled={saving}
           className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50">
