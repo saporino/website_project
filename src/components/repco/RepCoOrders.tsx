@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Download, Printer, MessageCircle, Mail, FileText, CheckCircle, Truck, Camera, ChevronDown, ChevronUp } from 'lucide-react';
 import { toast } from 'sonner';
+import { useCompany } from '../../contexts/CompanyContext';
 import { buildInvoiceShareUrls, extractStoragePath } from '../../utils/invoiceShare';
 import OrderInstallmentsView from './OrderInstallmentsView';
 import OrderNotes from './OrderNotes';
@@ -63,6 +64,7 @@ function triggerDownload(url: string, filename: string) {
 }
 
 export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
+  const { activeCompanyId } = useCompany();
   const [orders, setOrders] = useState<Order[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
   const [loading, setLoading] = useState(true);
@@ -84,12 +86,13 @@ export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
       .from('representative_orders')
       .select('*, representative_clients(razao_social)')
       .eq('representative_id', repId)
+      .eq('company_id', activeCompanyId)
       .order('created_at', { ascending: false });
     setOrders(data || []);
     setLoading(false);
   }
 
-  useEffect(() => { fetchOrders(); }, [repId, refreshKey]);
+  useEffect(() => { if (activeCompanyId) fetchOrders(); }, [repId, refreshKey, activeCompanyId]);
 
   useEffect(() => {
     function handleRefresh(event: Event) {

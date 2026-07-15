@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { CLIENT_SEGMENTS, SEGMENT_LABEL } from '../../constants/segments';
 import type { ClientSegment } from '../../constants/segments';
+import { useCompany } from '../../contexts/CompanyContext';
 import BoletoCombinationPicker from './BoletoCombinationPicker';
 import { geocodeClientById } from '../../lib/geocodeClient';
 interface RepCoClient {
@@ -42,6 +43,7 @@ interface InitialClientData {
   lat?: number | null; lng?: number | null; municipio?: string | null; uf?: string | null;
 }
 export default function RepCoClients({ representativeId, previewMode = false, refreshKey = 0, initialData, onInitialDataConsumed }: { representativeId: string; previewMode?: boolean; refreshKey?: number; initialData?: InitialClientData | null; onInitialDataConsumed?: () => void; }) {
+  const { activeCompanyId } = useCompany();
   const [clients,setClients]=useState<RepCoClient[]>([]);
   const [blocked,setBlocked]=useState<Record<string,string>>({});
   const [loading,setLoading]=useState(true);
@@ -56,7 +58,7 @@ export default function RepCoClients({ representativeId, previewMode = false, re
   const [err,setErr]=useState('');
   const [ok,setOk]=useState('');
   const [search,setSearch]=useState('');
-  useEffect(()=>{fetchClients();},[representativeId,refreshKey]);
+  useEffect(()=>{if(activeCompanyId)fetchClients();},[representativeId,refreshKey,activeCompanyId]);
 
   // Quando o rep toca "Editar" no mapa, recebe os dados do lead pré-preenchidos
   useEffect(()=>{
@@ -98,7 +100,7 @@ export default function RepCoClients({ representativeId, previewMode = false, re
   }
   async function fetchClients(){
     setLoading(true);
-    const{data}=await supabase.from('representative_clients').select('*').eq('representative_id',representativeId).order('razao_social',{ascending:true});
+    const{data}=await supabase.from('representative_clients').select('*').eq('representative_id',representativeId).eq('company_id',activeCompanyId).order('razao_social',{ascending:true});
     setClients((data||[]) as RepCoClient[]);setLoading(false);
     const{data:blk}=await supabase.from('vw_repco_clientes_bloqueados').select('client_id,vencido_em');
     const map:Record<string,string>={};(blk||[]).forEach((b:any)=>{map[b.client_id]=b.vencido_em;});setBlocked(map);
@@ -158,7 +160,7 @@ export default function RepCoClients({ representativeId, previewMode = false, re
     if(!form.is_pj&&!form.cpf){setErr('CPF obrigatório.');return;}
     if(!form.segment){setErr('Selecione o segmento.');return;}
     setSaving(true);setErr('');
-    const p={representative_id:representativeId,
+    const p={representative_id:representativeId,company_id:activeCompanyId,
       cnpj:form.is_pj?form.cnpj.replace(/\D/g,''):null,
       cpf:!form.is_pj?form.cpf.replace(/\D/g,''):null,
       nome_completo:!form.is_pj?form.nome_completo:null,

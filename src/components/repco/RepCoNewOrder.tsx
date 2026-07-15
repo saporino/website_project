@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { SEGMENT_LABEL } from '../../constants/segments';
+import { useCompany } from '../../contexts/CompanyContext';
 import BoletoCombinationPicker from './BoletoCombinationPicker';
 
 type FiscalOrderType = 'resale' | 'taxpayer_consumer' | 'non_taxpayer_consumer';
@@ -33,6 +34,7 @@ function StockIndicator({ stock, inStock }: { stock: number; inStock: boolean })
 }
 
 export default function RepCoNewOrder({ representativeId, onOrderCreated, preSelectedClientId }: Props) {
+  const { activeCompanyId } = useCompany();
   const [step, setStep] = useState<'client'|'products'|'review'>('client');
   const [clients, setClients] = useState<Client[]>([]);
   const [blocked, setBlocked] = useState<Record<string, string>>({});
@@ -40,8 +42,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   const [products, setProducts] = useState<Product[]>([]);
   const [prices, setPrices] = useState<PriceEntry[]>([]);
   const [items, setItems] = useState<OrderItem[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState('pix');
-  void paymentMethod;
+  const [paymentMethod, setPaymentMethod] = useState('pix'); // à vista: 'pix' ou 'dinheiro'
   const [isPersonalDelivery, setIsPersonalDelivery] = useState(false);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
@@ -56,7 +57,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   const [boletoOffsets, setBoletoOffsets] = useState<number[]>([]);
   const [fiscalOrderType, setFiscalOrderType] = useState<FiscalOrderType>('non_taxpayer_consumer');
 
-  useEffect(() => { fetchClients(); }, [representativeId]);
+  useEffect(() => { if (activeCompanyId) fetchClients(); }, [representativeId, activeCompanyId]);
   useEffect(() => {
     if (preSelectedClientId && clients.length > 0) {
       const c = clients.find(c => c.id === preSelectedClientId);
@@ -65,7 +66,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   }, [preSelectedClientId, clients]);
 
   async function fetchClients() {
-    const { data } = await supabase.from('representative_clients').select('id,razao_social,nome_fantasia,cnpj,cpf,segment,forma_pagamento,prazo_pagamento,default_fiscal_order_type').eq('representative_id', representativeId).eq('status','active').order('razao_social');
+    const { data } = await supabase.from('representative_clients').select('id,razao_social,nome_fantasia,cnpj,cpf,segment,forma_pagamento,prazo_pagamento,default_fiscal_order_type').eq('representative_id', representativeId).eq('company_id', activeCompanyId).eq('status','active').order('razao_social');
     if (data) setClients(data);
     const { data: blk } = await supabase.from('vw_repco_clientes_bloqueados').select('client_id,vencido_em');
     const map: Record<string, string> = {};
@@ -79,8 +80,8 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
     setProducts([]);
     setPrices([]);
     const [{ data: prods }, { data: priceData }, { data: termsData }] = await Promise.all([
-      supabase.from('products').select('id,name,image_url,stock,in_stock').eq('is_active', true).order('name'),
-      supabase.from('price_lists').select('product_id,segment,price,volume_discount,volume_min_qty').eq('segment', segment).eq('is_active', true),
+      supabase.from('products').select('id,name,image_url,stock,in_stock').eq('is_active', true).eq('company_id', activeCompanyId).order('name'),
+      supabase.from('price_lists').select('product_id,segment,price,volume_discount,volume_min_qty').eq('segment', segment).eq('company_id', activeCompanyId).eq('is_active', true),
       supabase.from('segment_payment_terms').select('payment_terms').eq('segment', segment).single(),
     ]);
     if (prods) setProducts(prods);
@@ -175,16 +176,17 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
     const { data: createdOrder, error: err } = await supabase.from('representative_orders').insert({
       representative_id: representativeId,
       representative_client_id: selectedClient.id,
+      company_id: activeCompanyId,
       description,
       total_amount: finalAmount,
       original_amount: originalAmount,
       discount_percentage: discountPercentage,
-      payment_method: paymentTerm === 0 ? 'pix' : 'boleto',
+      payment_method: paymentTerm === 0 ? paymentMethod : 'boleto',
       payment_term: paymentTerm,
       is_personal_delivery: isPersonalDelivery,
       client_order_number: hasClientOrderNumber ? (clientOrderNumber || null) : null,
       has_client_order_number: hasClientOrderNumber,
-      pix_bonus_eligible: paymentTerm === 0,
+      pix_bonus_eligible: paymentTerm === 0 && paymentMethod === 'pix',
       channel: 'repco',
       status: 'new',
       fiscal_order_type: fiscalOrderType,
@@ -408,6 +410,23 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                 setPaymentMethod(offs.length ? 'boleto' : 'pix');
               }}
             />
+            {/* À vista: PIX ou Dinheiro (recebe na hora, mas sempre na conta da empresa com NF) */}
+            {paymentTerm === 0 && (
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Forma (à vista) — sempre na conta da empresa, com NF</label>
+                <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden">
+                  {[['pix', 'PIX'], ['dinheiro', 'Dinheiro']].map(([m, lbl]) => (
+                    <button key={m} type="button" onClick={() => setPaymentMethod(m)}
+                      className={`px-4 py-1.5 text-sm font-semibold ${paymentMethod === m ? 'bg-[#a4240e] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+                {paymentMethod === 'pix'
+                  ? <p className="text-[11px] text-amber-600 mt-1">PIX à vista com NF → +0,5% de comissão.</p>
+                  : <p className="text-[11px] text-gray-400 mt-1">Dinheiro recebido na hora, depositado na conta da empresa com NF (sem bônus PIX).</p>}
+              </div>
+            )}
             {/* Tipo fiscal/comercial */}
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Tipo fiscal/comercial do pedido</label>
@@ -448,7 +467,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                   <div className="flex gap-3 text-xs">
                     <span className="text-gray-400 line-through">R$ {calcTotal().toFixed(2)}</span>
                     <span className="text-green-600 font-medium">R$ {(calcTotal()*(1-discountPercentage/100)).toFixed(2)}</span>
-                    {paymentTerm===0&&<span className="text-amber-600">PIX: +0.5% bônus</span>}
+                    {paymentTerm===0&&paymentMethod==='pix'&&<span className="text-amber-600">PIX: +0.5% bônus</span>}
                   </div>
                 )}
               </div>
