@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, FormEvent, useCallback, lazy, Suspense } f
 import { Toaster, toast } from 'sonner';
 import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Send, User, ChevronDown, ChevronLeft, ChevronRight, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck, Briefcase, MapPin, Flame, Coffee, Mail } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { CompanyProvider } from './contexts/CompanyContext';
 import { CartProvider, useCart } from './contexts/CartContext';
 import { AuthModal } from './components/AuthModal';
 import { bannerButtonStyle } from './lib/bannerButton';
@@ -82,11 +83,13 @@ function App() {
 
   return (
     <AuthProvider>
-      <CartProvider>
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#f8f7f5]"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#8B2214]" /></div>}>
-          <AppRouter />
-        </Suspense>
-      </CartProvider>
+      <CompanyProvider>
+        <CartProvider>
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[#f8f7f5]"><div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#8B2214]" /></div>}>
+            <AppRouter />
+          </Suspense>
+        </CartProvider>
+      </CompanyProvider>
     </AuthProvider>
   );
 }

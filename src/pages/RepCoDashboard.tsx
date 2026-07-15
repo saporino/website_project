@@ -14,6 +14,7 @@ import RepCoDeliveries from '../components/repco/RepCoDeliveries';
 import RepCoFieldMap from '../components/repco/RepCoFieldMap';
 import RepCoMarketPrices from '../components/repco/RepCoMarketPrices';
 import Messenger from '../components/chat/Messenger';
+import CompanySwitcher from '../components/CompanySwitcher';
 import RepCoCalculatorFab from '../components/repco/RepCoCalculatorFab';
 import { usePresence } from '../hooks/usePresence';
 import { useGeolocation } from '../hooks/useGeolocation';
@@ -353,6 +354,7 @@ export function RepCoDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <CompanySwitcher compact />
             {profile?.is_admin && (
               <button
                 onClick={() => {

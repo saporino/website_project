@@ -8,6 +8,7 @@ import { VisitorInsights } from './VisitorInsights';
 import { PointsOfSaleManager } from './PointsOfSaleManager';
 import DistributedBrandsManager from './DistributedBrandsManager';
 import DeleteLockToggle from './DeleteLockToggle';
+import CompanyManagement from './CompanyManagement';
 
 interface Settings {
   id: string;
@@ -99,6 +100,8 @@ export function StoreSettings() {
       </div>
 
       <div className="space-y-8">
+        <CompanyManagement />
+
         <VisitorInsights />
 
         <PointsOfSaleManager />

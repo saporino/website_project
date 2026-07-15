@@ -9,6 +9,7 @@ import { CustomersManagement } from '../components/admin/CustomersManagement';
 import { Dashboard } from '../components/admin/Dashboard';
 import { RepCoManagement } from '../components/admin/RepCoManagement';
 import { AdminNotificationBell } from '../components/admin/AdminNotificationBell';
+import CompanySwitcher from '../components/CompanySwitcher';
 import BatchManagement from '../components/admin/BatchManagement';
 import Messenger from '../components/chat/Messenger';
 
@@ -99,6 +100,7 @@ export function AdminDashboard() {
               <p className="text-sm text-gray-500">Café Saporino</p>
             </div>
             <div className="flex items-center space-x-3">
+              <CompanySwitcher />
               <AdminNotificationBell onNavigate={(tab) => openTab(tab as TabType)} />
               <button
                 onClick={() => {
