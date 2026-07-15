@@ -21,7 +21,7 @@ export interface ApifyImportParams {
 }
 
 export interface ApifyImportResult {
-  listId: string; criados: number; ignorados: number; fora: number; foraDoRamo: number;
+  listId: string; criados: number; atualizados: number; ignorados: number; fora: number; foraDoRamo: number;
 }
 
 export async function importApifyLeads(p: ApifyImportParams): Promise<ApifyImportResult> {
@@ -34,9 +34,9 @@ export async function importApifyLeads(p: ApifyImportParams): Promise<ApifyImpor
   const foraDoRamo = naCidade.length - places.length;
   if (!places.length) throw new Error('Nenhum estabelecimento do ramo de alimentos retornado nesta busca.');
 
-  // leads já existentes no município (não reimportar o mesmo PDV)
+  // leads já existentes no município (não reimportar; se já existe, só atualiza a info)
   const { data: existing } = await supabase.from('prospect_leads')
-    .select('company_name,trade_name,lat,lng,district').ilike('city', p.municipio);
+    .select('id,company_name,trade_name,lat,lng,district,phone,website,email,address').ilike('city', p.municipio);
   const existLeads = (existing || []) as any[];
 
   // cria o POOL (sem dono)
@@ -48,31 +48,52 @@ export async function importApifyLeads(p: ApifyImportParams): Promise<ApifyImpor
   if (lErr) throw lErr;
   const listId = lr!.id as string;
 
-  // monta os leads (dedup contra existentes por nome + bairro)
+  // monta os leads. Se JÁ EXISTE (mesmo nome+bairro): não recria — só atualiza a info
+  // (telefone/site/email/endereço) e MANTÉM rep/cliente/status. Assim clientes e atribuições
+  // não se perdem ao re-scrapear a cidade, e não voltam pro pool pra atribuir de novo.
   const rows: any[] = [];
+  const updates: { id: string; patch: any }[] = [];
   let ignorados = 0;
   for (const it of places) {
     const district = it.neighborhood || null;
-    const cand = { company_name: it.title!, trade_name: it.title!, lat: it.location?.lat ?? null, lng: it.location?.lng ?? null };
-    const dup = existLeads.some(e =>
+    const lat = it.location?.lat ?? null, lng = it.location?.lng ?? null;
+    const email = it.email || (Array.isArray(it.emails) ? it.emails[0] : null) || null;
+    const phone = it.phoneUnformatted || it.phone || null;
+    const website = it.website || null;
+    const address = it.street || it.address || null;
+    const cand = { company_name: it.title!, trade_name: it.title!, lat, lng };
+    const match = existLeads.find(e =>
       leadMatchesProspect(cand, { nome_fantasia: e.trade_name, razao_social: e.company_name, lat: e.lat, lng: e.lng }).match
       && normName(e.district) === normName(district));
-    if (dup) { ignorados++; continue; }
-
-    const lat = it.location?.lat ?? null, lng = it.location?.lng ?? null;
-    const email = it.email || (Array.isArray(it.emails) ? it.emails[0] : null);
+    if (match) {
+      const patch: any = {};
+      if (phone && phone !== match.phone) patch.phone = phone;
+      if (website && website !== match.website) patch.website = website;
+      if (email && email !== match.email) patch.email = email;
+      if (address && address !== match.address) patch.address = address;
+      if (Object.keys(patch).length) updates.push({ id: match.id, patch });
+      else ignorados++; // já existe e nada mudou
+      continue;
+    }
     rows.push({
       prospect_list_id: listId, representative_id: null,
       company_name: it.title, trade_name: it.title, cnpj: null,
       segment: p.segment, category: p.category, source: 'apify_google_places',
-      address: it.street || it.address || null, district, city: it.city || p.municipio, state: it.state || p.uf,
+      address, district, city: it.city || p.municipio, state: it.state || p.uf,
       zip_code: it.postalCode || null, lat, lng,
       geocode_status: (lat != null && lng != null) ? 'success' : 'pending',
       geocode_source: (lat != null) ? 'google_places' : null,
-      phone: it.phoneUnformatted || it.phone || null, email: email || null, website: it.website || null,
+      phone, email, website,
       raw_data: { fonte: 'apify_google_places', google_url: it.url || null, place_id: it.placeId || null, categoria_google: it.categoryName || null },
       status: 'new',
     });
+  }
+
+  // atualiza os que já existem (mantém dono/cliente/status)
+  let atualizados = 0;
+  for (const u of updates) {
+    const { error } = await supabase.from('prospect_leads').update(u.patch).eq('id', u.id);
+    if (!error) atualizados++;
   }
 
   // insere em lotes
@@ -91,5 +112,5 @@ export async function importApifyLeads(p: ApifyImportParams): Promise<ApifyImpor
     }).eq('id', p.runId);
   }
 
-  return { listId, criados, ignorados, fora, foraDoRamo };
+  return { listId, criados, atualizados, ignorados, fora, foraDoRamo };
 }

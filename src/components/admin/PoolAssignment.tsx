@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { Loader2, MapPin, Users, ChevronLeft, Check } from 'lucide-react';
 
 interface Pool { id: string; name: string; segment: string | null; total: number; assigned: number; remaining: number; }
-interface Lead { id: string; company_name: string; trade_name: string | null; district: string | null; representative_id: string | null; rf_match_status: string | null; }
+interface Lead { id: string; company_name: string; trade_name: string | null; district: string | null; representative_id: string | null; rf_match_status: string | null; status: string | null; representative_client_id: string | null; }
 interface Rep { id: string; full_name: string; }
 
 export default function PoolAssignment() {
@@ -53,7 +53,7 @@ export default function PoolAssignment() {
     const all: Lead[] = [];
     for (let from = 0; from < 8000; from += 1000) {
       const { data } = await supabase.from('prospect_leads')
-        .select('id,company_name,trade_name,district,representative_id,rf_match_status')
+        .select('id,company_name,trade_name,district,representative_id,rf_match_status,status,representative_client_id')
         .eq('prospect_list_id', p.id).range(from, from + 999);
       const rows = (data as Lead[]) || []; all.push(...rows);
       if (rows.length < 1000) break;
@@ -170,8 +170,11 @@ export default function PoolAssignment() {
                   <label key={l.id} className={`flex items-center gap-2 text-xs px-2 py-1 rounded border ${l.representative_id ? 'opacity-40 border-gray-100' : 'border-gray-100 cursor-pointer hover:bg-gray-50'}`}>
                     <input type="checkbox" disabled={!!l.representative_id} checked={picked.has(l.id)} onChange={() => toggleLead(l.id)} />
                     <span className="truncate">{l.trade_name || l.company_name}</span>
-                    {l.rf_match_status === 'confirmed' && <span className="text-green-600 flex-shrink-0">·CNPJ</span>}
-                    {l.representative_id && <span className="text-gray-400 flex-shrink-0 ml-auto">atribuído</span>}
+                    {(l.representative_client_id || l.status === 'converted')
+                      ? <span className="flex-shrink-0 ml-auto rounded bg-green-100 text-green-700 px-1.5">✓ cliente{l.representative_id ? ` · ${reps.find(r => r.id === l.representative_id)?.full_name || 'rep'}` : ''}</span>
+                      : l.representative_id
+                        ? <span className="flex-shrink-0 ml-auto text-gray-500">→ {reps.find(r => r.id === l.representative_id)?.full_name || 'rep'}</span>
+                        : null}
                   </label>
                 ))}
               </div>
