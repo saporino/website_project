@@ -349,11 +349,11 @@ export function RepCoDashboard() {
       )}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 flex items-center justify-between gap-2 h-16">
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <img src="/saporino-logo-tight.png" alt="Saporino" className="h-8 sm:h-9 w-auto object-contain flex-shrink-0" />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="font-bold text-gray-900 text-sm leading-tight">RepCo</p>
-              <p className="text-xs text-gray-500 truncate">{rep!.full_name}</p>
+              <p className="text-xs text-gray-500 truncate whitespace-nowrap overflow-hidden">{rep!.full_name}</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
