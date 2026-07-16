@@ -8,6 +8,8 @@ interface AuthContextType {
   session: Session | null;
   profile: UserProfile | null;
   loading: boolean;
+  roles: string[];
+  hasRole: (code: string) => boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, fullName: string, phone: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -21,6 +23,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [roles, setRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,6 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           await loadProfile(session.user.id);
         } else {
           setProfile(null);
+          setRoles([]);
           setLoading(false);
         }
       })();
@@ -64,11 +68,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
       setProfile(data);
+      // Papéis do RBAC (aditivo — não substitui os checks de is_admin existentes)
+      await loadRoles(userId);
     } catch (error) {
       console.error('Error loading profile:', error);
       setProfile(null);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRoles = async (userId: string) => {
+    try {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role_code')
+        .eq('user_id', userId)
+        .eq('is_active', true);
+      setRoles((data || []).map((r: { role_code: string }) => r.role_code));
+    } catch {
+      setRoles([]);
     }
   };
 
@@ -99,6 +118,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     await supabase.auth.signOut();
     setProfile(null);
+    setRoles([]);
   };
 
   const updateProfile = async (data: Partial<UserProfile>) => {
@@ -142,6 +162,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         session,
         profile,
         loading,
+        roles,
+        hasRole: (code: string) => roles.includes(code),
         signIn,
         signUp,
         signOut,
