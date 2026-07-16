@@ -6,6 +6,7 @@ import { useCompany } from '../../contexts/CompanyContext';
 import { toast } from 'sonner';
 import PriceListManager from './PriceListManager';
 import RepCoInviteCodes, { RepInviteBadge } from './RepCoInviteCodes';
+import UserRolesManager from './UserRolesManager';
 import CoffeeMarketIndex from './CoffeeMarketIndex';
 import RepCoOrdersManager from './RepCoOrdersManager';
 import RepCoCommissionsManager from './RepCoCommissionsManager';
@@ -68,6 +69,8 @@ type RepClient = {
   cpf?: string | null;
   segment?: string | null;
   status?: string | null;
+  tem_gondola?: boolean | null;
+  geofence_radius_m?: number | null;
 };
 
 const NO_COMMISSION_NOTE = 'SEM COMISSÃO - admin marcou como não-comissionável';
@@ -333,7 +336,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
         .eq('company_id', activeCompanyId)
         .order('created_at', { ascending: false }),
       supabase.from('representative_clients')
-        .select('id, razao_social, nome_fantasia, nome_completo, cnpj, cpf, segment, status')
+        .select('id, razao_social, nome_fantasia, nome_completo, cnpj, cpf, segment, status, tem_gondola, geofence_radius_m')
         .eq('representative_id', rep.id)
         .eq('company_id', activeCompanyId)
         .eq('status', 'active')
@@ -471,6 +474,13 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     notifyRepCoUpdated();
   };
   void handleMarkCommissionPaid;
+
+  // Admin corrige gôndola / raio de geocerca de qualquer cliente (Bloco 1)
+  const updateClientGondola = async (clientId: string, patch: { tem_gondola?: boolean; geofence_radius_m?: number }) => {
+    const { error } = await supabase.from('representative_clients').update(patch).eq('id', clientId);
+    if (error) { toast.error('Erro ao salvar: ' + error.message); return; }
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, ...patch } : c));
+  };
 
   const handleTransferClient = async (client: RepClient) => {
     if (!transferRepresentativeId || transferRepresentativeId === selectedRep?.id) {
@@ -663,6 +673,22 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
                           <div className="flex flex-wrap gap-2 mt-1 text-xs text-gray-500">
                             <span>{getClientDocument(client)}</span>
                             {client.segment && <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full">{client.segment}</span>}
+                          </div>
+                          {/* Gôndola (Bloco 1) — admin corrige tem_gondola + raio da geocerca */}
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <span className="text-xs text-gray-500">Gôndola:</span>
+                            {[{v:true,l:'Sim'},{v:false,l:'Não'}].map(o=>(
+                              <button key={String(o.v)} onClick={()=>updateClientGondola(client.id,{tem_gondola:o.v})}
+                                className={`text-xs px-2.5 py-1 rounded-full border ${client.tem_gondola===o.v?'bg-[#8B2214] text-white border-[#8B2214]':'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>{o.l}</button>
+                            ))}
+                            {client.tem_gondola==null && <span className="text-xs text-gray-400">(não respondido)</span>}
+                            {client.tem_gondola===true && (
+                              <span className="flex items-center gap-1 text-xs text-gray-500">· raio
+                                <input type="number" min={30} max={1000} step={10} defaultValue={client.geofence_radius_m ?? 100}
+                                  onBlur={e=>{const v=parseInt(e.target.value)||100; if(v!==(client.geofence_radius_m??100)) updateClientGondola(client.id,{geofence_radius_m:v});}}
+                                  className="w-16 h-7 px-2 border border-gray-300 rounded text-xs" /> m
+                              </span>
+                            )}
                           </div>
                         </div>
 
@@ -940,6 +966,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   return (
     <div className="space-y-6">
       <RepCoInviteCodes />
+      <UserRolesManager />
       {/* Row 1: Title + Action buttons */}
       <div className="space-y-3">
         <div>

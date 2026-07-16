@@ -17,6 +17,7 @@ interface RepCoClient {
   credito_score: number | null; score_serasa_pdf_url: string | null; score_serasa_pdf_filename: string | null;
   status: string; segment: ClientSegment | null; inscricao_estadual: string | null;
   desconto_financeiro_pct: number | null; desconto_logistico_pct: number | null; bonificacao_padrao: string | null;
+  tem_gondola: boolean | null; geofence_radius_m: number | null;
   last_order_at: string | null; inactivity_snoozed_until: string | null;
   snooze_count: number; snooze_admin_alert: boolean; is_active_client: boolean; created_at: string;
 }
@@ -33,6 +34,7 @@ const emptyForm = {
   credito_score:'' as number|'', score_serasa_pdf_url:'', score_serasa_pdf_filename:'',
   inscricao_estadual:'', is_pj:true,
   desconto_financeiro_pct:'' as number|'', desconto_logistico_pct:'' as number|'', bonificacao_padrao:'',
+  tem_gondola: null as boolean|null, geofence_radius_m: 100,
 };
 type ViewMode = 'list'|'detail'|'edit'|'new';
 function fmtCNPJ(v:string){return v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5');}
@@ -59,9 +61,11 @@ export default function RepCoClients({ representativeId, previewMode = false, re
   const [deleting,setDeleting]=useState(false);
   const [searching,setSearching]=useState(false);
   const [lastCnpj,setLastCnpj]=useState('');
+  const [missing,setMissing]=useState<Set<string>>(new Set());
   const [err,setErr]=useState('');
   const [ok,setOk]=useState('');
   const [search,setSearch]=useState('');
+  const [gonFilter,setGonFilter]=useState<'all'|'sim'|'nao'>('all');
   useEffect(()=>{if(activeCompanyId)fetchClients();},[representativeId,refreshKey,activeCompanyId]);
 
   // Quando o rep toca "Editar" no mapa, recebe os dados do lead pré-preenchidos
@@ -128,7 +132,8 @@ export default function RepCoClients({ representativeId, previewMode = false, re
       segment:c.segment||'',inscricao_estadual:c.inscricao_estadual||'',is_pj:!c.cpf,
       desconto_financeiro_pct:c.desconto_financeiro_pct!=null?c.desconto_financeiro_pct:'' as number|'',
       desconto_logistico_pct:c.desconto_logistico_pct!=null?c.desconto_logistico_pct:'' as number|'',
-      bonificacao_padrao:c.bonificacao_padrao||''});
+      bonificacao_padrao:c.bonificacao_padrao||'',
+      tem_gondola:c.tem_gondola,geofence_radius_m:c.geofence_radius_m??100});
     setView('edit');setErr('');
   }
   function openNew(){if (previewMode) { alert('Ação desativada no espelho.'); return; } setForm(emptyForm);setView('new');setErr('');}
@@ -171,9 +176,21 @@ export default function RepCoClients({ representativeId, previewMode = false, re
   }
   async function handleSave(){
     if (previewMode) { setErr('Ação desativada no espelho.'); return; }
-    if(form.is_pj&&!form.cnpj){setErr('CNPJ obrigatório.');return;}
-    if(!form.is_pj&&!form.cpf){setErr('CPF obrigatório.');return;}
-    if(!form.segment){setErr('Selecione o segmento.');return;}
+    // Passe de campos obrigatórios (conservador: só o que é de fato obrigatório).
+    const faltando:{key:string;label:string}[]=[];
+    if(form.is_pj&&!form.cnpj) faltando.push({key:'cnpj',label:'CNPJ'});
+    if(!form.is_pj&&!form.cpf) faltando.push({key:'cpf',label:'CPF'});
+    if(form.is_pj&&!form.razao_social) faltando.push({key:'razao_social',label:'Razão Social'});
+    if(!form.is_pj&&!form.nome_completo) faltando.push({key:'nome_completo',label:'Nome completo'});
+    if(!form.segment) faltando.push({key:'segment',label:'Segmento'});
+    if(form.tem_gondola===null||form.tem_gondola===undefined) faltando.push({key:'tem_gondola',label:'Este cliente tem gôndola?'});
+    if(faltando.length){
+      setMissing(new Set(faltando.map(f=>f.key)));
+      setErr('Preencha antes de salvar: '+faltando.map(f=>f.label).join(', ')+'.');
+      window.scrollTo({top:0,behavior:'smooth'});
+      return;
+    }
+    setMissing(new Set());
     setSaving(true);setErr('');
     const p={representative_id:representativeId,company_id:activeCompanyId,
       cnpj:form.is_pj?form.cnpj.replace(/\D/g,''):null,
@@ -191,7 +208,8 @@ export default function RepCoClients({ representativeId, previewMode = false, re
       inscricao_estadual:form.inscricao_estadual||null,status:'active',is_active_client:true,
       desconto_financeiro_pct:form.desconto_financeiro_pct===''?0:Math.max(0,Math.min(100,Number(form.desconto_financeiro_pct))),
       desconto_logistico_pct:form.desconto_logistico_pct===''?0:Math.max(0,Math.min(100,Number(form.desconto_logistico_pct))),
-      bonificacao_padrao:form.bonificacao_padrao||null};
+      bonificacao_padrao:form.bonificacao_padrao||null,
+      tem_gondola:form.tem_gondola,geofence_radius_m:Number(form.geofence_radius_m)||100};
     let savedId:string|null=null; let error:{message:string}|null=null;
     if(view==='edit'&&sel){
       const r=await supabase.from('representative_clients').update(p).eq('id',sel.id);
@@ -271,12 +289,15 @@ export default function RepCoClients({ representativeId, previewMode = false, re
     setTimeout(()=>setOk(''),4000);
   }
   const filtered=clients.filter(c=>{
+    if(gonFilter==='sim'&&c.tem_gondola!==true)return false;
+    if(gonFilter==='nao'&&c.tem_gondola===true)return false;
     if(!search)return true;
     const t=search.toLowerCase();
     return c.nome_fantasia?.toLowerCase().includes(t)||c.razao_social?.toLowerCase().includes(t)||c.cnpj?.includes(t)||c.nome_comprador?.toLowerCase().includes(t);
   });
   const inp='w-full h-[34px] px-3 text-sm border border-gray-300 rounded focus:outline-none';
   const lbl='block text-xs font-medium text-gray-600 mb-1';
+  const ringErr=(k:string)=>missing.has(k)?' ring-2 ring-red-400 border-red-300':'';
   if(loading)return<div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600"/></div>;
   if(view==='new'||view==='edit') return(
     <div className="space-y-4">
@@ -305,7 +326,7 @@ export default function RepCoClients({ representativeId, previewMode = false, re
                   // puxa sozinho assim que completa o CNPJ (sem precisar clicar em Buscar)
                   if(digits.length===14&&digits!==lastCnpj&&!searching)searchCNPJ(digits);
                 }}
-                placeholder="00.000.000/0000-00" className={`flex-1 ${inp}`}/>
+                placeholder="00.000.000/0000-00" className={`flex-1 ${inp}${ringErr('cnpj')}`}/>
               <button onClick={()=>searchCNPJ()} disabled={searching} className="bg-gray-700 text-white px-4 py-2 rounded-lg text-sm hover:bg-gray-800 disabled:opacity-50">
                 {searching?'...':'Buscar'}
               </button>
@@ -315,20 +336,20 @@ export default function RepCoClients({ representativeId, previewMode = false, re
           <div className="grid grid-cols-2 gap-3">
             <div><label className={lbl}>CPF *</label>
               <input type="text" value={fmtCPF(form.cpf.replace(/\D/g,'').slice(0,11))}
-                onChange={e=>setForm(p=>({...p,cpf:e.target.value.replace(/\D/g,'')}))} placeholder="000.000.000-00" className={inp}/>
+                onChange={e=>setForm(p=>({...p,cpf:e.target.value.replace(/\D/g,'')}))} placeholder="000.000.000-00" className={inp+ringErr('cpf')}/>
             </div>
             <div><label className={lbl}>Nome completo *</label>
-              <input type="text" value={form.nome_completo} onChange={e=>setForm(p=>({...p,nome_completo:e.target.value}))} className={inp}/>
+              <input type="text" value={form.nome_completo} onChange={e=>setForm(p=>({...p,nome_completo:e.target.value}))} className={inp+ringErr('nome_completo')}/>
             </div>
           </div>
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {form.is_pj&&<div><label className={lbl}>Razão Social *</label>
-            <input type="text" value={form.razao_social} onChange={e=>setForm(p=>({...p,razao_social:e.target.value}))} className={inp}/></div>}
+            <input type="text" value={form.razao_social} onChange={e=>setForm(p=>({...p,razao_social:e.target.value}))} className={inp+ringErr('razao_social')}/></div>}
           <div><label className={lbl}>{form.is_pj?'Nome Fantasia':'Apelido'}</label>
             <input type="text" value={form.nome_fantasia} onChange={e=>setForm(p=>({...p,nome_fantasia:e.target.value}))} className={inp}/></div>
           <div><label className={lbl}>Segmento *</label>
-            <select value={form.segment} onChange={e=>setForm(p=>({...p,segment:e.target.value as ClientSegment}))} className={inp}>
+            <select value={form.segment} onChange={e=>setForm(p=>({...p,segment:e.target.value as ClientSegment}))} className={inp+ringErr('segment')}>
               <option value="">Selecione...</option>
               {CLIENT_SEGMENTS.map(s=><option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
@@ -374,6 +395,26 @@ export default function RepCoClients({ representativeId, previewMode = false, re
               <input type="text" value={form.bonificacao_padrao} onChange={e=>setForm(p=>({...p,bonificacao_padrao:e.target.value}))} placeholder="ex.: 1 pacote grátis a cada 10" className={inp}/></div>
           </div>
           <p className="text-[11px] text-gray-400 mt-1">Descontos abatem no valor da NF e a comissão é sobre o líquido. A bonificação vira item grátis (R$ 0) no pedido, sem comissão.</p>
+        </div>
+        {/* Gôndola — define se o promotor atende esta loja. Obrigatório, sem padrão. */}
+        <div className={`border-t border-gray-200 pt-3 mt-1${missing.has('tem_gondola')?' rounded-lg ring-2 ring-red-400 p-2':''}`}>
+          <p className="text-xs font-semibold text-gray-600 mb-2">Este cliente tem gôndola? <span className="text-gray-400 font-normal">(o promotor vai atender esta loja) *</span></p>
+          <div className="flex gap-2">
+            {[{v:true,l:'Sim'},{v:false,l:'Não'}].map(o=>(
+              <button key={String(o.v)} type="button" onClick={()=>setForm(p=>({...p,tem_gondola:o.v}))}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-colors ${form.tem_gondola===o.v?'bg-[#8B2214] text-white border-[#8B2214]':'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
+                {o.l}
+              </button>
+            ))}
+          </div>
+          {form.tem_gondola===true&&(
+            <div className="mt-2">
+              <label className={lbl}>Raio da geocerca da loja (metros)</label>
+              <input type="number" min="30" max="1000" step="10" value={form.geofence_radius_m}
+                onChange={e=>setForm(p=>({...p,geofence_radius_m:parseInt(e.target.value)||100}))} className={inp+' max-w-[160px]'}/>
+              <p className="text-[11px] text-gray-400 mt-1">Distância em que o check-in do promotor conta como "na loja". Padrão 100 m.</p>
+            </div>
+          )}
         </div>
         {form.endereco_completo&&<div><label className={lbl}>Endereço</label>
           <input type="text" value={form.endereco_completo} onChange={e=>setForm(p=>({...p,endereco_completo:e.target.value}))} className={inp}/></div>}
@@ -484,6 +525,11 @@ export default function RepCoClients({ representativeId, previewMode = false, re
       </div>
       <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar por nome, CNPJ ou comprador..."
         className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"/>
+      <div className="flex items-center gap-1.5 text-xs">
+        {([['all','Todos'],['sim','Com gôndola'],['nao','Sem gôndola']] as const).map(([v,l])=>(
+          <button key={v} onClick={()=>setGonFilter(v)} className={`px-3 py-1.5 rounded-full font-medium border ${gonFilter===v?'bg-[#8B2214] text-white border-[#8B2214]':'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`}>{l}</button>
+        ))}
+      </div>
       {clients.filter(c=>c.snooze_admin_alert).length>0&&(
         <div className="bg-red-50 border border-red-200 rounded-xl p-3">
           <p className="text-sm font-medium text-red-700 mb-2">{clients.filter(c=>c.snooze_admin_alert).length} cliente(s) precisam de atenção</p>
@@ -507,6 +553,8 @@ export default function RepCoClients({ representativeId, previewMode = false, re
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-gray-800 text-sm">{c.nome_fantasia||c.razao_social||c.nome_completo||'Sem nome'}</span>
                     {c.segment&&<span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{SEGMENT_LABEL[c.segment]}</span>}
+                    {c.tem_gondola===true&&<span className="text-xs px-2 py-0.5 rounded-full bg-[#f5f0ef] text-[#8B2214] font-medium">Gôndola</span>}
+                    {c.tem_gondola===null&&<span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-400">Gôndola?</span>}
                     {!c.is_active_client&&<span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Inativo</span>}
                     {c.snooze_admin_alert&&<span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600">Atenção</span>}
                     {blocked[c.id]&&<span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Bloqueado · venc. {new Date(blocked[c.id]+'T12:00:00').toLocaleDateString('pt-BR')}</span>}
