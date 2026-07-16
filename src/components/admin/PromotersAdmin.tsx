@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
 import { toast } from 'sonner';
 import { UserCheck, ChevronDown, ChevronUp, CheckCircle, XCircle, Plus, Copy, Store, Loader2, Route as RouteIcon, ArrowUp, ArrowDown } from 'lucide-react';
+import PromoterSupervisorPanel from './PromoterSupervisorPanel';
 
 // Admin → RepCo → "Promotores" (Bloco 2): aprovar/bloquear promotor, gerar código
 // de convite de promotor e vincular lojas (só clientes com tem_gondola = true).
@@ -278,6 +279,8 @@ export default function PromotersAdmin() {
           )}
           {/* Mix por loja (Bloco 4) */}
           <MixAdmin />
+          {/* Painel da operação (Bloco 6) */}
+          <PromoterSupervisorPanel />
           <p className="text-[11px] text-gray-400">Empresa ativa no seletor: {companies.find(c => c.id === activeCompanyId)?.fantasia || '—'} · o promotor com "Todas as empresas" audita o catálogo de todas.</p>
         </div>
       )}
