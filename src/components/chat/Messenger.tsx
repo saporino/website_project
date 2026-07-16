@@ -6,6 +6,7 @@ import {
   Contact, Conversation, ChatMessage, getContacts, listConversations, getMessages, sendMessage,
   startDirect, createGroup, markRead, uploadAttachment, subscribeToMessages, subscribeToAllMessages,
 } from '../../lib/chat';
+import { useCompany } from '../../contexts/CompanyContext';
 
 const BRAND = '#8B2214';
 const initials = (n: string) => (n || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
@@ -20,6 +21,7 @@ const fileKind = (mime: string): 'image' | 'audio' | 'file' =>
   mime.startsWith('image/') ? 'image' : mime.startsWith('audio/') ? 'audio' : 'file';
 
 export default function Messenger({ currentUserId }: { currentUserId: string }) {
+  const { activeCompanyId } = useCompany();
   const [contacts, setContacts] = useState<Record<string, Contact>>({});
   const [convs, setConvs] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -37,8 +39,15 @@ export default function Messenger({ currentUserId }: { currentUserId: string }) 
   const convTitle = useCallback((c: Conversation) => c.type === 'group' ? (c.name || 'Grupo') : nameOf(c.other_user_id), [nameOf]);
 
   const loadConvs = useCallback(async () => {
-    try { setConvs(await listConversations()); } catch { /* ignore */ }
-  }, []);
+    if (!activeCompanyId) return;
+    try { setConvs(await listConversations(activeCompanyId)); } catch { /* ignore */ }
+  }, [activeCompanyId]);
+
+  // Chat é por empresa: ao trocar de empresa, fecha a conversa aberta e recarrega a lista.
+  useEffect(() => {
+    setActiveId(null); setMobileThread(false); setMessages([]); setConvs([]);
+    loadConvs();
+  }, [activeCompanyId, loadConvs]);
 
   useEffect(() => {
     (async () => {
@@ -187,7 +196,7 @@ export default function Messenger({ currentUserId }: { currentUserId: string }) 
         )}
       </div>
 
-      {showNew && <NewChatModal contacts={Object.values(contacts)} onClose={() => setShowNew(false)}
+      {showNew && <NewChatModal contacts={Object.values(contacts)} companyId={activeCompanyId} onClose={() => setShowNew(false)}
         onStarted={(id) => { setShowNew(false); loadConvs(); openConv(id); }} />}
     </div>
   );
@@ -247,7 +256,7 @@ function AudioRecorder({ onRecorded }: { onRecorded: (b: Blob) => void }) {
   return <button onClick={start} className="text-gray-500 hover:text-gray-700" title="Gravar áudio"><Mic className="w-5 h-5" /></button>;
 }
 
-function NewChatModal({ contacts, onClose, onStarted }: { contacts: Contact[]; onClose: () => void; onStarted: (id: string) => void }) {
+function NewChatModal({ contacts, companyId, onClose, onStarted }: { contacts: Contact[]; companyId: string | null; onClose: () => void; onStarted: (id: string) => void }) {
   const [q, setQ] = useState('');
   const [groupMode, setGroupMode] = useState(false);
   const [sel, setSel] = useState<Set<string>>(new Set());
@@ -256,14 +265,15 @@ function NewChatModal({ contacts, onClose, onStarted }: { contacts: Contact[]; o
   const list = contacts.filter(c => c.full_name.toLowerCase().includes(q.toLowerCase()));
 
   async function pickDirect(uid: string) {
+    if (!companyId) return;
     setBusy(true);
-    try { onStarted(await startDirect(uid)); } catch (e) { alert('Erro: ' + (e instanceof Error ? e.message : e)); setBusy(false); }
+    try { onStarted(await startDirect(uid, companyId)); } catch (e) { alert('Erro: ' + (e instanceof Error ? e.message : e)); setBusy(false); }
   }
   function toggle(uid: string) { setSel(p => { const n = new Set(p); n.has(uid) ? n.delete(uid) : n.add(uid); return n; }); }
   async function makeGroup() {
-    if (!gname.trim() || sel.size === 0) return;
+    if (!gname.trim() || sel.size === 0 || !companyId) return;
     setBusy(true);
-    try { onStarted(await createGroup(gname.trim(), [...sel])); } catch (e) { alert('Erro: ' + (e instanceof Error ? e.message : e)); setBusy(false); }
+    try { onStarted(await createGroup(gname.trim(), [...sel], companyId)); } catch (e) { alert('Erro: ' + (e instanceof Error ? e.message : e)); setBusy(false); }
   }
 
   return (

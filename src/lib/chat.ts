@@ -20,8 +20,8 @@ export async function getContacts(): Promise<Contact[]> {
   return (data || []) as Contact[];
 }
 
-export async function listConversations(): Promise<Conversation[]> {
-  const { data, error } = await supabase.rpc('chat_my_conversations');
+export async function listConversations(companyId: string): Promise<Conversation[]> {
+  const { data, error } = await supabase.rpc('chat_my_conversations', { p_company: companyId });
   if (error) throw error;
   return (data || []) as Conversation[];
 }
@@ -49,14 +49,14 @@ export async function sendMessage(conversationId: string, senderId: string, body
   if (error) throw error;
 }
 
-export async function startDirect(otherUserId: string): Promise<string> {
-  const { data, error } = await supabase.rpc('chat_start_direct', { other: otherUserId });
+export async function startDirect(otherUserId: string, companyId: string): Promise<string> {
+  const { data, error } = await supabase.rpc('chat_start_direct', { other: otherUserId, p_company: companyId });
   if (error) throw error;
   return data as string;
 }
 
-export async function createGroup(name: string, memberIds: string[]): Promise<string> {
-  const { data, error } = await supabase.rpc('chat_create_group', { gname: name, members: memberIds });
+export async function createGroup(name: string, memberIds: string[], companyId: string): Promise<string> {
+  const { data, error } = await supabase.rpc('chat_create_group', { gname: name, members: memberIds, p_company: companyId });
   if (error) throw error;
   return data as string;
 }

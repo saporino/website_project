@@ -348,15 +348,15 @@ export function RepCoDashboard() {
         </>
       )}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-16">
-          <div className="flex items-center gap-3">
-            <img src="/saporino-logo-tight.png" alt="Saporino" className="h-9 w-auto object-contain" />
-            <div>
-              <p className="font-bold text-gray-900 text-sm">RepCo</p>
-              <p className="text-xs text-gray-500">{rep!.full_name}</p>
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 flex items-center justify-between gap-2 h-16">
+          <div className="flex items-center gap-2 min-w-0">
+            <img src="/saporino-logo-tight.png" alt="Saporino" className="h-8 sm:h-9 w-auto object-contain flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="font-bold text-gray-900 text-sm leading-tight">RepCo</p>
+              <p className="text-xs text-gray-500 truncate">{rep!.full_name}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
             <CompanySwitcher compact />
             {profile?.is_admin && (
               <button
@@ -365,13 +365,14 @@ export function RepCoDashboard() {
                   window.history.pushState({}, '', '/admin');
                   window.dispatchEvent(new PopStateEvent('popstate'));
                 }}
-                className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
+                title="Voltar ao Admin"
+                className="flex items-center gap-2 bg-gray-800 text-white px-2.5 sm:px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-900 transition-colors"
               >
-                ⚙️ Voltar ao Admin
+                <span>⚙️</span><span className="hidden sm:inline">Voltar ao Admin</span>
               </button>
             )}
             <button onClick={async () => { await signOut(); window.history.pushState({}, '', '/repco'); window.dispatchEvent(new PopStateEvent('popstate')); }}
-              className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors" title="Sair">
+              className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0" title="Sair">
               <LogOut className="w-4 h-4" />
             </button>
           </div>
