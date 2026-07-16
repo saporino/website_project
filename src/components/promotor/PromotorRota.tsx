@@ -5,6 +5,7 @@ import {
   auditLog, broadcastVisitState, updateVisitSafe, getPending, retryPending,
 } from '../../lib/promoterVisit';
 import { MapPin, Navigation2, Camera, CheckCircle, XCircle, Play, RefreshCw, Plus, ChevronRight, Clock } from 'lucide-react';
+import PromotorAuditoria from './PromotorAuditoria';
 
 // Bloco 3 — Minha rota / Visitas de hoje do promotor + fluxo da visita em etapas.
 // Loja = representative_clients (via vw_promoter_stores). Nada comercial aparece aqui.
@@ -320,12 +321,8 @@ function VisitFlow({ visit, store, storeName, promoterId, promoterName, onExit }
       )}
 
       {step === 3 && (
-        <div className="bg-white border border-gray-200 rounded-xl p-6 text-center space-y-3">
-          <p className="text-3xl">📋</p>
-          <p className="font-semibold text-gray-800">Auditoria por SKU</p>
-          <p className="text-sm text-gray-400">A conferência produto a produto chega no próximo bloco. Siga para a foto final.</p>
-          <button onClick={() => { setStep(4); saveDraft(4); }} className="w-full bg-[#8B2214] text-white font-bold py-3 rounded-xl">Continuar</button>
-        </div>
+        <PromotorAuditoria visitId={visit.id} clientId={visit.representative_client_id} promoterId={promoterId}
+          companyId={visit.company_id} onDone={() => { setStep(4); saveDraft(4); }} />
       )}
 
       {step === 4 && (

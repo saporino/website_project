@@ -276,8 +276,91 @@ export default function PromotersAdmin() {
               ))}
             </div>
           )}
+          {/* Mix por loja (Bloco 4) */}
+          <MixAdmin />
           <p className="text-[11px] text-gray-400">Empresa ativa no seletor: {companies.find(c => c.id === activeCompanyId)?.fantasia || '—'} · o promotor com "Todas as empresas" audita o catálogo de todas.</p>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ---- Mix de produtos auditados por loja (promoter_client_mix) ----
+function MixAdmin() {
+  const { activeCompanyId } = useCompany();
+  const [gondolaStores, setGondolaStores] = useState<{ id: string; nome: string; company_id: string | null }[]>([]);
+  const [products, setProducts] = useState<{ id: string; name: string }[]>([]);
+  const [storeId, setStoreId] = useState('');
+  const [mix, setMix] = useState<Record<string, { checked: boolean; min: number | '' }>>({});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const [{ data: sts }, { data: ps }] = await Promise.all([
+        supabase.from('representative_clients').select('id,razao_social,nome_fantasia,company_id').eq('tem_gondola', true).eq('status', 'active').order('razao_social'),
+        supabase.from('products').select('id,name').eq('company_id', activeCompanyId).order('name'),
+      ]);
+      setGondolaStores(((sts as any[]) || []).map(s => ({ id: s.id, nome: s.nome_fantasia || s.razao_social, company_id: s.company_id })));
+      setProducts(((ps as any[]) || []));
+    })();
+  }, [activeCompanyId]);
+
+  useEffect(() => {
+    if (!storeId) { setMix({}); return; }
+    supabase.from('promoter_client_mix').select('product_id,min_frentes,is_active').eq('representative_client_id', storeId)
+      .then(({ data }) => {
+        const m: Record<string, { checked: boolean; min: number | '' }> = {};
+        ((data as any[]) || []).forEach(r => { m[r.product_id] = { checked: r.is_active, min: r.min_frentes ?? '' }; });
+        setMix(m);
+      });
+  }, [storeId]);
+
+  async function saveMix(targetStoreIds: string[]) {
+    setSaving(true);
+    for (const sid of targetStoreIds) {
+      const companyId = gondolaStores.find(s => s.id === sid)?.company_id ?? null;
+      for (const p of products) {
+        const cfg = mix[p.id];
+        const { error } = await supabase.from('promoter_client_mix').upsert({
+          representative_client_id: sid, product_id: p.id, company_id: companyId,
+          is_active: !!cfg?.checked, min_frentes: cfg?.min === '' || cfg?.min == null ? null : Number(cfg.min),
+        }, { onConflict: 'representative_client_id,product_id' });
+        if (error) { toast.error('Erro no mix: ' + error.message); setSaving(false); return; }
+      }
+    }
+    setSaving(false);
+    toast.success(targetStoreIds.length > 1 ? `Mix aplicado a ${targetStoreIds.length} lojas.` : 'Mix salvo.');
+  }
+
+  return (
+    <div className="bg-[#f8f7f5] border border-[#ddd0cc] rounded-xl p-3 space-y-2">
+      <p className="text-xs font-semibold text-gray-600">Mix auditado por loja <span className="text-gray-400 font-normal">(quais produtos o promotor confere em cada loja)</span></p>
+      <select value={storeId} onChange={e => setStoreId(e.target.value)} className="w-full h-9 px-2 text-sm border border-gray-300 rounded-lg bg-white">
+        <option value="">Escolher loja (com gôndola)…</option>
+        {gondolaStores.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+      </select>
+      {storeId && (
+        <>
+          <div className="space-y-1 max-h-56 overflow-y-auto">
+            {products.map(p => (
+              <div key={p.id} className="flex items-center gap-2 text-sm text-gray-700 bg-white rounded-lg px-2 py-1.5">
+                <input type="checkbox" checked={!!mix[p.id]?.checked}
+                  onChange={e => setMix(m => ({ ...m, [p.id]: { checked: e.target.checked, min: m[p.id]?.min ?? '' } }))} className="w-4 h-4 accent-[#8B2214]" />
+                <span className="flex-1 truncate">{p.name}</span>
+                <span className="text-[11px] text-gray-400">mín. frentes</span>
+                <input type="number" min={0} value={mix[p.id]?.min ?? ''} disabled={!mix[p.id]?.checked}
+                  onChange={e => setMix(m => ({ ...m, [p.id]: { checked: true, min: e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0) } }))}
+                  className="w-16 h-7 px-2 border border-gray-300 rounded text-xs disabled:bg-gray-100" />
+              </div>
+            ))}
+            {products.length === 0 && <p className="text-xs text-gray-400">Nenhum produto na empresa ativa.</p>}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => saveMix([storeId])} disabled={saving} className="flex-1 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-bold py-2 rounded-lg disabled:opacity-50">{saving ? 'Salvando…' : 'Salvar mix desta loja'}</button>
+            <button onClick={() => { if (confirm(`Aplicar este mix a TODAS as ${gondolaStores.length} lojas com gôndola?`)) saveMix(gondolaStores.map(s => s.id)); }} disabled={saving}
+              className="flex-1 border-2 border-[#8B2214] text-[#8B2214] text-sm font-bold py-2 rounded-lg disabled:opacity-50">Aplicar a todas</button>
+          </div>
+        </>
       )}
     </div>
   );
