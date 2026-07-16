@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import Messenger from '../components/chat/Messenger';
 import RepCoHelp from '../components/repco/RepCoHelp';
 import PromotorRota, { PromotorHistorico } from '../components/promotor/PromotorRota';
+import PromotorOcorrencias from '../components/promotor/PromotorOcorrencias';
 import { usePromoterPresence } from '../hooks/usePromoterPresence';
 import { Route as RouteIcon, ClipboardCheck, AlertTriangle, History, MessageCircle, HelpCircle, LogOut, MoreHorizontal, Clock, Lock } from 'lucide-react';
 
@@ -154,13 +155,7 @@ export function PromotorDashboard() {
         {activeTab === 'ajuda' && <RepCoHelp onContactSupport={() => setActiveTab('mensagens')} />}
         {(activeTab === 'rota' || activeTab === 'visitas') && <PromotorRota promoterId={promoter.id} promoterName={promoter.full_name} />}
         {activeTab === 'historico' && <PromotorHistorico promoterId={promoter.id} />}
-        {activeTab === 'pendencias' && (
-          <div className="bg-white border border-gray-200 rounded-xl p-10 text-center text-gray-400">
-            <p className="text-4xl mb-3">🛠️</p>
-            <p className="font-medium text-gray-600">Pendências / Ocorrências</p>
-            <p className="text-sm mt-1">Disponível em breve — as ocorrências chegam no bloco do alerta de ruptura.</p>
-          </div>
-        )}
+        {activeTab === 'pendencias' && <PromotorOcorrencias promoterId={promoter.id} onOpenChat={() => setActiveTab('mensagens')} />}
       </div>
 
       {/* Barra inferior mobile: 3 primárias + Mais */}

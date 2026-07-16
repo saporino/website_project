@@ -22,7 +22,7 @@ interface Client {
 interface Product { id: string; name: string; image_url: string | null; stock: number; in_stock: boolean; }
 interface PriceEntry { product_id: string; segment: string; price: number; volume_discount: number; volume_min_qty: number; }
 interface OrderItem { product: Product; price: PriceEntry; quantity: number; unit: 'pacote' | 'fardo'; }
-interface Props { representativeId: string; onOrderCreated?: () => void; preSelectedClientId?: string | null; }
+interface Props { representativeId: string; onOrderCreated?: (orderId?: string) => void; preSelectedClientId?: string | null; }
 
 const FISCAL_ORDER_LABEL: Record<FiscalOrderType, string> = {
   resale: 'Revenda',
@@ -278,7 +278,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
     window.dispatchEvent(new CustomEvent('repco:clients-updated', { detail: { representativeId } }));
     setSuccess(true);
     setSubmitting(false);
-    onOrderCreated?.();
+    onOrderCreated?.(createdOrder.id);
   }
 
   if (success) return (

@@ -20,7 +20,7 @@ const dayLabel = (iso: string) => {
 const fileKind = (mime: string): 'image' | 'audio' | 'file' =>
   mime.startsWith('image/') ? 'image' : mime.startsWith('audio/') ? 'audio' : 'file';
 
-export default function Messenger({ currentUserId }: { currentUserId: string }) {
+export default function Messenger({ currentUserId, initialConversationId }: { currentUserId: string; initialConversationId?: string | null }) {
   const { activeCompanyId } = useCompany();
   const [contacts, setContacts] = useState<Record<string, Contact>>({});
   const [convs, setConvs] = useState<Conversation[]>([]);
@@ -48,6 +48,11 @@ export default function Messenger({ currentUserId }: { currentUserId: string }) 
     setActiveId(null); setMobileThread(false); setMessages([]); setConvs([]);
     loadConvs();
   }, [activeCompanyId, loadConvs]);
+
+  // Abrir direto numa conversa específica (ex.: alerta de ruptura → "Abrir conversa")
+  useEffect(() => {
+    if (initialConversationId) { setActiveId(initialConversationId); setMobileThread(true); loadConvs(); }
+  }, [initialConversationId, loadConvs]);
 
   useEffect(() => {
     (async () => {

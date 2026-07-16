@@ -488,6 +488,7 @@ export default function RepCoClients({ representativeId, previewMode = false, re
           {loadHist?<div className="flex justify-center py-4"><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-amber-600"/></div>
           :hist.length===0?<div className="text-center py-6 text-gray-400 text-sm">Nenhum pedido ainda</div>
           :hist.map(o=>(
+
             <div key={o.order_id} className="bg-white border border-gray-100 rounded-xl p-3">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-sm font-medium text-gray-800">{o.order_number}</span>
@@ -509,6 +510,7 @@ export default function RepCoClients({ representativeId, previewMode = false, re
             </div>
           ))}
         </div>
+        <ClientTimeline clientId={sel.id} orders={hist} />
       </div>
     );
   }
@@ -574,6 +576,55 @@ export default function RepCoClients({ representativeId, previewMode = false, re
           );
         })}
       </div>}
+    </div>
+  );
+}
+
+// Bloco 5 — Linha do tempo da loja: pedidos + visitas do promotor + rupturas/ocorrências,
+// em ordem cronológica. Daqui a 6 meses: "em março teve ruptura do SKU X, virou pedido".
+function ClientTimeline({ clientId, orders }: { clientId: string; orders: SalesHistory[] }) {
+  const [events, setEvents] = useState<{ ts: string; icon: string; text: string; cls: string }[]>([]);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    (async () => {
+      const [{ data: visits }, { data: incs }] = await Promise.all([
+        supabase.from('promoter_visits').select('arrival_at,departure_at,status,duration_minutes,created_at').eq('representative_client_id', clientId).order('created_at', { ascending: false }).limit(30),
+        supabase.from('promoter_incidents').select('opened_at,category,status,converted_to_order_id,products(name)').eq('representative_client_id', clientId).order('opened_at', { ascending: false }).limit(30),
+      ]);
+      const evs: { ts: string; icon: string; text: string; cls: string }[] = [];
+      orders.forEach(o => evs.push({ ts: o.order_date, icon: '🛒', text: `Pedido ${o.order_number} — R$ ${(o.total_amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, cls: 'text-gray-700' }));
+      ((visits as any[]) || []).forEach(v => evs.push({
+        ts: v.arrival_at || v.created_at, icon: '🧹',
+        text: v.status === 'nao_realizada' ? 'Visita do promotor NÃO realizada' : `Visita do promotor${v.duration_minutes != null ? ` (${v.duration_minutes} min)` : ''}${v.status === 'em_atendimento' ? ' — em andamento' : ''}`,
+        cls: v.status === 'nao_realizada' ? 'text-red-600' : 'text-gray-700',
+      }));
+      ((incs as any[]) || []).forEach(i => evs.push({
+        ts: i.opened_at, icon: i.category === 'ruptura_total' ? '🚨' : '⚠️',
+        text: `${i.category === 'ruptura_total' ? 'RUPTURA TOTAL' : 'Ocorrência'}${i.products?.name ? ` — ${i.products.name}` : ''}${i.converted_to_order_id ? ' · virou pedido ✓' : i.status === 'resolvida' ? ' · resolvida' : ''}`,
+        cls: i.category === 'ruptura_total' && i.status !== 'resolvida' ? 'text-red-600 font-medium' : 'text-gray-700',
+      }));
+      evs.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime());
+      setEvents(evs.slice(0, 40));
+    })();
+  }, [open, clientId, orders]);
+  return (
+    <div className="space-y-2">
+      <button onClick={() => setOpen(o => !o)} className="text-xs font-semibold text-gray-500 uppercase tracking-wide hover:text-gray-700">
+        Linha do tempo da loja {open ? '▲' : '▼'}
+      </button>
+      {open && (events.length === 0
+        ? <p className="text-xs text-gray-400">Nada registrado ainda.</p>
+        : <div className="space-y-1.5">
+            {events.map((e, i) => (
+              <div key={i} className="flex items-start gap-2 text-xs bg-white border border-gray-100 rounded-lg px-3 py-2">
+                <span>{e.icon}</span>
+                <span className={`flex-1 ${e.cls}`}>{e.text}</span>
+                <span className="text-gray-400 flex-shrink-0">{new Date(e.ts).toLocaleDateString('pt-BR')}</span>
+              </div>
+            ))}
+          </div>
+      )}
     </div>
   );
 }

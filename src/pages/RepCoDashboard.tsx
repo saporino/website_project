@@ -15,11 +15,13 @@ import RepCoFieldMap from '../components/repco/RepCoFieldMap';
 import RepCoMarketPrices from '../components/repco/RepCoMarketPrices';
 import Messenger from '../components/chat/Messenger';
 import RepCoHelp from '../components/repco/RepCoHelp';
+import RepCoRupturas from '../components/repco/RepCoRupturas';
 import CompanySwitcher from '../components/CompanySwitcher';
 import RepCoCalculatorFab from '../components/repco/RepCoCalculatorFab';
 import { usePresence } from '../hooks/usePresence';
 import { useGeolocation } from '../hooks/useGeolocation';
-import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Home, ClipboardList, Radio, Truck, MoreHorizontal, Map, Store, MessageCircle, HelpCircle } from 'lucide-react';
+import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Home, ClipboardList, Radio, Truck, MoreHorizontal, Map, Store, MessageCircle, HelpCircle, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
 import { useTrainingListener, espelhoTabToRepTab } from '../lib/training';
 
 
@@ -36,7 +38,7 @@ interface Representative {
   has_personal_delivery: boolean;
 }
 
-type RepCoTab = 'inicio' | 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido' | 'entregas' | 'prospection' | 'mapa' | 'mercado' | 'mensagens' | 'ajuda';
+type RepCoTab = 'inicio' | 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido' | 'entregas' | 'prospection' | 'mapa' | 'mercado' | 'mensagens' | 'ajuda' | 'rupturas';
 
 export function RepCoDashboard() {
   const { user, profile, signOut, loading: authLoading } = useAuth();
@@ -57,7 +59,12 @@ export function RepCoDashboard() {
     mapa: 0,
     mercado: 0,
     ajuda: 0,
+    rupturas: 0,
   });
+  // Bloco 5 — rupturas: badge + abrir conversa + gerar pedido a partir do alerta
+  const [rupturasAbertas, setRupturasAbertas] = useState(0);
+  const [pendingIncidentId, setPendingIncidentId] = useState<string | null>(null);
+  const [msgConvId, setMsgConvId] = useState<string | null>(null);
   const [preSelectedClientId, setPreSelectedClientId] = useState<string | null>(null);
   const [preFilledClientData, setPreFilledClientData] = useState<any>(null);
   const [highlightDeliveryId, setHighlightDeliveryId] = useState<string | null>(null);
@@ -86,6 +93,26 @@ export function RepCoDashboard() {
   // Modo Treinamento ao vivo: segue a tela do instrutor.
   // Ligado: espelha a aba do instrutor. Desligado: volta para Início.
   const training = useTrainingListener(rep?.id);
+
+  // Badge + toast de ruptura em tempo real (só quando o rep está ativo)
+  useEffect(() => {
+    if (!rep?.id || rep.status !== 'active') return;
+    const refreshBadge = async () => {
+      const { count } = await supabase.from('promoter_incidents')
+        .select('id', { count: 'exact', head: true })
+        .eq('assigned_representative_id', rep.id)
+        .not('status', 'in', '("resolvida","cancelada")');
+      setRupturasAbertas(count || 0);
+    };
+    refreshBadge();
+    const ch = supabase.channel('rupturas-badge')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'promoter_incidents' }, (payload) => {
+        if (payload.eventType === 'INSERT') toast.error('🚨 Promotor reportou ruptura! Veja a aba Rupturas.', { duration: 8000 });
+        refreshBadge();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [rep?.id, rep?.status]);
   useEffect(() => {
     if (training?.active && training.tab) {
       setActiveTab(espelhoTabToRepTab(training.tab) as RepCoTab);
@@ -328,6 +355,7 @@ export function RepCoDashboard() {
     { id: 'commissions', label: 'Comissões', icon: DollarSign },
     { id: 'performance', label: 'Performance', icon: TrendingUp },
     { id: 'mercado', label: 'Mercado', icon: Store },
+    { id: 'rupturas', label: 'Rupturas', icon: AlertTriangle },
     { id: 'mensagens', label: 'Mensagens', icon: MessageCircle },
     { id: 'ajuda', label: 'Ajuda', icon: HelpCircle },
   ];
@@ -393,10 +421,13 @@ export function RepCoDashboard() {
           <nav className="hidden md:flex border-b border-gray-200 p-1.5 gap-0.5">
             {tabs.map(tab => (
               <button key={tab.id} onClick={() => openTab(tab.id)}
-                className={`flex-1 px-2 py-2 rounded-lg font-medium text-xs text-center whitespace-nowrap transition-all ${
+                className={`relative flex-1 px-2 py-2 rounded-lg font-medium text-xs text-center whitespace-nowrap transition-all ${
                   activeTab === tab.id ? 'bg-[#a4240e] text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'
                 }`}>
                 {tab.label}
+                {tab.id === 'rupturas' && rupturasAbertas > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-red-600 text-white text-[9px] font-bold flex items-center justify-center">{rupturasAbertas}</span>
+                )}
               </button>
             ))}
           </nav>
@@ -414,7 +445,15 @@ export function RepCoDashboard() {
               <RepCoNewOrder
                 representativeId={rep!.id}
                 preSelectedClientId={preSelectedClientId}
-                onOrderCreated={() => {
+                onOrderCreated={async (orderId) => {
+                  // veio de um alerta de ruptura? fecha a ocorrência e grava o desfecho
+                  if (pendingIncidentId && orderId) {
+                    await supabase.from('promoter_incidents')
+                      .update({ converted_to_order_id: orderId, status: 'resolvida', closed_at: new Date().toISOString() })
+                      .eq('id', pendingIncidentId);
+                    toast.success('Ruptura resolvida — pedido gerado e vinculado à ocorrência!');
+                    setPendingIncidentId(null);
+                  }
                   setPreSelectedClientId(null);
                   refreshTabs('inicio', 'clients', 'orders');
                   openTab('orders');
@@ -443,8 +482,14 @@ export function RepCoDashboard() {
             {activeTab === 'commissions' && <RepCoCommissions repId={rep!.id} />}
             {activeTab === 'performance' && <RepCoPerformance repId={rep!.id} />}
             {activeTab === 'mercado' && <RepCoMarketPrices />}
-            {activeTab === 'mensagens' && <Messenger currentUserId={user!.id} />}
+            {activeTab === 'mensagens' && <Messenger currentUserId={user!.id} initialConversationId={msgConvId} />}
             {activeTab === 'ajuda' && <RepCoHelp onContactSupport={() => setActiveTab('mensagens')} />}
+            {activeTab === 'rupturas' && (
+              <RepCoRupturas repId={rep!.id}
+                onOpenChat={(convId) => { setMsgConvId(convId); setActiveTab('mensagens'); }}
+                onGenerateOrder={(inc) => { setPendingIncidentId(inc.id); setPreSelectedClientId(inc.clientId); openTab('novo_pedido'); }}
+              />
+            )}
           </div>
         </div>
       </div>
