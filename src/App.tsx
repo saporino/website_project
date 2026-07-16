@@ -38,6 +38,7 @@ const PaymentPending = lazy(() => import('./pages/PaymentPages').then(m => ({ de
 const TrackingPage = lazy(() => import('./pages/TrackingPage').then(m => ({ default: m.TrackingPage })));
 const OrderDetailPage = lazy(() => import('./pages/OrderDetailPage').then(m => ({ default: m.OrderDetailPage })));
 const RepCoDashboard = lazy(() => import('./pages/RepCoDashboard').then(m => ({ default: m.RepCoDashboard })));
+const PromotorDashboard = lazy(() => import('./pages/PromotorDashboard').then(m => ({ default: m.PromotorDashboard })));
 const RepCoIntelligence = lazy(() => import('./pages/RepCoIntelligence'));
 const RepCoCoverageMap = lazy(() => import('./pages/RepCoCoverageMap'));
 import ProductDetail from './components/ProductDetail';
@@ -123,6 +124,8 @@ function AppRouter() {
   useEffect(() => {
     document.title = currentPath.startsWith('/repco')
       ? 'RepCo'
+      : currentPath.startsWith('/promotor')
+      ? 'Promotor — Saporino'
       : currentPath === '/admin'
         ? 'Admin — Café Saporino'
         : 'Café Saporino — O Verdadeiro Sabor de Minas';
@@ -150,6 +153,10 @@ function AppRouter() {
 
   if (currentPath === '/repco') {
     return <RepCoDashboard />;
+  }
+
+  if (currentPath === '/promotor') {
+    return <PromotorDashboard />;
   }
 
   if (currentPath === '/reset-password' || window.location.hash.includes('type=recovery') || window.location.hash.includes('access_token')) {

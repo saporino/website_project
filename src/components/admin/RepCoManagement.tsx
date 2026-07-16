@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import PriceListManager from './PriceListManager';
 import RepCoInviteCodes, { RepInviteBadge } from './RepCoInviteCodes';
 import UserRolesManager from './UserRolesManager';
+import PromotersAdmin from './PromotersAdmin';
 import CoffeeMarketIndex from './CoffeeMarketIndex';
 import RepCoOrdersManager from './RepCoOrdersManager';
 import RepCoCommissionsManager from './RepCoCommissionsManager';
@@ -967,6 +968,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     <div className="space-y-6">
       <RepCoInviteCodes />
       <UserRolesManager />
+      <PromotersAdmin />
       {/* Row 1: Title + Action buttons */}
       <div className="space-y-3">
         <div>
