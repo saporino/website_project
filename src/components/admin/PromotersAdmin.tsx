@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
 import { toast } from 'sonner';
-import { UserCheck, ChevronDown, ChevronUp, CheckCircle, XCircle, Plus, Copy, Store, Loader2 } from 'lucide-react';
+import { UserCheck, ChevronDown, ChevronUp, CheckCircle, XCircle, Plus, Copy, Store, Loader2, Route as RouteIcon, ArrowUp, ArrowDown } from 'lucide-react';
 
 // Admin → RepCo → "Promotores" (Bloco 2): aprovar/bloquear promotor, gerar código
 // de convite de promotor e vincular lojas (só clientes com tem_gondola = true).
@@ -22,6 +22,13 @@ export default function PromotersAdmin() {
   const [linking, setLinking] = useState<Promoter | null>(null);
   const [stores, setStores] = useState<StoreRow[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  // montagem de rota (Bloco 3)
+  const [routeFor, setRouteFor] = useState<Promoter | null>(null);
+  const [routeDate, setRouteDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [routeStores, setRouteStores] = useState<StoreRow[]>([]);
+  const [routeSel, setRouteSel] = useState<string[]>([]);
+  const [routeInfo, setRouteInfo] = useState<string>('');
+  const [publishing, setPublishing] = useState(false);
 
   async function load() {
     const [{ data: ps }, { data: inv }] = await Promise.all([
@@ -88,6 +95,59 @@ export default function PromotersAdmin() {
     }
     setBusy(null);
     openLinking(linking);
+  }
+
+  // ---- Rota do dia (Bloco 3): escolher lojas vinculadas, ordenar e publicar ----
+  async function openRoute(p: Promoter, date = routeDate) {
+    setRouteFor(p); setRouteSel([]); setRouteInfo('');
+    const [{ data: links }, { data: route }] = await Promise.all([
+      supabase.from('promoter_clients').select('representative_client_id, representative_clients(id,razao_social,nome_fantasia,municipio,company_id)').eq('promoter_id', p.id).eq('is_active', true),
+      supabase.from('promoter_routes').select('id,status').eq('promoter_id', p.id).eq('route_date', date).maybeSingle(),
+    ]);
+    const sts: StoreRow[] = ((links as any[]) || []).map(l => ({ ...(l.representative_clients || {}), linked: true, linkId: null }));
+    setRouteStores(sts);
+    if (route) {
+      const { data: vs } = await supabase.from('promoter_visits').select('representative_client_id,stop_order').eq('route_id', route.id).order('stop_order');
+      setRouteSel(((vs as any[]) || []).map(v => v.representative_client_id));
+      setRouteInfo(`Já existe rota ${route.status === 'published' ? 'publicada' : 'rascunho'} nesta data — publicar substitui as paradas não iniciadas.`);
+    }
+  }
+  function toggleRouteStore(id: string) { setRouteSel(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]); }
+  function moveRouteStore(id: string, dir: -1 | 1) {
+    setRouteSel(p => { const i = p.indexOf(id); const j = i + dir; if (i < 0 || j < 0 || j >= p.length) return p; const n = [...p]; [n[i], n[j]] = [n[j], n[i]]; return n; });
+  }
+  async function publishRoute() {
+    if (!routeFor || routeSel.length === 0) return;
+    setPublishing(true);
+    // upsert da rota do dia
+    const { data: existing } = await supabase.from('promoter_routes').select('id').eq('promoter_id', routeFor.id).eq('route_date', routeDate).maybeSingle();
+    let routeId = existing?.id as string | undefined;
+    if (!routeId) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { data: nr, error } = await supabase.from('promoter_routes').insert({
+        promoter_id: routeFor.id, route_date: routeDate, status: 'published', published_at: new Date().toISOString(),
+        company_id: routeFor.company_id, created_by: user?.id ?? null,
+      }).select('id').single();
+      if (error || !nr) { toast.error('Erro ao criar rota: ' + (error?.message || '')); setPublishing(false); return; }
+      routeId = nr.id;
+    } else {
+      await supabase.from('promoter_routes').update({ status: 'published', published_at: new Date().toISOString() }).eq('id', routeId);
+      // remove paradas ainda não iniciadas (admin pode; visita concluída nunca sai)
+      await supabase.from('promoter_visits').delete().eq('route_id', routeId).eq('status', 'nao_iniciada');
+    }
+    const { data: kept } = await supabase.from('promoter_visits').select('representative_client_id').eq('route_id', routeId);
+    const keptSet = new Set((kept || []).map((k: any) => k.representative_client_id));
+    const rows = routeSel.filter(id => !keptSet.has(id)).map((id) => ({
+      route_id: routeId, promoter_id: routeFor.id, representative_client_id: id,
+      company_id: routeStores.find(s => s.id === id)?.company_id ?? null,
+      stop_order: routeSel.indexOf(id) + 1, status: 'nao_iniciada', is_scheduled: true,
+    }));
+    if (rows.length) {
+      const { error } = await supabase.from('promoter_visits').insert(rows);
+      if (error) { toast.error('Erro nas paradas: ' + error.message); setPublishing(false); return; }
+    }
+    toast.success(`Rota de ${routeDate.split('-').reverse().join('/')} publicada (${routeSel.length} loja(s)).`);
+    setPublishing(false); setRouteFor(null);
   }
 
   const badge = (s: string) => s === 'active' ? 'bg-green-100 text-green-700' : s === 'blocked' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700';
@@ -161,7 +221,41 @@ export default function PromotersAdmin() {
                     <button onClick={() => linking?.id === p.id ? setLinking(null) : openLinking(p)} className="inline-flex items-center gap-1 text-xs font-semibold text-[#8B2214] border border-[#ddd0cc] bg-[#f8f7f5] rounded-lg px-2.5 py-1.5 hover:bg-[#f0e9e7]">
                       <Store className="w-3.5 h-3.5" /> Lojas
                     </button>
+                    <button onClick={() => routeFor?.id === p.id ? setRouteFor(null) : openRoute(p)} className="inline-flex items-center gap-1 text-xs font-semibold text-[#8B2214] border border-[#ddd0cc] bg-[#f8f7f5] rounded-lg px-2.5 py-1.5 hover:bg-[#f0e9e7]">
+                      <RouteIcon className="w-3.5 h-3.5" /> Rota
+                    </button>
                   </div>
+                  {routeFor?.id === p.id && (
+                    <div className="mt-2 border border-gray-200 rounded-xl p-3 bg-gray-50 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs font-semibold text-gray-600">Rota de {p.full_name}</p>
+                        <input type="date" value={routeDate} onChange={e => { setRouteDate(e.target.value); openRoute(p, e.target.value); }} className="h-8 px-2 text-xs border border-gray-300 rounded-lg ml-auto" />
+                      </div>
+                      {routeInfo && <p className="text-[11px] text-amber-700 bg-amber-50 rounded px-2 py-1">{routeInfo}</p>}
+                      {routeStores.length === 0 ? <p className="text-xs text-gray-400">Vincule lojas ao promotor primeiro (botão Lojas).</p> : (<>
+                        <div className="space-y-1 max-h-56 overflow-y-auto">
+                          {routeStores.map(s => {
+                            const idx = routeSel.indexOf(s.id);
+                            return (
+                              <div key={s.id} className="flex items-center gap-2 text-sm text-gray-700 py-0.5">
+                                <input type="checkbox" checked={idx >= 0} onChange={() => toggleRouteStore(s.id)} className="w-4 h-4 accent-[#8B2214]" />
+                                {idx >= 0 && <span className="w-5 h-5 rounded-full bg-[#8B2214] text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">{idx + 1}</span>}
+                                <span className="truncate flex-1">{s.nome_fantasia || s.razao_social}</span>
+                                {idx >= 0 && (<span className="flex gap-0.5 flex-shrink-0">
+                                  <button onClick={() => moveRouteStore(s.id, -1)} className="p-1 rounded hover:bg-gray-200"><ArrowUp className="w-3.5 h-3.5 text-gray-500" /></button>
+                                  <button onClick={() => moveRouteStore(s.id, 1)} className="p-1 rounded hover:bg-gray-200"><ArrowDown className="w-3.5 h-3.5 text-gray-500" /></button>
+                                </span>)}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <button onClick={publishRoute} disabled={publishing || routeSel.length === 0}
+                          className="w-full bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-bold py-2 rounded-lg disabled:opacity-40">
+                          {publishing ? 'Publicando…' : `Publicar rota (${routeSel.length} loja(s))`}
+                        </button>
+                      </>)}
+                    </div>
+                  )}
                   {linking?.id === p.id && (
                     <div className="mt-2 border border-gray-200 rounded-xl p-3 bg-gray-50">
                       <p className="text-xs font-semibold text-gray-600 mb-2">Lojas que {p.full_name} atende <span className="text-gray-400 font-normal">(só clientes com gôndola)</span></p>

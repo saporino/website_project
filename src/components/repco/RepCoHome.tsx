@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
 import { useGeolocation } from '../../hooks/useGeolocation';
+import { subscribeVisitLive, type VisitLivePayload } from '../../lib/promoterVisit';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 import { googleCalendarLink, outlookCalendarLink, downloadICS } from '../../utils/calendarLinks';
 
@@ -26,6 +27,21 @@ export default function RepCoHome({ representativeId, onNavigateToRoute, onNavig
   const [geoEnabled, setGeoEnabled] = useState(false);
   const [calendarModal, setCalendarModal] = useState<UpcomingStop | null>(null);
   const [snoozingClient, setSnoozingClient] = useState<string | null>(null);
+  // "Promotor na loja agora" — Realtime do módulo Promotor (Bloco 3)
+  const [liveVisits, setLiveVisits] = useState<VisitLivePayload[]>([]);
+
+  useEffect(() => {
+    let myClientIds = new Set<string>();
+    supabase.from('representative_clients').select('id').eq('representative_id', representativeId)
+      .then(({ data }) => { myClientIds = new Set((data || []).map((c: { id: string }) => c.id)); });
+    const unsub = subscribeVisitLive(p => {
+      if (!myClientIds.has(p.clientId)) return;
+      setLiveVisits(prev => p.type === 'checkin'
+        ? (prev.some(x => x.visitId === p.visitId) ? prev : [...prev, p])
+        : prev.filter(x => x.visitId !== p.visitId));
+    });
+    return unsub;
+  }, [representativeId]);
 
   const { activeCompanyId } = useCompany();
   const { permission, requestPermission, sendNotification } = usePushNotifications();
@@ -143,6 +159,14 @@ export default function RepCoHome({ representativeId, onNavigateToRoute, onNavig
 
   return (
     <div className="space-y-4 pb-6">
+
+      {/* Promotor na loja agora (Realtime) */}
+      {liveVisits.map(lv => (
+        <div key={lv.visitId} className="bg-amber-50 border border-amber-300 rounded-xl p-3 flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse flex-shrink-0" />
+          <p className="text-sm text-amber-800"><strong>{lv.promoterName}</strong> está na loja <strong>{lv.clientName}</strong> agora <span className="text-amber-600">(entrou às {new Date(lv.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })})</span></p>
+        </div>
+      ))}
 
       {/* Alertas de proximidade */}
       {proximityAlerts.map(alert => (
