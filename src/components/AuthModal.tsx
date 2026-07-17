@@ -8,7 +8,7 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMode?: 'login' | 'register';
-  loginContext?: 'client' | 'admin' | 'rep';
+  loginContext?: 'client' | 'admin' | 'rep' | 'promotor';
 }
 
 export const AuthModal = ({ isOpen, onClose, initialMode = 'login', loginContext = 'client' }: AuthModalProps) => {
@@ -141,6 +141,25 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login', loginContext
     window.dispatchEvent(new PopStateEvent('popstate'));
   };
 
+  const handlePromotorLogin = async () => {
+    if (!loginData.email || !loginData.password) {
+      setError('Por favor, preencha email e senha');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    const { error } = await signIn(loginData.email, loginData.password);
+    if (error) {
+      setError('Email ou senha incorretos');
+      setLoading(false);
+      return;
+    }
+    // Promotor entra direto na área do promotor (NÃO no /repco)
+    setLoginData({ email: '', password: '' });
+    window.history.pushState({}, '', '/promotor');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  };
+
   const handleRegisterSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -202,7 +221,12 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login', loginContext
       <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl flex flex-col">
         <div className="flex items-center justify-between p-8 border-b border-gray-100">
           <h2 className="text-3xl font-bold text-gray-900">
-            {mode === 'login' ? 'Acessar' : mode === 'register' ? 'Registrar-se' : 'Recuperar Senha'}
+            {mode === 'login'
+              ? (loginContext === 'promotor' ? 'Acessar Área do Promotor'
+                 : loginContext === 'rep' ? 'Acessar Área do Representante'
+                 : loginContext === 'admin' ? 'Acessar Admin'
+                 : 'Acessar')
+              : mode === 'register' ? 'Registrar-se' : 'Recuperar Senha'}
           </h2>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors">
             <X className="w-6 h-6" />
@@ -223,7 +247,7 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login', loginContext
           )}
 
           {mode === 'login' ? (
-            <form onSubmit={loginContext === 'admin' ? (e) => { e.preventDefault(); handleAdminLogin(); } : loginContext === 'rep' ? (e) => { e.preventDefault(); handleRepLogin(); } : handleLoginSubmit} className="space-y-6">
+            <form onSubmit={loginContext === 'admin' ? (e) => { e.preventDefault(); handleAdminLogin(); } : loginContext === 'promotor' ? (e) => { e.preventDefault(); handlePromotorLogin(); } : loginContext === 'rep' ? (e) => { e.preventDefault(); handleRepLogin(); } : handleLoginSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   E-mail *
@@ -270,9 +294,9 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login', loginContext
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full text-white py-4 rounded-full font-semibold transition-all shadow-lg disabled:bg-gray-300 ${loginContext === 'admin' ? 'bg-gray-800 hover:bg-gray-900' : loginContext === 'rep' ? 'bg-[#8B2214] hover:bg-[#6d1a10]' : 'bg-[#a4240e] hover:bg-[#8a1f0c]'}`}
+                className={`w-full text-white py-4 rounded-full font-semibold transition-all shadow-lg disabled:bg-gray-300 ${loginContext === 'admin' ? 'bg-gray-800 hover:bg-gray-900' : loginContext === 'rep' || loginContext === 'promotor' ? 'bg-[#8B2214] hover:bg-[#6d1a10]' : 'bg-[#a4240e] hover:bg-[#8a1f0c]'}`}
               >
-                {loading ? (loginContext === 'admin' ? 'Verificando...' : 'Entrando...') : (loginContext === 'admin' ? 'Entrar como Admin' : loginContext === 'rep' ? 'Entrar no Portal RepCo' : 'Acessar')}
+                {loading ? (loginContext === 'admin' ? 'Verificando...' : 'Entrando...') : (loginContext === 'admin' ? 'Entrar como Admin' : loginContext === 'promotor' ? 'Entrar na Área do Promotor' : loginContext === 'rep' ? 'Entrar no Portal RepCo' : 'Acessar')}
               </button>
 
               <div className="text-center space-y-3">

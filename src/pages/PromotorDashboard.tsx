@@ -70,7 +70,7 @@ export function PromotorDashboard() {
   // sem login → modal de login (mesmo padrão do RepCo)
   if (!user) return (
     <div className="min-h-screen bg-[#f8f7f5] flex items-center justify-center p-6">
-      <AuthModal isOpen={true} onClose={() => { window.history.pushState({}, '', '/'); window.dispatchEvent(new PopStateEvent('popstate')); }} initialMode="login" loginContext="rep" />
+      <AuthModal isOpen={true} onClose={() => { window.history.pushState({}, '', '/'); window.dispatchEvent(new PopStateEvent('popstate')); }} initialMode="login" loginContext="promotor" />
     </div>
   );
 
