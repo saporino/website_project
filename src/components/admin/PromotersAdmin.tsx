@@ -39,7 +39,15 @@ export default function PromotersAdmin() {
     setPromoters((ps as Promoter[]) || []);
     setInvites((inv as Invite[]) || []);
   }
-  useEffect(() => { if (open) load(); }, [open]);
+  // Carrega já na montagem (pra mostrar o selo de pendentes mesmo recolhido) e atualiza ao focar a aba.
+  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    const onFocus = () => load();
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, []);
+
+  const pendentes = promoters.filter(p => p.status === 'pending').length;
 
   async function generate() {
     setGen(true); setFresh(null);
@@ -160,7 +168,9 @@ export default function PromotersAdmin() {
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-[#f5f0ef] text-[#8B2214] flex items-center justify-center"><UserCheck className="w-5 h-5" /></div>
           <div className="text-left">
-            <h3 className="font-bold text-gray-900">Promotores</h3>
+            <h3 className="font-bold text-gray-900 flex items-center gap-2">Promotores
+              {pendentes > 0 && <span className="text-[11px] font-bold text-white bg-red-600 rounded-full px-2 py-0.5">{pendentes} aguardando aprovação</span>}
+            </h3>
             <p className="text-xs text-gray-500">Aprovar, bloquear, gerar convite e vincular as lojas (com gôndola) que cada promotor atende.</p>
           </div>
         </div>
