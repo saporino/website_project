@@ -31,16 +31,20 @@ export default function PromotersAdmin() {
   const [routeInfo, setRouteInfo] = useState<string>('');
   const [publishing, setPublishing] = useState(false);
 
+  // TUDO obedece o seletor de empresa do topo (activeCompanyId). Não existe
+  // troca de empresa por promotor — quem manda é a empresa em que você está.
   async function load() {
+    if (!activeCompanyId) return;
     const [{ data: ps }, { data: inv }] = await Promise.all([
-      supabase.from('promoters').select('id,full_name,cpf,phone,status,company_id,created_at').order('created_at', { ascending: false }),
+      supabase.from('promoters').select('id,full_name,cpf,phone,status,company_id,created_at')
+        .eq('company_id', activeCompanyId).order('created_at', { ascending: false }),
       supabase.rpc('promoter_list_invites'),
     ]);
     setPromoters((ps as Promoter[]) || []);
     setInvites((inv as Invite[]) || []);
   }
-  // Carrega já na montagem (pra mostrar o selo de pendentes mesmo recolhido) e atualiza ao focar a aba.
-  useEffect(() => { load(); }, []);
+  // Carrega já na montagem (pra mostrar o selo de pendentes mesmo recolhido) e ao trocar de empresa.
+  useEffect(() => { load(); setLinking(null); setRouteFor(null); /* eslint-disable-next-line */ }, [activeCompanyId]);
   useEffect(() => {
     const onFocus = () => load();
     window.addEventListener('focus', onFocus);
@@ -51,7 +55,7 @@ export default function PromotersAdmin() {
 
   async function generate() {
     setGen(true); setFresh(null);
-    const { data, error } = await supabase.rpc('promoter_generate_invite', { p_note: note.trim() || null });
+    const { data, error } = await supabase.rpc('promoter_generate_invite', { p_note: note.trim() || null, p_company: activeCompanyId });
     setGen(false);
     if (error) { toast.error('Erro ao gerar: ' + error.message); return; }
     const code = Array.isArray(data) ? (data[0] as any)?.code : (data as any)?.code;
@@ -72,17 +76,12 @@ export default function PromotersAdmin() {
     load();
   }
 
-  async function setCompany(p: Promoter, companyId: string) {
-    const { error } = await supabase.from('promoters').update({ company_id: companyId || null }).eq('id', p.id);
-    if (error) { toast.error('Erro: ' + error.message); return; }
-    load();
-  }
-
   async function openLinking(p: Promoter) {
     setLinking(p); setStores([]);
     // só lojas com gôndola (a regra do módulo)
     const [{ data: cls }, { data: links }] = await Promise.all([
-      supabase.from('representative_clients').select('id,razao_social,nome_fantasia,municipio,company_id').eq('tem_gondola', true).eq('status', 'active').order('razao_social'),
+      supabase.from('representative_clients').select('id,razao_social,nome_fantasia,municipio,company_id')
+        .eq('company_id', activeCompanyId).eq('tem_gondola', true).eq('status', 'active').order('razao_social'),
       supabase.from('promoter_clients').select('id,representative_client_id,is_active').eq('promoter_id', p.id),
     ]);
     const linkBy = new Map((links || []).map((l: any) => [l.representative_client_id, l]));
@@ -219,10 +218,6 @@ export default function PromotersAdmin() {
                       <p className="text-xs text-gray-500">{p.cpf ? `CPF ${p.cpf} · ` : ''}{p.phone || ''}</p>
                     </div>
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${badge(p.status)}`}>{label(p.status)}</span>
-                    <select value={p.company_id || ''} onChange={e => setCompany(p, e.target.value)} className="h-8 px-2 text-xs border border-gray-300 rounded-lg" title="Empresa do promotor">
-                      <option value="">Todas as empresas</option>
-                      {companies.map(c => <option key={c.id} value={c.id}>{c.fantasia || c.name}</option>)}
-                    </select>
                     {p.status !== 'active' && (
                       <button onClick={() => setStatus(p, 'active')} disabled={busy === p.id} className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 border border-green-200 bg-green-50 rounded-lg px-2.5 py-1.5 hover:bg-green-100 disabled:opacity-50"><CheckCircle className="w-3.5 h-3.5" /> Aprovar</button>
                     )}
@@ -291,7 +286,9 @@ export default function PromotersAdmin() {
           <MixAdmin />
           {/* Painel da operação (Bloco 6) */}
           <PromoterSupervisorPanel />
-          <p className="text-[11px] text-gray-400">Empresa ativa no seletor: {companies.find(c => c.id === activeCompanyId)?.fantasia || '—'} · o promotor com "Todas as empresas" audita o catálogo de todas.</p>
+          <p className="text-[11px] text-gray-400">
+            Você está em <strong>{companies.find(c => c.id === activeCompanyId)?.fantasia || '—'}</strong>. Tudo aqui (promotores, lojas, rotas e mix) é só desta empresa — troque no seletor do topo para ver outra.
+          </p>
         </div>
       )}
     </div>
@@ -310,13 +307,16 @@ function MixAdmin() {
   useEffect(() => {
     (async () => {
       const [{ data: sts }, { data: ps }] = await Promise.all([
-        supabase.from('representative_clients').select('id,razao_social,nome_fantasia,company_id').eq('tem_gondola', true).eq('status', 'active').order('razao_social'),
+        supabase.from('representative_clients').select('id,razao_social,nome_fantasia,company_id')
+          .eq('company_id', activeCompanyId).eq('tem_gondola', true).eq('status', 'active').order('razao_social'),
         supabase.from('products').select('id,name').eq('company_id', activeCompanyId).order('name'),
       ]);
       setGondolaStores(((sts as any[]) || []).map(s => ({ id: s.id, nome: s.nome_fantasia || s.razao_social, company_id: s.company_id })));
       setProducts(((ps as any[]) || []));
     })();
   }, [activeCompanyId]);
+
+  useEffect(() => { setStoreId(''); setMix({}); }, [activeCompanyId]);
 
   useEffect(() => {
     if (!storeId) { setMix({}); return; }

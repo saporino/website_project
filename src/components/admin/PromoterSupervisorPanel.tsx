@@ -1,5 +1,6 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useCompany } from '../../contexts/CompanyContext';
 import { BarChart3, ChevronDown, ChevronUp, Camera } from 'lucide-react';
 
 // Bloco 6 — Painel do supervisor/admin: lê das views vw_promoter_* (não recalcula no front).
@@ -8,6 +9,7 @@ const MapaVivo = lazy(() => import('./PromoterLiveMapInner'));
 interface Visita { id: string; promoter_id: string; representative_client_id: string; status: string; arrival_at: string | null; duration_minutes: number | null; checkin_geofence_ok: boolean | null; created_at: string; }
 
 export default function PromoterSupervisorPanel() {
+  const { activeCompanyId } = useCompany();
   const [open, setOpen] = useState(false);
   const [de, setDe] = useState(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().slice(0, 10); });
   const [ate, setAte] = useState(() => new Date().toISOString().slice(0, 10));
@@ -25,17 +27,19 @@ export default function PromoterSupervisorPanel() {
   const [showMap, setShowMap] = useState(false);
 
   async function load() {
+    if (!activeCompanyId) return;
+    const co = (q: any) => q.eq('company_id', activeCompanyId); // tudo escopado na empresa do seletor
     const [c, t, s, p, cl, st, ex, vs, cls, prs] = await Promise.all([
-      supabase.from('vw_promoter_coverage').select('*').gte('dia', de).lte('dia', ate),
-      supabase.from('vw_promoter_time').select('*'),
-      supabase.from('vw_promoter_incidents_summary').select('*'),
-      supabase.from('vw_ruptura_by_product').select('*').order('rupturas_totais', { ascending: false }).limit(10),
-      supabase.from('vw_ruptura_by_client').select('*').order('rupturas_totais', { ascending: false }).limit(10),
-      supabase.from('vw_promoter_stock_ops').select('*').gte('dia', de).lte('dia', ate).limit(20),
-      supabase.from('vw_promoter_expiry').select('*').limit(20),
-      supabase.from('promoter_visits').select('id,promoter_id,representative_client_id,status,arrival_at,duration_minutes,checkin_geofence_ok,created_at').order('created_at', { ascending: false }).limit(20),
-      supabase.from('representative_clients').select('id,razao_social,nome_fantasia').eq('tem_gondola', true),
-      supabase.from('promoters').select('id,full_name'),
+      co(supabase.from('vw_promoter_coverage').select('*').gte('dia', de).lte('dia', ate)),
+      co(supabase.from('vw_promoter_time').select('*')),
+      co(supabase.from('vw_promoter_incidents_summary').select('*')),
+      co(supabase.from('vw_ruptura_by_product').select('*').order('rupturas_totais', { ascending: false }).limit(10)),
+      co(supabase.from('vw_ruptura_by_client').select('*').order('rupturas_totais', { ascending: false }).limit(10)),
+      co(supabase.from('vw_promoter_stock_ops').select('*').gte('dia', de).lte('dia', ate).limit(20)),
+      co(supabase.from('vw_promoter_expiry').select('*').limit(20)),
+      co(supabase.from('promoter_visits').select('id,promoter_id,representative_client_id,status,arrival_at,duration_minutes,checkin_geofence_ok,created_at').order('created_at', { ascending: false }).limit(20)),
+      co(supabase.from('representative_clients').select('id,razao_social,nome_fantasia').eq('tem_gondola', true)),
+      co(supabase.from('promoters').select('id,full_name')),
     ]);
     setCov(c.data || []); setTime(t.data || []);
     setSumm((s.data || []).reduce((acc: any, r: any) => ({ abertas: (acc.abertas || 0) + r.abertas, resolvidas: (acc.resolvidas || 0) + r.resolvidas, convertidas: (acc.convertidas || 0) + r.convertidas_em_pedido }), {}));
@@ -46,7 +50,7 @@ export default function PromoterSupervisorPanel() {
     ((prs.data as any[]) || []).forEach(x => { nm[x.id] = x.full_name; });
     setNomes(nm);
   }
-  useEffect(() => { if (open) load(); /* eslint-disable-next-line */ }, [open, de, ate]);
+  useEffect(() => { if (open) load(); /* eslint-disable-next-line */ }, [open, de, ate, activeCompanyId]);
 
   async function verFotos(visitId: string) {
     setFotoVisita(visitId);
