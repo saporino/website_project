@@ -21,16 +21,17 @@ interface Promoter {
 type Tab = 'rota' | 'visitas' | 'pendencias' | 'historico' | 'mensagens' | 'ajuda';
 
 export function PromotorDashboard() {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading, signOut, signIn } = useAuth();
   const [promoter, setPromoter] = useState<Promoter | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>('rota');
   const [moreOpen, setMoreOpen] = useState(false);
   // cadastro por convite
   const [showRegister, setShowRegister] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
   const [code, setCode] = useState('');
   const [codeOk, setCodeOk] = useState(false);
-  const [reg, setReg] = useState({ full_name: '', cpf: '', phone: '' });
+  const [reg, setReg] = useState({ full_name: '', cpf: '', phone: '', email: '', password: '', password2: '' });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -55,23 +56,94 @@ export function PromotorDashboard() {
     setCodeOk(true);
   }
 
-  async function register() {
+  // Já está logado (tem conta) e recebeu um código: só vincula o papel de promotor.
+  async function registerExisting() {
     if (!reg.full_name.trim()) { setErr('Informe seu nome completo.'); return; }
     setBusy(true); setErr('');
     const { error } = await supabase.rpc('promoter_register_with_code', {
       p_code: code.trim(), p_full_name: reg.full_name.trim(), p_cpf: reg.cpf || null, p_phone: reg.phone || null,
     });
     setBusy(false);
-    if (error) { setErr(error.message.includes('ja cadastrado') ? 'Você já tem cadastro.' : 'Não foi possível concluir. Confira o código.'); return; }
-    setShowRegister(false); fetchPromoter();
+    if (error) { setErr(error.message.includes('ja cadastrado') ? 'Você já tem cadastro de promotor.' : 'Não foi possível concluir. Confira o código.'); return; }
+    setShowRegister(false); setCodeOk(false); fetchPromoter();
+  }
+
+  // Primeiro acesso (sem conta): o CÓDIGO é a porta. A conta nasce já confirmada (Edge Function),
+  // então o promotor entra na hora — sem esperar e-mail de confirmação.
+  async function register() {
+    if (!reg.full_name.trim()) { setErr('Informe seu nome completo.'); return; }
+    if (!reg.email.trim() || !reg.email.includes('@')) { setErr('Informe um e-mail válido.'); return; }
+    if (reg.password.length < 6) { setErr('A senha precisa ter pelo menos 6 caracteres.'); return; }
+    if (reg.password !== reg.password2) { setErr('As senhas não conferem.'); return; }
+    setBusy(true); setErr('');
+    try {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/promoter-signup`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: code.trim(), full_name: reg.full_name.trim(), cpf: reg.cpf || null,
+          phone: reg.phone || null, email: reg.email.trim(), password: reg.password,
+        }),
+      });
+      const r = await res.json().catch(() => ({}));
+      if (!res.ok || r.error) { setErr(r.error || 'Não foi possível concluir o cadastro.'); setBusy(false); return; }
+      // entra direto com a conta recém-criada
+      const { error: sErr } = await signIn(reg.email.trim(), reg.password);
+      setBusy(false);
+      if (sErr) { setErr('Conta criada! Agora faça login com seu e-mail e senha.'); setShowRegister(false); setCodeOk(false); return; }
+      setShowRegister(false);
+    } catch {
+      setBusy(false); setErr('Falha de conexão. Tente de novo.');
+    }
   }
 
   if (authLoading || loading) return <div className="min-h-screen bg-[#f8f7f5] flex items-center justify-center"><div className="animate-spin rounded-full h-10 w-10 border-b-4 border-[#8B2214]" /></div>;
 
-  // sem login → modal de login (mesmo padrão do RepCo)
+  // SEM LOGIN → porta do promotor: o CÓDIGO vem primeiro (não existe "criar conta" solto aqui)
   if (!user) return (
     <div className="min-h-screen bg-[#f8f7f5] flex items-center justify-center p-6">
-      <AuthModal isOpen={true} onClose={() => { window.history.pushState({}, '', '/'); window.dispatchEvent(new PopStateEvent('popstate')); }} initialMode="login" loginContext="promotor" />
+      <div className="bg-white border border-gray-200 rounded-2xl p-8 max-w-md w-full space-y-4">
+        <div className="text-center space-y-2">
+          <img src="/saporino-logo-tight.png" alt="Saporino" className="h-10 mx-auto object-contain" />
+          <h1 className="text-xl font-bold text-gray-900">Área do Promotor</h1>
+        </div>
+        {err && <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{err}</p>}
+
+        {!showRegister ? (<>
+          <button onClick={() => setShowLogin(true)} className="w-full bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold py-3 rounded-xl">
+            Já tenho conta — Entrar
+          </button>
+          <div className="flex items-center gap-3 text-xs text-gray-400"><div className="flex-1 h-px bg-gray-200" />ou<div className="flex-1 h-px bg-gray-200" /></div>
+          <button onClick={() => { setShowRegister(true); setErr(''); }} className="w-full border-2 border-[#8B2214] text-[#8B2214] font-semibold py-3 rounded-xl">
+            Primeiro acesso — tenho um código
+          </button>
+          <p className="text-[11px] text-gray-400 text-center">O acesso de promotor é somente por convite do administrador.</p>
+        </>) : !codeOk ? (<>
+          {/* ETAPA 1: o código é a porta */}
+          <p className="text-sm text-gray-500 text-center">Digite o código de convite que o administrador te enviou.</p>
+          <input value={code} onChange={e => setCode(e.target.value.toUpperCase())} placeholder="CÓDIGO"
+            className="w-full border border-gray-300 rounded-xl px-4 py-3 text-lg text-center uppercase tracking-widest font-mono" />
+          <button onClick={validateCode} disabled={busy || !code.trim()} className="w-full bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold py-3 rounded-xl disabled:opacity-50">
+            {busy ? 'Validando…' : 'Validar código'}
+          </button>
+          <button onClick={() => { setShowRegister(false); setErr(''); setCode(''); }} className="w-full text-xs text-gray-400 hover:text-gray-600">Voltar</button>
+        </>) : (<>
+          {/* ETAPA 2: só depois do código válido é que cria a conta */}
+          <p className="text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2 text-center">✓ Código válido! Agora crie seu acesso.</p>
+          <input value={reg.full_name} onChange={e => setReg(p => ({ ...p, full_name: e.target.value }))} placeholder="Nome completo *" className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" />
+          <input value={reg.cpf} onChange={e => setReg(p => ({ ...p, cpf: e.target.value.replace(/\D/g, '').slice(0, 11) }))} placeholder="CPF" className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" />
+          <input value={reg.phone} onChange={e => setReg(p => ({ ...p, phone: e.target.value }))} placeholder="WhatsApp" className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" />
+          <input type="email" value={reg.email} onChange={e => setReg(p => ({ ...p, email: e.target.value }))} placeholder="Seu e-mail *" className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" />
+          <input type="password" value={reg.password} onChange={e => setReg(p => ({ ...p, password: e.target.value }))} placeholder="Crie uma senha *" className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" />
+          <input type="password" value={reg.password2} onChange={e => setReg(p => ({ ...p, password2: e.target.value }))} placeholder="Repita a senha *" className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" />
+          <button onClick={register} disabled={busy} className="w-full bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold py-3 rounded-xl disabled:opacity-50">
+            {busy ? 'Criando acesso…' : 'Criar meu acesso'}
+          </button>
+          <button onClick={() => { setCodeOk(false); setErr(''); }} className="w-full text-xs text-gray-400 hover:text-gray-600">Voltar</button>
+        </>)}
+      </div>
+      {showLogin && (
+        <AuthModal isOpen={true} onClose={() => setShowLogin(false)} initialMode="login" loginContext="promotor" />
+      )}
     </div>
   );
 
@@ -95,7 +167,7 @@ export function PromotorDashboard() {
             <input value={reg.full_name} onChange={e => setReg(p => ({ ...p, full_name: e.target.value }))} placeholder="Nome completo *" className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" />
             <input value={reg.cpf} onChange={e => setReg(p => ({ ...p, cpf: e.target.value.replace(/\D/g, '').slice(0, 11) }))} placeholder="CPF" className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" />
             <input value={reg.phone} onChange={e => setReg(p => ({ ...p, phone: e.target.value }))} placeholder="WhatsApp / Telefone" className="w-full border border-gray-300 rounded-xl px-4 py-2.5 text-sm" />
-            <button onClick={register} disabled={busy} className="w-full bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold py-2.5 rounded-xl disabled:opacity-50">{busy ? 'Enviando…' : 'Concluir cadastro'}</button>
+            <button onClick={registerExisting} disabled={busy} className="w-full bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold py-2.5 rounded-xl disabled:opacity-50">{busy ? 'Enviando…' : 'Concluir cadastro'}</button>
           </>)}
           <button onClick={() => { setShowRegister(false); setCodeOk(false); setErr(''); }} className="text-xs text-gray-400 hover:text-gray-600">Voltar</button>
         </>)}
