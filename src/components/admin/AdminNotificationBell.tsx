@@ -1,10 +1,33 @@
-import { useState, useEffect } from 'react';
-import { Bell, UserCheck, FileText, ShoppingBag, X, ChevronRight, AlertTriangle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Bell, BellOff, UserCheck, FileText, ShoppingBag, X, ChevronRight, AlertTriangle, PackageX } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useCompany } from '../../contexts/CompanyContext';
+
+// Som curto do sino, gerado na hora (sem arquivo). Dois "blips" agudos.
+function playDing() {
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new Ctx();
+    [0, 0.18].forEach((delay, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = i === 0 ? 880 : 1170;
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + delay + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + 0.22);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + delay); osc.stop(ctx.currentTime + delay + 0.25);
+    });
+    setTimeout(() => ctx.close(), 900);
+  } catch { /* navegador bloqueou áudio — silencioso */ }
+}
+
+const SOUND_KEY = 'admin-bell-sound';
 
 interface Notification {
   id: string;
-  type: 'repco_pending' | 'repco_order_no_nf' | 'repco_boleto_overdue' | 'ecommerce_pending';
+  type: 'repco_pending' | 'repco_order_no_nf' | 'repco_boleto_overdue' | 'ecommerce_pending' | 'promotor_pending' | 'ruptura_aberta';
   title: string;
   description: string;
   count: number;
@@ -18,13 +41,32 @@ interface AdminNotificationBellProps {
 }
 
 export function AdminNotificationBell({ onNavigate }: AdminNotificationBellProps) {
+  const { activeCompanyId } = useCompany();
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
+  const [soundOn, setSoundOn] = useState(() => localStorage.getItem(SOUND_KEY) !== 'off');
+  const prevTotal = useRef<number | null>(null);
 
   const totalCount = notifications.reduce((sum, n) => sum + n.count, 0);
 
+  // Toca o sino quando o total AUMENTA (chegou coisa nova). Nunca toca na 1ª carga.
+  useEffect(() => {
+    if (prevTotal.current !== null && totalCount > prevTotal.current && soundOn) playDing();
+    prevTotal.current = totalCount;
+  }, [totalCount, soundOn]);
+
+  const toggleSound = () => {
+    setSoundOn(v => {
+      const next = !v;
+      localStorage.setItem(SOUND_KEY, next ? 'on' : 'off');
+      if (next) playDing(); // devolve um "ding" de confirmação ao ligar
+      return next;
+    });
+  };
+
   const fetchNotifications = async () => {
+    if (!activeCompanyId) return;
     setLoading(true);
     const items: Notification[] = [];
 
@@ -48,10 +90,52 @@ export function AdminNotificationBell({ onNavigate }: AdminNotificationBellProps
         });
       }
 
+      // 1b. Promotor aguardando aprovação (da empresa ativa)
+      const { count: promPending } = await supabase
+        .from('promoters')
+        .select('*', { count: 'exact', head: true })
+        .eq('company_id', activeCompanyId)
+        .eq('status', 'pending');
+
+      if (promPending && promPending > 0) {
+        items.push({
+          id: 'promotor_pending',
+          type: 'promotor_pending',
+          title: 'Promotor aguardando aprovação',
+          description: `${promPending} promotor${promPending > 1 ? 'es' : ''} pendente${promPending > 1 ? 's' : ''}`,
+          count: promPending,
+          tab: 'repco',
+          icon: UserCheck,
+          color: 'text-amber-600 bg-amber-50',
+        });
+      }
+
+      // 1c. Rupturas abertas reportadas pelo promotor (da empresa ativa)
+      const { count: rupturas } = await supabase
+        .from('promoter_incidents')
+        .select('*', { count: 'exact', head: true })
+        .eq('company_id', activeCompanyId)
+        .eq('category', 'ruptura_total')
+        .not('status', 'in', '("resolvida","cancelada")');
+
+      if (rupturas && rupturas > 0) {
+        items.push({
+          id: 'ruptura_aberta',
+          type: 'ruptura_aberta',
+          title: 'Ruptura total em loja',
+          description: `${rupturas} ruptura${rupturas > 1 ? 's' : ''} aberta${rupturas > 1 ? 's' : ''} pelo promotor`,
+          count: rupturas,
+          tab: 'repco',
+          icon: PackageX,
+          color: 'text-red-600 bg-red-50',
+        });
+      }
+
       // 2. RepCo orders without NF
       const { count: ordersNoNF } = await supabase
         .from('representative_orders')
         .select('*', { count: 'exact', head: true })
+        .eq('company_id', activeCompanyId)
         .in('status', ['new', 'pending'])
         .is('invoice_pdf_url', null);
 
@@ -115,18 +199,21 @@ export function AdminNotificationBell({ onNavigate }: AdminNotificationBellProps
 
   useEffect(() => {
     fetchNotifications();
-    // Realtime: re-busca quando muda pedido/parcela/representante (fallback: poll 60s)
+    // Realtime: re-busca quando muda pedido/parcela/representante/promotor/ruptura (fallback: poll 60s)
     const ch = supabase.channel('admin-notif')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'representative_orders' }, () => fetchNotifications())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'representative_order_installments' }, () => fetchNotifications())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'representatives' }, () => fetchNotifications())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'promoters' }, () => fetchNotifications())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'promoter_incidents' }, () => fetchNotifications())
       .subscribe();
     const interval = setInterval(fetchNotifications, 60_000);
     return () => { clearInterval(interval); supabase.removeChannel(ch); };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCompanyId]);
 
-  // Pisca quando há pendência urgente (vermelho: pedido sem NF ou boleto vencido)
-  const hasUrgent = notifications.some(n => n.type === 'repco_order_no_nf' || n.type === 'repco_boleto_overdue');
+  // Pisca quando há pendência urgente (vermelho: pedido sem NF, boleto vencido ou ruptura)
+  const hasUrgent = notifications.some(n => n.type === 'repco_order_no_nf' || n.type === 'repco_boleto_overdue' || n.type === 'ruptura_aberta');
 
   const handleClick = (tab: string) => {
     onNavigate(tab);
@@ -173,12 +260,25 @@ export function AdminNotificationBell({ onNavigate }: AdminNotificationBellProps
                   </span>
                 )}
               </div>
-              <button
-                onClick={() => setOpen(false)}
-                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="w-4 h-4 text-gray-500" />
-              </button>
+              <div className="flex items-center gap-1">
+                {/* Liga/desliga o som do sino */}
+                <button
+                  onClick={toggleSound}
+                  title={soundOn ? 'Som ligado — clique para silenciar' : 'Som desligado — clique para ligar'}
+                  className="flex items-center gap-1.5 pl-1.5 pr-1 py-1 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  {soundOn ? <Bell className="w-3.5 h-3.5 text-[#8B2214]" /> : <BellOff className="w-3.5 h-3.5 text-gray-400" />}
+                  <span className={`relative w-8 h-4 rounded-full transition-colors ${soundOn ? 'bg-[#8B2214]' : 'bg-gray-300'}`}>
+                    <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-all ${soundOn ? 'left-4' : 'left-0.5'}`} />
+                  </span>
+                </button>
+                <button
+                  onClick={() => setOpen(false)}
+                  className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
+              </div>
             </div>
 
             {/* Content */}
