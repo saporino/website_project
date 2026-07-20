@@ -125,7 +125,7 @@ function AppRouter() {
     document.title = currentPath.startsWith('/repco')
       ? 'RepCo'
       : currentPath.startsWith('/promotor')
-      ? 'Promotor — Saporino'
+      ? 'Promotor'
       : currentPath === '/admin'
         ? 'Admin — Café Saporino'
         : 'Café Saporino — O Verdadeiro Sabor de Minas';
