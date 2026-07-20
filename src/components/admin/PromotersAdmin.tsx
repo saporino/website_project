@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
 import { toast } from 'sonner';
-import { UserCheck, ChevronDown, ChevronUp, CheckCircle, XCircle, Plus, Copy, Store, Loader2, Route as RouteIcon, ArrowUp, ArrowDown } from 'lucide-react';
+import { UserCheck, ChevronDown, ChevronUp, CheckCircle, XCircle, Plus, Copy, Store, Loader2, Route as RouteIcon, ArrowUp, ArrowDown, Lock } from 'lucide-react';
 import PromoterSupervisorPanel from './PromoterSupervisorPanel';
 
 // Admin → RepCo → "Promotores" (Bloco 2): aprovar/bloquear promotor, gerar código
 // de convite de promotor e vincular lojas (só clientes com tem_gondola = true).
 
-interface Promoter { id: string; full_name: string; cpf: string | null; phone: string | null; status: string; company_id: string | null; created_at: string }
+interface Promoter { id: string; full_name: string; cpf: string | null; phone: string | null; email: string | null; status: string; company_id: string | null; created_at: string }
 interface Invite { code: string; note: string | null; expires_at: string }
 interface StoreRow { id: string; razao_social: string | null; nome_fantasia: string | null; municipio: string | null; company_id: string | null; linked: boolean; linkId: string | null }
 
@@ -30,13 +30,14 @@ export default function PromotersAdmin() {
   const [routeSel, setRouteSel] = useState<string[]>([]);
   const [routeInfo, setRouteInfo] = useState<string>('');
   const [publishing, setPublishing] = useState(false);
+  const [detailFor, setDetailFor] = useState<string | null>(null);
 
   // O promotor é UMA conta que pode atuar nas duas empresas (igual ao representante),
   // por isso a lista não filtra por empresa. O que é da empresa ativa: lojas, rota e mix.
   async function load() {
     if (!activeCompanyId) return;
     const [{ data: ps }, { data: inv }] = await Promise.all([
-      supabase.from('promoters').select('id,full_name,cpf,phone,status,company_id,created_at')
+      supabase.from('promoters').select('id,full_name,cpf,phone,email,status,company_id,created_at')
         .order('created_at', { ascending: false }),
       supabase.rpc('promoter_list_invites'),
     ]);
@@ -214,8 +215,10 @@ export default function PromotersAdmin() {
                 <div key={p.id} className="py-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{p.full_name}</p>
-                      <p className="text-xs text-gray-500">{p.cpf ? `CPF ${p.cpf} · ` : ''}{p.phone || ''}</p>
+                      <button onClick={() => setDetailFor(detailFor === p.id ? null : p.id)} className="text-left">
+                        <p className="text-sm font-semibold text-gray-900 truncate hover:underline">{p.full_name}</p>
+                        <p className="text-xs text-gray-500">{p.email || 'sem e-mail'} · <span className="text-[#8B2214]">{detailFor === p.id ? 'ocultar detalhes' : 'ver detalhes'}</span></p>
+                      </button>
                     </div>
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${badge(p.status)}`}>{label(p.status)}</span>
                     {p.status !== 'active' && (
@@ -231,6 +234,21 @@ export default function PromotersAdmin() {
                       <RouteIcon className="w-3.5 h-3.5" /> Rota
                     </button>
                   </div>
+                  {detailFor === p.id && (
+                    <div className="mt-2 border border-gray-200 rounded-xl p-3 bg-gray-50 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                      <Detalhe label="Nome completo" v={p.full_name} />
+                      <Detalhe label="E-mail (login)" v={p.email || '—'} />
+                      <Detalhe label="CPF" v={p.cpf || '—'} />
+                      <Detalhe label="WhatsApp" v={p.phone || '—'} />
+                      <Detalhe label="Empresa de origem" v={companies.find(c => c.id === p.company_id)?.fantasia || '—'} />
+                      <Detalhe label="Cadastrado em" v={new Date(p.created_at).toLocaleString('pt-BR')} />
+                      <Detalhe label="Situação" v={label(p.status)} />
+                      <div className="sm:col-span-2 mt-1 flex items-center gap-2 text-[11px] text-gray-400 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5">
+                        <Lock className="w-3.5 h-3.5 flex-shrink-0" />
+                        A senha é criptografada — <strong className="font-semibold">ninguém consegue vê-la</strong>, nem o admin. Se ele esquecer, use "Esqueci minha senha" na tela de login.
+                      </div>
+                    </div>
+                  )}
                   {routeFor?.id === p.id && (
                     <div className="mt-2 border border-gray-200 rounded-xl p-3 bg-gray-50 space-y-2">
                       <div className="flex items-center gap-2">
@@ -293,6 +311,10 @@ export default function PromotersAdmin() {
       )}
     </div>
   );
+}
+
+function Detalhe({ label, v }: { label: string; v: string }) {
+  return <div><span className="text-[11px] text-gray-400">{label}</span><p className="text-gray-800 font-medium truncate">{v}</p></div>;
 }
 
 // ---- Mix de produtos auditados por loja (promoter_client_mix) ----
