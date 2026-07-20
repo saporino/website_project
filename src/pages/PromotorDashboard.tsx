@@ -8,6 +8,7 @@ import PromotorRota, { PromotorHistorico } from '../components/promotor/Promotor
 import PromotorOcorrencias from '../components/promotor/PromotorOcorrencias';
 import CompanySwitcher from '../components/CompanySwitcher';
 import { usePromoterPresence } from '../hooks/usePromoterPresence';
+import { useGeolocation } from '../hooks/useGeolocation';
 import { Route as RouteIcon, ClipboardCheck, AlertTriangle, History, MessageCircle, HelpCircle, LogOut, MoreHorizontal, Clock, Lock } from 'lucide-react';
 
 // Portal do Promotor (/promotor) — Bloco 2: entidade, conta por convite e shell de abas.
@@ -46,7 +47,14 @@ export function PromotorDashboard() {
     setLoading(false);
   }
 
-  usePromoterPresence({ promoterId: promoter?.id || '', currentTab: activeTab, enabled: promoter?.status === 'active' });
+  // GPS ao vivo (só quando ativo) → alimenta a presença, pra aparecer no mapa do admin.
+  const { coords } = useGeolocation({ enabled: promoter?.status === 'active' });
+  usePromoterPresence({
+    promoterId: promoter?.id || '',
+    currentTab: activeTab,
+    coords: coords ? { lat: coords.lat, lng: coords.lng } : null,
+    enabled: promoter?.status === 'active',
+  });
 
   async function validateCode() {
     setBusy(true); setErr('');
