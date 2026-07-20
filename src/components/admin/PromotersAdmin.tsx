@@ -31,13 +31,13 @@ export default function PromotersAdmin() {
   const [routeInfo, setRouteInfo] = useState<string>('');
   const [publishing, setPublishing] = useState(false);
 
-  // TUDO obedece o seletor de empresa do topo (activeCompanyId). Não existe
-  // troca de empresa por promotor — quem manda é a empresa em que você está.
+  // O promotor é UMA conta que pode atuar nas duas empresas (igual ao representante),
+  // por isso a lista não filtra por empresa. O que é da empresa ativa: lojas, rota e mix.
   async function load() {
     if (!activeCompanyId) return;
     const [{ data: ps }, { data: inv }] = await Promise.all([
       supabase.from('promoters').select('id,full_name,cpf,phone,status,company_id,created_at')
-        .eq('company_id', activeCompanyId).order('created_at', { ascending: false }),
+        .order('created_at', { ascending: false }),
       supabase.rpc('promoter_list_invites'),
     ]);
     setPromoters((ps as Promoter[]) || []);

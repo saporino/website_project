@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useCompany } from '../../contexts/CompanyContext';
 import {
   distMeters, getPosition, capturePhoto, compressImage, uploadVisitPhoto,
   auditLog, broadcastVisitState, updateVisitSafe, getPending, retryPending,
@@ -35,6 +36,8 @@ const NOT_VISITED_REASONS: [string, string][] = [
 ];
 
 export default function PromotorRota({ promoterId, promoterName }: Props) {
+  // O seletor do topo manda: o promotor pode atuar nas duas empresas, mas vê uma de cada vez.
+  const { activeCompanyId } = useCompany();
   const [stores, setStores] = useState<Record<string, Store>>({});
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,24 +49,27 @@ export default function PromotorRota({ promoterId, promoterName }: Props) {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const load = useCallback(async () => {
+    if (!activeCompanyId) return;
     setLoading(true);
     const today = new Date().toISOString().slice(0, 10);
     const [{ data: sts }, { data: routes }] = await Promise.all([
-      supabase.from('vw_promoter_stores').select('*'),
-      supabase.from('promoter_routes').select('id').eq('promoter_id', promoterId).eq('route_date', today).eq('status', 'published'),
+      supabase.from('vw_promoter_stores').select('*').eq('company_id', activeCompanyId),
+      supabase.from('promoter_routes').select('id').eq('promoter_id', promoterId).eq('company_id', activeCompanyId).eq('route_date', today).eq('status', 'published'),
     ]);
     const storeMap: Record<string, Store> = {};
     ((sts as Store[]) || []).forEach(s => { storeMap[s.id] = s; });
     setStores(storeMap);
     const routeIds = (routes || []).map((r: { id: string }) => r.id);
-    let q = supabase.from('promoter_visits').select('*').eq('promoter_id', promoterId).order('stop_order', { ascending: true });
+    let q = supabase.from('promoter_visits').select('*').eq('promoter_id', promoterId).eq('company_id', activeCompanyId).order('stop_order', { ascending: true });
     if (routeIds.length) q = q.or(`route_id.in.(${routeIds.join(',')}),and(route_id.is.null,created_at.gte.${today})`);
     else q = q.is('route_id', null).gte('created_at', today);
     const { data: vs } = await q;
     setVisits(((vs as Visit[]) || []).filter(v => !( v as any ).cancelled_at));
     setLoading(false);
-  }, [promoterId]);
+  }, [promoterId, activeCompanyId]);
 
+  // Ao trocar de empresa no topo, fecha qualquer visita aberta e recarrega tudo daquela empresa.
+  useEffect(() => { setFlowVisit(null); setNvVisit(null); setAddOpen(false); }, [activeCompanyId]);
   useEffect(() => { load(); getPosition().then(p => p && setCoords({ lat: p.lat, lng: p.lng })); }, [load]);
 
   const storeOf = (v: Visit) => stores[v.representative_client_id];
@@ -76,7 +82,7 @@ export default function PromotorRota({ promoterId, promoterName }: Props) {
   async function addExtraVisit(storeId: string) {
     const { data, error } = await supabase.from('promoter_visits').insert({
       promoter_id: promoterId, representative_client_id: storeId,
-      company_id: stores[storeId]?.lat !== undefined ? (stores[storeId] as any).company_id ?? null : null,
+      company_id: activeCompanyId,
       is_scheduled: false, status: 'nao_iniciada',
     }).select('*').single();
     if (!error && data) { setAddOpen(false); setVisits(p => [...p, data as Visit]); auditLog('promoter_visits', data.id, 'visita_adicional', { storeId }); }
@@ -414,19 +420,21 @@ function NotVisitedModal({ visit, storeName, onClose }: { visit: Visit; storeNam
 
 // ---------- Histórico ----------
 export function PromotorHistorico({ promoterId }: { promoterId: string }) {
+  const { activeCompanyId } = useCompany();
   const [visits, setVisits] = useState<(Visit & { clientName?: string })[]>([]);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
+    if (!activeCompanyId) return;
     (async () => {
       const [{ data: vs }, { data: sts }] = await Promise.all([
-        supabase.from('promoter_visits').select('*').eq('promoter_id', promoterId).order('created_at', { ascending: false }).limit(60),
-        supabase.from('vw_promoter_stores').select('id,razao_social,nome_fantasia'),
+        supabase.from('promoter_visits').select('*').eq('promoter_id', promoterId).eq('company_id', activeCompanyId).order('created_at', { ascending: false }).limit(60),
+        supabase.from('vw_promoter_stores').select('id,razao_social,nome_fantasia').eq('company_id', activeCompanyId),
       ]);
       const nm = new Map((sts || []).map((s: any) => [s.id, s.nome_fantasia || s.razao_social]));
       setVisits(((vs as Visit[]) || []).map(v => ({ ...v, clientName: (nm.get(v.representative_client_id) as string) || 'Loja' })));
       setLoading(false);
     })();
-  }, [promoterId]);
+  }, [promoterId, activeCompanyId]);
   if (loading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8B2214]" /></div>;
   if (visits.length === 0) return <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-gray-400 text-sm">Nenhuma visita registrada ainda.</div>;
   return (

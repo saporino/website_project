@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useCompany } from '../../contexts/CompanyContext';
 import { AlertTriangle, Plus, MessageCircle } from 'lucide-react';
 
 // Bloco 5 — Ocorrências do promotor: abre manual, vê as próprias e responde na conversa.
@@ -20,6 +21,7 @@ const ST_LABEL: Record<string, string> = { aberta: 'Aberta', em_analise: 'Em an�
 const ST_CLS: Record<string, string> = { aberta: 'bg-red-100 text-red-700', em_analise: 'bg-blue-100 text-blue-700', aguardando_loja: 'bg-amber-100 text-amber-700', aguardando_comercial: 'bg-amber-100 text-amber-700', resolvida: 'bg-green-100 text-green-700', cancelada: 'bg-gray-100 text-gray-500' };
 
 export default function PromotorOcorrencias({ promoterId, onOpenChat }: { promoterId: string; onOpenChat: (convId: string) => void }) {
+  const { activeCompanyId } = useCompany();
   const [incs, setIncs] = useState<Inc[]>([]);
   const [stores, setStores] = useState<StoreOpt[]>([]);
   const [prods, setProds] = useState<ProdOpt[]>([]);
@@ -30,16 +32,17 @@ export default function PromotorOcorrencias({ promoterId, onOpenChat }: { promot
   const [err, setErr] = useState('');
 
   const load = useCallback(async () => {
+    if (!activeCompanyId) return;
     const [{ data: is }, { data: sts }, { data: ps }] = await Promise.all([
       supabase.from('vw_promoter_incidents').select('*').order('opened_at', { ascending: false }).limit(60),
-      supabase.from('vw_promoter_stores').select('id,razao_social,nome_fantasia,company_id'),
-      supabase.from('vw_promoter_products').select('id,name'),
+      supabase.from('vw_promoter_stores').select('id,razao_social,nome_fantasia,company_id').eq('company_id', activeCompanyId),
+      supabase.from('vw_promoter_products').select('id,name').eq('company_id', activeCompanyId),
     ]);
     setIncs((is as Inc[]) || []);
     setStores(((sts as any[]) || []).map(s => ({ id: s.id, nome: s.nome_fantasia || s.razao_social, company_id: s.company_id })));
     setProds(((ps as any[]) || []));
     setLoading(false);
-  }, []);
+  }, [activeCompanyId]);
   useEffect(() => { load(); }, [load]);
 
   async function abrir() {

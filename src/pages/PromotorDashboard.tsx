@@ -6,6 +6,7 @@ import Messenger from '../components/chat/Messenger';
 import RepCoHelp from '../components/repco/RepCoHelp';
 import PromotorRota, { PromotorHistorico } from '../components/promotor/PromotorRota';
 import PromotorOcorrencias from '../components/promotor/PromotorOcorrencias';
+import CompanySwitcher from '../components/CompanySwitcher';
 import { usePromoterPresence } from '../hooks/usePromoterPresence';
 import { Route as RouteIcon, ClipboardCheck, AlertTriangle, History, MessageCircle, HelpCircle, LogOut, MoreHorizontal, Clock, Lock } from 'lucide-react';
 
@@ -135,8 +136,11 @@ export function PromotorDashboard() {
               <p className="text-xs text-gray-500 truncate whitespace-nowrap overflow-hidden">{promoter.full_name}</p>
             </div>
           </div>
-          <button onClick={async () => { await signOut(); window.history.pushState({}, '', '/promotor'); window.dispatchEvent(new PopStateEvent('popstate')); }}
-            className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg flex-shrink-0" title="Sair"><LogOut className="w-4 h-4" /></button>
+          <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+            <CompanySwitcher compact />
+            <button onClick={async () => { await signOut(); window.history.pushState({}, '', '/promotor'); window.dispatchEvent(new PopStateEvent('popstate')); }}
+              className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg flex-shrink-0" title="Sair"><LogOut className="w-4 h-4" /></button>
+          </div>
         </div>
       </header>
 
