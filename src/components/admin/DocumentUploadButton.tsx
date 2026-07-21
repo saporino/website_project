@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
+import { useCompany } from "../../contexts/CompanyContext";
 import { Paperclip, X, FileText, Loader } from "lucide-react";
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function DocumentUploadButton({ lotId, kind, label, allowMultiple = true }: Props) {
+  const { activeCompanyId } = useCompany();
   const [docs, setDocs] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const [open, setOpen] = useState(false);
@@ -40,7 +42,7 @@ export default function DocumentUploadButton({ lotId, kind, label, allowMultiple
         .upload(path, file, { contentType: file.type });
       if (upErr) throw upErr;
       const { error: dbErr } = await supabase.from("lot_documents").insert({
-        lot_id: lotId, kind, storage_path: path, file_name: file.name,
+        lot_id: lotId, kind, storage_path: path, file_name: file.name, company_id: activeCompanyId,
       });
       if (dbErr) throw dbErr;
       await load();

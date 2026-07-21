@@ -117,7 +117,8 @@ export default function RepCoHome({ representativeId, onNavigateToRoute, onNavig
   async function fetchUpcomingStops() {
     const now = new Date(); const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 2);
     const { data } = await supabase.from('route_stops')
-      .select('id,company_name,address,city,scheduled_at,visit_status,lat,lng,representative_routes(name)')
+      .select('id,company_name,address,city,scheduled_at,visit_status,lat,lng,representative_routes!inner(name,representative_id)')
+      .eq('representative_routes.representative_id', representativeId)
       .not('scheduled_at', 'is', null).gte('scheduled_at', now.toISOString()).lte('scheduled_at', tomorrow.toISOString())
       .neq('visit_status', 'completed').order('scheduled_at');
     if (data) setUpcomingStops(data.map((s: any) => ({ ...s, route_name: s.representative_routes?.name })));

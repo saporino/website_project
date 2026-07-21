@@ -88,8 +88,10 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
   const [pulsingId, setPulsingId] = useState<string | null>(null);
   const { activeCompanyId } = useCompany();
   const [busy, setBusy] = useState(false);
+  const [askGondola, setAskGondola] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ company_name: '', address: '', phone: '' });
+  useEffect(() => { setAskGondola(false); }, [selectedPin?.id]);
   // Histórico diário abaixo do mapa
   const [dayBlocks, setDayBlocks] = useState<DayBlock[]>([]);
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
@@ -183,6 +185,7 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
         .from('representative_orders')
         .select('id, order_number, status, total_amount, representative_clients(razao_social, lat, lng, municipio, uf, endereco_completo)')
         .eq('representative_id', representativeId)
+        .eq('company_id', activeCompanyId)
         .order('created_at', { ascending: false })
         .limit(60);
 
@@ -203,6 +206,7 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
         .from('representative_orders')
         .select('id, order_number, total_amount, delivery_status, representative_clients(razao_social, lat, lng, endereco_completo, municipio, uf)')
         .eq('representative_id', representativeId)
+        .eq('company_id', activeCompanyId)
         .in('delivery_status', ['pendente', 'em_rota']);
 
       const rows = (data || [])
@@ -223,7 +227,7 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
     // ── HISTÓRICO DIÁRIO ──
     await fetchHistory();
     setLoading(false);
-  }, [mode, representativeId, refreshKey]);
+  }, [mode, representativeId, refreshKey, activeCompanyId]);
 
   const fetchHistory = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0];
@@ -259,6 +263,7 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
         .from('representative_orders')
         .select('id, order_number, status, total_amount, created_at, representative_clients(razao_social, municipio)')
         .eq('representative_id', representativeId)
+        .eq('company_id', activeCompanyId)
         .order('created_at', { ascending: false })
         .limit(60);
       const byDate: Record<string, any[]> = {};
@@ -286,6 +291,7 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
         .from('representative_orders')
         .select('id, order_number, delivery_status, total_amount, delivery_accepted_at, delivered_at, representative_clients(razao_social, municipio)')
         .eq('representative_id', representativeId)
+        .eq('company_id', activeCompanyId)
         .not('delivery_accepted_at', 'is', null)
         .order('delivery_accepted_at', { ascending: false })
         .limit(30);
@@ -314,7 +320,7 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
     setDayBlocks(blocks);
     // Hoje sempre expandido por padrão
     setExpandedDays(prev => { const n = new Set(prev); n.add(today); return n; });
-  }, [mode, representativeId]);
+  }, [mode, representativeId, activeCompanyId]);
 
   async function continuarPendentes(date: string) {
     if (previewMode) { toast.info('Ação desativada no espelho.'); return; }
@@ -525,10 +531,10 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
     fetchPins();
   }
 
-  async function convertToClient(pin: MapPin) {
+  async function convertToClient(pin: MapPin, temGondola: boolean) {
     if (previewMode) { toast.info('Ação desativada no espelho.'); return; }
     setBusy(true);
-    // Cria cliente básico com os dados do lead
+    // Cria cliente básico com os dados do lead (gôndola respondida no passo anterior — obrigatório)
     const { data: client, error: clientErr } = await supabase.from('representative_clients').insert({
       representative_id: representativeId,
       company_id: activeCompanyId,
@@ -536,6 +542,7 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
       endereco_completo: pin.data.address ? [pin.data.address, pin.data.city, pin.data.state].filter(Boolean).join(', ') : null,
       whatsapp_comprador: pin.data.phone || pin.data.whatsapp || null,
       segment: pin.data.segment || null,
+      tem_gondola: temGondola,
       lat: pin.lat, lng: pin.lng,
       municipio: pin.data.city || null, uf: pin.data.state || null,
       status: 'active', is_active_client: true,
@@ -547,6 +554,7 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
       representative_client_id: client.id,
     }).eq('id', pin.id);
     setBusy(false);
+    setAskGondola(false);
     toast.success(`${pin.label} convertido em cliente! ✅`);
     setSelectedPin(null);
     fetchPins();
@@ -730,11 +738,30 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
                 <CheckCircle className="w-3.5 h-3.5" /> {busy ? '...' : 'Check-in'}
               </button>
             )}
-            {!['visited','converted','rejected'].includes(selectedPin.status) && (
-              <button disabled={busy} onClick={() => convertToClient(selectedPin)}
+            {!['visited','converted','rejected'].includes(selectedPin.status) && !askGondola && (
+              <button disabled={busy} onClick={() => setAskGondola(true)}
                 className="flex items-center gap-1 rounded-lg bg-[#8B2214] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#6d1a10] disabled:opacity-50">
-                <UserPlus className="w-3.5 h-3.5" /> {busy ? '...' : 'Converter em cliente'}
+                <UserPlus className="w-3.5 h-3.5" /> Converter em cliente
               </button>
+            )}
+            {!['visited','converted','rejected'].includes(selectedPin.status) && askGondola && (
+              <div className="w-full rounded-lg border border-[#ddd0cc] bg-[#f8f7f5] p-2.5">
+                <div className="text-xs font-semibold text-gray-800 mb-1.5">Esta loja tem gôndola (espaço na prateleira pro seu produto)? <span className="text-red-600">*</span></div>
+                <div className="flex gap-1.5">
+                  <button disabled={busy} onClick={() => convertToClient(selectedPin, true)}
+                    className="flex-1 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700 disabled:opacity-50">
+                    {busy ? '...' : 'Sim, tem'}
+                  </button>
+                  <button disabled={busy} onClick={() => convertToClient(selectedPin, false)}
+                    className="flex-1 rounded-lg bg-gray-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-700 disabled:opacity-50">
+                    {busy ? '...' : 'Não tem'}
+                  </button>
+                  <button disabled={busy} onClick={() => setAskGondola(false)}
+                    className="rounded-lg bg-white border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
+                    Cancelar
+                  </button>
+                </div>
+              </div>
             )}
             {!['visited','converted','rejected'].includes(selectedPin.status) && (
               <button disabled={busy} onClick={async () => {

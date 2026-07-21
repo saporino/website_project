@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline } from 'react-
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { supabase } from '../../lib/supabase';
+import { useCompany } from '../../contexts/CompanyContext';
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -71,6 +72,7 @@ function getStatusStyle(rep: RepPresence) {
 }
 
 export default function RepCoLiveMap() {
+  const { activeCompanyId } = useCompany();
   const [reps, setReps] = useState<RepPresence[]>([]);
   const [saleAnimations, setSaleAnimations] = useState<SaleAnimation[]>([]);
   const [selectedRepId, setSelectedRepId] = useState<string | null>(null);
@@ -87,7 +89,7 @@ export default function RepCoLiveMap() {
     fetchReps();
     const tick = setInterval(() => setLastUpdate(new Date()), 30000);
     return () => { clearInterval(tick); if (channelRef.current) supabase.removeChannel(channelRef.current); };
-  }, []);
+  }, [activeCompanyId]);
 
   useEffect(() => {
     if (reps.length === 0) return;
@@ -99,8 +101,8 @@ export default function RepCoLiveMap() {
     setLoading(true);
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const [{ data: repsData }, { data: ordersData }] = await Promise.all([
-      supabase.from('representatives').select('id,full_name,is_online,last_seen_at,last_lat,last_lng,current_tab,commission_rate,status').eq('status', 'active').order('full_name'),
-      supabase.from('representative_orders').select('representative_id,total_amount,status').gte('created_at', today.toISOString()),
+      supabase.from('representatives').select('id,full_name,is_online,last_seen_at,last_lat,last_lng,current_tab,commission_rate,status').eq('status', 'active').eq('company_id', activeCompanyId).order('full_name'),
+      supabase.from('representative_orders').select('representative_id,total_amount,status').eq('company_id', activeCompanyId).gte('created_at', today.toISOString()),
     ]);
     if (!repsData) { setLoading(false); return; }
     setReps(repsData.map(rep => ({
