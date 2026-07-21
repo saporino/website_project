@@ -236,7 +236,7 @@ export function PromotorDashboard() {
         </div>
 
         {activeTab === 'mensagens' && user && <Messenger currentUserId={user.id} />}
-        {activeTab === 'ajuda' && <RepCoHelp onContactSupport={() => setActiveTab('mensagens')} />}
+        {activeTab === 'ajuda' && <RepCoHelp audience="promotor" onContactSupport={() => setActiveTab('mensagens')} />}
         {(activeTab === 'rota' || activeTab === 'visitas') && <PromotorRota promoterId={promoter.id} promoterName={promoter.full_name} />}
         {activeTab === 'historico' && <PromotorHistorico promoterId={promoter.id} />}
         {activeTab === 'pendencias' && <PromotorOcorrencias promoterId={promoter.id} onOpenChat={() => setActiveTab('mensagens')} />}

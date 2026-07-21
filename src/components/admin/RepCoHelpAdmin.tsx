@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { HelpCircle, Plus, Trash2, Save, Loader2, Eye, EyeOff } from 'lucide-react';
 
-interface Article { id: string; question: string; answer: string; category: string; sort_order: number; is_active: boolean; }
+interface Article { id: string; question: string; answer: string; category: string; sort_order: number; is_active: boolean; audience: string; }
 
-const EMPTY = { question: '', answer: '', category: 'Geral', sort_order: 0, is_active: true };
+const EMPTY = { question: '', answer: '', category: 'Geral', sort_order: 0, is_active: true, audience: 'representante' };
+const AUD_LABEL: Record<string, string> = { representante: 'Representante', promotor: 'Promotor', ambos: 'Ambos' };
 
 // Editor da Central de Ajuda do RepCo (FAQ que o representante vê no app).
 export default function RepCoHelpAdmin() {
@@ -28,7 +29,7 @@ export default function RepCoHelpAdmin() {
     const payload = {
       question: editing.question, answer: editing.answer,
       category: editing.category || 'Geral', sort_order: Number(editing.sort_order) || 0,
-      is_active: editing.is_active ?? true,
+      is_active: editing.is_active ?? true, audience: editing.audience || 'representante',
     };
     const { error } = editing.id
       ? await supabase.from('repco_help_articles').update(payload).eq('id', editing.id)
@@ -81,6 +82,14 @@ export default function RepCoHelpAdmin() {
             </div>
           </div>
           <div>
+            <label className="block text-[11px] font-semibold text-gray-500 mb-0.5">Quem vê esta pergunta</label>
+            <select value={editing.audience || 'representante'} onChange={e => setEditing(p => ({ ...p, audience: e.target.value }))} className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+              <option value="representante">Só o Representante</option>
+              <option value="promotor">Só o Promotor</option>
+              <option value="ambos">Ambos</option>
+            </select>
+          </div>
+          <div>
             <label className="block text-[11px] font-semibold text-gray-500 mb-0.5">Resposta</label>
             <textarea value={editing.answer || ''} onChange={e => setEditing(p => ({ ...p, answer: e.target.value }))} rows={3} className="w-full border border-gray-300 rounded px-3 py-2 text-sm resize-none" />
           </div>
@@ -111,7 +120,10 @@ export default function RepCoHelpAdmin() {
           {articles.map(a => (
             <div key={a.id} className="flex items-start gap-3 py-3">
               <div className="flex-1 min-w-0">
-                <p className={`text-sm font-medium ${a.is_active ? 'text-gray-900' : 'text-gray-400 line-through'}`}>{a.question}</p>
+                <p className={`text-sm font-medium ${a.is_active ? 'text-gray-900' : 'text-gray-400 line-through'}`}>
+                  {a.question}
+                  <span className={`ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-full align-middle ${a.audience === 'promotor' ? 'bg-blue-100 text-blue-700' : a.audience === 'ambos' ? 'bg-purple-100 text-purple-700' : 'bg-[#f5f0ef] text-[#8B2214]'}`}>{AUD_LABEL[a.audience] || a.audience}</span>
+                </p>
                 <p className="text-xs text-gray-500 truncate">{a.category} · {a.answer}</p>
               </div>
               <button onClick={() => toggleActive(a)} title={a.is_active ? 'Ocultar' : 'Mostrar'} className="p-1.5 hover:bg-gray-100 rounded text-gray-500">

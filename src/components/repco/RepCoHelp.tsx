@@ -4,8 +4,9 @@ import { HelpCircle, Search, ChevronDown, ChevronUp, MessageCircle } from 'lucid
 
 interface Article { id: string; question: string; answer: string; category: string; sort_order: number; }
 
-// Central de Ajuda do representante: FAQ (editável pelo admin) + atalho pro suporte (chat interno).
-export default function RepCoHelp({ onContactSupport }: { onContactSupport?: () => void }) {
+// Central de Ajuda: FAQ (editável pelo admin) + atalho pro suporte (chat interno).
+// audience = qual público vê. Cada um vê as suas perguntas + as marcadas como "ambos".
+export default function RepCoHelp({ onContactSupport, audience = 'representante' }: { onContactSupport?: () => void; audience?: 'representante' | 'promotor' }) {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -16,12 +17,13 @@ export default function RepCoHelp({ onContactSupport }: { onContactSupport?: () 
       const { data } = await supabase.from('repco_help_articles')
         .select('id,question,answer,category,sort_order')
         .eq('is_active', true)
+        .in('audience', [audience, 'ambos'])
         .order('category', { ascending: true })
         .order('sort_order', { ascending: true });
       setArticles((data as Article[]) || []);
       setLoading(false);
     })();
-  }, []);
+  }, [audience]);
 
   const filtered = useMemo(() => {
     const t = search.trim().toLowerCase();
