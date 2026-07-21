@@ -6,7 +6,7 @@ interface Article { id: string; question: string; answer: string; category: stri
 
 // Central de Ajuda: FAQ (editável pelo admin) + atalho pro suporte (chat interno).
 // audience = qual público vê. Cada um vê as suas perguntas + as marcadas como "ambos".
-export default function RepCoHelp({ onContactSupport, audience = 'representante' }: { onContactSupport?: () => void; audience?: 'representante' | 'promotor' }) {
+export default function RepCoHelp({ onContactSupport, audience = 'representante' }: { onContactSupport?: () => void; audience?: 'representante' | 'promotor' | 'admin' }) {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -44,18 +44,20 @@ export default function RepCoHelp({ onContactSupport, audience = 'representante'
         <h2 className="text-lg font-semibold text-gray-800">Central de Ajuda</h2>
       </div>
 
-      {/* Suporte direto */}
-      <div className="bg-[#a4240e] text-white rounded-xl p-4 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold">Não achou o que procurava?</p>
-          <p className="text-xs opacity-90">Fale direto com o suporte pelo chat do app.</p>
+      {/* Suporte direto — não faz sentido pro admin (ele é o suporte) */}
+      {audience !== 'admin' && (
+        <div className="bg-[#a4240e] text-white rounded-xl p-4 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold">Não achou o que procurava?</p>
+            <p className="text-xs opacity-90">Fale direto com o suporte pelo chat do app.</p>
+          </div>
+          {onContactSupport && (
+            <button onClick={onContactSupport} className="flex items-center gap-1.5 bg-white text-[#a4240e] text-sm font-semibold px-3 py-2 rounded-lg hover:bg-gray-100">
+              <MessageCircle className="w-4 h-4" /> Falar com o suporte
+            </button>
+          )}
         </div>
-        {onContactSupport && (
-          <button onClick={onContactSupport} className="flex items-center gap-1.5 bg-white text-[#a4240e] text-sm font-semibold px-3 py-2 rounded-lg hover:bg-gray-100">
-            <MessageCircle className="w-4 h-4" /> Falar com o suporte
-          </button>
-        )}
-      </div>
+      )}
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />

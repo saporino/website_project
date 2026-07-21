@@ -5,7 +5,7 @@ import { HelpCircle, Plus, Trash2, Save, Loader2, Eye, EyeOff } from 'lucide-rea
 interface Article { id: string; question: string; answer: string; category: string; sort_order: number; is_active: boolean; audience: string; }
 
 const EMPTY = { question: '', answer: '', category: 'Geral', sort_order: 0, is_active: true, audience: 'representante' };
-const AUD_LABEL: Record<string, string> = { representante: 'Representante', promotor: 'Promotor', ambos: 'Ambos' };
+const AUD_LABEL: Record<string, string> = { representante: 'Representante', promotor: 'Promotor', admin: 'Admin', ambos: 'Ambos' };
 
 // Editor da Central de Ajuda do RepCo (FAQ que o representante vê no app).
 export default function RepCoHelpAdmin() {
@@ -86,7 +86,8 @@ export default function RepCoHelpAdmin() {
             <select value={editing.audience || 'representante'} onChange={e => setEditing(p => ({ ...p, audience: e.target.value }))} className="w-full border border-gray-300 rounded px-3 py-2 text-sm">
               <option value="representante">Só o Representante</option>
               <option value="promotor">Só o Promotor</option>
-              <option value="ambos">Ambos</option>
+              <option value="admin">Só o Admin (você)</option>
+              <option value="ambos">Ambos (rep + promotor)</option>
             </select>
           </div>
           <div>
@@ -122,7 +123,7 @@ export default function RepCoHelpAdmin() {
               <div className="flex-1 min-w-0">
                 <p className={`text-sm font-medium ${a.is_active ? 'text-gray-900' : 'text-gray-400 line-through'}`}>
                   {a.question}
-                  <span className={`ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-full align-middle ${a.audience === 'promotor' ? 'bg-blue-100 text-blue-700' : a.audience === 'ambos' ? 'bg-purple-100 text-purple-700' : 'bg-[#f5f0ef] text-[#8B2214]'}`}>{AUD_LABEL[a.audience] || a.audience}</span>
+                  <span className={`ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-full align-middle ${a.audience === 'promotor' ? 'bg-blue-100 text-blue-700' : a.audience === 'ambos' ? 'bg-purple-100 text-purple-700' : a.audience === 'admin' ? 'bg-amber-100 text-amber-700' : 'bg-[#f5f0ef] text-[#8B2214]'}`}>{AUD_LABEL[a.audience] || a.audience}</span>
                 </p>
                 <p className="text-xs text-gray-500 truncate">{a.category} · {a.answer}</p>
               </div>

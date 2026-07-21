@@ -13,8 +13,9 @@ import CompanySwitcher from '../components/CompanySwitcher';
 import GuideToggle from '../components/GuideToggle';
 import BatchManagement from '../components/admin/BatchManagement';
 import Messenger from '../components/chat/Messenger';
+import RepCoHelp from '../components/repco/RepCoHelp';
 
-type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 'settings' | 'repco' | 'inventory' | 'messages';
+type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 'settings' | 'repco' | 'inventory' | 'messages' | 'ajuda';
 
 export function AdminDashboard() {
   const { user, profile, signOut, loading } = useAuth();
@@ -29,6 +30,7 @@ export function AdminDashboard() {
     settings: 0,
     repco: 0,
     inventory: 0,
+    ajuda: 0,
   });
 
   // Deep-link: if another page stored a target tab in localStorage, activate it
@@ -89,6 +91,7 @@ export function AdminDashboard() {
     { id: 'messages' as TabType, label: 'Mensagens' },
     { id: 'inventory' as TabType, label: 'Inventário' },
     { id: 'settings' as TabType, label: 'Configurações' },
+    { id: 'ajuda' as TabType, label: 'Ajuda' },
   ];
 
   return (
@@ -163,6 +166,11 @@ export function AdminDashboard() {
             {activeTab === 'messages' && <Messenger currentUserId={user!.id} />}
             {activeTab === 'inventory' && <BatchManagement refreshKey={refreshVersion.inventory} />}
             {activeTab === 'settings' && <StoreSettings />}
+            {activeTab === 'ajuda' && (
+              <div className="p-6">
+                <RepCoHelp audience="admin" onContactSupport={() => openTab('messages')} />
+              </div>
+            )}
           </div>
         </div>
       </div>
