@@ -34,7 +34,7 @@ const emptyForm = {
   credito_score:'' as number|'', score_serasa_pdf_url:'', score_serasa_pdf_filename:'',
   inscricao_estadual:'', is_pj:true,
   desconto_financeiro_pct:'' as number|'', desconto_logistico_pct:'' as number|'', bonificacao_padrao:'',
-  tem_gondola: null as boolean|null, geofence_radius_m: 100,
+  tem_gondola: null as boolean|null, geofence_radius_m: 500,
 };
 type ViewMode = 'list'|'detail'|'edit'|'new';
 function fmtCNPJ(v:string){return v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5');}
@@ -133,7 +133,7 @@ export default function RepCoClients({ representativeId, previewMode = false, re
       desconto_financeiro_pct:c.desconto_financeiro_pct!=null?c.desconto_financeiro_pct:'' as number|'',
       desconto_logistico_pct:c.desconto_logistico_pct!=null?c.desconto_logistico_pct:'' as number|'',
       bonificacao_padrao:c.bonificacao_padrao||'',
-      tem_gondola:c.tem_gondola,geofence_radius_m:c.geofence_radius_m??100});
+      tem_gondola:c.tem_gondola,geofence_radius_m:c.geofence_radius_m??500});
     setView('edit');setErr('');
   }
   function openNew(){if (previewMode) { alert('Ação desativada no espelho.'); return; } setForm(emptyForm);setView('new');setErr('');}
@@ -209,7 +209,7 @@ export default function RepCoClients({ representativeId, previewMode = false, re
       desconto_financeiro_pct:form.desconto_financeiro_pct===''?0:Math.max(0,Math.min(100,Number(form.desconto_financeiro_pct))),
       desconto_logistico_pct:form.desconto_logistico_pct===''?0:Math.max(0,Math.min(100,Number(form.desconto_logistico_pct))),
       bonificacao_padrao:form.bonificacao_padrao||null,
-      tem_gondola:form.tem_gondola,geofence_radius_m:Number(form.geofence_radius_m)||100};
+      tem_gondola:form.tem_gondola,geofence_radius_m:Number(form.geofence_radius_m)||500};
     let savedId:string|null=null; let error:{message:string}|null=null;
     if(view==='edit'&&sel){
       const r=await supabase.from('representative_clients').update(p).eq('id',sel.id);
@@ -411,8 +411,8 @@ export default function RepCoClients({ representativeId, previewMode = false, re
             <div className="mt-2">
               <label className={lbl}>Raio da geocerca da loja (metros)</label>
               <input type="number" min="30" max="1000" step="10" value={form.geofence_radius_m}
-                onChange={e=>setForm(p=>({...p,geofence_radius_m:parseInt(e.target.value)||100}))} className={inp+' max-w-[160px]'}/>
-              <p className="text-[11px] text-gray-400 mt-1">Distância em que o check-in do promotor conta como "na loja". Padrão 100 m.</p>
+                onChange={e=>setForm(p=>({...p,geofence_radius_m:parseInt(e.target.value)||500}))} className={inp+' max-w-[160px]'}/>
+              <p className="text-[11px] text-gray-400 mt-1">Distância em que o check-in do promotor conta como "na loja". Padrão 500 m (aumente para lojas grandes).</p>
             </div>
           )}
         </div>

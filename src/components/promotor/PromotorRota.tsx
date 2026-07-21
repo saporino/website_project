@@ -234,7 +234,7 @@ function VisitFlow({ visit, store, storeName, promoterId, promoterName, onExit }
       .then(({ data }) => setPhotos((data || []).map((p: any) => ({ kind: p.kind, url: p.photo_url }))));
   }, [visit.id]);
 
-  const radius = Number(store?.geofence_radius_m) || 100;
+  const radius = Number(store?.geofence_radius_m) || 500;
   const fence = useMemo(() => {
     if (!gps || store?.lat == null || store?.lng == null) return null;
     const d = distMeters(gps.lat, gps.lng, Number(store.lat), Number(store.lng));

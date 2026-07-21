@@ -685,8 +685,8 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
                             {client.tem_gondola==null && <span className="text-xs text-gray-400">(não respondido)</span>}
                             {client.tem_gondola===true && (
                               <span className="flex items-center gap-1 text-xs text-gray-500">· raio
-                                <input type="number" min={30} max={1000} step={10} defaultValue={client.geofence_radius_m ?? 100}
-                                  onBlur={e=>{const v=parseInt(e.target.value)||100; if(v!==(client.geofence_radius_m??100)) updateClientGondola(client.id,{geofence_radius_m:v});}}
+                                <input type="number" min={30} max={1000} step={10} defaultValue={client.geofence_radius_m ?? 500}
+                                  onBlur={e=>{const v=parseInt(e.target.value)||500; if(v!==(client.geofence_radius_m??500)) updateClientGondola(client.id,{geofence_radius_m:v});}}
                                   className="w-16 h-7 px-2 border border-gray-300 rounded text-xs" /> m
                               </span>
                             )}
