@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
+import { guide } from '../../lib/guide';
 import { useCompany } from '../../contexts/CompanyContext';
 import { AlertTriangle, Plus, MessageCircle } from 'lucide-react';
 
@@ -59,6 +60,7 @@ export default function PromotorOcorrencias({ promoterId, onOpenChat }: { promot
     });
     setBusy(false);
     if (error) { setErr('Erro: ' + error.message); return; }
+    guide('Ocorrência aberta', 'Vai para o Representante da loja (conversa no produto) e para o Admin (sino de notificações)');
     setShowNew(false); setF({ storeId: '', category: '', productId: '', description: '' });
     load();
   }

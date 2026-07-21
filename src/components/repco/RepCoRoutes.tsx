@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet'
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { supabase } from '../../lib/supabase';
+import { guide } from '../../lib/guide';
 import { useCompany } from '../../contexts/CompanyContext';
 import { SEGMENT_LABEL } from '../../constants/segments';
 
@@ -161,7 +162,7 @@ export default function RepCoRoutes({ representativeId, currentLat, currentLng, 
     if (g === null || !/^(s|n)/i.test(g.trim())) { alert('Precisa responder sim ou não sobre a gôndola para cadastrar o cliente.'); return; }
     const temGondola = /^s/i.test(g.trim());
     const { error } = await supabase.from('representative_clients').insert({ representative_id: representativeId, company_id: activeCompanyId, cnpj: cnpj.replace(/\D/g, ''), razao_social: stop.company_name, endereco_completo: stop.address, whatsapp_comprador: stop.phone || null, segment: stop.segment || null, tem_gondola: temGondola, status: 'active', is_active_client: true });
-    if (!error) { alert(`${stop.company_name} convertido!`); onNavigateToOrder?.('new'); }
+    if (!error) { alert(`${stop.company_name} convertido!`); guide('Cliente criado a partir da rota', 'RepCo → aba Clientes'); onNavigateToOrder?.('new'); }
   }
 
   const pendingC = stops.filter(s => s.visit_status === 'pending').length;

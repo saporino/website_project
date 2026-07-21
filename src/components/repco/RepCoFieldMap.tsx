@@ -3,6 +3,7 @@ import 'leaflet/dist/leaflet.css'; // CSS do Leaflet — SEM isto os tiles rende
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
 import { toast } from 'sonner';
+import { guide } from '../../lib/guide';
 import { MapPin, Navigation2, CheckCircle, AlertCircle, RotateCcw, Truck, ShoppingBag, Users, Edit2, UserPlus } from 'lucide-react';
 
 interface Props {
@@ -556,6 +557,7 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
     setBusy(false);
     setAskGondola(false);
     toast.success(`${pin.label} convertido em cliente! ✅`);
+    guide('Cliente criado a partir do lead', 'RepCo → aba Clientes (agora dá pra lançar pedido para ele)');
     setSelectedPin(null);
     fetchPins();
     window.dispatchEvent(new CustomEvent('repco:clients-updated', { detail: { representativeId } }));

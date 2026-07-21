@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
 import { toast } from 'sonner';
+import { guide } from '../../lib/guide';
 import { UserCheck, ChevronDown, ChevronUp, CheckCircle, XCircle, Plus, Copy, Store, Loader2, Route as RouteIcon, ArrowUp, ArrowDown, Lock } from 'lucide-react';
 import PromoterSupervisorPanel from './PromoterSupervisorPanel';
 
@@ -74,6 +75,7 @@ export default function PromotersAdmin() {
     setBusy(null);
     if (error) { toast.error('Erro: ' + error.message); return; }
     toast.success(status === 'active' ? `${p.full_name} aprovado!` : `${p.full_name} bloqueado.`);
+    if (status === 'active') guide('Promotor aprovado', 'Ele já entra no app do Promotor; agora monte a Rota do dia pra ele');
     load();
   }
 
@@ -156,6 +158,7 @@ export default function PromotersAdmin() {
       if (error) { toast.error('Erro nas paradas: ' + error.message); setPublishing(false); return; }
     }
     toast.success(`Rota de ${routeDate.split('-').reverse().join('/')} publicada (${routeSel.length} loja(s)).`);
+    guide('Rota publicada', 'App do Promotor → aba Rota (ele vê "Fazer check-in agora" naquele dia)');
     setPublishing(false); setRouteFor(null);
   }
 

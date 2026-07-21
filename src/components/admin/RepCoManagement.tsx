@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCompany } from '../../contexts/CompanyContext';
 import { toast } from 'sonner';
+import { guide } from '../../lib/guide';
 import PriceListManager from './PriceListManager';
 import RepCoInviteCodes, { RepInviteBadge } from './RepCoInviteCodes';
 import UserRolesManager from './UserRolesManager';
@@ -358,6 +359,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     }).eq('id', rep.id);
     if (error) { toast.error('Erro ao aprovar'); return; }
     toast.success(`${rep.full_name} aprovado!`);
+    guide('Representante aprovado', 'Ele já entra no RepCo e começa a cadastrar clientes e lançar pedidos');
     fetchReps();
     notifyRepCoUpdated(rep.id);
     if (selectedRep?.id === rep.id) setSelectedRep({ ...rep, status: 'active' });
@@ -461,6 +463,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     setOrders(current => current.map(order => (
       order.id === orderId ? { ...order, [field]: path, invoice_number: file.name } : order
     )));
+    guide(`${extension.toUpperCase()} da NF anexada`, 'Representante vê a NF em Pedidos; o pedido trava para edição e a comissão entra no ciclo');
     return true;
   };
 

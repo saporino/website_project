@@ -17,6 +17,7 @@ import Messenger from '../components/chat/Messenger';
 import RepCoHelp from '../components/repco/RepCoHelp';
 import RepCoRupturas from '../components/repco/RepCoRupturas';
 import CompanySwitcher from '../components/CompanySwitcher';
+import GuideToggle from '../components/GuideToggle';
 import RepCoCalculatorFab from '../components/repco/RepCoCalculatorFab';
 import { usePresence } from '../hooks/usePresence';
 import { useGeolocation } from '../hooks/useGeolocation';
@@ -385,6 +386,7 @@ export function RepCoDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
+            <GuideToggle />
             <CompanySwitcher compact />
             {profile?.is_admin && (
               <button

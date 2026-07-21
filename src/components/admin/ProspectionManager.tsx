@@ -3,6 +3,7 @@ import Papa from 'papaparse';
 import { AlertCircle, CheckCircle, ChevronDown, ChevronUp, FileText, Mail, MessageCircle, Phone, Trash2, Upload, Instagram, Facebook, Globe, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
+import { guide } from '../../lib/guide';
 import { useAuth } from '../../contexts/AuthContext';
 import { SEGMENT_LABEL } from '../../constants/segments';
 
@@ -876,6 +877,7 @@ export default function ProspectionManager({ refreshKey = 0 }: { refreshKey?: nu
     }
 
     toast.success(`Lista criada com ${filteredAssignableLeads.length} lead${filteredAssignableLeads.length !== 1 ? 's' : ''} para visita${filteredDuplicateLeads.length ? ` e ${filteredDuplicateLeads.length} já cliente/duplicado` : ''}.`);
+    guide('Lista de prospecção enviada', selectedRep ? 'RepCo (do representante) → aba Prospecção → ele abre no mapa e converte em Cliente' : 'RepCo → aba Prospecção (ainda sem representante — atribua um para ele receber)');
     setSaving(false);
     if (hasImportFilter) {
       const createdRows = new Set(filteredParsedLeads.map(lead => lead.rowNumber));

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { guide } from '../../lib/guide';
 import { SEGMENT_LABEL } from '../../constants/segments';
 import { useCompany } from '../../contexts/CompanyContext';
 import BoletoCombinationPicker from './BoletoCombinationPicker';
@@ -280,6 +281,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
     window.dispatchEvent(new CustomEvent('repco:clients-updated', { detail: { representativeId } }));
     setSuccess(true);
     setSubmitting(false);
+    guide('Pedido enviado ao admin', 'Admin → aba RepCo → Pedidos (o admin aprova e anexa a NF; a comissão libera depois disso)');
     onOrderCreated?.(createdOrder.id);
   }
 
