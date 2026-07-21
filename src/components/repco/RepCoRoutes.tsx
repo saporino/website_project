@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet'
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { supabase } from '../../lib/supabase';
+import { useCompany } from '../../contexts/CompanyContext';
 import { SEGMENT_LABEL } from '../../constants/segments';
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -54,6 +55,7 @@ function hav(lat1: number, lng1: number, lat2: number, lng2: number): number {
 }
 
 export default function RepCoRoutes({ representativeId, currentLat, currentLng, onNavigateToOrder, previewMode = false }: Props) {
+  const { activeCompanyId } = useCompany();
   const [routes, setRoutes] = useState<Route[]>([]);
   const [sel, setSel] = useState<Route | null>(null);
   const [stops, setStops] = useState<Stop[]>([]);
@@ -155,7 +157,7 @@ export default function RepCoRoutes({ representativeId, currentLat, currentLng, 
     if (previewMode) { alert('Ação desativada no espelho.'); return; }
     const cnpj = prompt('CNPJ do cliente (somente números):');
     if (!cnpj) return;
-    const { error } = await supabase.from('representative_clients').insert({ representative_id: representativeId, cnpj: cnpj.replace(/\D/g, ''), razao_social: stop.company_name, endereco_completo: stop.address, whatsapp_comprador: stop.phone || null, segment: stop.segment || null, status: 'active', is_active_client: true });
+    const { error } = await supabase.from('representative_clients').insert({ representative_id: representativeId, company_id: activeCompanyId, cnpj: cnpj.replace(/\D/g, ''), razao_social: stop.company_name, endereco_completo: stop.address, whatsapp_comprador: stop.phone || null, segment: stop.segment || null, status: 'active', is_active_client: true });
     if (!error) { alert(`${stop.company_name} convertido!`); onNavigateToOrder?.('new'); }
   }
 

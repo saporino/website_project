@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import 'leaflet/dist/leaflet.css'; // CSS do Leaflet — SEM isto os tiles renderizam quebrados/em escada
 import { supabase } from '../../lib/supabase';
+import { useCompany } from '../../contexts/CompanyContext';
 import { toast } from 'sonner';
 import { MapPin, Navigation2, CheckCircle, AlertCircle, RotateCcw, Truck, ShoppingBag, Users, Edit2, UserPlus } from 'lucide-react';
 
@@ -85,6 +86,7 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
   const [loading, setLoading] = useState(true);
   const [selectedPin, setSelectedPin] = useState<MapPin | null>(null);
   const [pulsingId, setPulsingId] = useState<string | null>(null);
+  const { activeCompanyId } = useCompany();
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ company_name: '', address: '', phone: '' });
@@ -529,6 +531,7 @@ export default function RepCoFieldMap({ representativeId, currentLat, currentLng
     // Cria cliente básico com os dados do lead
     const { data: client, error: clientErr } = await supabase.from('representative_clients').insert({
       representative_id: representativeId,
+      company_id: activeCompanyId,
       razao_social: pin.data.company_name || pin.label,
       endereco_completo: pin.data.address ? [pin.data.address, pin.data.city, pin.data.state].filter(Boolean).join(', ') : null,
       whatsapp_comprador: pin.data.phone || pin.data.whatsapp || null,
