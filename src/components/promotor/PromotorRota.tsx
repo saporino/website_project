@@ -74,15 +74,21 @@ export default function PromotorRota({ promoterId, promoterName }: Props) {
 
   const storeOf = (v: Visit) => stores[v.representative_client_id];
   const nameOf = (v: Visit) => { const s = storeOf(v); return s?.nome_fantasia || s?.razao_social || 'Loja'; };
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const dayOf = (v: Visit) => ((v as any).created_at || '').slice(0, 10);
+  // Atrasada = aberta de um dia anterior (não começou ou ficou no meio). Vira prioridade hoje.
+  const isCarryover = (v: Visit) => !['concluida', 'concluida_com_pendencia', 'nao_realizada'].includes(v.status) && dayOf(v) < todayStr;
   const OPEN_PRIORITY: Record<string, number> = { em_atendimento: 0, em_deslocamento: 1, nao_iniciada: 2 };
   const pend = visits
     .filter(v => !['concluida', 'concluida_com_pendencia', 'nao_realizada'].includes(v.status))
-    // em atendimento primeiro; depois pela ordem da parada
-    .sort((a, b) => (OPEN_PRIORITY[a.status] ?? 9) - (OPEN_PRIORITY[b.status] ?? 9) || (a.stop_order ?? 99) - (b.stop_order ?? 99));
+    .sort((a, b) =>
+      // 1º as atrasadas (dia anterior), 2º em atendimento, 3º ordem da parada
+      (Number(isCarryover(b)) - Number(isCarryover(a))) ||
+      ((OPEN_PRIORITY[a.status] ?? 9) - (OPEN_PRIORITY[b.status] ?? 9)) ||
+      ((a.stop_order ?? 99) - (b.stop_order ?? 99)));
   const done = visits.filter(v => ['concluida', 'concluida_com_pendencia', 'nao_realizada'].includes(v.status));
+  const atrasadas = pend.filter(isCarryover).length;
   const next = pend[0] || null;
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const isCarryover = (v: Visit) => v.status === 'em_atendimento' || (v.status !== 'nao_iniciada' ? false : ((v as any).created_at || '').slice(0, 10) < todayStr);
   const shown = showDone ? visits : pend;
 
   async function addExtraVisit(storeId: string) {
@@ -109,6 +115,12 @@ export default function PromotorRota({ promoterId, promoterName }: Props) {
         </button>
       )}
 
+      {atrasadas > 0 && (
+        <div className="bg-red-600 text-white rounded-xl px-3 py-2.5 text-sm font-semibold flex items-center gap-2">
+          <span className="text-lg">⚠</span> {atrasadas} visita{atrasadas > 1 ? 's' : ''} atrasada{atrasadas > 1 ? 's' : ''} do dia anterior — faça primeiro.
+        </div>
+      )}
+
       {/* Cabeçalho do dia */}
       <div className="bg-white border border-gray-200 rounded-xl p-4">
         <div className="flex items-center justify-between mb-2">
@@ -121,8 +133,8 @@ export default function PromotorRota({ promoterId, promoterName }: Props) {
           <div className="bg-[#f8f7f5] rounded-lg py-2"><p className="text-xl font-bold text-amber-600">{pend.length}</p><p className="text-[11px] text-gray-500">Pendentes</p></div>
         </div>
         {next && (
-          <button onClick={() => setFlowVisit(next)} className="mt-3 w-full flex items-center justify-center gap-2 bg-[#8B2214] hover:bg-[#6d1a10] text-white font-bold py-3 rounded-xl">
-            <Play className="w-4 h-4" /> {next.status === 'em_atendimento' ? 'Retomar visita' : 'Iniciar próxima visita'} — {nameOf(next)}
+          <button onClick={() => setFlowVisit(next)} className={`mt-3 w-full flex items-center justify-center gap-2 text-white font-bold py-3 rounded-xl ${isCarryover(next) ? 'bg-red-600 hover:bg-red-700' : 'bg-[#8B2214] hover:bg-[#6d1a10]'}`}>
+            <Play className="w-4 h-4" /> {isCarryover(next) ? '⚠ Visita atrasada' : next.status === 'em_atendimento' ? 'Retomar visita' : 'Iniciar próxima visita'} — {nameOf(next)}
           </button>
         )}
         {!next && visits.length > 0 && <p className="mt-3 text-center text-sm text-green-700 font-medium">✓ Rota do dia concluída!</p>}
@@ -150,7 +162,7 @@ export default function PromotorRota({ promoterId, promoterName }: Props) {
                   <p className="text-xs text-gray-500 truncate">{s?.endereco_completo || s?.municipio || ''}</p>
                   <div className="flex flex-wrap items-center gap-1.5 mt-1">
                     <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${STATUS_CLS[v.status] || 'bg-gray-100 text-gray-500'}`}>{STATUS_LABEL[v.status] || v.status}</span>
-                    {isCarryover(v) && <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">↩ retomar (dia anterior)</span>}
+                    {isCarryover(v) && <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-600 text-white font-semibold">⚠ Atrasada — prioridade</span>}
                     {v.priority && <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-50 text-red-600 font-medium">{v.priority}</span>}
                     {v.scheduled_at && <span className="text-[11px] text-gray-400 inline-flex items-center gap-0.5"><Clock className="w-3 h-3" />{new Date(v.scheduled_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>}
                     {d != null && <span className="text-[11px] text-gray-400 inline-flex items-center gap-0.5"><MapPin className="w-3 h-3" />{d < 1000 ? `${Math.round(d)} m` : `${(d / 1000).toFixed(1)} km`}</span>}
