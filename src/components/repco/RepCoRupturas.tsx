@@ -19,7 +19,7 @@ interface Alerta {
 interface Props {
   repId?: string; // a view vw_ruptura_alerts já filtra pelo rep logado (my_rep_id)
   onOpenChat: (conversationId: string) => void;
-  onGenerateOrder: (incident: { id: string; clientId: string }) => void;
+  onGenerateOrder: (incident: { id: string; clientId: string; productId: string | null; productName: string | null }) => void;
 }
 
 const CAT_LABEL: Record<string, string> = {
@@ -138,7 +138,7 @@ export default function RepCoRupturas({ onOpenChat, onGenerateOrder }: Props) {
                       className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-1.5 bg-white border-2 border-[#a4240e] text-[#a4240e] text-sm font-bold py-2.5 rounded-xl disabled:opacity-50">
                       <MessageCircle className="w-4 h-4" /> Abrir conversa
                     </button>
-                    <button onClick={() => onGenerateOrder({ id: a.id, clientId: a.representative_client_id })}
+                    <button onClick={() => onGenerateOrder({ id: a.id, clientId: a.representative_client_id, productId: a.product_id, productName: a.product_name })}
                       className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-1.5 bg-[#a4240e] hover:bg-[#8a1f0c] text-white text-sm font-bold py-2.5 rounded-xl">
                       <ShoppingCart className="w-4 h-4" /> Gerar pedido
                     </button>

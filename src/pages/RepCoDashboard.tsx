@@ -64,7 +64,7 @@ export function RepCoDashboard() {
   });
   // Bloco 5 — rupturas: badge + abrir conversa + gerar pedido a partir do alerta
   const [rupturasAbertas, setRupturasAbertas] = useState(0);
-  const [pendingIncidentId, setPendingIncidentId] = useState<string | null>(null);
+  const [pendingIncident, setPendingIncident] = useState<{ id: string; productId: string | null; productName: string | null } | null>(null);
   const [msgConvId, setMsgConvId] = useState<string | null>(null);
   const [preSelectedClientId, setPreSelectedClientId] = useState<string | null>(null);
   const [preFilledClientData, setPreFilledClientData] = useState<any>(null);
@@ -448,16 +448,26 @@ export function RepCoDashboard() {
                 representativeId={rep!.id}
                 preSelectedClientId={preSelectedClientId}
                 onOrderCreated={async (orderId) => {
-                  // veio de um alerta de ruptura? fecha a ocorrência e grava o desfecho
-                  if (pendingIncidentId && orderId) {
-                    await supabase.from('promoter_incidents')
-                      .update({ converted_to_order_id: orderId, status: 'resolvida', closed_at: new Date().toISOString() })
-                      .eq('id', pendingIncidentId);
-                    toast.success('Ruptura resolvida — pedido gerado e vinculado à ocorrência!');
-                    setPendingIncidentId(null);
+                  // veio de um alerta de ruptura? só resolve se o pedido CONTÉM o SKU da ruptura.
+                  if (pendingIncident && orderId) {
+                    let contemSku = true;
+                    if (pendingIncident.productId) {
+                      const { data: itens } = await supabase.from('representative_order_items').select('product_id').eq('order_id', orderId);
+                      contemSku = (itens || []).some((it: any) => it.product_id === pendingIncident.productId);
+                    }
+                    if (contemSku) {
+                      await supabase.from('promoter_incidents')
+                        .update({ converted_to_order_id: orderId, status: 'resolvida', closed_at: new Date().toISOString() })
+                        .eq('id', pendingIncident.id);
+                      toast.success('Ruptura resolvida — pedido gerado e vinculado à ocorrência!');
+                    } else {
+                      // SKU não bate: não pode marcar resolvida. A ruptura continua aberta.
+                      toast.warning(`O pedido não inclui "${pendingIncident.productName || 'o produto da ruptura'}". A ruptura continua ABERTA — para resolvê-la, o pedido precisa conter esse produto.`, { duration: 9000 });
+                    }
+                    setPendingIncident(null);
                   }
                   setPreSelectedClientId(null);
-                  refreshTabs('inicio', 'clients', 'orders');
+                  refreshTabs('inicio', 'clients', 'orders', 'rupturas');
                   openTab('orders');
                 }}
               />
@@ -489,7 +499,7 @@ export function RepCoDashboard() {
             {activeTab === 'rupturas' && (
               <RepCoRupturas repId={rep!.id}
                 onOpenChat={(convId) => { setMsgConvId(convId); setActiveTab('mensagens'); }}
-                onGenerateOrder={(inc) => { setPendingIncidentId(inc.id); setPreSelectedClientId(inc.clientId); openTab('novo_pedido'); }}
+                onGenerateOrder={(inc) => { setPendingIncident({ id: inc.id, productId: inc.productId, productName: inc.productName }); setPreSelectedClientId(inc.clientId); openTab('novo_pedido'); }}
               />
             )}
           </div>
