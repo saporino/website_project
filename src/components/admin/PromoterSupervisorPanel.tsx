@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
-import { BarChart3, ChevronDown, ChevronUp, Camera } from 'lucide-react';
+import { BarChart3, ChevronDown, ChevronUp, Camera, AlertTriangle, MessageCircle, Clock, Check } from 'lucide-react';
 
 // Bloco 6 — Painel do supervisor/admin: lê das views vw_promoter_* (não recalcula no front).
 const MapaVivo = lazy(() => import('./PromoterLiveMapInner'));
@@ -25,6 +25,8 @@ export default function PromoterSupervisorPanel() {
   const [fotoVisita, setFotoVisita] = useState<string | null>(null);
   const [fotos, setFotos] = useState<{ kind: string; photo_url: string }[]>([]);
   const [showMap, setShowMap] = useState(false);
+  const [abertas, setAbertas] = useState<any[]>([]);
+  const [resolvendo, setResolvendo] = useState<string | null>(null);
 
   async function load() {
     if (!activeCompanyId) return;
@@ -49,6 +51,30 @@ export default function PromoterSupervisorPanel() {
     ((cls.data as any[]) || []).forEach(x => { nm[x.id] = x.nome_fantasia || x.razao_social; });
     ((prs.data as any[]) || []).forEach(x => { nm[x.id] = x.full_name; });
     setNomes(nm);
+    // Rupturas em aberto — lista acionável para o gerente comercial contatar o cliente
+    const { data: ab } = await co(supabase.from('vw_ruptura_open').select('*').order('horas_aberta', { ascending: false }));
+    setAbertas((ab as any[]) || []);
+  }
+
+  async function resolverRuptura(id: string) {
+    setResolvendo(id);
+    await supabase.from('promoter_incidents').update({ status: 'resolvida', closed_at: new Date().toISOString() }).eq('id', id);
+    setAbertas(prev => prev.filter(r => r.id !== id));
+    setResolvendo(null);
+  }
+
+  function tempoAberta(horas: number) {
+    const h = Math.floor(horas);
+    if (h < 24) return `há ${h}h`;
+    const d = Math.floor(h / 24);
+    return `há ${d}d ${h % 24}h`;
+  }
+  function waLink(tel: string | null) {
+    if (!tel) return null;
+    let d = String(tel).replace(/\D/g, '');
+    if (!d) return null;
+    if (!d.startsWith('55')) d = '55' + d;
+    return `https://wa.me/${d}`;
   }
   useEffect(() => { if (open) load(); /* eslint-disable-next-line */ }, [open, de, ate, activeCompanyId]);
 
@@ -92,6 +118,53 @@ export default function PromoterSupervisorPanel() {
             <Kpi label="Rupturas abertas" v={summ?.abertas ?? 0} cls="text-red-600" />
             <Kpi label="Resolvidas" v={summ?.resolvidas ?? 0} cls="text-green-600" />
             <Kpi label="Viraram pedido 🎯" v={summ?.convertidas ?? 0} cls="text-[#8B2214]" />
+          </div>
+
+          {/* Rupturas em aberto — agir agora (gerente comercial contata o cliente) */}
+          <div className="border border-red-200 rounded-xl overflow-hidden">
+            <div className="px-3 py-2.5 bg-red-50 flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-600" />
+              <p className="text-sm font-bold text-red-700">Rupturas em aberto — agir agora</p>
+              {abertas.length > 0 && <span className="text-[11px] font-bold text-white bg-red-600 rounded-full px-2 py-0.5">{abertas.length}</span>}
+            </div>
+            {abertas.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-6">Nenhuma ruptura em aberto 🎉</p>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {abertas.map(r => {
+                  const wa = waLink(r.whatsapp_comprador);
+                  const urgente = Number(r.horas_aberta) >= 24;
+                  return (
+                    <div key={r.id} className="flex flex-wrap items-center gap-2 px-3 py-2.5 text-sm">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 truncate">{r.loja || 'Loja'}
+                          <span className="text-gray-400 font-normal"> · {r.municipio || ''}{r.uf ? '/' + r.uf : ''}</span>
+                        </p>
+                        <p className="text-xs text-gray-500 truncate">
+                          {r.produto || 'Produto'} · {r.category === 'ruptura_total' ? 'ruptura total' : (r.category || '').replace(/_/g, ' ')}
+                          {r.representante ? ` · rep: ${r.representante}` : ''}
+                        </p>
+                      </div>
+                      <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${urgente ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                        <Clock className="w-3 h-3" /> {tempoAberta(Number(r.horas_aberta) || 0)}
+                      </span>
+                      {wa ? (
+                        <a href={wa} target="_blank" rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg px-2.5 py-1.5 flex-shrink-0">
+                          <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+                        </a>
+                      ) : (
+                        <span className="text-[11px] text-gray-400 flex-shrink-0">sem WhatsApp</span>
+                      )}
+                      <button onClick={() => resolverRuptura(r.id)} disabled={resolvendo === r.id}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700 border border-gray-300 hover:bg-gray-50 rounded-lg px-2.5 py-1.5 flex-shrink-0 disabled:opacity-50">
+                        <Check className="w-3.5 h-3.5" /> {resolvendo === r.id ? '...' : 'Resolver'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {showMap && (
