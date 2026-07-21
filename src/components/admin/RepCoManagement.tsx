@@ -908,7 +908,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
           <RepCoOrdersManager representativeId={selectedRep?.id} refreshKey={refreshKey} />
         )}
 
-        {detailTab === 'comissoes' && <RepCoPayoutBlocks representativeId={selectedRep?.id} refreshKey={refreshKey} />}
+        {detailTab === 'comissoes' && isAdmin && <RepCoPayoutBlocks representativeId={selectedRep?.id} refreshKey={refreshKey} />}
 
         {detailTab === 'comissoes' && (
           <RepCoCommissionsManager representativeId={selectedRep?.id} refreshKey={refreshKey} />
@@ -969,9 +969,10 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   // LIST VIEW
   return (
     <div className="space-y-6">
-      <RepCoInviteCodes />
-      <UserRolesManager />
-      <PromotersAdmin />
+      {/* Só o admin gerencia convites, papéis (RBAC) e promotores. O gerente comercial não vê isto. */}
+      {isAdmin && <RepCoInviteCodes />}
+      {isAdmin && <UserRolesManager />}
+      {isAdmin && <PromotersAdmin />}
       {/* Row 1: Title + Action buttons */}
       <div className="space-y-3">
         <div>
