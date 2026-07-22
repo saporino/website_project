@@ -141,7 +141,7 @@ export default function BatchManagement({ refreshKey = 0 }: { refreshKey?: numbe
       supabase.from("green_coffee_lots").select("*, products(name), roasting_companies(name)").eq("company_id", activeCompanyId).order("created_at", { ascending: false }),
       supabase.from("roasting_companies").select("*").eq("company_id", activeCompanyId).order("company_code"),
       supabase.from("products").select("id,name,stock,weight_grams").eq("company_id", activeCompanyId).order("name"),
-      supabase.from("roasting_company_contacts").select("*").eq("active", true)
+      supabase.from("roasting_company_contacts").select("*").eq("active", true).eq("company_id", activeCompanyId)
     ]);
     setBatches((b||[]).map((x:any)=>({...x})));
     setCompanies(c||[]);
