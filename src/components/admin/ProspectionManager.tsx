@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { guide } from '../../lib/guide';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCompany } from '../../contexts/CompanyContext';
 import { SEGMENT_LABEL } from '../../constants/segments';
 
 interface Representative {
@@ -579,6 +580,7 @@ function normalizeRow(row: Record<string, unknown>, rowNumber: number, fallbackS
 
 export default function ProspectionManager({ refreshKey = 0 }: { refreshKey?: number }) {
   const { user } = useAuth();
+  const { activeCompanyId } = useCompany();
   const fileRef = useRef<HTMLInputElement>(null);
   const [lists, setLists] = useState<ProspectList[]>([]);
   const [representatives, setRepresentatives] = useState<Representative[]>([]);
@@ -611,7 +613,7 @@ export default function ProspectionManager({ refreshKey = 0 }: { refreshKey?: nu
 
   useEffect(() => {
     fetchData();
-  }, [refreshKey]);
+  }, [refreshKey, activeCompanyId]);
 
   useEffect(() => {
     function handleRefresh() {
@@ -653,8 +655,9 @@ export default function ProspectionManager({ refreshKey = 0 }: { refreshKey?: nu
       supabase
         .from('prospect_lists')
         .select('*, representatives(full_name)')
+        .eq('company_id', activeCompanyId)
         .order('created_at', { ascending: false }),
-      supabase.from('prospect_leads').select('prospect_list_id,category,segment'),
+      supabase.from('prospect_leads').select('prospect_list_id,category,segment').eq('company_id', activeCompanyId),
     ]);
     setRepresentatives(reps || []);
     setLists((prospectLists || []) as ProspectList[]);
@@ -730,7 +733,8 @@ export default function ProspectionManager({ refreshKey = 0 }: { refreshKey?: nu
   async function fetchExistingClients() {
     const { data, error } = await supabase
       .from('representative_clients')
-      .select('id,cnpj,razao_social,nome_fantasia,nome_completo,endereco_completo');
+      .select('id,cnpj,razao_social,nome_fantasia,nome_completo,endereco_completo')
+      .eq('company_id', activeCompanyId);
 
     if (error) {
       toast.warning('Não foi possível comparar com clientes existentes agora.');
@@ -813,6 +817,7 @@ export default function ProspectionManager({ refreshKey = 0 }: { refreshKey?: nu
       .from('prospect_lists')
       .insert({
         name: listName.trim(),
+        company_id: activeCompanyId,
         description: description.trim() || null,
         segment: listSegment,
         source_type: 'csv',
@@ -836,6 +841,7 @@ export default function ProspectionManager({ refreshKey = 0 }: { refreshKey?: nu
 
     const payload = filteredValidLeads.map(lead => ({
       prospect_list_id: list.id,
+      company_id: activeCompanyId,
       representative_id: selectedRep && isLeadAssignable(lead) ? selectedRep : null,
       company_name: lead.company_name,
       trade_name: lead.trade_name,

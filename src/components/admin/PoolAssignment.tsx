@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useCompany } from '../../contexts/CompanyContext';
 import { Loader2, MapPin, Users, ChevronLeft, Check } from 'lucide-react';
 
 interface Pool { id: string; name: string; segment: string | null; total: number; assigned: number; remaining: number; }
@@ -7,6 +8,7 @@ interface Lead { id: string; company_name: string; trade_name: string | null; di
 interface Rep { id: string; full_name: string; }
 
 export default function PoolAssignment() {
+  const { activeCompanyId } = useCompany();
   const [pools, setPools] = useState<Pool[]>([]);
   const [reps, setReps] = useState<Rep[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,7 +25,7 @@ export default function PoolAssignment() {
   async function loadPools() {
     setLoading(true);
     const { data: lists } = await supabase.from('prospect_lists')
-      .select('id,name,segment').eq('source_type', 'scraper').order('created_at', { ascending: false });
+      .select('id,name,segment').eq('source_type', 'scraper').eq('company_id', activeCompanyId).order('created_at', { ascending: false });
     const ids = (lists || []).map((l: any) => l.id);
     const counts = new Map<string, { total: number; assigned: number }>();
     // conta leads por pool (paginado)
@@ -46,7 +48,7 @@ export default function PoolAssignment() {
     setReps((r as Rep[]) || []);
     setLoading(false);
   }
-  useEffect(() => { loadPools(); }, []);
+  useEffect(() => { loadPools(); }, [activeCompanyId]);
 
   async function openPool(p: Pool) {
     setSel(p); setLoadingLeads(true); setPicked(new Set()); setMsg('');

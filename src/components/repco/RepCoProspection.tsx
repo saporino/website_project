@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CheckCircle, Clock, ExternalLink, Globe2, Mail, MapPin, MessageCircle, Phone, RotateCcw, UserPlus, ChevronLeft, List } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
+import { useCompany } from '../../contexts/CompanyContext';
 import { CLIENT_SEGMENTS } from '../../constants/segments';
 
 interface ProspectLead {
@@ -291,6 +292,7 @@ function classifyDocument(value: string) {
 }
 
 export default function RepCoProspection({ representativeId, currentLat, currentLng, previewMode = false, refreshKey = 0 }: Props) {
+  const { activeCompanyId } = useCompany();
   const [leads, setLeads] = useState<ProspectLead[]>([]);
   const [lists, setLists] = useState<ProspectListSummary[]>([]);
   const [selectedListId, setSelectedListId] = useState<string | null>(null);
@@ -310,7 +312,7 @@ export default function RepCoProspection({ representativeId, currentLat, current
 
   useEffect(() => {
     fetchLeads();
-  }, [representativeId, refreshKey]);
+  }, [representativeId, refreshKey, activeCompanyId]);
 
   useEffect(() => {
     function handleProspectionUpdated(event: Event) {
@@ -341,16 +343,19 @@ export default function RepCoProspection({ representativeId, currentLat, current
         .from('prospect_leads')
         .select(SELECT_FIELDS)
         .eq('representative_id', representativeId)
+        .eq('company_id', activeCompanyId)
         .order('created_at', { ascending: false }),
       supabase
         .from('prospect_leads')
         .select(SELECT_LIST_FIELDS)
         .eq('prospect_lists.assigned_representative_id', representativeId)
+        .eq('company_id', activeCompanyId)
         .order('created_at', { ascending: false }),
       supabase
         .from('prospect_lists')
         .select('id,name,segment,pending_count,total_count')
         .eq('assigned_representative_id', representativeId)
+        .eq('company_id', activeCompanyId)
         .order('created_at', { ascending: false }),
     ]);
 
@@ -382,7 +387,7 @@ export default function RepCoProspection({ representativeId, currentLat, current
     const extraIds = [...new Set(mergedLeads.map(l => l.prospect_list_id).filter(Boolean))].filter(id => !assignedIds.has(id));
     let extraLists: any[] = [];
     if (extraIds.length) {
-      const { data } = await supabase.from('prospect_lists').select('id,name,segment').in('id', extraIds);
+      const { data } = await supabase.from('prospect_lists').select('id,name,segment').in('id', extraIds).eq('company_id', activeCompanyId);
       extraLists = data || [];
     }
     const union = [...(assignedLists || []), ...extraLists];
@@ -529,6 +534,7 @@ export default function RepCoProspection({ representativeId, currentLat, current
           .from('representative_clients')
           .select('id')
           .eq('representative_id', representativeId)
+          .eq('company_id', activeCompanyId)
           .eq('cnpj', cnpj)
           .maybeSingle();
 
@@ -541,6 +547,7 @@ export default function RepCoProspection({ representativeId, currentLat, current
           .from('representative_clients')
           .select('id')
           .eq('representative_id', representativeId)
+          .eq('company_id', activeCompanyId)
           .eq('cpf', cpf)
           .maybeSingle();
 
@@ -551,6 +558,7 @@ export default function RepCoProspection({ representativeId, currentLat, current
       if (!clientId) {
         const payload = {
           representative_id: representativeId,
+          company_id: activeCompanyId,
           cnpj: cnpj || null,
           cpf: cpf || null,
           nome_completo: cpf ? convertForm.razao_social || convertForm.nome_fantasia || null : null,

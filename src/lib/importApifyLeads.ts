@@ -17,6 +17,7 @@ export interface ApifyImportParams {
   items: ApifyPlace[];
   uf: string; municipio: string; category: string;
   segment: ClientSegment | null;
+  companyId: string; // prospecção é por empresa
   runId?: string | null;
 }
 
@@ -36,12 +37,12 @@ export async function importApifyLeads(p: ApifyImportParams): Promise<ApifyImpor
 
   // leads já existentes no município (não reimportar; se já existe, só atualiza a info)
   const { data: existing } = await supabase.from('prospect_leads')
-    .select('id,company_name,trade_name,lat,lng,district,phone,website,email,address').ilike('city', p.municipio);
+    .select('id,company_name,trade_name,lat,lng,district,phone,website,email,address').eq('company_id', p.companyId).ilike('city', p.municipio);
   const existLeads = (existing || []) as any[];
 
   // cria o POOL (sem dono)
   const { data: lr, error: lErr } = await supabase.from('prospect_lists').insert({
-    name: `${p.municipio}/${p.uf} — ${p.category}`, segment: p.segment,
+    name: `${p.municipio}/${p.uf} — ${p.category}`, segment: p.segment, company_id: p.companyId,
     source_type: 'scraper', source_name: 'Apify Google Places', status: 'imported',
     assigned_representative_id: null, total_count: 0, pending_count: 0,
   }).select('id').single();
@@ -76,7 +77,7 @@ export async function importApifyLeads(p: ApifyImportParams): Promise<ApifyImpor
       continue;
     }
     rows.push({
-      prospect_list_id: listId, representative_id: null,
+      prospect_list_id: listId, representative_id: null, company_id: p.companyId,
       company_name: it.title, trade_name: it.title, cnpj: null,
       segment: p.segment, category: p.category, source: 'apify_google_places',
       address, district, city: it.city || p.municipio, state: it.state || p.uf,

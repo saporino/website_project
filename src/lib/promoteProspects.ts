@@ -29,11 +29,12 @@ interface ProspectRow {
 export async function promoteMunicipio(params: {
   uf: string;
   municipio: string;
+  companyId: string;          // prospecção é por empresa
   cnaes?: string[];           // opcional: restringe a CNAEs
   listName?: string;
   maxRows?: number;
 }): Promise<PromoteResult> {
-  const { uf, municipio, cnaes, maxRows = 5000 } = params;
+  const { uf, municipio, companyId, cnaes, maxRows = 5000 } = params;
 
   // 1) fatia do universo
   let q = supabase.from('prospects_b2b')
@@ -46,7 +47,7 @@ export async function promoteMunicipio(params: {
 
   // 2) carteira de clientes (dedup por CNPJ) — mesma chave do findExistingClient
   const { data: clients } = await supabase
-    .from('representative_clients').select('id,cnpj');
+    .from('representative_clients').select('id,cnpj').eq('company_id', companyId);
   const clientByCnpj = new Map<string, string>();
   (clients || []).forEach(c => { const d = onlyDigits(c.cnpj); if (d) clientByCnpj.set(d, c.id); });
 
@@ -54,7 +55,7 @@ export async function promoteMunicipio(params: {
   const listName = params.listName || `${municipio}/${uf} — base pública (RF)`;
   const dupCount = prospects.filter(p => clientByCnpj.has(onlyDigits(p.cnpj))).length;
   const { data: listRow, error: lErr } = await supabase.from('prospect_lists').insert({
-    name: listName, segment: null, source_type: 'scraper', source_name: 'RF Dados Abertos 2026-05',
+    name: listName, segment: null, company_id: companyId, source_type: 'scraper', source_name: 'RF Dados Abertos 2026-05',
     status: 'imported', total_count: prospects.length,
     pending_count: prospects.length - dupCount, duplicate_count: dupCount,
   }).select('id').single();
@@ -66,6 +67,7 @@ export async function promoteMunicipio(params: {
     const dupClientId = clientByCnpj.get(onlyDigits(p.cnpj)) || null;
     return {
       prospect_list_id: listId,
+      company_id: companyId,
       company_name: p.razao_social || p.nome_fantasia || p.cnpj,
       trade_name: p.nome_fantasia,
       cnpj: p.cnpj,
@@ -103,9 +105,10 @@ export interface AddResult { adicionados: number; ignorados: number; }
  */
 export async function addProspectsToList(params: {
   listId: string;
+  companyId: string;          // empresa da lista (prospecção é por empresa)
   prospects: ProspectRow[];
 }): Promise<AddResult> {
-  const { listId, prospects } = params;
+  const { listId, companyId, prospects } = params;
   if (!prospects.length) return { adicionados: 0, ignorados: 0 };
 
   // leads que já existem na lista (dedup por CNPJ e por nome normalizado)
@@ -119,7 +122,7 @@ export async function addProspectsToList(params: {
   });
 
   // carteira de clientes (CNPJ) -> marca duplicate_of_client_id
-  const { data: clients } = await supabase.from('representative_clients').select('id,cnpj');
+  const { data: clients } = await supabase.from('representative_clients').select('id,cnpj').eq('company_id', companyId);
   const clientByCnpj = new Map<string, string>();
   (clients || []).forEach(c => { const d = onlyDigits(c.cnpj); if (d) clientByCnpj.set(d, c.id); });
 
@@ -135,6 +138,7 @@ export async function addProspectsToList(params: {
     const dupClientId = clientByCnpj.get(onlyDigits(p.cnpj)) || null;
     return {
       prospect_list_id: listId,
+      company_id: companyId,
       company_name: p.razao_social || p.nome_fantasia || p.cnpj,
       trade_name: p.nome_fantasia, cnpj: p.cnpj, category: p.cnae_descricao, source: 'rf_dados_abertos',
       address: p.logradouro, number: p.numero, complement: p.complemento, district: p.bairro,

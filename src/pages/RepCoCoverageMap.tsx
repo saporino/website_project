@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useCompany } from '../contexts/CompanyContext';
 import { MapContainer, TileLayer, CircleMarker, Tooltip, useMapEvents, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { ArrowLeft, Lock, Store, Target, Loader2, Users, Search } from 'lucide-react';
@@ -55,6 +56,7 @@ function MapController({ target, home, homeZoom }: { target: [number, number] | 
 
 export default function RepCoCoverageMap() {
   const { profile, loading } = useAuth();
+  const { activeCompanyId } = useCompany();
   const [uf] = useState('SP');
   const [cities, setCities] = useState<City[]>([]);
   const [clientes, setClientes] = useState<ClienteGeo[]>([]);
@@ -210,10 +212,12 @@ export default function RepCoCoverageMap() {
       if (!alive) return;
       if (r.status === 'running') return;
       if (r.status === 'succeeded') {
+        if (!activeCompanyId) { setMsg('Selecione uma empresa antes de importar a prospecção.'); return; }
         try {
           const res = await importApifyLeads({
             items: r.items, uf: apifyRun.params.uf, municipio: apifyRun.params.municipio,
             category: apifyRun.params.category, segment: apifyRun.params.segment, runId: apifyRun.runId,
+            companyId: activeCompanyId,
           });
           setMsg(`✓ ${res.criados} leads novos em ${apifyRun.params.municipio}${res.atualizados ? ` · ${res.atualizados} atualizados (mantêm dono/cliente)` : ''}${res.foraDoRamo ? ` · ${res.foraDoRamo} fora do ramo` : ''}${res.ignorados ? ` · ${res.ignorados} sem mudança` : ''}${res.fora ? ` · ${res.fora} de outra cidade` : ''}. Vá em Prospecção → Atribuir pools.`);
           setReloadKey(k => k + 1);
