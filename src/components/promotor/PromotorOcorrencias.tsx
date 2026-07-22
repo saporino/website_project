@@ -35,7 +35,7 @@ export default function PromotorOcorrencias({ promoterId, onOpenChat }: { promot
   const load = useCallback(async () => {
     if (!activeCompanyId) return;
     const [{ data: is }, { data: sts }, { data: ps }] = await Promise.all([
-      supabase.from('vw_promoter_incidents').select('*').order('opened_at', { ascending: false }).limit(60),
+      supabase.from('vw_promoter_incidents').select('*').eq('company_id', activeCompanyId).order('opened_at', { ascending: false }).limit(60),
       supabase.from('vw_promoter_stores').select('id,razao_social,nome_fantasia,company_id').eq('company_id', activeCompanyId),
       supabase.from('vw_promoter_products').select('id,name').eq('company_id', activeCompanyId),
     ]);

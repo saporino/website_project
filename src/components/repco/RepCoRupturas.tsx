@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useCompany } from '../../contexts/CompanyContext';
 import { subscribeVisitLive } from '../../lib/promoterVisit';
 import { toast } from 'sonner';
 import { AlertTriangle, MessageCircle, ShoppingCart, CheckCircle, Store } from 'lucide-react';
@@ -36,12 +37,15 @@ export default function RepCoRupturas({ onOpenChat, onGenerateOrder }: Props) {
   const [tab, setTab] = useState<'abertas' | 'resolvidas'>('abertas');
   const [busy, setBusy] = useState<string | null>(null);
   const [liveStores, setLiveStores] = useState<Set<string>>(new Set());
+  const { activeCompanyId } = useCompany();
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from('vw_ruptura_alerts').select('*').order('opened_at', { ascending: false }).limit(100);
+    let q = supabase.from('vw_ruptura_alerts').select('*').order('opened_at', { ascending: false }).limit(100);
+    if (activeCompanyId) q = q.eq('company_id', activeCompanyId);
+    const { data } = await q;
     setAlertas((data as Alerta[]) || []);
     setLoading(false);
-  }, []);
+  }, [activeCompanyId]);
 
   useEffect(() => { load(); }, [load]);
 
