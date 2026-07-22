@@ -17,6 +17,7 @@ import Messenger from '../components/chat/Messenger';
 import RepCoHelp from '../components/repco/RepCoHelp';
 import RepCoRupturas from '../components/repco/RepCoRupturas';
 import CompanySwitcher from '../components/CompanySwitcher';
+import { useCompany } from '../contexts/CompanyContext';
 import GuideToggle from '../components/GuideToggle';
 import RepCoCalculatorFab from '../components/repco/RepCoCalculatorFab';
 import { usePresence } from '../hooks/usePresence';
@@ -43,6 +44,7 @@ type RepCoTab = 'inicio' | 'profile' | 'clients' | 'orders' | 'commissions' | 'p
 
 export function RepCoDashboard() {
   const { user, profile, signOut, loading: authLoading } = useAuth();
+  const { activeCompanyId } = useCompany();
   const [rep, setRep] = useState<Representative | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<RepCoTab>('inicio');
@@ -102,6 +104,7 @@ export function RepCoDashboard() {
       const { count } = await supabase.from('promoter_incidents')
         .select('id', { count: 'exact', head: true })
         .eq('assigned_representative_id', rep.id)
+        .eq('company_id', activeCompanyId)
         .not('status', 'in', '("resolvida","cancelada")');
       setRupturasAbertas(count || 0);
     };
@@ -113,7 +116,7 @@ export function RepCoDashboard() {
       })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [rep?.id, rep?.status]);
+  }, [rep?.id, rep?.status, activeCompanyId]);
   useEffect(() => {
     if (training?.active && training.tab) {
       setActiveTab(espelhoTabToRepTab(training.tab) as RepCoTab);

@@ -101,7 +101,9 @@ export default function RepCoLiveMap() {
     setLoading(true);
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const [{ data: repsData }, { data: ordersData }] = await Promise.all([
-      supabase.from('representatives').select('id,full_name,is_online,last_seen_at,last_lat,last_lng,current_tab,commission_rate,status').eq('status', 'active').eq('company_id', activeCompanyId).order('full_name'),
+      // representantes = identidade compartilhada entre empresas (1 linha por usuário) → NÃO filtrar por empresa
+      supabase.from('representatives').select('id,full_name,is_online,last_seen_at,last_lat,last_lng,current_tab,commission_rate,status').eq('status', 'active').order('full_name'),
+      // pedidos SÃO por empresa → filtra pelo seletor (faturamento/contagem do dia da empresa ativa)
       supabase.from('representative_orders').select('representative_id,total_amount,status').eq('company_id', activeCompanyId).gte('created_at', today.toISOString()),
     ]);
     if (!repsData) { setLoading(false); return; }

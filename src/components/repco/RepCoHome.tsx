@@ -29,10 +29,11 @@ export default function RepCoHome({ representativeId, onNavigateToRoute, onNavig
   const [snoozingClient, setSnoozingClient] = useState<string | null>(null);
   // "Promotor na loja agora" — Realtime do módulo Promotor (Bloco 3)
   const [liveVisits, setLiveVisits] = useState<VisitLivePayload[]>([]);
+  const { activeCompanyId } = useCompany();
 
   useEffect(() => {
     let myClientIds = new Set<string>();
-    supabase.from('representative_clients').select('id').eq('representative_id', representativeId)
+    supabase.from('representative_clients').select('id').eq('representative_id', representativeId).eq('company_id', activeCompanyId)
       .then(({ data }) => { myClientIds = new Set((data || []).map((c: { id: string }) => c.id)); });
     const unsub = subscribeVisitLive(p => {
       if (!myClientIds.has(p.clientId)) return;
@@ -41,9 +42,7 @@ export default function RepCoHome({ representativeId, onNavigateToRoute, onNavig
         : prev.filter(x => x.visitId !== p.visitId));
     });
     return unsub;
-  }, [representativeId]);
-
-  const { activeCompanyId } = useCompany();
+  }, [representativeId, activeCompanyId]);
   const { permission, requestPermission, sendNotification } = usePushNotifications();
 
   const handleProximityAlert = useCallback((alert: ProximityAlert) => {

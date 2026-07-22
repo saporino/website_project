@@ -112,7 +112,7 @@ export default function PromotersAdmin() {
   async function openRoute(p: Promoter, date = routeDate) {
     setRouteFor(p); setRouteSel([]); setRouteInfo('');
     const [{ data: links }, { data: route }] = await Promise.all([
-      supabase.from('promoter_clients').select('representative_client_id, representative_clients(id,razao_social,nome_fantasia,municipio,company_id)').eq('promoter_id', p.id).eq('is_active', true),
+      supabase.from('promoter_clients').select('representative_client_id, representative_clients(id,razao_social,nome_fantasia,municipio,company_id)').eq('promoter_id', p.id).eq('is_active', true).eq('company_id', activeCompanyId),
       supabase.from('promoter_routes').select('id,status').eq('promoter_id', p.id).eq('route_date', date).maybeSingle(),
     ]);
     const sts: StoreRow[] = ((links as any[]) || []).map(l => ({ ...(l.representative_clients || {}), linked: true, linkId: null }));

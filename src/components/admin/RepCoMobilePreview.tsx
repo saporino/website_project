@@ -4,6 +4,7 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState, type ElementType 
 import { Home, ClipboardList, Users, ShoppingBag, RefreshCw, X, Minus, GripHorizontal, Radio, Truck, DollarSign, TrendingUp, User, Plus, FileText, MessageCircle, Store } from 'lucide-react';
 import RepCoMarketPrices from '../repco/RepCoMarketPrices';
 import { useTrainingBroadcast, useTrainingListener, espelhoTabToRepTab, type CalcState } from '../../lib/training';
+import { useCompany } from '../../contexts/CompanyContext';
 import RepCoHome from '../repco/RepCoHome';
 import RepCoProspection from '../repco/RepCoProspection';
 import RepCoClients from '../repco/RepCoClients';
@@ -80,6 +81,7 @@ const ORDER_STATUS: Record<string, { label: string; className: string }> = {
 };
 
 function ReadOnlyOrdersPreview({ representativeId }: { representativeId: string }) {
+  const { activeCompanyId } = useCompany();
   const [orders, setOrders] = useState<PreviewOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -91,6 +93,7 @@ function ReadOnlyOrdersPreview({ representativeId }: { representativeId: string 
         .from('representative_orders')
         .select('id,order_number,description,total_amount,status,created_at,representative_clients(razao_social,nome_fantasia)')
         .eq('representative_id', representativeId)
+        .eq('company_id', activeCompanyId)
         .order('created_at', { ascending: false })
         .limit(20);
 
@@ -110,7 +113,7 @@ function ReadOnlyOrdersPreview({ representativeId }: { representativeId: string 
     return () => {
       mounted = false;
     };
-  }, [representativeId]);
+  }, [representativeId, activeCompanyId]);
 
   if (loading) {
     return <div className="flex justify-center py-12"><div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[#a4240e]" /></div>;
