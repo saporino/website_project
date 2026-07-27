@@ -17,8 +17,9 @@ import RepCoHelp from '../components/repco/RepCoHelp';
 import PromotersAdmin from '../components/admin/PromotersAdmin';
 import RepCoCommissionsManager from '../components/admin/RepCoCommissionsManager';
 import RepCoPayoutBlocks from '../components/admin/RepCoPayoutBlocks';
+import StudioPage from '../components/admin/StudioPage';
 
-type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 'settings' | 'repco' | 'inventory' | 'messages' | 'ajuda' | 'promotores' | 'comissoes';
+type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 'settings' | 'repco' | 'inventory' | 'messages' | 'ajuda' | 'promotores' | 'comissoes' | 'studio';
 
 // RBAC — "um console, abas por papel". O admin vê tudo; cada papel de console vê só o seu.
 // A trava REAL dos dados é a RLS no banco (esconder aba é só a fachada).
@@ -27,7 +28,7 @@ const ROLE_TABS: Record<string, TabType[]> = {
   gerente_comercial: ['repco', 'messages'],
   contabilidade: ['comissoes', 'messages'],
 };
-const ALL_ADMIN_TABS: TabType[] = ['dashboard', 'orders', 'products', 'customers', 'shipping', 'repco', 'messages', 'inventory', 'settings', 'ajuda'];
+const ALL_ADMIN_TABS: TabType[] = ['dashboard', 'orders', 'products', 'customers', 'shipping', 'repco', 'studio', 'messages', 'inventory', 'settings', 'ajuda'];
 const ROLE_LABEL: Record<string, string> = { supervisor: 'Supervisor', gerente_comercial: 'Gerente Comercial', contabilidade: 'Contabilidade' };
 const TAB_DEFS: { id: TabType; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -36,6 +37,7 @@ const TAB_DEFS: { id: TabType; label: string }[] = [
   { id: 'customers', label: 'Clientes' },
   { id: 'shipping', label: 'Transportadoras' },
   { id: 'repco', label: 'RepCo' },
+  { id: 'studio', label: 'Studio' },
   { id: 'promotores', label: 'Promotores' },
   { id: 'comissoes', label: 'Comissões' },
   { id: 'messages', label: 'Mensagens' },
@@ -67,6 +69,7 @@ export function AdminDashboard() {
     ajuda: 0,
     promotores: 0,
     comissoes: 0,
+    studio: 0,
   });
 
   // Se a aba ativa não é permitida pro papel, cai na primeira aba permitida
@@ -205,6 +208,7 @@ export function AdminDashboard() {
                 <RepCoHelp audience="admin" onContactSupport={() => openTab('messages')} />
               </div>
             )}
+            {activeTab === 'studio' && <StudioPage />}
             {activeTab === 'promotores' && (
               <div className="p-6"><PromotersAdmin /></div>
             )}

@@ -1,5 +1,5 @@
 import { useState, useEffect, Suspense, lazy, useMemo, useRef } from 'react';
-import { CheckCircle, XCircle, Eye, Plus, Upload, Phone, Mail, Map, Search, Smartphone, ArrowRightLeft, Tag, ExternalLink, Users, Pencil, Clapperboard } from 'lucide-react';
+import { CheckCircle, XCircle, Eye, Plus, Upload, Phone, Mail, Map, Search, Smartphone, ArrowRightLeft, Tag, ExternalLink, BarChart3, Users, Pencil } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCompany } from '../../contexts/CompanyContext';
@@ -994,8 +994,8 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
           </button>
           <button onClick={() => { window.history.pushState({}, '', '/repco/inteligencia'); window.dispatchEvent(new PopStateEvent('popstate')); }}
             className="h-9 px-3.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
-            <Clapperboard className="w-4 h-4" />
-            Studio
+            <BarChart3 className="w-4 h-4" />
+            Inteligência
           </button>
           <button onClick={() => openPreview()}
             className="h-9 px-3.5 rounded-lg text-sm font-medium bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex items-center gap-1.5">
