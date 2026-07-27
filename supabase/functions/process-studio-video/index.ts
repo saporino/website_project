@@ -65,12 +65,19 @@ Deno.serve(async (req) => {
     const cRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": ANTHROPIC, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 4000, system: SYSTEM_PROMPT, messages: [{ role: "user", content: userMsg }] }),
+      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 8000, system: SYSTEM_PROMPT, messages: [{ role: "user", content: userMsg }] }),
     });
-    if (!cRes.ok) throw new Error("Claude: " + (await cRes.text()).slice(0, 200));
-    const cJson = await cRes.json();
-    const raw = (cJson.content?.[0]?.text || "{}").replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
-    const a = JSON.parse(raw);
+    const cText = await cRes.text();
+    if (!cRes.ok) throw new Error("Claude: " + cText.slice(0, 200));
+    const cJson = JSON.parse(cText);
+    // Claude 5 devolve blocos "thinking" antes do texto → pega o bloco type==='text'
+    const rawText = (cJson.content || []).find((b: any) => b.type === "text")?.text ?? "";
+    // extrai o JSON de dentro do texto (caso venha com prosa/fences em volta)
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    const raw = (jsonMatch ? jsonMatch[0] : rawText).replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+    let a: any = {};
+    try { a = JSON.parse(raw); } catch { a = {}; }
+    if (!a.resumo && !a.gancho) throw new Error("A análise da IA veio vazia — tente Reprocessar.");
 
     // 4) salva a análise (mapeando pro schema das colunas)
     await supabase.from("studio_analyses").insert({
