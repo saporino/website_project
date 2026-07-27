@@ -69,6 +69,7 @@ export default function CampaignsPanel({ companyId }: { companyId: string | null
                   {r.scheduled_at && <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" />{new Date(r.scheduled_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
                 </p>
                 {r.content && <p className="text-sm text-gray-600 mt-1.5 line-clamp-2 whitespace-pre-line">{r.content}</p>}
+                {r.external_url && <a href={r.external_url} target="_blank" rel="noreferrer" className="text-xs text-[#8B2214] font-medium hover:underline break-all">🔗 {r.external_url}</a>}
               </div>
               <div className="flex flex-col gap-1 flex-shrink-0">
                 <button onClick={() => setEditing(r)} title="Editar" className="p-1.5 rounded text-gray-500 hover:text-[#8B2214] hover:bg-gray-50"><Pencil className="w-4 h-4" /></button>

@@ -12,6 +12,7 @@ export interface Campaign {
   id: string; video_id: string | null; company_id: string | null;
   title: string; platform: string; content: string | null; prompt_used: string | null;
   status: string; scheduled_at: string | null; created_at: string;
+  external_url?: string | null; published_at?: string | null;
 }
 
 // Cria (a partir da análise) OU edita uma campanha (studio_campaigns).
@@ -26,15 +27,19 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
   const [content, setContent] = useState(campaign?.content ?? initialContent ?? '');
   const [status, setStatus] = useState(campaign?.status || 'draft');
   const [scheduledAt, setScheduledAt] = useState(campaign?.scheduled_at ? campaign.scheduled_at.slice(0, 16) : '');
+  const [externalUrl, setExternalUrl] = useState(campaign?.external_url || '');
   const [saving, setSaving] = useState(false);
 
   async function save() {
     if (!title.trim()) { toast.error('Dê um título à campanha.'); return; }
     setSaving(true);
+    const finalStatus = editing ? status : (scheduledAt ? 'scheduled' : 'draft');
     const payload: any = {
-      title: title.trim(), platform, content,
-      status: editing ? status : (scheduledAt ? 'scheduled' : 'draft'),
+      title: title.trim(), platform, content, status: finalStatus,
       scheduled_at: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+      external_url: externalUrl.trim() || null,
+      // ao marcar publicada manualmente, carimba a data (se ainda não tinha)
+      published_at: finalStatus === 'published' ? (campaign?.published_at || new Date().toISOString()) : null,
     };
     let error;
     if (editing) {
@@ -88,6 +93,13 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${status === k ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>{l}</button>
                 ))}
               </div>
+            </div>
+          )}
+          {editing && status === 'published' && (
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-500 mb-1">Link do post (cole depois de postar na mão)</label>
+              <input value={externalUrl} onChange={e => setExternalUrl(e.target.value)} placeholder="https://instagram.com/p/..."
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
             </div>
           )}
           <div>
