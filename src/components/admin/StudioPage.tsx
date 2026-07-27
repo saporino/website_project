@@ -6,6 +6,7 @@ import { useCompany } from '../../contexts/CompanyContext';
 import { useAuth } from '../../contexts/AuthContext';
 import VideoDropzone from '../studio/VideoDropzone';
 import VideoCard, { type StudioVideo } from '../studio/VideoCard';
+import AnalysisModal from '../studio/AnalysisModal';
 
 // Saporino Studio — engenharia reversa de vídeos com IA.
 // PASSO 2: upload + salvar no Storage + listar com status (realtime).
@@ -18,6 +19,8 @@ export default function StudioPage() {
   const [videos, setVideos] = useState<StudioVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<Filtro>('todos');
+  const [modalVideo, setModalVideo] = useState<StudioVideo | null>(null);
+  const [modalTab, setModalTab] = useState<'resumo' | 'publicar'>('resumo');
 
   const load = useCallback(async () => {
     if (!activeCompanyId) return;
@@ -92,12 +95,16 @@ export default function StudioPage() {
         <div className="space-y-3">
           {shown.map(v => (
             <VideoCard key={v.id} v={v}
-              onAnalyze={() => toast.info('A tela de análise completa entra no próximo passo (Passo 5).')}
-              onCampaign={() => toast.info('O criador de campanhas entra no próximo passo do Studio.')}
+              onAnalyze={(vid) => { setModalTab('resumo'); setModalVideo(vid); }}
+              onCampaign={(vid) => { setModalTab('publicar'); setModalVideo(vid); }}
               onDelete={handleDelete}
               onReprocess={handleReprocess} />
           ))}
         </div>
+      )}
+
+      {modalVideo && (
+        <AnalysisModal video={modalVideo} companyId={activeCompanyId} initialTab={modalTab} onClose={() => setModalVideo(null)} />
       )}
     </div>
   );
