@@ -41,6 +41,13 @@ export default function StudioPage() {
     return () => { supabase.removeChannel(ch); };
   }, [activeCompanyId, load]);
 
+  async function handleReprocess(v: StudioVideo) {
+    await supabase.from('studio_videos').update({ status: 'processing', error_text: null }).eq('id', v.id);
+    setVideos(prev => prev.map(x => x.id === v.id ? { ...x, status: 'processing', error_text: null } : x));
+    supabase.functions.invoke('process-studio-video', { body: { video_id: v.id } }).catch(() => {});
+    toast.info('Reprocessando o vídeo…');
+  }
+
   async function handleDelete(v: StudioVideo) {
     if (!confirm(`Excluir "${v.filename}"? Isso remove o vídeo e a análise.`)) return;
     await supabase.storage.from('studio-videos').remove([v.storage_path]);
@@ -85,9 +92,10 @@ export default function StudioPage() {
         <div className="space-y-3">
           {shown.map(v => (
             <VideoCard key={v.id} v={v}
-              onAnalyze={() => toast.info('A análise com IA entra no próximo passo do Studio.')}
+              onAnalyze={() => toast.info('A tela de análise completa entra no próximo passo (Passo 5).')}
               onCampaign={() => toast.info('O criador de campanhas entra no próximo passo do Studio.')}
-              onDelete={handleDelete} />
+              onDelete={handleDelete}
+              onReprocess={handleReprocess} />
           ))}
         </div>
       )}

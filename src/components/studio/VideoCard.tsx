@@ -1,4 +1,4 @@
-import { Film, CheckCircle2, Loader2, Clock, AlertCircle, Sparkles, Megaphone, Trash2 } from 'lucide-react';
+import { Film, CheckCircle2, Loader2, Clock, AlertCircle, Sparkles, Megaphone, Trash2, RotateCcw } from 'lucide-react';
 
 export interface StudioVideo {
   id: string; filename: string; storage_path: string; status: string;
@@ -21,11 +21,12 @@ function tempoAtras(iso: string) {
   return `há ${Math.floor(h / 24)}d`;
 }
 
-export default function VideoCard({ v, onAnalyze, onCampaign, onDelete }: {
+export default function VideoCard({ v, onAnalyze, onCampaign, onDelete, onReprocess }: {
   v: StudioVideo;
   onAnalyze: (v: StudioVideo) => void;
   onCampaign: (v: StudioVideo) => void;
   onDelete: (v: StudioVideo) => void;
+  onReprocess: (v: StudioVideo) => void;
 }) {
   const st = STATUS[v.status] || STATUS.pending;
   const Icon = st.icon;
@@ -61,15 +62,23 @@ export default function VideoCard({ v, onAnalyze, onCampaign, onDelete }: {
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
-      {done && (
+      {(done || v.status === 'error') && (
         <div className="flex flex-wrap gap-2 mt-3">
-          <button onClick={() => onAnalyze(v)}
-            className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-3 py-2 rounded-lg">
-            <Sparkles className="w-4 h-4" /> Ver Análise
-          </button>
-          <button onClick={() => onCampaign(v)}
+          {done && (
+            <>
+              <button onClick={() => onAnalyze(v)}
+                className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-3 py-2 rounded-lg">
+                <Sparkles className="w-4 h-4" /> Ver Análise
+              </button>
+              <button onClick={() => onCampaign(v)}
+                className="inline-flex items-center gap-1.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold px-3 py-2 rounded-lg">
+                <Megaphone className="w-4 h-4" /> Criar Campanha
+              </button>
+            </>
+          )}
+          <button onClick={() => onReprocess(v)}
             className="inline-flex items-center gap-1.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold px-3 py-2 rounded-lg">
-            <Megaphone className="w-4 h-4" /> Criar Campanha
+            <RotateCcw className="w-4 h-4" /> Reprocessar
           </button>
         </div>
       )}

@@ -33,11 +33,13 @@ export default function VideoDropzone({ companyId, userId, onUploaded }: {
         const path = `${companyId}/${ts}_${safe}`;
         const { error: upErr } = await supabase.storage.from('studio-videos').upload(path, file, { contentType: file.type || 'video/mp4' });
         if (upErr) throw upErr;
-        const { error: dbErr } = await supabase.from('studio_videos').insert({
+        const { data: row, error: dbErr } = await supabase.from('studio_videos').insert({
           company_id: companyId, created_by: userId ?? null,
           filename: file.name, storage_path: path, status: 'pending',
-        });
+        }).select('id').single();
         if (dbErr) throw dbErr;
+        // dispara a análise (transcrição + Claude) em background; o status atualiza via realtime
+        if (row?.id) supabase.functions.invoke('process-studio-video', { body: { video_id: row.id } }).catch(() => {});
       } catch (e: any) {
         setError(`Erro ao enviar "${file.name}": ${e.message || e}`);
       }
