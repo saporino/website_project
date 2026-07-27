@@ -51,6 +51,10 @@ INSERT INTO storage.buckets (id, name, public) VALUES ('studio-videos','studio-v
 -- que é o que o Whisper transcreve (o vídeo em si fica no storage_path).
 ALTER TABLE public.studio_videos ADD COLUMN IF NOT EXISTS audio_path TEXT;
 
+-- Realtime: a StudioPage escuta studio_videos p/ atualizar o status sozinha (pending→processing→completed).
+-- SEM isto a tela não refresca sozinha. (idempotente: só rodar 1x; re-adicionar dá erro)
+ALTER PUBLICATION supabase_realtime ADD TABLE public.studio_videos;
+
 -- ATENÇÃO: as políticas de storage.objects NÃO podem ser criadas por exec_migration
 -- (a tabela storage.objects é de outro dono → erro "must be owner of table objects").
 -- Criar no painel Supabase → Storage → studio-videos → Policies, para role "authenticated":
