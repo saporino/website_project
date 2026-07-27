@@ -15,10 +15,13 @@ Analise o vídeo (a partir da transcrição e metadados fornecidos) e retorne JS
   "resumo": "", "objetivo": "", "publico_alvo": "", "gancho": "", "estrutura_narrativa": "",
   "estrategia": "", "copywriting": "", "gatilhos_psicologicos": [], "pontos_fortes": [], "pontos_fracos": [],
   "como_reproduzir": "", "como_melhorar": "", "como_vender": "", "workflow": "", "nivel_dificuldade": "",
-  "tempo_estimado": "", "marca_identificada": "",
+  "tempo_estimado": "", "marca_identificada": "", "adaptacao_marca": "",
   "prompt_claude": "", "prompt_gpt": "", "prompt_veo": "", "prompt_runway": "", "prompt_midjourney": "", "prompt_capcut": "",
   "legenda_instagram": "", "legenda_tiktok": "", "titulo_youtube": "", "hashtags": []
-}`;
+}
+- "marca_identificada" = a marca do CONCORRENTE (a que aparece na peça analisada).
+- "adaptacao_marca" = como pegar essa fórmula e refazer PARA A NOSSA MARCA (detalhado, usando o BRIEFING DA MARCA abaixo).
+- As legendas, "como_reproduzir" e TODOS os prompts (gpt/midjourney/etc.) já devem sair adaptados PARA A NOSSA MARCA — nunca reproduzindo a marca/embalagem do concorrente.`;
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 
@@ -37,6 +40,22 @@ Deno.serve(async (req) => {
 
     const { data: video, error: vErr } = await supabase.from("studio_videos").select("*").eq("id", videoId).single();
     if (vErr || !video) throw new Error("Vídeo não encontrado");
+
+    // Perfil da marca (Brand Kit) da empresa → a análise sai adaptada PRA NOSSA MARCA
+    const { data: brand } = await supabase.from("studio_brand_profiles")
+      .select("*").eq("company_id", video.company_id).order("is_primary", { ascending: false }).limit(1).maybeSingle();
+    const brandBlock = brand ? `
+
+=== BRIEFING DA NOSSA MARCA (adapte TUDO para ela) ===
+Marca: ${brand.name}
+Cores: ${JSON.stringify(brand.colors || {})}
+Tom de voz: ${brand.tone || "-"}
+Público: ${brand.audience || "-"}
+Linha de produtos: ${brand.product_line || "-"}
+SEMPRE: ${brand.dos || "-"}
+NUNCA: ${brand.donts || "-"}
+${brand.notes ? "Obs.: " + brand.notes : ""}
+Regra de ouro: a peça analisada é de um CONCORRENTE só como referência de ESTRATÉGIA. O resultado (adaptacao_marca, prompts, legendas) tem que produzir algo com a cara da ${brand.name} — pacote/identidade da ${brand.name}, cores da ${brand.name} — NUNCA reproduzir a marca do concorrente.` : "";
     await supabase.from("studio_videos").update({ status: "processing", error_text: null }).eq("id", videoId);
     // idempotente: limpa resultado anterior deste vídeo antes de reprocessar (evita duplicatas)
     await supabase.from("studio_transcriptions").delete().eq("video_id", videoId);
@@ -79,7 +98,7 @@ Deno.serve(async (req) => {
     const cRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": ANTHROPIC, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 8000, system: SYSTEM_PROMPT, messages: [{ role: "user", content: userContent }] }),
+      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 8000, system: SYSTEM_PROMPT + brandBlock, messages: [{ role: "user", content: userContent }] }),
     });
     const cText = await cRes.text();
     if (!cRes.ok) throw new Error("Claude: " + cText.slice(0, 200));
@@ -100,7 +119,7 @@ Deno.serve(async (req) => {
       estrategia: a.estrategia, gatilhos: a.gatilhos_psicologicos || [],
       pontos_fortes: a.pontos_fortes || [], pontos_fracos: a.pontos_fracos || [],
       como_reproduzir: a.como_reproduzir, como_melhorar: a.como_melhorar, como_vender: a.como_vender,
-      workflow: a.workflow, nivel_dificuldade: a.nivel_dificuldade,
+      workflow: a.workflow, nivel_dificuldade: a.nivel_dificuldade, adaptacao_marca: a.adaptacao_marca || null,
       analise_visual: { estrutura_narrativa: a.estrutura_narrativa, copywriting: a.copywriting, tempo_estimado: a.tempo_estimado },
       prompts: { claude: a.prompt_claude, gpt: a.prompt_gpt, veo: a.prompt_veo, runway: a.prompt_runway, midjourney: a.prompt_midjourney, capcut: a.prompt_capcut },
       legendas: { instagram: a.legenda_instagram, tiktok: a.legenda_tiktok, youtube: a.titulo_youtube },

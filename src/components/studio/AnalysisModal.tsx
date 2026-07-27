@@ -107,6 +107,12 @@ export default function AnalysisModal({ video, companyId, initialTab = 'resumo',
             <>
               {tab === 'resumo' && (
                 <div className="space-y-4">
+                  {a.adaptacao_marca && (
+                    <div className="rounded-xl border border-[#ddd0cc] bg-[#f5f0ef] p-3">
+                      <p className="text-[11px] font-bold text-[#8B2214] uppercase tracking-wide mb-1">🎯 Adaptação pra sua marca</p>
+                      <p className="text-sm text-gray-800 whitespace-pre-line leading-relaxed">{a.adaptacao_marca}</p>
+                    </div>
+                  )}
                   <Campo label="Resumo">{a.resumo}</Campo>
                   <Campo label="Objetivo">{a.objetivo}</Campo>
                   <Campo label="Público-alvo">{a.publico_alvo}</Campo>
