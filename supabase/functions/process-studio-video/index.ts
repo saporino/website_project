@@ -42,16 +42,17 @@ Deno.serve(async (req) => {
     await supabase.from("studio_transcriptions").delete().eq("video_id", videoId);
     await supabase.from("studio_analyses").delete().eq("video_id", videoId);
 
-    // 1) baixa o vídeo do storage
-    const { data: file, error: dlErr } = await supabase.storage.from("studio-videos").download(video.storage_path);
-    if (dlErr || !file) throw new Error("Falha ao baixar o vídeo do storage");
+    // 1) baixa o que vai pro Whisper: o ÁUDIO extraído (se o vídeo era grande) ou o próprio vídeo
+    const srcPath = video.audio_path || video.storage_path;
+    const { data: file, error: dlErr } = await supabase.storage.from("studio-videos").download(srcPath);
+    if (dlErr || !file) throw new Error("Falha ao baixar o arquivo do storage");
     if (file.size > WHISPER_MAX_BYTES) {
-      throw new Error(`Vídeo com ${(file.size / 1048576).toFixed(0)}MB excede o limite de 25MB da transcrição. Envie um vídeo menor (por enquanto).`);
+      throw new Error(`O áudio extraído tem ${(file.size / 1048576).toFixed(0)}MB e passa do limite de 25MB da transcrição — o vídeo é muito longo. Divida em partes menores.`);
     }
 
     // 2) transcreve com Whisper (verbose_json → texto + segmentos + idioma + duração)
     const fd = new FormData();
-    fd.append("file", file, video.filename);
+    fd.append("file", file, video.audio_path ? "audio.wav" : video.filename);
     fd.append("model", WHISPER_MODEL);
     fd.append("response_format", "verbose_json");
     const wRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {

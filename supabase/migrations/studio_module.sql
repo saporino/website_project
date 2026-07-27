@@ -47,6 +47,10 @@ END $$;
 -- Bucket privado (criado via exec_migration)
 INSERT INTO storage.buckets (id, name, public) VALUES ('studio-videos','studio-videos', false) ON CONFLICT (id) DO NOTHING;
 
+-- Vídeos > 25MB: guarda o caminho do ÁUDIO extraído no navegador (Web Audio → WAV 16kHz mono),
+-- que é o que o Whisper transcreve (o vídeo em si fica no storage_path).
+ALTER TABLE public.studio_videos ADD COLUMN IF NOT EXISTS audio_path TEXT;
+
 -- ATENÇÃO: as políticas de storage.objects NÃO podem ser criadas por exec_migration
 -- (a tabela storage.objects é de outro dono → erro "must be owner of table objects").
 -- Criar no painel Supabase → Storage → studio-videos → Policies, para role "authenticated":
