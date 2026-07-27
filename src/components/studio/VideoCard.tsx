@@ -3,6 +3,7 @@ import { Film, CheckCircle2, Loader2, Clock, AlertCircle, Sparkles, Megaphone, T
 export interface StudioVideo {
   id: string; filename: string; storage_path: string; status: string;
   duration: number | null; brand_detected: string | null; created_at: string; error_text: string | null;
+  source_url?: string | null; media_type?: string | null;
 }
 
 const STATUS: Record<string, { label: string; cls: string; icon: any }> = {
@@ -49,6 +50,10 @@ export default function VideoCard({ v, onAnalyze, onCampaign, onDelete, onReproc
             {v.duration ? `${Math.round(v.duration)}s · ` : ''}
             {tempoAtras(v.created_at)}
           </p>
+          {v.source_url && (
+            <a href={v.source_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
+              className="text-xs text-[#8B2214] font-medium hover:underline break-all inline-block mt-0.5">🔗 ver post original</a>
+          )}
           {v.status === 'error' && v.error_text && (
             <p className="text-xs text-red-600 mt-1">{v.error_text}</p>
           )}

@@ -29,7 +29,7 @@ export default function StudioPage() {
     if (!activeCompanyId) return;
     const { data } = await supabase
       .from('studio_videos')
-      .select('id,filename,storage_path,status,duration,brand_detected,created_at,error_text')
+      .select('id,filename,storage_path,status,duration,brand_detected,created_at,error_text,source_url,media_type')
       .eq('company_id', activeCompanyId)
       .order('created_at', { ascending: false });
     setVideos((data as StudioVideo[]) || []);

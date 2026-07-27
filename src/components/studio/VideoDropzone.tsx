@@ -19,6 +19,7 @@ export default function VideoDropzone({ companyId, userId, onUploaded }: {
   const [uploading, setUploading] = useState(false);
   const [progressName, setProgressName] = useState('');
   const [error, setError] = useState('');
+  const [sourceUrl, setSourceUrl] = useState('');
 
   async function handleFiles(files: FileList | null) {
     if (!files || !files.length) return;
@@ -50,7 +51,7 @@ export default function VideoDropzone({ companyId, userId, onUploaded }: {
         if (upErr) throw upErr;
         const { data: row, error: dbErr } = await supabase.from('studio_videos').insert({
           company_id: companyId, created_by: userId ?? null, media_type: isImage ? 'image' : 'video',
-          filename: file.name, storage_path: path, audio_path: audioPath, status: 'pending',
+          filename: file.name, storage_path: path, audio_path: audioPath, source_url: sourceUrl.trim() || null, status: 'pending',
         }).select('id').single();
         if (dbErr) throw dbErr;
         // dispara a análise (transcrição + Claude) em background; o status atualiza via realtime
@@ -61,12 +62,21 @@ export default function VideoDropzone({ companyId, userId, onUploaded }: {
     }
     setUploading(false);
     setProgressName('');
+    setSourceUrl('');
     if (inputRef.current) inputRef.current.value = '';
     onUploaded();
   }
 
   return (
     <div>
+      {/* Link do post original (opcional) — fica salvo junto pra você ver o post/comentários depois */}
+      <input
+        value={sourceUrl}
+        onChange={e => setSourceUrl(e.target.value)}
+        placeholder="Link do post original (opcional) — ex.: https://instagram.com/p/…"
+        className="w-full mb-2 border border-gray-300 rounded-xl px-3 py-2 text-sm"
+        onClick={e => e.stopPropagation()}
+      />
       <div
         onDragOver={e => { e.preventDefault(); setDragging(true); }}
         onDragLeave={() => setDragging(false)}
