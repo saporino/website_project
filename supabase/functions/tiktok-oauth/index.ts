@@ -13,17 +13,31 @@ function html(msg: string) {
   return new Response(`<!doctype html><meta charset=utf8><body style="font-family:sans-serif;padding:40px;text-align:center">${msg}<p><a href="${APP_RETURN}">Voltar ao Studio</a></p></body>`, { headers: { "Content-Type": "text/html" } });
 }
 
+const SCOPES = "user.info.basic,video.upload"; // video.publish só depois da auditoria
+
 Deno.serve(async (req) => {
   const url = new URL(req.url);
+  const CLIENT_KEY = Deno.env.get("TIKTOK_CLIENT_KEY");
+  const CLIENT_SECRET = Deno.env.get("TIKTOK_CLIENT_SECRET");
+  if (!CLIENT_KEY || !CLIENT_SECRET) return html("❌ Configurar TIKTOK_CLIENT_KEY e TIKTOK_CLIENT_SECRET nos secrets do Supabase.");
+
+  // INÍCIO do fluxo: ?start=1&company=<id> → manda o usuário pro TikTok autorizar
+  if (url.searchParams.get("start")) {
+    const company = url.searchParams.get("company") || "";
+    const auth = new URL("https://www.tiktok.com/v2/auth/authorize/");
+    auth.searchParams.set("client_key", CLIENT_KEY);
+    auth.searchParams.set("scope", SCOPES);
+    auth.searchParams.set("response_type", "code");
+    auth.searchParams.set("redirect_uri", REDIRECT_URI);
+    auth.searchParams.set("state", company);
+    return new Response(null, { status: 302, headers: { Location: auth.toString() } });
+  }
+
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state"); // company_id
   const err = url.searchParams.get("error");
   if (err) return html(`❌ TikTok recusou: ${err}`);
   if (!code) return html("❌ Faltou o código de autorização do TikTok.");
-
-  const CLIENT_KEY = Deno.env.get("TIKTOK_CLIENT_KEY");
-  const CLIENT_SECRET = Deno.env.get("TIKTOK_CLIENT_SECRET");
-  if (!CLIENT_KEY || !CLIENT_SECRET) return html("❌ Configurar TIKTOK_CLIENT_KEY e TIKTOK_CLIENT_SECRET nos secrets do Supabase.");
 
   try {
     // troca o code por token

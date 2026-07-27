@@ -40,6 +40,13 @@ export default function SocialConnections({ companyId }: { companyId: string | n
     setEditing(platform);
   }
 
+  // TikTok conecta por OAuth (abre a autorização do TikTok numa nova aba)
+  function connectTikTok() {
+    const base = import.meta.env.VITE_SUPABASE_URL;
+    window.open(`${base}/functions/v1/tiktok-oauth?start=1&company=${companyId || ''}`, '_blank');
+    toast.info('Autorize o app na aba do TikTok que abriu; depois volte e atualize a página.');
+  }
+
   async function save() {
     if (!form.access_token.trim() && !conns[editing!]?.access_token) { toast.error('Cole o token de acesso da rede.'); return; }
     setSaving(true);
@@ -89,8 +96,8 @@ export default function SocialConnections({ companyId }: { companyId: string | n
                 <p className="text-xs text-gray-400 mt-1">{n.hint}</p>
               </div>
               <div className="flex flex-col gap-1.5 flex-shrink-0">
-                <button onClick={() => openEdit(n.key)} className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-[#8B2214] hover:bg-[#6d1a10] rounded-lg px-3 py-1.5">
-                  <Link2 className="w-3.5 h-3.5" /> {on ? 'Editar' : 'Conectar'}
+                <button onClick={() => n.key === 'tiktok' ? connectTikTok() : openEdit(n.key)} className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-[#8B2214] hover:bg-[#6d1a10] rounded-lg px-3 py-1.5">
+                  <Link2 className="w-3.5 h-3.5" /> {n.key === 'tiktok' ? (on ? 'Reconectar' : 'Conectar') : (on ? 'Editar' : 'Conectar')}
                 </button>
                 {on && <button onClick={() => disconnect(n.key)} className="text-xs text-gray-500 hover:text-red-600 px-3 py-1">Desconectar</button>}
               </div>
