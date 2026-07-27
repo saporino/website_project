@@ -37,7 +37,10 @@ Deno.serve(async (req) => {
 
     const { data: video, error: vErr } = await supabase.from("studio_videos").select("*").eq("id", videoId).single();
     if (vErr || !video) throw new Error("Vídeo não encontrado");
-    await supabase.from("studio_videos").update({ status: "processing" }).eq("id", videoId);
+    await supabase.from("studio_videos").update({ status: "processing", error_text: null }).eq("id", videoId);
+    // idempotente: limpa resultado anterior deste vídeo antes de reprocessar (evita duplicatas)
+    await supabase.from("studio_transcriptions").delete().eq("video_id", videoId);
+    await supabase.from("studio_analyses").delete().eq("video_id", videoId);
 
     // 1) baixa o vídeo do storage
     const { data: file, error: dlErr } = await supabase.storage.from("studio-videos").download(video.storage_path);
