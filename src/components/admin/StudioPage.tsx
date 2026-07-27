@@ -8,6 +8,7 @@ import VideoDropzone from '../studio/VideoDropzone';
 import VideoCard, { type StudioVideo } from '../studio/VideoCard';
 import AnalysisModal from '../studio/AnalysisModal';
 import CampaignsPanel from '../studio/CampaignsPanel';
+import SocialConnections from '../studio/SocialConnections';
 
 // Saporino Studio — engenharia reversa de vídeos com IA.
 // PASSO 2: upload + salvar no Storage + listar com status (realtime).
@@ -22,7 +23,7 @@ export default function StudioPage() {
   const [filtro, setFiltro] = useState<Filtro>('todos');
   const [modalVideo, setModalVideo] = useState<StudioVideo | null>(null);
   const [modalTab, setModalTab] = useState<'resumo' | 'publicar'>('resumo');
-  const [view, setView] = useState<'videos' | 'campanhas'>('videos');
+  const [view, setView] = useState<'videos' | 'campanhas' | 'conexoes'>('videos');
 
   const load = useCallback(async () => {
     if (!activeCompanyId) return;
@@ -78,14 +79,16 @@ export default function StudioPage() {
         </div>
       </div>
 
-      {/* Visão: Vídeos ou Campanhas */}
+      {/* Visão: Vídeos, Campanhas ou Conexões */}
       <div className="flex bg-white border border-gray-200 rounded-xl text-sm font-semibold overflow-hidden w-fit">
-        {([['videos', 'Vídeos'], ['campanhas', 'Campanhas']] as const).map(([k, l]) => (
+        {([['videos', 'Vídeos'], ['campanhas', 'Campanhas'], ['conexoes', 'Conexões']] as const).map(([k, l]) => (
           <button key={k} onClick={() => setView(k)} className={`px-5 py-2 ${view === k ? 'bg-[#8B2214] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>{l}</button>
         ))}
       </div>
 
-      {view === 'campanhas' ? (
+      {view === 'conexoes' ? (
+        <SocialConnections companyId={activeCompanyId} />
+      ) : view === 'campanhas' ? (
         <CampaignsPanel companyId={activeCompanyId} />
       ) : (
         <>
