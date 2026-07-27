@@ -42,34 +42,44 @@ Deno.serve(async (req) => {
     await supabase.from("studio_transcriptions").delete().eq("video_id", videoId);
     await supabase.from("studio_analyses").delete().eq("video_id", videoId);
 
-    // 1) baixa o que vai pro Whisper: o ÁUDIO extraído (se o vídeo era grande) ou o próprio vídeo
-    const srcPath = video.audio_path || video.storage_path;
-    const { data: file, error: dlErr } = await supabase.storage.from("studio-videos").download(srcPath);
-    if (dlErr || !file) throw new Error("Falha ao baixar o arquivo do storage");
-    if (file.size > WHISPER_MAX_BYTES) {
-      throw new Error(`O áudio extraído tem ${(file.size / 1048576).toFixed(0)}MB e passa do limite de 25MB da transcrição — o vídeo é muito longo. Divida em partes menores.`);
+    // 1+2) prepara a entrada da Claude: FOTO (visão) ou VÍDEO (transcrição do áudio via Whisper)
+    let userContent: any;
+    let trDuration = 0, trLang = "";
+    if (video.media_type === "image") {
+      const { data: img, error: iErr } = await supabase.storage.from("studio-videos").download(video.storage_path);
+      if (iErr || !img) throw new Error("Falha ao baixar a imagem do storage");
+      const bytes = new Uint8Array(await img.arrayBuffer());
+      let bin = ""; const CH = 8192;
+      for (let i = 0; i < bytes.length; i += CH) bin += String.fromCharCode(...bytes.subarray(i, i + CH));
+      const b64 = btoa(bin);
+      const fn = video.filename.toLowerCase();
+      const mt = fn.endsWith(".png") ? "image/png" : fn.endsWith(".webp") ? "image/webp" : "image/jpeg";
+      userContent = [
+        { type: "image", source: { type: "base64", media_type: mt, data: b64 } },
+        { type: "text", text: `Analise esta IMAGEM de marketing/post ("${video.filename}") fazendo engenharia reversa VISUAL: o que faz funcionar, composição, cores, texto/copy da arte, gancho visual, público e gatilhos. Nos prompts, foque em recriar uma imagem parecida (Midjourney/GPT/DALL-E/CapCut). Campos de vídeo/áudio podem ficar vazios. Retorne o JSON pedido.` },
+      ];
+    } else {
+      const srcPath = video.audio_path || video.storage_path;
+      const { data: file, error: dlErr } = await supabase.storage.from("studio-videos").download(srcPath);
+      if (dlErr || !file) throw new Error("Falha ao baixar o arquivo do storage");
+      if (file.size > WHISPER_MAX_BYTES) throw new Error(`O áudio extraído tem ${(file.size / 1048576).toFixed(0)}MB e passa do limite de 25MB da transcrição — o vídeo é muito longo. Divida em partes menores.`);
+      const fd = new FormData();
+      fd.append("file", file, video.audio_path ? "audio.wav" : video.filename);
+      fd.append("model", WHISPER_MODEL);
+      fd.append("response_format", "verbose_json");
+      const wRes = await fetch("https://api.openai.com/v1/audio/transcriptions", { method: "POST", headers: { Authorization: `Bearer ${OPENAI}` }, body: fd });
+      if (!wRes.ok) throw new Error("Whisper: " + (await wRes.text()).slice(0, 200));
+      const tr = await wRes.json();
+      trDuration = tr.duration || 0; trLang = tr.language || "";
+      await supabase.from("studio_transcriptions").insert({ video_id: videoId, full_text: tr.text || "", segments: tr.segments || null });
+      userContent = `Transcrição do vídeo "${video.filename}" (idioma ${trLang || "?"}, ${Math.round(trDuration)}s):\n\n${tr.text || "(sem fala detectada)"}`;
     }
 
-    // 2) transcreve com Whisper (verbose_json → texto + segmentos + idioma + duração)
-    const fd = new FormData();
-    fd.append("file", file, video.audio_path ? "audio.wav" : video.filename);
-    fd.append("model", WHISPER_MODEL);
-    fd.append("response_format", "verbose_json");
-    const wRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-      method: "POST", headers: { Authorization: `Bearer ${OPENAI}` }, body: fd,
-    });
-    if (!wRes.ok) throw new Error("Whisper: " + (await wRes.text()).slice(0, 200));
-    const tr = await wRes.json();
-    await supabase.from("studio_transcriptions").insert({
-      video_id: videoId, full_text: tr.text || "", segments: tr.segments || null,
-    });
-
-    // 3) analisa com Claude (texto + metadados → JSON estruturado)
-    const userMsg = `Transcrição do vídeo "${video.filename}" (idioma ${tr.language || "?"}, ${Math.round(tr.duration || 0)}s):\n\n${tr.text || "(sem fala detectada)"}`;
+    // 3) analisa com Claude (texto/imagem → JSON estruturado)
     const cRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "x-api-key": ANTHROPIC, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 8000, system: SYSTEM_PROMPT, messages: [{ role: "user", content: userMsg }] }),
+      body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 8000, system: SYSTEM_PROMPT, messages: [{ role: "user", content: userContent }] }),
     });
     const cText = await cRes.text();
     if (!cRes.ok) throw new Error("Claude: " + cText.slice(0, 200));
@@ -100,7 +110,7 @@ Deno.serve(async (req) => {
     // 5) conclui
     await supabase.from("studio_videos").update({
       status: "completed", processed_at: new Date().toISOString(),
-      duration: tr.duration || null, language: tr.language || null, brand_detected: a.marca_identificada || null,
+      duration: trDuration || null, language: trLang || null, brand_detected: a.marca_identificada || null,
     }).eq("id", videoId);
 
     return new Response(JSON.stringify({ ok: true }), { headers: { ...cors, "Content-Type": "application/json" } });

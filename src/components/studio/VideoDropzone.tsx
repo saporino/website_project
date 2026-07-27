@@ -3,8 +3,9 @@ import { UploadCloud, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { extractAudioWav } from '../../lib/extractAudio';
 
-const ACCEPT = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska'];
-const EXT_OK = /\.(mp4|mov|avi|mkv)$/i;
+const ACCEPT = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'image/jpeg', 'image/png', 'image/webp'];
+const IMG_EXT = /\.(jpe?g|png|webp)$/i;
+const EXT_OK = /\.(mp4|mov|avi|mkv|jpe?g|png|webp)$/i;
 // Acima disto, extrai o áudio no navegador (o Whisper só aceita 25 MB por envio).
 const BIG = 24 * 1024 * 1024;
 
@@ -25,18 +26,19 @@ export default function VideoDropzone({ companyId, userId, onUploaded }: {
     setError('');
     for (const file of Array.from(files)) {
       if (!ACCEPT.includes(file.type) && !EXT_OK.test(file.name)) {
-        setError(`"${file.name}" não é um vídeo suportado (use MP4, MOV, AVI ou MKV).`);
+        setError(`"${file.name}" não é suportado (vídeo: MP4/MOV/AVI/MKV · foto: JPG/PNG/WEBP).`);
         continue;
       }
+      const isImage = file.type.startsWith('image/') || IMG_EXT.test(file.name);
       setUploading(true);
       setProgressName(file.name);
       try {
         const ts = Date.now();
         const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const path = `${companyId}/${ts}_${safe}`;
-        // Vídeo grande: extrai o áudio no navegador e sobe separado (o Whisper transcreve o áudio, não o vídeo).
+        // Vídeo grande: extrai o áudio no navegador e sobe separado. Foto não precisa de áudio.
         let audioPath: string | null = null;
-        if (file.size > BIG) {
+        if (!isImage && file.size > BIG) {
           setProgressName(`${file.name} — extraindo áudio…`);
           const audioBlob = await extractAudioWav(file);
           audioPath = `${companyId}/${ts}_${safe}.audio.wav`;
@@ -44,10 +46,10 @@ export default function VideoDropzone({ companyId, userId, onUploaded }: {
           if (aErr) throw aErr;
           setProgressName(`${file.name} — enviando…`);
         }
-        const { error: upErr } = await supabase.storage.from('studio-videos').upload(path, file, { contentType: file.type || 'video/mp4' });
+        const { error: upErr } = await supabase.storage.from('studio-videos').upload(path, file, { contentType: file.type || (isImage ? 'image/jpeg' : 'video/mp4') });
         if (upErr) throw upErr;
         const { data: row, error: dbErr } = await supabase.from('studio_videos').insert({
-          company_id: companyId, created_by: userId ?? null,
+          company_id: companyId, created_by: userId ?? null, media_type: isImage ? 'image' : 'video',
           filename: file.name, storage_path: path, audio_path: audioPath, status: 'pending',
         }).select('id').single();
         if (dbErr) throw dbErr;
@@ -83,11 +85,11 @@ export default function VideoDropzone({ companyId, userId, onUploaded }: {
         ) : (
           <>
             <UploadCloud className="w-9 h-9 mx-auto mb-3 text-[#8B2214]" />
-            <p className="text-sm font-semibold text-gray-800">Arraste um vídeo aqui ou clique para selecionar</p>
-            <p className="text-xs text-gray-500 mt-1">Formatos: MP4, MOV, AVI, MKV</p>
+            <p className="text-sm font-semibold text-gray-800">Arraste um vídeo ou foto aqui, ou clique para selecionar</p>
+            <p className="text-xs text-gray-500 mt-1">Vídeo: MP4, MOV, AVI, MKV · Foto: JPG, PNG, WEBP</p>
           </>
         )}
-        <input ref={inputRef} type="file" accept=".mp4,.mov,.avi,.mkv,video/*" multiple className="hidden"
+        <input ref={inputRef} type="file" accept=".mp4,.mov,.avi,.mkv,.jpg,.jpeg,.png,.webp,video/*,image/*" multiple className="hidden"
           onChange={e => handleFiles(e.target.files)} />
       </div>
       {error && (
