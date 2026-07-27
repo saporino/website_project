@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import VideoDropzone from '../studio/VideoDropzone';
 import VideoCard, { type StudioVideo } from '../studio/VideoCard';
 import AnalysisModal from '../studio/AnalysisModal';
+import CampaignsPanel from '../studio/CampaignsPanel';
 
 // Saporino Studio — engenharia reversa de vídeos com IA.
 // PASSO 2: upload + salvar no Storage + listar com status (realtime).
@@ -21,6 +22,7 @@ export default function StudioPage() {
   const [filtro, setFiltro] = useState<Filtro>('todos');
   const [modalVideo, setModalVideo] = useState<StudioVideo | null>(null);
   const [modalTab, setModalTab] = useState<'resumo' | 'publicar'>('resumo');
+  const [view, setView] = useState<'videos' | 'campanhas'>('videos');
 
   const load = useCallback(async () => {
     if (!activeCompanyId) return;
@@ -76,31 +78,44 @@ export default function StudioPage() {
         </div>
       </div>
 
-      <VideoDropzone companyId={activeCompanyId} userId={user?.id} onUploaded={load} />
-
+      {/* Visão: Vídeos ou Campanhas */}
       <div className="flex bg-white border border-gray-200 rounded-xl text-sm font-semibold overflow-hidden w-fit">
-        {([['todos', `Todos (${videos.length})`], ['processando', `Processando (${processando.length})`], ['concluidos', `Concluídos (${concluidos.length})`]] as const).map(([k, l]) => (
-          <button key={k} onClick={() => setFiltro(k)} className={`px-4 py-2 ${filtro === k ? 'bg-[#8B2214] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>{l}</button>
+        {([['videos', 'Vídeos'], ['campanhas', 'Campanhas']] as const).map(([k, l]) => (
+          <button key={k} onClick={() => setView(k)} className={`px-5 py-2 ${view === k ? 'bg-[#8B2214] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>{l}</button>
         ))}
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8B2214]" /></div>
-      ) : shown.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-xl p-10 text-center text-gray-400">
-          <Clapperboard className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-          <p className="text-sm">{filtro === 'todos' ? 'Nenhum vídeo ainda. Arraste um vídeo acima para começar.' : 'Nada aqui.'}</p>
-        </div>
+      {view === 'campanhas' ? (
+        <CampaignsPanel companyId={activeCompanyId} />
       ) : (
-        <div className="space-y-3">
-          {shown.map(v => (
-            <VideoCard key={v.id} v={v}
-              onAnalyze={(vid) => { setModalTab('resumo'); setModalVideo(vid); }}
-              onCampaign={(vid) => { setModalTab('publicar'); setModalVideo(vid); }}
-              onDelete={handleDelete}
-              onReprocess={handleReprocess} />
-          ))}
-        </div>
+        <>
+          <VideoDropzone companyId={activeCompanyId} userId={user?.id} onUploaded={load} />
+
+          <div className="flex bg-white border border-gray-200 rounded-xl text-sm font-semibold overflow-hidden w-fit">
+            {([['todos', `Todos (${videos.length})`], ['processando', `Processando (${processando.length})`], ['concluidos', `Concluídos (${concluidos.length})`]] as const).map(([k, l]) => (
+              <button key={k} onClick={() => setFiltro(k)} className={`px-4 py-2 ${filtro === k ? 'bg-[#8B2214] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>{l}</button>
+            ))}
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8B2214]" /></div>
+          ) : shown.length === 0 ? (
+            <div className="bg-white border border-gray-200 rounded-xl p-10 text-center text-gray-400">
+              <Clapperboard className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+              <p className="text-sm">{filtro === 'todos' ? 'Nenhum vídeo ainda. Arraste um vídeo acima para começar.' : 'Nada aqui.'}</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {shown.map(v => (
+                <VideoCard key={v.id} v={v}
+                  onAnalyze={(vid) => { setModalTab('resumo'); setModalVideo(vid); }}
+                  onCampaign={(vid) => { setModalTab('publicar'); setModalVideo(vid); }}
+                  onDelete={handleDelete}
+                  onReprocess={handleReprocess} />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {modalVideo && (
