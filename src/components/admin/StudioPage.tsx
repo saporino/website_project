@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Clapperboard, Download, Loader2 } from 'lucide-react';
+import { Clapperboard, Download, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
@@ -27,7 +27,29 @@ export default function StudioPage() {
   const [view, setView] = useState<'videos' | 'campanhas' | 'conexoes' | 'marca'>('videos');
   const [igHandle, setIgHandle] = useState('');
   const [igN, setIgN] = useState(5);
+  const [igAll, setIgAll] = useState(false);
+  const [igType, setIgType] = useState<'all' | 'video' | 'image'>('all');
   const [importing, setImporting] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [igInfo, setIgInfo] = useState<{ postsCount: number | null; cost: number } | null>(null);
+
+  const COST_PER_POST = 0.066; // ~R$/US$ por post analisado (Claude + Whisper)
+  const nQty = igAll ? 50 : Math.max(1, Math.min(igN || 1, 50));
+
+  async function checkInstagram() {
+    if (!igHandle.trim()) { toast.error('Cole o @ (ou link) do perfil do concorrente.'); return; }
+    setChecking(true); setIgInfo(null);
+    const { data, error } = await supabase.functions.invoke('studio-import-instagram', {
+      body: { action: 'preview', handle: igHandle.trim() },
+    });
+    setChecking(false);
+    if (error || (data as any)?.error) {
+      toast.error((data as any)?.message || (data as any)?.error || error?.message || 'Não consegui verificar o perfil.');
+      return;
+    }
+    const pc = (data as any)?.postsCount ?? null;
+    setIgInfo({ postsCount: pc, cost: (data as any)?.cost_per_post || COST_PER_POST });
+  }
 
   async function importFromInstagram() {
     if (!igHandle.trim()) { toast.error('Cole o @ (ou link) do perfil do concorrente.'); return; }
@@ -35,7 +57,7 @@ export default function StudioPage() {
     setImporting(true);
     const t = toast.loading(`Buscando os top posts de ${igHandle}… (pode levar 1-2 min)`);
     const { data, error } = await supabase.functions.invoke('studio-import-instagram', {
-      body: { handle: igHandle.trim(), company_id: activeCompanyId, created_by: user?.id, limit: igN },
+      body: { handle: igHandle.trim(), company_id: activeCompanyId, created_by: user?.id, limit: igAll ? 'all' : nQty, mediaFilter: igType },
     });
     toast.dismiss(t);
     setImporting(false);
@@ -45,7 +67,7 @@ export default function StudioPage() {
       return;
     }
     toast.success(`${(data as any)?.imported || 0} post(s) importado(s) de ${(data as any)?.profile}. Analisando…`);
-    setIgHandle('');
+    setIgHandle(''); setIgInfo(null);
     load();
   }
 
@@ -119,20 +141,54 @@ export default function StudioPage() {
       ) : (
         <>
           {/* Importar automático os top posts de um concorrente (Apify) */}
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <p className="text-sm font-semibold text-gray-800 mb-1">Importar do Instagram do concorrente</p>
-            <p className="text-xs text-gray-500 mb-2">Cola o @ (ou link) do perfil → traz os posts que mais bombam e a análise Saporino roda em cada. (usa crédito Apify · uso pra inspiração)</p>
+          <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2.5">
+            <div>
+              <p className="text-sm font-semibold text-gray-800">Importar do Instagram do concorrente</p>
+              <p className="text-xs text-gray-500">Cola o @ (ou link) → traz os posts que mais bombam e a análise Saporino roda em cada. (usa crédito Apify · uso pra inspiração)</p>
+            </div>
+
+            {/* linha 1: perfil + verificar */}
             <div className="flex flex-wrap items-center gap-2">
-              <input value={igHandle} onChange={e => setIgHandle(e.target.value)} placeholder="@concorrente (ou link do perfil)"
+              <input value={igHandle} onChange={e => { setIgHandle(e.target.value); setIgInfo(null); }} placeholder="@concorrente (ou link do perfil)"
                 className="flex-1 min-w-[200px] border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-              <select value={igN} onChange={e => setIgN(Number(e.target.value))} className="border border-gray-300 rounded-lg px-2 py-2 text-sm">
-                {[3, 5, 8, 10].map(n => <option key={n} value={n}>Top {n}</option>)}
-              </select>
-              <button onClick={importFromInstagram} disabled={importing}
-                className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50">
-                {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Importar top posts
+              <button onClick={checkInstagram} disabled={checking || importing}
+                className="inline-flex items-center gap-1.5 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold px-3 py-2 rounded-lg disabled:opacity-50">
+                {checking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Verificar
               </button>
             </div>
+
+            {/* resultado do "verificar" */}
+            {igInfo && (
+              <div className="text-xs bg-[#f8f7f5] border border-[#ddd0cc] rounded-lg px-3 py-2 text-gray-600">
+                {igInfo.postsCount != null ? <>Perfil com <strong>{igInfo.postsCount.toLocaleString('pt-BR')} posts</strong>. </> : 'Perfil público. '}
+                Vai analisar <strong>{nQty}</strong> {igType === 'video' ? 'vídeo(s)' : igType === 'image' ? 'foto(s)' : 'post(s)'} →
+                custo estimado <strong>~US$ {(nQty * igInfo.cost).toFixed(2)}</strong>.
+              </div>
+            )}
+
+            {/* linha 2: tipo + quantidade + importar */}
+            <div className="flex flex-wrap items-center gap-2">
+              <select value={igType} onChange={e => setIgType(e.target.value as any)} className="border border-gray-300 rounded-lg px-2 py-2 text-sm">
+                <option value="all">Vídeos e fotos</option>
+                <option value="video">Só vídeos</option>
+                <option value="image">Só fotos</option>
+              </select>
+              <label className="inline-flex items-center gap-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg px-3 py-2">
+                <input type="checkbox" checked={igAll} onChange={e => setIgAll(e.target.checked)} /> Todos (máx. 50)
+              </label>
+              {!igAll && (
+                <div className="inline-flex items-center gap-1.5 text-sm text-gray-600">
+                  <span>Top</span>
+                  <input type="number" min={1} max={50} value={igN} onChange={e => setIgN(Number(e.target.value))}
+                    className="w-16 border border-gray-300 rounded-lg px-2 py-2 text-sm" />
+                </div>
+              )}
+              <button onClick={importFromInstagram} disabled={importing}
+                className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50 ml-auto">
+                {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Importar
+              </button>
+            </div>
+            <p className="text-[11px] text-gray-400">Trava de segurança: no máximo 50 posts por importação (~US$ {(50 * COST_PER_POST).toFixed(2)}). Digitar 999 = pega os 50 melhores.</p>
           </div>
 
           <VideoDropzone companyId={activeCompanyId} userId={user?.id} onUploaded={load} />

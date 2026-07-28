@@ -23,16 +23,36 @@ Deno.serve(async (req) => {
     if (!isAdmin) return json({ error: "forbidden" }, 403);
     if (!token) return json({ error: "APIFY_TOKEN ausente nos secrets do Supabase." }, 500);
 
-    const { handle, company_id, created_by, limit } = await req.json();
-    if (!handle || !company_id) return json({ error: "handle e company_id são obrigatórios." }, 400);
-    const topN = Math.max(1, Math.min(Number(limit) || 5, 10));
+    const { action, handle, company_id, created_by, limit, mediaFilter } = await req.json();
+    if (!handle) return json({ error: "handle é obrigatório." }, 400);
     const user = String(handle).replace(/^@/, "").trim().replace(/\/+$/, "").split("/").pop();
     const profileUrl = `https://www.instagram.com/${user}/`;
+    const COST_PER_POST = 0.066; // ~Claude + Whisper por post analisado
+    const HARD_CAP = 50;         // trava de segurança de custo
+
+    // ===== PREVIEW: quantos posts tem + estimativa de custo (antes de raspar de verdade) =====
+    if (action === "preview") {
+      const dres = await fetch(`${APIFY}/acts/${ACTOR}/run-sync-get-dataset-items?token=${token}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ directUrls: [profileUrl], resultsType: "details", resultsLimit: 1 }),
+      });
+      if (!dres.ok) return json({ error: "apify_error", message: (await dres.text()).slice(0, 200) }, 502);
+      const d = (await dres.json())[0] || {};
+      if (d.private) return json({ error: "privado", message: `@${user} é privado — não dá pra raspar.` }, 403);
+      const postsCount = Number(d.postsCount) || null;
+      return json({ ok: true, profile: `@${user}`, postsCount, followers: d.followersCount || null, cost_per_post: COST_PER_POST });
+    }
+
+    if (!company_id) return json({ error: "company_id é obrigatório." }, 400);
+    const wantAll = limit === "all" || limit === "todos";
+    const topN = wantAll ? HARD_CAP : Math.max(1, Math.min(Number(limit) || 5, HARD_CAP));
+    const filter = mediaFilter === "video" || mediaFilter === "image" ? mediaFilter : "all"; // all|video|image
 
     const db = createClient(url, service);
 
-    // 1) roda o scraper (sync) — pega os posts recentes e a gente ranqueia
-    const input = { directUrls: [profileUrl], resultsType: "posts", resultsLimit: 24, addParentData: false };
+    // 1) roda o scraper (sync). Se filtra por tipo, raspa mais pra ter o suficiente daquele tipo.
+    const scrapeLimit = Math.min(150, Math.max(24, topN * (filter === "all" ? 3 : 5)));
+    const input = { directUrls: [profileUrl], resultsType: "posts", resultsLimit: scrapeLimit, addParentData: false };
     const run = await fetch(`${APIFY}/acts/${ACTOR}/run-sync-get-dataset-items?token=${token}`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
     });
