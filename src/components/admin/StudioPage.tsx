@@ -288,6 +288,8 @@ export default function StudioPage() {
             {igSearches.map(s => {
               const selInGroup = s.posts.filter(p => igSel.has(p.uid)).length;
               const allOn = selInGroup === s.posts.length && s.posts.length > 0;
+              const nVid = s.posts.filter(p => p.isVideo).length;
+              const nImg = s.posts.length - nVid;
               return (
                 <div key={s.id} className="border border-gray-200 rounded-xl overflow-hidden">
                   <div className="flex items-center gap-2 px-3 py-2 bg-[#f8f7f5] border-b border-gray-200">
@@ -295,7 +297,11 @@ export default function StudioPage() {
                       {s.collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                       {s.handle}
                     </button>
-                    <span className="text-xs text-gray-400">{s.posts.length} posts{selInGroup ? ` · ${selInGroup} sel.` : ''}</span>
+                    <span className="text-xs text-gray-400">
+                      <strong className="text-gray-600">{s.posts.length}</strong> posts
+                      {nVid > 0 && <> · {nVid} reels</>}{nImg > 0 && <> · {nImg} fotos</>}
+                      {selInGroup ? ` · ${selInGroup} sel.` : ''}
+                    </span>
                     <div className="ml-auto flex items-center gap-3">
                       {!s.collapsed && (
                         <button onClick={() => selectAllGroup(s)} className="text-xs font-semibold text-[#8B2214] hover:underline">
