@@ -46,7 +46,7 @@ export default function StudioPage() {
 
   const COST_PER_POST = 0.066; // ~US$ por post analisado (Claude + Whisper)
   const SCAN_CACHE_KEY = 'studio_ig_searches';
-  const SCAN_TTL = 2 * 60 * 60 * 1000; // 2h (os links do IG expiram; depois disso, buscar de novo)
+  const SCAN_TTL = 24 * 60 * 60 * 1000; // 24h (os links de imagem/vídeo do IG expiram ~1 dia; o crescimento de seguidores fica salvo no banco pra sempre)
 
   // miniatura via proxy (o CDN do IG bloqueia hotlink direto)
   const thumbUrl = (t: string | null) => t ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/studio-ig-thumb?url=${encodeURIComponent(t)}` : '';
