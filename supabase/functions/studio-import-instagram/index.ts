@@ -23,38 +23,55 @@ Deno.serve(async (req) => {
     if (!isAdmin) return json({ error: "forbidden" }, 403);
     if (!token) return json({ error: "APIFY_TOKEN ausente nos secrets do Supabase." }, 500);
 
-    const { action, handle, company_id, created_by, limit, mediaFilter } = await req.json();
+    const body = await req.json();
+    const { action, handle, company_id, created_by, mediaFilter } = body;
     if (!handle) return json({ error: "handle é obrigatório." }, 400);
     const user = String(handle).replace(/^@/, "").trim().replace(/\/+$/, "").split("/").pop();
     const profileUrl = `https://www.instagram.com/${user}/`;
     const COST_PER_POST = 0.066; // ~Claude + Whisper por post analisado
-    const HARD_CAP = 50;         // trava de segurança de custo
+    const SCAN_MAX = 60;         // qtos posts trazer pra galeria de escolha
 
-    // ===== PREVIEW: quantos posts tem + estimativa de custo (antes de raspar de verdade) =====
-    if (action === "preview") {
-      const dres = await fetch(`${APIFY}/acts/${ACTOR}/run-sync-get-dataset-items?token=${token}`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ directUrls: [profileUrl], resultsType: "details", resultsLimit: 1 }),
-      });
-      if (!dres.ok) return json({ error: "apify_error", message: (await dres.text()).slice(0, 200) }, 502);
-      const d = (await dres.json())[0] || {};
-      if (d.private) return json({ error: "privado", message: `@${user} é privado — não dá pra raspar.` }, 403);
-      const postsCount = Number(d.postsCount) || null;
-      return json({ ok: true, profile: `@${user}`, postsCount, followers: d.followersCount || null, cost_per_post: COST_PER_POST });
+    // ===================== IMPORT: analisa só os posts que o admin escolheu =====================
+    if (action === "import") {
+      if (!company_id) return json({ error: "company_id é obrigatório." }, 400);
+      const chosen: any[] = Array.isArray(body.posts) ? body.posts.slice(0, 50) : [];
+      if (!chosen.length) return json({ error: "vazio", message: "Nenhum post selecionado." }, 400);
+      const db = createClient(url, service);
+      let imported = 0;
+      for (const p of chosen) {
+        try {
+          const isVideo = !!p.video || p.isVideo === true;
+          const mediaUrl = isVideo ? p.video : p.thumb;
+          if (!mediaUrl) continue;
+          const mres = await fetch(mediaUrl);
+          if (!mres.ok) continue;
+          const blob = await mres.blob();
+          const ext = isVideo ? "mp4" : "jpg";
+          const path = `${company_id}/ig_${user}_${Date.now()}_${imported}.${ext}`;
+          const up = await db.storage.from("studio-videos").upload(path, blob, { contentType: isVideo ? "video/mp4" : "image/jpeg" });
+          if (up.error) continue;
+          const { data: row } = await db.from("studio_videos").insert({
+            company_id, created_by: created_by || null, media_type: isVideo ? "video" : "image",
+            filename: `@${user} — ${(p.caption || "post").slice(0, 40)}`, storage_path: path,
+            source_url: p.url || profileUrl, status: "pending",
+          }).select("id").single();
+          if (row?.id) {
+            fetch(`${url}/functions/v1/process-studio-video`, {
+              method: "POST", headers: { apikey: anon, Authorization: `Bearer ${anon}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ video_id: row.id }),
+            }).catch(() => {});
+            imported++;
+          }
+        } catch { /* pula esse post */ }
+      }
+      return json({ ok: true, imported, profile: `@${user}` });
     }
 
-    if (!company_id) return json({ error: "company_id é obrigatório." }, 400);
-    const wantAll = limit === "all" || limit === "todos";
-    const topN = wantAll ? HARD_CAP : Math.max(1, Math.min(Number(limit) || 5, HARD_CAP));
-    const filter = mediaFilter === "video" || mediaFilter === "image" ? mediaFilter : "all"; // all|video|image
-
-    const db = createClient(url, service);
-
-    // 1) roda o scraper (sync). Se filtra por tipo, raspa mais pra ter o suficiente daquele tipo.
-    const scrapeLimit = Math.min(150, Math.max(24, topN * (filter === "all" ? 3 : 5)));
-    const input = { directUrls: [profileUrl], resultsType: "posts", resultsLimit: scrapeLimit, addParentData: false };
+    // ===================== SCAN (padrão): raspa e devolve as miniaturas p/ escolher (barato) =====
+    const filter = mediaFilter === "video" || mediaFilter === "image" ? mediaFilter : "all";
     const run = await fetch(`${APIFY}/acts/${ACTOR}/run-sync-get-dataset-items?token=${token}`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input),
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ directUrls: [profileUrl], resultsType: "posts", resultsLimit: SCAN_MAX, addParentData: false }),
     });
     if (!run.ok) {
       const txt = await run.text();
@@ -62,44 +79,21 @@ Deno.serve(async (req) => {
       return json({ error: noCredit ? "no_credit" : "apify_error", message: noCredit ? "Crédito Apify esgotado." : txt.slice(0, 300) }, noCredit ? 402 : 502);
     }
     const items = await run.json();
-    const posts = (Array.isArray(items) ? items : []).filter((p: any) => p && (p.displayUrl || p.videoUrl));
+    let posts = (Array.isArray(items) ? items : []).filter((p: any) => p && (p.displayUrl || p.videoUrl));
     if (!posts.length) return json({ error: "sem_posts", message: `Nenhum post público encontrado em @${user}. O perfil pode ser privado ou o Instagram bloqueou.` }, 404);
 
-    // 2) ranqueia por engajamento (views de reel / curtidas) e pega os top N
     const score = (p: any) => (Number(p.videoViewCount) || 0) + (Number(p.likesCount) || 0) + (Number(p.commentsCount) || 0);
-    const top = posts.sort((a: any, b: any) => score(b) - score(a)).slice(0, topN);
-
-    // 3) baixa cada mídia, sobe no storage, cria studio_videos e dispara a análise
-    let imported = 0;
-    for (const p of top) {
-      try {
+    posts = posts
+      .map((p: any) => {
         const isVideo = p.type === "Video" || !!p.videoUrl;
-        const mediaUrl = isVideo ? p.videoUrl : p.displayUrl;
-        if (!mediaUrl) continue;
-        const mres = await fetch(mediaUrl);
-        if (!mres.ok) continue;
-        const blob = await mres.blob();
-        const ext = isVideo ? "mp4" : "jpg";
-        const ts = Date.now() + "_" + imported;
-        const path = `${company_id}/ig_${user}_${ts}.${ext}`;
-        const up = await db.storage.from("studio-videos").upload(path, blob, { contentType: isVideo ? "video/mp4" : "image/jpeg" });
-        if (up.error) continue;
-        const { data: row } = await db.from("studio_videos").insert({
-          company_id, created_by: created_by || null, media_type: isVideo ? "video" : "image",
-          filename: `@${user} — ${(p.caption || "post").slice(0, 40)}`, storage_path: path,
-          source_url: p.url || profileUrl, status: "pending",
-        }).select("id").single();
-        if (row?.id) {
-          fetch(`${url}/functions/v1/process-studio-video`, {
-            method: "POST", headers: { apikey: anon, Authorization: `Bearer ${anon}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ video_id: row.id }),
-          }).catch(() => {});
-          imported++;
-        }
-      } catch { /* pula esse post */ }
-    }
+        return { url: p.url || null, thumb: p.displayUrl || null, video: isVideo ? p.videoUrl || null : null, isVideo,
+          views: Number(p.videoViewCount) || 0, likes: Number(p.likesCount) || 0, comments: Number(p.commentsCount) || 0,
+          caption: (p.caption || "").slice(0, 120), score: score(p) };
+      })
+      .filter((p: any) => filter === "all" ? true : filter === "video" ? p.isVideo : !p.isVideo)
+      .sort((a: any, b: any) => b.score - a.score);
 
-    return json({ ok: true, imported, ranked: top.length, profile: `@${user}` });
+    return json({ ok: true, profile: `@${user}`, count: posts.length, cost_per_post: COST_PER_POST, posts });
   } catch (e) {
     return json({ error: String(e instanceof Error ? e.message : e) }, 500);
   }

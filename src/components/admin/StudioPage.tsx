@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Clapperboard, Download, Loader2, Search } from 'lucide-react';
+import { Clapperboard, Download, Loader2, Search, Check, Heart, PlayCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
@@ -25,51 +25,57 @@ export default function StudioPage() {
   const [modalVideo, setModalVideo] = useState<StudioVideo | null>(null);
   const [modalTab, setModalTab] = useState<'resumo' | 'publicar'>('resumo');
   const [view, setView] = useState<'videos' | 'campanhas' | 'conexoes' | 'marca'>('videos');
+  type IgPost = { url: string | null; thumb: string | null; video: string | null; isVideo: boolean; views: number; likes: number; comments: number; caption: string; score: number };
   const [igHandle, setIgHandle] = useState('');
-  const [igN, setIgN] = useState(5);
-  const [igAll, setIgAll] = useState(false);
   const [igType, setIgType] = useState<'all' | 'video' | 'image'>('all');
+  const [scanning, setScanning] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [checking, setChecking] = useState(false);
-  const [igInfo, setIgInfo] = useState<{ postsCount: number | null; cost: number } | null>(null);
+  const [igPosts, setIgPosts] = useState<IgPost[] | null>(null);
+  const [igSel, setIgSel] = useState<Set<number>>(new Set());
 
-  const COST_PER_POST = 0.066; // ~R$/US$ por post analisado (Claude + Whisper)
-  const nQty = igAll ? 50 : Math.max(1, Math.min(igN || 1, 50));
+  const COST_PER_POST = 0.066; // ~US$ por post analisado (Claude + Whisper)
 
-  async function checkInstagram() {
+  async function scanInstagram() {
     if (!igHandle.trim()) { toast.error('Cole o @ (ou link) do perfil do concorrente.'); return; }
-    setChecking(true); setIgInfo(null);
+    setScanning(true); setIgPosts(null); setIgSel(new Set());
+    const t = toast.loading(`Buscando os posts de ${igHandle}… (pode levar 1-2 min)`);
     const { data, error } = await supabase.functions.invoke('studio-import-instagram', {
-      body: { action: 'preview', handle: igHandle.trim() },
+      body: { handle: igHandle.trim(), mediaFilter: igType },
     });
-    setChecking(false);
+    toast.dismiss(t);
+    setScanning(false);
     if (error || (data as any)?.error) {
-      toast.error((data as any)?.message || (data as any)?.error || error?.message || 'Não consegui verificar o perfil.');
+      toast.error((data as any)?.message || (data as any)?.error || error?.message || 'Não consegui buscar os posts.');
       return;
     }
-    const pc = (data as any)?.postsCount ?? null;
-    setIgInfo({ postsCount: pc, cost: (data as any)?.cost_per_post || COST_PER_POST });
+    setIgPosts(((data as any)?.posts as IgPost[]) || []);
   }
 
-  async function importFromInstagram() {
-    if (!igHandle.trim()) { toast.error('Cole o @ (ou link) do perfil do concorrente.'); return; }
+  function toggleSel(i: number) {
+    setIgSel(prev => { const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n; });
+  }
+
+  async function importSelected() {
     if (!activeCompanyId) { toast.error('Selecione uma empresa.'); return; }
+    if (!igPosts || !igSel.size) { toast.error('Marque ao menos um post.'); return; }
+    const chosen = [...igSel].map(i => igPosts[i]).filter(Boolean);
     setImporting(true);
-    const t = toast.loading(`Buscando os top posts de ${igHandle}… (pode levar 1-2 min)`);
+    const t = toast.loading(`Baixando e analisando ${chosen.length} post(s)…`);
     const { data, error } = await supabase.functions.invoke('studio-import-instagram', {
-      body: { handle: igHandle.trim(), company_id: activeCompanyId, created_by: user?.id, limit: igAll ? 'all' : nQty, mediaFilter: igType },
+      body: { action: 'import', handle: igHandle.trim(), company_id: activeCompanyId, created_by: user?.id, posts: chosen },
     });
     toast.dismiss(t);
     setImporting(false);
     if (error || (data as any)?.error) {
-      const msg = (data as any)?.message || (data as any)?.error || error?.message || 'Falha na importação.';
-      toast.error(msg);
+      toast.error((data as any)?.message || (data as any)?.error || error?.message || 'Falha na importação.');
       return;
     }
-    toast.success(`${(data as any)?.imported || 0} post(s) importado(s) de ${(data as any)?.profile}. Analisando…`);
-    setIgHandle(''); setIgInfo(null);
+    toast.success(`${(data as any)?.imported || 0} post(s) importado(s). Analisando…`);
+    setIgHandle(''); setIgPosts(null); setIgSel(new Set());
     load();
   }
+
+  const fmt = (n: number) => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace('.0', '') + 'k' : String(n);
 
   const load = useCallback(async () => {
     if (!activeCompanyId) return;
@@ -140,55 +146,75 @@ export default function StudioPage() {
         <CampaignsPanel companyId={activeCompanyId} />
       ) : (
         <>
-          {/* Importar automático os top posts de um concorrente (Apify) */}
+          {/* Importar do Instagram do concorrente: buscar → escolher miniaturas → analisar só os escolhidos */}
           <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2.5">
             <div>
               <p className="text-sm font-semibold text-gray-800">Importar do Instagram do concorrente</p>
-              <p className="text-xs text-gray-500">Cola o @ (ou link) → traz os posts que mais bombam e a análise Saporino roda em cada. (usa crédito Apify · uso pra inspiração)</p>
+              <p className="text-xs text-gray-500">Cola o @ (ou link) → busca os posts que mais bombam → você escolhe quais e só aí a análise Saporino roda. (buscar é barato; cada análise ~US$ {COST_PER_POST.toFixed(2)} · uso pra inspiração)</p>
             </div>
 
-            {/* linha 1: perfil + verificar */}
             <div className="flex flex-wrap items-center gap-2">
-              <input value={igHandle} onChange={e => { setIgHandle(e.target.value); setIgInfo(null); }} placeholder="@concorrente (ou link do perfil)"
+              <input value={igHandle} onChange={e => { setIgHandle(e.target.value); setIgPosts(null); }} placeholder="@concorrente (ou link do perfil)"
+                onKeyDown={e => { if (e.key === 'Enter') scanInstagram(); }}
                 className="flex-1 min-w-[200px] border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-              <button onClick={checkInstagram} disabled={checking || importing}
-                className="inline-flex items-center gap-1.5 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold px-3 py-2 rounded-lg disabled:opacity-50">
-                {checking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Verificar
-              </button>
-            </div>
-
-            {/* resultado do "verificar" */}
-            {igInfo && (
-              <div className="text-xs bg-[#f8f7f5] border border-[#ddd0cc] rounded-lg px-3 py-2 text-gray-600">
-                {igInfo.postsCount != null ? <>Perfil com <strong>{igInfo.postsCount.toLocaleString('pt-BR')} posts</strong>. </> : 'Perfil público. '}
-                Vai analisar <strong>{nQty}</strong> {igType === 'video' ? 'vídeo(s)' : igType === 'image' ? 'foto(s)' : 'post(s)'} →
-                custo estimado <strong>~US$ {(nQty * igInfo.cost).toFixed(2)}</strong>.
-              </div>
-            )}
-
-            {/* linha 2: tipo + quantidade + importar */}
-            <div className="flex flex-wrap items-center gap-2">
               <select value={igType} onChange={e => setIgType(e.target.value as any)} className="border border-gray-300 rounded-lg px-2 py-2 text-sm">
                 <option value="all">Vídeos e fotos</option>
                 <option value="video">Só vídeos</option>
                 <option value="image">Só fotos</option>
               </select>
-              <label className="inline-flex items-center gap-1.5 text-sm text-gray-600 border border-gray-300 rounded-lg px-3 py-2">
-                <input type="checkbox" checked={igAll} onChange={e => setIgAll(e.target.checked)} /> Todos (máx. 50)
-              </label>
-              {!igAll && (
-                <div className="inline-flex items-center gap-1.5 text-sm text-gray-600">
-                  <span>Top</span>
-                  <input type="number" min={1} max={50} value={igN} onChange={e => setIgN(Number(e.target.value))}
-                    className="w-16 border border-gray-300 rounded-lg px-2 py-2 text-sm" />
-                </div>
-              )}
-              <button onClick={importFromInstagram} disabled={importing}
-                className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50 ml-auto">
-                {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Importar
+              <button onClick={scanInstagram} disabled={scanning || importing}
+                className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50">
+                {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Buscar posts
               </button>
             </div>
-            <p className="text-[11px] text-gray-400">Trava de segurança: no máximo 50 posts por importação (~US$ {(50 * COST_PER_POST).toFixed(2)}). Digitar 999 = pega os 50 melhores.</p>
+
+            {/* Galeria de miniaturas pra escolher */}
+            {igPosts && (
+              igPosts.length === 0 ? (
+                <p className="text-sm text-gray-400 py-4 text-center">Nenhum post encontrado com esse filtro.</p>
+              ) : (
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>{igPosts.length} posts encontrados (mais bombados primeiro). Marque os que quer analisar.</span>
+                    <button onClick={() => setIgSel(igSel.size === igPosts.length ? new Set() : new Set(igPosts.map((_, i) => i)))}
+                      className="font-semibold text-[#8B2214] hover:underline">
+                      {igSel.size === igPosts.length ? 'Limpar' : 'Selecionar todos'}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 max-h-[420px] overflow-y-auto p-0.5">
+                    {igPosts.map((p, i) => {
+                      const on = igSel.has(i);
+                      return (
+                        <button key={i} onClick={() => toggleSel(i)}
+                          className={`relative aspect-square rounded-lg overflow-hidden border-2 group ${on ? 'border-[#8B2214] ring-2 ring-[#8B2214]/30' : 'border-transparent hover:border-gray-300'}`}>
+                          {p.thumb ? <img src={p.thumb} alt="" loading="lazy" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            : <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300"><Clapperboard className="w-6 h-6" /></div>}
+                          {/* engajamento */}
+                          <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-1 flex items-center gap-2 text-[10px] font-semibold text-white">
+                            {p.isVideo && <span className="flex items-center gap-0.5"><PlayCircle className="w-3 h-3" />{fmt(p.views)}</span>}
+                            <span className="flex items-center gap-0.5"><Heart className="w-3 h-3" />{fmt(p.likes)}</span>
+                          </div>
+                          {/* check */}
+                          <div className={`absolute top-1.5 left-1.5 w-5 h-5 rounded-full flex items-center justify-center ${on ? 'bg-[#8B2214] text-white' : 'bg-white/80 text-transparent'}`}>
+                            <Check className="w-3.5 h-3.5" />
+                          </div>
+                          {p.isVideo && <span className="absolute top-1.5 right-1.5 bg-black/60 text-white text-[9px] px-1 rounded">REEL</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center justify-between border-t border-gray-100 pt-2.5">
+                    <span className="text-xs text-gray-500">
+                      {igSel.size ? <><strong>{igSel.size}</strong> selecionado(s) · custo estimado <strong>~US$ {(igSel.size * COST_PER_POST).toFixed(2)}</strong></> : 'Nenhum selecionado ainda.'}
+                    </span>
+                    <button onClick={importSelected} disabled={importing || !igSel.size}
+                      className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-40">
+                      {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Analisar selecionados
+                    </button>
+                  </div>
+                </div>
+              )
+            )}
           </div>
 
           <VideoDropzone companyId={activeCompanyId} userId={user?.id} onUploaded={load} />
