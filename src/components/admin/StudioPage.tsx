@@ -28,6 +28,7 @@ export default function StudioPage() {
   type IgPost = { url: string | null; thumb: string | null; video: string | null; isVideo: boolean; views: number; likes: number; comments: number; caption: string; score: number };
   const [igHandle, setIgHandle] = useState('');
   const [igType, setIgType] = useState<'all' | 'video' | 'image'>('all');
+  const [igDepth, setIgDepth] = useState(60);
   const [scanning, setScanning] = useState(false);
   const [importing, setImporting] = useState(false);
   const [igPosts, setIgPosts] = useState<IgPost[] | null>(null);
@@ -56,7 +57,7 @@ export default function StudioPage() {
     setScanning(true); setIgPosts(null); setIgSel(new Set());
     const t = toast.loading(`Buscando os posts de ${igHandle}… (pode levar 1-2 min)`);
     const { data, error } = await supabase.functions.invoke('studio-import-instagram', {
-      body: { handle: igHandle.trim(), mediaFilter: igType },
+      body: { handle: igHandle.trim(), mediaFilter: igType, scanLimit: igDepth },
     });
     toast.dismiss(t);
     setScanning(false);
@@ -180,6 +181,12 @@ export default function StudioPage() {
                 <option value="all">Vídeos e fotos</option>
                 <option value="video">Só vídeos</option>
                 <option value="image">Só fotos</option>
+              </select>
+              <select value={igDepth} onChange={e => setIgDepth(Number(e.target.value))} className="border border-gray-300 rounded-lg px-2 py-2 text-sm" title="Quantos posts recentes vasculhar">
+                <option value={60}>Últimos 60</option>
+                <option value={120}>Últimos 120</option>
+                <option value={240}>Últimos 240</option>
+                <option value={400}>Tudo (máx. 400)</option>
               </select>
               <button onClick={scanInstagram} disabled={scanning || importing}
                 className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50">

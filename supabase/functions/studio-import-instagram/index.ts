@@ -29,7 +29,8 @@ Deno.serve(async (req) => {
     const user = String(handle).replace(/^@/, "").trim().replace(/\/+$/, "").split("/").pop();
     const profileUrl = `https://www.instagram.com/${user}/`;
     const COST_PER_POST = 0.066; // ~Claude + Whisper por post analisado
-    const SCAN_MAX = 60;         // qtos posts trazer pra galeria de escolha
+    // quantos posts trazer pra galeria (raspagem é barata; teto 400 pra não estourar o tempo da função)
+    const SCAN_MAX = Math.max(12, Math.min(Number(body?.scanLimit) || 60, 400));
 
     // ===================== IMPORT: analisa só os posts que o admin escolheu =====================
     if (action === "import") {
