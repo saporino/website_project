@@ -42,6 +42,7 @@ export default function StudioPage() {
   const [growth, setGrowth] = useState<Record<string, Growth>>({});
   const [growthTick, setGrowthTick] = useState(0);
   const [checkingGroup, setCheckingGroup] = useState<number | null>(null);
+  const [checkingAll, setCheckingAll] = useState(false);
 
   const COST_PER_POST = 0.066; // ~US$ por post analisado (Claude + Whisper)
   const SCAN_CACHE_KEY = 'studio_ig_searches';
@@ -137,9 +138,30 @@ export default function StudioPage() {
     setIgSearches(prev => { const next = prev.map(s => s.id === id ? { ...s, posts: s.posts.filter(p => p.uid !== uid) } : s).filter(s => s.posts.length); persist(next); return next; });
     setIgSel(prev => { const n = new Set(prev); n.delete(uid); return n; });
   }
-  function selectAllGroup(s: IgSearch) {
-    const allOn = s.posts.every(p => igSel.has(p.uid));
-    setIgSel(prev => { const n = new Set(prev); s.posts.forEach(p => allOn ? n.delete(p.uid) : n.add(p.uid)); return n; });
+  // seleciona/limpa TODOS os posts de TODOS os grupos (botão global no topo)
+  function selectAllGlobal() {
+    const all = igSearches.flatMap(s => s.posts.map(p => p.uid));
+    setIgSel(prev => (all.length && prev.size === all.length) ? new Set() : new Set(all));
+  }
+  // atualiza seguidores/posts de TODOS os grupos de uma vez (barato, sem raspar posts)
+  async function verifyAllGroups() {
+    if (!igSearches.length || checkingAll) return;
+    setCheckingAll(true);
+    const t = toast.loading('Verificando todos os perfis…');
+    for (const s of igSearches) {
+      const { data } = await supabase.functions.invoke('studio-import-instagram', {
+        body: { action: 'preview', handle: s.handle, company_id: activeCompanyId },
+      });
+      if (!(data as any)?.error) {
+        const followers = (data as any)?.followers ?? null;
+        const postsProfile = (data as any)?.postsCount ?? null;
+        setIgSearches(prev => { const next = prev.map(x => x.id === s.id ? { ...x, followers, postsProfile } : x); persist(next); return next; });
+      }
+    }
+    toast.dismiss(t);
+    setCheckingAll(false);
+    setGrowthTick(v => v + 1);
+    toast.success('Todos os perfis atualizados.');
   }
 
   async function importSelected() {
@@ -339,10 +361,28 @@ export default function StudioPage() {
               </div>
             )}
 
+            {/* Barra global: total + selecionar todos (de todos os grupos) */}
+            {igSearches.length > 0 && (() => {
+              const total = igSearches.reduce((n, s) => n + s.posts.length, 0);
+              const allSel = total > 0 && igSel.size === total;
+              return (
+                <div className="flex items-center justify-between text-xs px-1">
+                  <span className="text-gray-500">{total.toLocaleString('pt-BR')} posts em {igSearches.length} busca(s)</span>
+                  <div className="flex items-center gap-3">
+                    <button onClick={verifyAllGroups} disabled={checkingAll} className="inline-flex items-center gap-1 font-semibold text-[#8B2214] hover:underline disabled:opacity-50">
+                      {checkingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />} Verificar todos
+                    </button>
+                    <button onClick={selectAllGlobal} className="font-semibold text-[#8B2214] hover:underline">
+                      {allSel ? 'Limpar seleção' : 'Selecionar todos'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Grupos de busca (colapsáveis) — Pilão, Melitta… cada um com seu próprio filtro, apagar-grupo e apagar-post */}
             {igSearches.map(s => {
               const selInGroup = s.posts.filter(p => igSel.has(p.uid)).length;
-              const allOn = selInGroup === s.posts.length && s.posts.length > 0;
               const nVid = s.posts.filter(p => p.isVideo).length;
               const nImg = s.posts.length - nVid;
               return (
@@ -376,11 +416,6 @@ export default function StudioPage() {
                         className="inline-flex items-center gap-1 text-xs font-semibold text-[#8B2214] hover:underline disabled:opacity-50">
                         {checkingGroup === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />} Verificar
                       </button>
-                      {!s.collapsed && (
-                        <button onClick={() => selectAllGroup(s)} className="text-xs font-semibold text-[#8B2214] hover:underline">
-                          {allOn ? 'Limpar' : 'Selecionar todos'}
-                        </button>
-                      )}
                       <button onClick={() => deleteSearch(s.id)} title="Apagar esta busca" className="text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </div>
