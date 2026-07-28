@@ -34,6 +34,22 @@ export default function StudioPage() {
   const [igSel, setIgSel] = useState<Set<number>>(new Set());
 
   const COST_PER_POST = 0.066; // ~US$ por post analisado (Claude + Whisper)
+  const SCAN_CACHE_KEY = 'studio_ig_scan';
+  const SCAN_TTL = 2 * 60 * 60 * 1000; // 2h (os links do IG expiram; depois disso, buscar de novo)
+
+  // miniatura via proxy (o CDN do IG bloqueia hotlink direto)
+  const thumbUrl = (t: string | null) => t ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/studio-ig-thumb?url=${encodeURIComponent(t)}` : '';
+
+  // restaura a última busca ao abrir/atualizar a página → refresh NÃO gasta raspagem de novo
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SCAN_CACHE_KEY);
+      if (!raw) return;
+      const c = JSON.parse(raw);
+      if (Date.now() - (c.ts || 0) > SCAN_TTL) { localStorage.removeItem(SCAN_CACHE_KEY); return; }
+      setIgHandle(c.handle || ''); setIgType(c.type || 'all'); setIgPosts(c.posts || null);
+    } catch { /* ignora */ }
+  }, []);
 
   async function scanInstagram() {
     if (!igHandle.trim()) { toast.error('Cole o @ (ou link) do perfil do concorrente.'); return; }
@@ -48,7 +64,9 @@ export default function StudioPage() {
       toast.error((data as any)?.message || (data as any)?.error || error?.message || 'Não consegui buscar os posts.');
       return;
     }
-    setIgPosts(((data as any)?.posts as IgPost[]) || []);
+    const posts = ((data as any)?.posts as IgPost[]) || [];
+    setIgPosts(posts);
+    try { localStorage.setItem(SCAN_CACHE_KEY, JSON.stringify({ handle: igHandle.trim(), type: igType, posts, ts: Date.now() })); } catch { /* quota */ }
   }
 
   function toggleSel(i: number) {
@@ -72,6 +90,7 @@ export default function StudioPage() {
     }
     toast.success(`${(data as any)?.imported || 0} post(s) importado(s). Analisando…`);
     setIgHandle(''); setIgPosts(null); setIgSel(new Set());
+    try { localStorage.removeItem(SCAN_CACHE_KEY); } catch { /* ignora */ }
     load();
   }
 
@@ -187,7 +206,9 @@ export default function StudioPage() {
                       return (
                         <button key={i} onClick={() => toggleSel(i)}
                           className={`relative aspect-square rounded-lg overflow-hidden border-2 group ${on ? 'border-[#8B2214] ring-2 ring-[#8B2214]/30' : 'border-transparent hover:border-gray-300'}`}>
-                          {p.thumb ? <img src={p.thumb} alt="" loading="lazy" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          {p.thumb
+                            ? <img src={thumbUrl(p.thumb)} alt="" loading="lazy" className="w-full h-full object-cover bg-gray-100"
+                                onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }} />
                             : <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300"><Clapperboard className="w-6 h-6" /></div>}
                           {/* engajamento */}
                           <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-1 flex items-center gap-2 text-[10px] font-semibold text-white">
