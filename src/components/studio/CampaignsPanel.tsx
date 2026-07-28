@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Megaphone, Pencil, Trash2, Clock, Film, Send, Loader2, Instagram, AlertTriangle } from 'lucide-react';
+import { Megaphone, Pencil, Trash2, Clock, Film, Send, Loader2, Instagram, Music2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import CampaignCreator, { type Campaign } from './CampaignCreator';
@@ -41,24 +41,31 @@ export default function CampaignsPanel({ companyId }: { companyId: string | null
     toast.success('Campanha excluída.');
   }
 
+  const PUBLISHABLE: Record<string, { fn: string; label: string }> = {
+    instagram: { fn: 'publish-instagram', label: 'Instagram' },
+    tiktok: { fn: 'publish-tiktok', label: 'TikTok' },
+  };
+
   // clica em "Publicar agora": se falta arte, manda anexar; senão abre a confirmação
   function askPublish(r: Row) {
     if (!r.media_path) { toast.error('Anexe a arte final da Saporino na campanha (Editar) antes de publicar.'); setEditing(r); return; }
+    if (r.platform === 'tiktok' && r.media_type !== 'video') { toast.error('TikTok só publica vídeo. Anexe um vídeo MP4 (9:16) na campanha.'); setEditing(r); return; }
     setConfirmPub(r);
   }
 
   async function doPublish(r: Row) {
+    const target = PUBLISHABLE[r.platform];
+    if (!target) return;
     setConfirmPub(null); setPublishingId(r.id);
-    const t = toast.loading('Publicando no Instagram… (vídeo pode levar 1-2 min)');
-    const { data, error } = await supabase.functions.invoke('publish-instagram', { body: { campaign_id: r.id } });
+    const t = toast.loading(`Publicando no ${target.label}… (vídeo pode levar 1-2 min)`);
+    const { data, error } = await supabase.functions.invoke(target.fn, { body: { campaign_id: r.id } });
     toast.dismiss(t); setPublishingId(null);
     if (error || (data as any)?.error) {
       toast.error((data as any)?.message || (data as any)?.error || error?.message || 'Falha ao publicar.');
       load();
       return;
     }
-    const link = (data as any)?.permalink;
-    toast.success(link ? 'Publicado no Instagram! 🎉' : 'Publicado no Instagram!');
+    toast.success(`Publicado no ${target.label}! 🎉`);
     load();
   }
 
@@ -96,11 +103,11 @@ export default function CampaignsPanel({ companyId }: { companyId: string | null
                 {r.publish_error && r.status !== 'published' && (
                   <p className="text-xs text-red-600 mt-1 flex items-start gap-1"><AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /> Falha ao publicar: {r.publish_error}</p>
                 )}
-                {/* Publicar agora — só Instagram, ainda não publicada */}
-                {r.platform === 'instagram' && r.status !== 'published' && (
+                {/* Publicar agora — Instagram ou TikTok, ainda não publicada */}
+                {PUBLISHABLE[r.platform] && r.status !== 'published' && (
                   <button onClick={() => askPublish(r)} disabled={publishingId === r.id}
                     className="mt-2 inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-xs font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50">
-                    {publishingId === r.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Publicar agora
+                    {publishingId === r.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Publicar no {PUBLISHABLE[r.platform].label}
                   </button>
                 )}
               </div>
@@ -121,9 +128,9 @@ export default function CampaignsPanel({ companyId }: { companyId: string | null
         <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4" onClick={() => setConfirmPub(null)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <div className="p-5 text-center">
-              <div className="w-12 h-12 rounded-full bg-[#f5f0ef] text-[#8B2214] flex items-center justify-center mx-auto mb-3"><Instagram className="w-6 h-6" /></div>
-              <h3 className="font-bold text-gray-900">Publicar agora no Instagram?</h3>
-              <p className="text-sm text-gray-500 mt-1">"{confirmPub.title}" ({confirmPub.media_type === 'video' ? 'Reels' : 'imagem'}) vai ao ar na conta @cafesaporino. Não dá pra desfazer pelo site.</p>
+              <div className="w-12 h-12 rounded-full bg-[#f5f0ef] text-[#8B2214] flex items-center justify-center mx-auto mb-3">{confirmPub.platform === 'tiktok' ? <Music2 className="w-6 h-6" /> : <Instagram className="w-6 h-6" />}</div>
+              <h3 className="font-bold text-gray-900">Publicar agora no {PUBLISHABLE[confirmPub.platform]?.label}?</h3>
+              <p className="text-sm text-gray-500 mt-1">"{confirmPub.title}" ({confirmPub.media_type === 'video' ? 'vídeo' : 'imagem'}) vai ao ar na conta da Saporino. Não dá pra desfazer pelo site.</p>
             </div>
             <div className="flex justify-center gap-2 px-5 pb-5">
               <button onClick={() => setConfirmPub(null)} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>
