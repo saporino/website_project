@@ -30,7 +30,7 @@ export default function StudioPage() {
   type IgSearch = { id: number; handle: string; type: 'all' | 'video' | 'image'; posts: IgPost[]; ts: number; collapsed: boolean };
   const [igHandle, setIgHandle] = useState('');
   const [igType, setIgType] = useState<'all' | 'video' | 'image'>('all');
-  const [igDepth, setIgDepth] = useState(120);
+  const [igDepth, setIgDepth] = useState(60);
   const [scanning, setScanning] = useState(false);
   const [checking, setChecking] = useState(false);
   const [igInfo, setIgInfo] = useState<{ profile: string; postsCount: number | null; followers: number | null } | null>(null);
