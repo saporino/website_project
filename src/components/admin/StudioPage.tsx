@@ -28,7 +28,8 @@ export default function StudioPage() {
   type IgPost = { uid: string; url: string | null; thumb: string | null; video: string | null; isVideo: boolean; views: number; likes: number; comments: number; ts?: string | null; caption: string; score: number };
   type IgSort = 'eng' | 'views' | 'likes' | 'comments' | 'recent';
   type IgSearch = { id: number; handle: string; type: 'all' | 'video' | 'image'; posts: IgPost[]; ts: number; collapsed: boolean; sort: IgSort; followers?: number | null; postsProfile?: number | null };
-  type Growth = { week: number | null; month: number | null; year: number | null; since: string | null };
+  type Delta = { pct: number; abs: number };
+  type Growth = { day: Delta | null; week: Delta | null; month: Delta | null; year: Delta | null; since: string | null };
   const [igHandle, setIgHandle] = useState('');
   const [igType, setIgType] = useState<'all' | 'video' | 'image'>('all');
   const [igDepth, setIgDepth] = useState(60);
@@ -193,33 +194,37 @@ export default function StudioPage() {
       const by: Record<string, { f: number; t: number }[]> = {};
       (data || []).forEach((r: any) => { if (r.followers == null) return; (by[r.handle] ||= []).push({ f: r.followers, t: Date.parse(r.captured_at) }); });
       const now = Date.now();
-      const calc = (arr: { f: number; t: number }[], days: number): number | null => {
+      const calc = (arr: { f: number; t: number }[], days: number): Delta | null => {
         if (arr.length < 2) return null;
         const cur = arr[arr.length - 1].f;
         const before = [...arr].reverse().find(x => x.t <= now - days * 86400000);
         if (!before || !before.f) return null;
-        return ((cur - before.f) / before.f) * 100;
+        return { abs: cur - before.f, pct: ((cur - before.f) / before.f) * 100 };
       };
       const g: Record<string, Growth> = {};
       handles.forEach(h => {
         const arr = by[h] || [];
-        g[h] = { week: calc(arr, 7), month: calc(arr, 30), year: calc(arr, 365), since: arr.length ? new Date(arr[0].t).toLocaleDateString('pt-BR') : null };
+        g[h] = { day: calc(arr, 1), week: calc(arr, 7), month: calc(arr, 30), year: calc(arr, 365), since: arr.length ? new Date(arr[0].t).toLocaleDateString('pt-BR') : null };
       });
       setGrowth(g);
     })();
   }, [handleKey, activeCompanyId, growthTick]);
 
-  // chip de variação (▲ verde sobe / ▼ vermelho cai). Cinza "–" enquanto não há histórico ainda.
-  const growthChip = (label: string, val: number | null) => {
-    if (val == null) return (
+  // chip de variação: ▲ verde sobe · ▼ vermelho cai · ● âmbar neutro · cinza "–" sem histórico ainda.
+  // Mostra o nº de seguidores ganhos/perdidos + o % do lado.
+  const growthChip = (label: string, d: Delta | null) => {
+    if (d == null) return (
       <span className="inline-flex items-center gap-0.5 text-gray-300" title={`Sem histórico de ${label} ainda — aparece quando houver medição anterior`}>
         <span className="text-[9px]">▲▼</span>–<span className="font-normal">/{label}</span>
       </span>
     );
-    const up = val >= 0;
+    const up = d.abs > 0, down = d.abs < 0;
+    const color = up ? 'text-green-600' : down ? 'text-red-600' : 'text-amber-500';
+    const arrow = up ? '▲' : down ? '▼' : '●';
+    const sign = d.abs > 0 ? '+' : '';
     return (
-      <span className={`inline-flex items-center gap-0.5 ${up ? 'text-green-600' : 'text-red-600'}`}>
-        {up ? '▲' : '▼'}{Math.abs(val).toFixed(1)}%<span className="text-gray-400 font-normal">/{label}</span>
+      <span className={`inline-flex items-center gap-0.5 ${color}`} title={`${sign}${d.abs.toLocaleString('pt-BR')} seguidores em 1 ${label}`}>
+        {arrow}{sign}{d.abs.toLocaleString('pt-BR')}<span className="text-gray-400 font-normal"> ({sign}{d.pct.toFixed(1)}%)/{label}</span>
       </span>
     );
   };
@@ -354,13 +359,14 @@ export default function StudioPage() {
                         {s.postsProfile != null && <> · {s.postsProfile.toLocaleString('pt-BR')} no perfil</>}
                         {selInGroup ? ` · ${selInGroup} sel.` : ''}
                       </div>
-                      {(s.followers != null || growth[s.handle]?.week != null) && (
+                      {(s.followers != null || growth[s.handle]?.day != null) && (
                         <div className="text-xs text-gray-500 flex items-center gap-2 flex-wrap font-semibold">
                           {s.followers != null && <span>{s.followers.toLocaleString('pt-BR')} seguidores</span>}
+                          {growthChip('dia', growth[s.handle]?.day ?? null)}
                           {growthChip('sem', growth[s.handle]?.week ?? null)}
                           {growthChip('mês', growth[s.handle]?.month ?? null)}
                           {growthChip('ano', growth[s.handle]?.year ?? null)}
-                          {growth[s.handle]?.week == null && growth[s.handle]?.since && <span className="text-gray-400 font-normal">medindo desde {growth[s.handle]?.since}</span>}
+                          {growth[s.handle]?.day == null && growth[s.handle]?.since && <span className="text-gray-400 font-normal">medindo desde {growth[s.handle]?.since}</span>}
                         </div>
                       )}
                     </div>
