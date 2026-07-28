@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Clapperboard } from 'lucide-react';
+import { Clapperboard, Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
@@ -25,6 +25,29 @@ export default function StudioPage() {
   const [modalVideo, setModalVideo] = useState<StudioVideo | null>(null);
   const [modalTab, setModalTab] = useState<'resumo' | 'publicar'>('resumo');
   const [view, setView] = useState<'videos' | 'campanhas' | 'conexoes' | 'marca'>('videos');
+  const [igHandle, setIgHandle] = useState('');
+  const [igN, setIgN] = useState(5);
+  const [importing, setImporting] = useState(false);
+
+  async function importFromInstagram() {
+    if (!igHandle.trim()) { toast.error('Cole o @ (ou link) do perfil do concorrente.'); return; }
+    if (!activeCompanyId) { toast.error('Selecione uma empresa.'); return; }
+    setImporting(true);
+    const t = toast.loading(`Buscando os top posts de ${igHandle}… (pode levar 1-2 min)`);
+    const { data, error } = await supabase.functions.invoke('studio-import-instagram', {
+      body: { handle: igHandle.trim(), company_id: activeCompanyId, created_by: user?.id, limit: igN },
+    });
+    toast.dismiss(t);
+    setImporting(false);
+    if (error || (data as any)?.error) {
+      const msg = (data as any)?.message || (data as any)?.error || error?.message || 'Falha na importação.';
+      toast.error(msg);
+      return;
+    }
+    toast.success(`${(data as any)?.imported || 0} post(s) importado(s) de ${(data as any)?.profile}. Analisando…`);
+    setIgHandle('');
+    load();
+  }
 
   const load = useCallback(async () => {
     if (!activeCompanyId) return;
@@ -95,6 +118,23 @@ export default function StudioPage() {
         <CampaignsPanel companyId={activeCompanyId} />
       ) : (
         <>
+          {/* Importar automático os top posts de um concorrente (Apify) */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <p className="text-sm font-semibold text-gray-800 mb-1">Importar do Instagram do concorrente</p>
+            <p className="text-xs text-gray-500 mb-2">Cola o @ (ou link) do perfil → traz os posts que mais bombam e a análise Saporino roda em cada. (usa crédito Apify · uso pra inspiração)</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <input value={igHandle} onChange={e => setIgHandle(e.target.value)} placeholder="@concorrente (ou link do perfil)"
+                className="flex-1 min-w-[200px] border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+              <select value={igN} onChange={e => setIgN(Number(e.target.value))} className="border border-gray-300 rounded-lg px-2 py-2 text-sm">
+                {[3, 5, 8, 10].map(n => <option key={n} value={n}>Top {n}</option>)}
+              </select>
+              <button onClick={importFromInstagram} disabled={importing}
+                className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50">
+                {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Importar top posts
+              </button>
+            </div>
+          </div>
+
           <VideoDropzone companyId={activeCompanyId} userId={user?.id} onUploaded={load} />
 
           <div className="flex bg-white border border-gray-200 rounded-xl text-sm font-semibold overflow-hidden w-fit">
