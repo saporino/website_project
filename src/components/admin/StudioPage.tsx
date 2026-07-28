@@ -46,7 +46,9 @@ export default function StudioPage() {
 
   const COST_PER_POST = 0.066; // ~US$ por post analisado (Claude + Whisper)
   const SCAN_CACHE_KEY = 'studio_ig_searches';
-  const SCAN_TTL = 24 * 60 * 60 * 1000; // 24h (os links de imagem/vídeo do IG expiram ~1 dia; o crescimento de seguidores fica salvo no banco pra sempre)
+  // As buscas NÃO expiram mais — ficam salvas até o usuário apagar (lixeira do grupo / X do post).
+  // Obs.: os links de imagem/vídeo do IG expiram ~1-2 dias; miniaturas antigas podem ficar cinza,
+  // mas os números (seguidores/views/curtidas) e o crescimento continuam. Basta re-buscar o grupo.
 
   // miniatura via proxy (o CDN do IG bloqueia hotlink direto)
   const thumbUrl = (t: string | null) => t ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/studio-ig-thumb?url=${encodeURIComponent(t)}` : '';
@@ -57,10 +59,8 @@ export default function StudioPage() {
     try {
       const raw = localStorage.getItem(SCAN_CACHE_KEY);
       if (!raw) return;
-      const all = JSON.parse(raw) as IgSearch[];
-      const arr = all.filter(s => Date.now() - (s.ts || 0) <= SCAN_TTL).map(s => ({ ...s, sort: s.sort || 'eng' }));
-      setIgSearches(arr);
-      if (arr.length !== all.length) persist(arr);
+      const all = (JSON.parse(raw) as IgSearch[]).map(s => ({ ...s, sort: s.sort || 'eng' }));
+      setIgSearches(all); // sem expiração: ficam até o usuário apagar
     } catch { /* ignora */ }
   }, []);
 
