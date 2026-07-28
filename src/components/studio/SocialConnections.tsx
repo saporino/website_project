@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Instagram, Music2, Youtube, CheckCircle2, Link2, Loader2, X } from 'lucide-react';
+import { Instagram, Music2, Youtube, CheckCircle2, Link2, Loader2, X, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 
@@ -23,6 +23,20 @@ export default function SocialConnections({ companyId }: { companyId: string | n
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState({ account_name: '', account_id: '', access_token: '' });
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  async function refreshIgToken() {
+    setRefreshing(true);
+    const { data, error } = await supabase.functions.invoke('refresh-instagram-token', { body: {} });
+    setRefreshing(false);
+    const res = (data as any)?.results?.[0];
+    if (error || (data as any)?.error) { toast.error((data as any)?.error || error?.message || 'Falha ao renovar.'); return; }
+    if (res?.ok === false) { toast.error('Não deu pra renovar: ' + (res.error || 'token pode estar de curta duração. Refaça a conexão com um token de longa duração.')); load(); return; }
+    toast.success('Token do Instagram renovado! Válido por mais ~60 dias.');
+    load();
+  }
+
+  const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : null;
 
   const load = useCallback(async () => {
     if (!companyId) return;
@@ -93,6 +107,14 @@ export default function SocialConnections({ companyId }: { companyId: string | n
                     : <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Não conectado</span>}
                 </div>
                 {on && c?.account_name && <p className="text-xs text-gray-500 mt-0.5">Conta: {c.account_name}</p>}
+                {on && n.key === 'instagram' && (
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {c?.expires_at ? <>Token expira em <strong>{fmtDate(c.expires_at)}</strong> (renova sozinho)</> : 'Token sem validade conhecida — clique em Renovar pra virar longa duração'}
+                    <button onClick={refreshIgToken} disabled={refreshing} className="ml-2 inline-flex items-center gap-1 text-[#8B2214] font-semibold hover:underline disabled:opacity-50">
+                      {refreshing ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />} Renovar agora
+                    </button>
+                  </p>
+                )}
                 <p className="text-xs text-gray-400 mt-1">{n.hint}</p>
               </div>
               <div className="flex flex-col gap-1.5 flex-shrink-0">
