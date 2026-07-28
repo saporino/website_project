@@ -30,8 +30,10 @@ export default function StudioPage() {
   type IgSearch = { id: number; handle: string; type: 'all' | 'video' | 'image'; posts: IgPost[]; ts: number; collapsed: boolean };
   const [igHandle, setIgHandle] = useState('');
   const [igType, setIgType] = useState<'all' | 'video' | 'image'>('all');
-  const [igDepth, setIgDepth] = useState(60);
+  const [igDepth, setIgDepth] = useState(120);
   const [scanning, setScanning] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [igInfo, setIgInfo] = useState<{ profile: string; postsCount: number | null; followers: number | null } | null>(null);
   const [importing, setImporting] = useState(false);
   const [igSearches, setIgSearches] = useState<IgSearch[]>([]);
   const [igSel, setIgSel] = useState<Set<string>>(new Set());
@@ -57,9 +59,23 @@ export default function StudioPage() {
     } catch { /* ignora */ }
   }, []);
 
+  async function checkInstagram() {
+    if (!igHandle.trim()) { toast.error('Cole o @ (ou link) do perfil.'); return; }
+    setChecking(true); setIgInfo(null);
+    const { data, error } = await supabase.functions.invoke('studio-import-instagram', {
+      body: { action: 'preview', handle: igHandle.trim() },
+    });
+    setChecking(false);
+    if (error || (data as any)?.error) {
+      toast.error((data as any)?.message || (data as any)?.error || error?.message || 'Não consegui verificar o perfil.');
+      return;
+    }
+    setIgInfo({ profile: (data as any)?.profile || igHandle.trim(), postsCount: (data as any)?.postsCount ?? null, followers: (data as any)?.followers ?? null });
+  }
+
   async function scanInstagram() {
     if (!igHandle.trim()) { toast.error('Cole o @ (ou link) do perfil do concorrente.'); return; }
-    setScanning(true);
+    setScanning(true); setIgInfo(null);
     const t = toast.loading(`Buscando os posts de ${igHandle}… (pode levar 1-2 min)`);
     const { data, error } = await supabase.functions.invoke('studio-import-instagram', {
       body: { handle: igHandle.trim(), mediaFilter: igType, scanLimit: igDepth },
@@ -222,7 +238,7 @@ export default function StudioPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <input value={igHandle} onChange={e => setIgHandle(e.target.value)} placeholder="@concorrente (ou link do perfil)"
+              <input value={igHandle} onChange={e => { setIgHandle(e.target.value); setIgInfo(null); }} placeholder="@concorrente (ou link do perfil)"
                 onKeyDown={e => { if (e.key === 'Enter') scanInstagram(); }}
                 className="flex-1 min-w-[200px] border border-gray-300 rounded-lg px-3 py-2 text-sm" />
               <select value={igType} onChange={e => setIgType(e.target.value as any)} className="border border-gray-300 rounded-lg px-2 py-2 text-sm">
@@ -230,17 +246,30 @@ export default function StudioPage() {
                 <option value="video">Só vídeos</option>
                 <option value="image">Só fotos</option>
               </select>
-              <select value={igDepth} onChange={e => setIgDepth(Number(e.target.value))} className="border border-gray-300 rounded-lg px-2 py-2 text-sm" title="Quantos posts recentes vasculhar">
-                <option value={60}>Últimos 60</option>
-                <option value={120}>Últimos 120</option>
-                <option value={240}>Últimos 240</option>
+              <select value={igDepth} onChange={e => setIgDepth(Number(e.target.value))} className="border border-gray-300 rounded-lg px-2 py-2 text-sm" title="Quantos posts recentes vasculhar (é um teto: traz no máximo isso)">
+                <option value={60}>Até 60</option>
+                <option value={120}>Até 120</option>
+                <option value={240}>Até 240</option>
                 <option value={400}>Tudo (máx. 400)</option>
               </select>
+              <button onClick={checkInstagram} disabled={checking || scanning || importing}
+                className="inline-flex items-center gap-1.5 border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-semibold px-3 py-2 rounded-lg disabled:opacity-50" title="Ver quantos posts o perfil tem antes de buscar">
+                {checking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Verificar
+              </button>
               <button onClick={scanInstagram} disabled={scanning || importing}
                 className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50">
-                {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />} Buscar posts
+                {scanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Buscar posts
               </button>
             </div>
+
+            {igInfo && (
+              <div className="text-xs bg-[#f8f7f5] border border-[#ddd0cc] rounded-lg px-3 py-2 text-gray-600">
+                <strong>{igInfo.profile}</strong>
+                {igInfo.postsCount != null ? <> tem <strong>{igInfo.postsCount.toLocaleString('pt-BR')} posts</strong></> : ' é público'}
+                {igInfo.followers != null && <> · <strong>{igInfo.followers.toLocaleString('pt-BR')}</strong> seguidores</>}.
+                {igInfo.postsCount != null && igInfo.postsCount < igDepth && <> Como tem menos que {igDepth}, a busca traz os <strong>{igInfo.postsCount}</strong>.</>}
+              </div>
+            )}
 
             {/* Ordenar (vale pra todos os grupos) */}
             {igSearches.length > 0 && (

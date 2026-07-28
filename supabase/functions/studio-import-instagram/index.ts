@@ -70,6 +70,23 @@ Deno.serve(async (req) => {
       return json({ ok: true, imported });
     }
 
+    // ===================== PREVIEW: só quantos posts/seguidores o perfil tem (antes de raspar tudo) =====
+    if (action === "preview") {
+      if (!user) return json({ error: "handle é obrigatório." }, 400);
+      const dres = await fetch(`${APIFY}/acts/${ACTOR}/run-sync-get-dataset-items?token=${token}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ directUrls: [profileUrl], resultsType: "details", resultsLimit: 1 }),
+      });
+      if (!dres.ok) {
+        const txt = await dres.text();
+        const noCredit = dres.status === 402 || /usage|limit|credit|quota/i.test(txt);
+        return json({ error: noCredit ? "no_credit" : "apify_error", message: noCredit ? "Crédito Apify esgotado." : txt.slice(0, 200) }, noCredit ? 402 : 502);
+      }
+      const d = (await dres.json())[0] || {};
+      if (d.private) return json({ error: "privado", message: `@${user} é privado — não dá pra raspar.` }, 403);
+      return json({ ok: true, profile: `@${user}`, postsCount: Number(d.postsCount) || null, followers: Number(d.followersCount) || null });
+    }
+
     // ===================== SCAN (padrão): raspa e devolve as miniaturas p/ escolher (barato) =====
     if (!user) return json({ error: "handle é obrigatório." }, 400);
     const filter = mediaFilter === "video" || mediaFilter === "image" ? mediaFilter : "all";
