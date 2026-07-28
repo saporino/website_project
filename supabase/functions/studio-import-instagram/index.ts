@@ -31,6 +31,23 @@ Deno.serve(async (req) => {
     const COST_PER_POST = 0.066; // ~Claude + Whisper por post analisado
     // quantos posts trazer pra galeria (raspagem é barata; teto 400 pra não estourar o tempo da função)
     const SCAN_MAX = Math.max(12, Math.min(Number(body?.scanLimit) || 60, 400));
+    const db = createClient(url, service);
+
+    // busca os dados do perfil (seguidores/total de posts) — 1 result do Apify
+    async function fetchDetails() {
+      const dres = await fetch(`${APIFY}/acts/${ACTOR}/run-sync-get-dataset-items?token=${token}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ directUrls: [profileUrl], resultsType: "details", resultsLimit: 1 }),
+      });
+      if (!dres.ok) return { error: (await dres.text()).slice(0, 200), status: dres.status };
+      const d = (await dres.json())[0] || {};
+      return { private: !!d.private, postsCount: Number(d.postsCount) || null, followers: Number(d.followersCount) || null };
+    }
+    // grava um ponto no histórico (pra medir crescimento de seguidores ao longo do tempo)
+    async function saveSnapshot(followers: number | null, postsCount: number | null) {
+      if (!company_id || !user) return;
+      try { await db.from("studio_profile_snapshots").insert({ company_id, handle: `@${user}`, followers, posts_count: postsCount }); } catch { /* ignora */ }
+    }
 
     // ===================== IMPORT: analisa só os posts que o admin escolheu =====================
     // (os posts podem vir de perfis diferentes — cada um traz seu próprio p.handle)
@@ -38,7 +55,6 @@ Deno.serve(async (req) => {
       if (!company_id) return json({ error: "company_id é obrigatório." }, 400);
       const chosen: any[] = Array.isArray(body.posts) ? body.posts.slice(0, 50) : [];
       if (!chosen.length) return json({ error: "vazio", message: "Nenhum post selecionado." }, 400);
-      const db = createClient(url, service);
       let imported = 0;
       for (const p of chosen) {
         try {
@@ -73,18 +89,14 @@ Deno.serve(async (req) => {
     // ===================== PREVIEW: só quantos posts/seguidores o perfil tem (antes de raspar tudo) =====
     if (action === "preview") {
       if (!user) return json({ error: "handle é obrigatório." }, 400);
-      const dres = await fetch(`${APIFY}/acts/${ACTOR}/run-sync-get-dataset-items?token=${token}`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ directUrls: [profileUrl], resultsType: "details", resultsLimit: 1 }),
-      });
-      if (!dres.ok) {
-        const txt = await dres.text();
-        const noCredit = dres.status === 402 || /usage|limit|credit|quota/i.test(txt);
-        return json({ error: noCredit ? "no_credit" : "apify_error", message: noCredit ? "Crédito Apify esgotado." : txt.slice(0, 200) }, noCredit ? 402 : 502);
+      const d = await fetchDetails();
+      if ((d as any).error) {
+        const noCredit = (d as any).status === 402 || /usage|limit|credit|quota/i.test((d as any).error);
+        return json({ error: noCredit ? "no_credit" : "apify_error", message: noCredit ? "Crédito Apify esgotado." : (d as any).error }, noCredit ? 402 : 502);
       }
-      const d = (await dres.json())[0] || {};
       if (d.private) return json({ error: "privado", message: `@${user} é privado — não dá pra raspar.` }, 403);
-      return json({ ok: true, profile: `@${user}`, postsCount: Number(d.postsCount) || null, followers: Number(d.followersCount) || null });
+      await saveSnapshot(d.followers, d.postsCount);
+      return json({ ok: true, profile: `@${user}`, postsCount: d.postsCount, followers: d.followers });
     }
 
     // ===================== SCAN (padrão): raspa e devolve as miniaturas p/ escolher (barato) =====
@@ -114,7 +126,13 @@ Deno.serve(async (req) => {
       .filter((p: any) => filter === "all" ? true : filter === "video" ? p.isVideo : !p.isVideo)
       .sort((a: any, b: any) => b.score - a.score);
 
-    return json({ ok: true, profile: `@${user}`, count: posts.length, cost_per_post: COST_PER_POST, posts });
+    // também pega os dados do perfil (seguidores/total) e grava no histórico
+    const det = await fetchDetails();
+    const followers = (det as any).error ? null : det.followers;
+    const postsCount = (det as any).error ? null : det.postsCount;
+    await saveSnapshot(followers, postsCount);
+
+    return json({ ok: true, profile: `@${user}`, count: posts.length, cost_per_post: COST_PER_POST, followers, postsCount, posts });
   } catch (e) {
     return json({ error: String(e instanceof Error ? e.message : e) }, 500);
   }

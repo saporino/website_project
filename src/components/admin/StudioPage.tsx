@@ -27,7 +27,8 @@ export default function StudioPage() {
   const [view, setView] = useState<'videos' | 'campanhas' | 'conexoes' | 'marca'>('videos');
   type IgPost = { uid: string; url: string | null; thumb: string | null; video: string | null; isVideo: boolean; views: number; likes: number; comments: number; ts?: string | null; caption: string; score: number };
   type IgSort = 'eng' | 'views' | 'likes' | 'comments' | 'recent';
-  type IgSearch = { id: number; handle: string; type: 'all' | 'video' | 'image'; posts: IgPost[]; ts: number; collapsed: boolean; sort: IgSort };
+  type IgSearch = { id: number; handle: string; type: 'all' | 'video' | 'image'; posts: IgPost[]; ts: number; collapsed: boolean; sort: IgSort; followers?: number | null; postsProfile?: number | null };
+  type Growth = { week: number | null; month: number | null; year: number | null; since: string | null };
   const [igHandle, setIgHandle] = useState('');
   const [igType, setIgType] = useState<'all' | 'video' | 'image'>('all');
   const [igDepth, setIgDepth] = useState(60);
@@ -37,6 +38,7 @@ export default function StudioPage() {
   const [importing, setImporting] = useState(false);
   const [igSearches, setIgSearches] = useState<IgSearch[]>([]);
   const [igSel, setIgSel] = useState<Set<string>>(new Set());
+  const [growth, setGrowth] = useState<Record<string, Growth>>({});
 
   const COST_PER_POST = 0.066; // ~US$ por post analisado (Claude + Whisper)
   const SCAN_CACHE_KEY = 'studio_ig_searches';
@@ -62,7 +64,7 @@ export default function StudioPage() {
     if (!igHandle.trim()) { toast.error('Cole o @ (ou link) do perfil.'); return; }
     setChecking(true); setIgInfo(null);
     const { data, error } = await supabase.functions.invoke('studio-import-instagram', {
-      body: { action: 'preview', handle: igHandle.trim() },
+      body: { action: 'preview', handle: igHandle.trim(), company_id: activeCompanyId },
     });
     setChecking(false);
     if (error || (data as any)?.error) {
@@ -77,7 +79,7 @@ export default function StudioPage() {
     setScanning(true); setIgInfo(null);
     const t = toast.loading(`Buscando os posts de ${igHandle}… (pode levar 1-2 min)`);
     const { data, error } = await supabase.functions.invoke('studio-import-instagram', {
-      body: { handle: igHandle.trim(), mediaFilter: igType, scanLimit: igDepth },
+      body: { handle: igHandle.trim(), mediaFilter: igType, scanLimit: igDepth, company_id: activeCompanyId },
     });
     toast.dismiss(t);
     setScanning(false);
@@ -88,7 +90,7 @@ export default function StudioPage() {
     const ts = Date.now();
     const posts = (((data as any)?.posts as IgPost[]) || []).map((p, i) => ({ ...p, uid: `${ts}_${i}` }));
     const profile = (data as any)?.profile || ('@' + igHandle.trim().replace(/^@/, ''));
-    const search: IgSearch = { id: ts, handle: profile, type: igType, posts, ts, collapsed: false, sort: 'eng' };
+    const search: IgSearch = { id: ts, handle: profile, type: igType, posts, ts, collapsed: false, sort: 'eng', followers: (data as any)?.followers ?? null, postsProfile: (data as any)?.postsCount ?? null };
     setIgSearches(prev => {
       // nova busca entra aberta no topo; as anteriores colapsam pra não apertar
       const next = [search, ...prev.map(s => ({ ...s, collapsed: true }))];
@@ -162,6 +164,46 @@ export default function StudioPage() {
   };
   const SORTS: [IgSort, string][] = [['eng', 'Engajamento'], ['views', 'Views'], ['likes', 'Curtidas'], ['comments', 'Comentários'], ['recent', 'Recentes']];
   const totalSel = igSel.size;
+
+  // crescimento de seguidores do concorrente ao longo do tempo (a partir dos snapshots salvos)
+  const handleKey = igSearches.map(s => s.handle).join('|');
+  useEffect(() => {
+    const handles = [...new Set(igSearches.map(s => s.handle))];
+    if (!handles.length || !activeCompanyId) { setGrowth({}); return; }
+    (async () => {
+      const { data } = await supabase.from('studio_profile_snapshots')
+        .select('handle,followers,captured_at')
+        .eq('company_id', activeCompanyId).in('handle', handles)
+        .order('captured_at', { ascending: true });
+      const by: Record<string, { f: number; t: number }[]> = {};
+      (data || []).forEach((r: any) => { if (r.followers == null) return; (by[r.handle] ||= []).push({ f: r.followers, t: Date.parse(r.captured_at) }); });
+      const now = Date.now();
+      const calc = (arr: { f: number; t: number }[], days: number): number | null => {
+        if (arr.length < 2) return null;
+        const cur = arr[arr.length - 1].f;
+        const before = [...arr].reverse().find(x => x.t <= now - days * 86400000);
+        if (!before || !before.f) return null;
+        return ((cur - before.f) / before.f) * 100;
+      };
+      const g: Record<string, Growth> = {};
+      handles.forEach(h => {
+        const arr = by[h] || [];
+        g[h] = { week: calc(arr, 7), month: calc(arr, 30), year: calc(arr, 365), since: arr.length ? new Date(arr[0].t).toLocaleDateString('pt-BR') : null };
+      });
+      setGrowth(g);
+    })();
+  }, [handleKey, activeCompanyId]);
+
+  // chip de variação (▲ verde / ▼ vermelho)
+  const growthChip = (label: string, val: number | null) => {
+    if (val == null) return null;
+    const up = val >= 0;
+    return (
+      <span className={`inline-flex items-center gap-0.5 ${up ? 'text-green-600' : 'text-red-600'}`}>
+        {up ? '▲' : '▼'}{Math.abs(val).toFixed(1)}%<span className="text-gray-400 font-normal">/{label}</span>
+      </span>
+    );
+  };
 
   const load = useCallback(async () => {
     if (!activeCompanyId) return;
@@ -282,16 +324,28 @@ export default function StudioPage() {
               return (
                 <div key={s.id} className="border border-gray-200 rounded-xl overflow-hidden">
                   <div className="flex items-center gap-2 px-3 py-2 bg-[#f8f7f5] border-b border-gray-200">
-                    <button onClick={() => toggleCollapse(s.id)} className="flex items-center gap-1.5 font-semibold text-gray-800 text-sm">
+                    <button onClick={() => toggleCollapse(s.id)} className="flex items-center gap-1.5 font-semibold text-gray-800 text-sm flex-shrink-0">
                       {s.collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                       {s.handle}
                     </button>
-                    <span className="text-xs text-gray-400">
-                      <strong className="text-gray-600">{s.posts.length}</strong> posts
-                      {nVid > 0 && <> · {nVid} reels</>}{nImg > 0 && <> · {nImg} fotos</>}
-                      {selInGroup ? ` · ${selInGroup} sel.` : ''}
-                    </span>
-                    <div className="ml-auto flex items-center gap-3">
+                    <div className="min-w-0">
+                      <div className="text-xs text-gray-400">
+                        <strong className="text-gray-600">{s.posts.length}</strong> carregados
+                        {nVid > 0 && <> · {nVid} reels</>}{nImg > 0 && <> · {nImg} fotos</>}
+                        {s.postsProfile != null && <> · {s.postsProfile.toLocaleString('pt-BR')} no perfil</>}
+                        {selInGroup ? ` · ${selInGroup} sel.` : ''}
+                      </div>
+                      {(s.followers != null || growth[s.handle]?.week != null) && (
+                        <div className="text-xs text-gray-500 flex items-center gap-2 flex-wrap font-semibold">
+                          {s.followers != null && <span>{s.followers.toLocaleString('pt-BR')} seguidores</span>}
+                          {growthChip('sem', growth[s.handle]?.week ?? null)}
+                          {growthChip('mês', growth[s.handle]?.month ?? null)}
+                          {growthChip('ano', growth[s.handle]?.year ?? null)}
+                          {growth[s.handle]?.week == null && growth[s.handle]?.since && <span className="text-gray-400 font-normal">medindo desde {growth[s.handle]?.since}</span>}
+                        </div>
+                      )}
+                    </div>
+                    <div className="ml-auto flex items-center gap-3 flex-shrink-0">
                       {!s.collapsed && (
                         <button onClick={() => selectAllGroup(s)} className="text-xs font-semibold text-[#8B2214] hover:underline">
                           {allOn ? 'Limpar' : 'Selecionar todos'}
