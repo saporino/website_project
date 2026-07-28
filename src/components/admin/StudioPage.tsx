@@ -39,6 +39,8 @@ export default function StudioPage() {
   const [igSearches, setIgSearches] = useState<IgSearch[]>([]);
   const [igSel, setIgSel] = useState<Set<string>>(new Set());
   const [growth, setGrowth] = useState<Record<string, Growth>>({});
+  const [growthTick, setGrowthTick] = useState(0);
+  const [checkingGroup, setCheckingGroup] = useState<number | null>(null);
 
   const COST_PER_POST = 0.066; // ~US$ por post analisado (Claude + Whisper)
   const SCAN_CACHE_KEY = 'studio_ig_searches';
@@ -104,6 +106,19 @@ export default function StudioPage() {
   }
   function toggleCollapse(id: number) {
     setIgSearches(prev => { const next = prev.map(s => s.id === id ? { ...s, collapsed: !s.collapsed } : s); persist(next); return next; });
+  }
+  // atualiza seguidores/posts do perfil de um grupo já buscado, sem raspar posts de novo (barato)
+  async function verifyGroup(s: IgSearch) {
+    setCheckingGroup(s.id);
+    const { data, error } = await supabase.functions.invoke('studio-import-instagram', {
+      body: { action: 'preview', handle: s.handle, company_id: activeCompanyId },
+    });
+    setCheckingGroup(null);
+    if (error || (data as any)?.error) { toast.error((data as any)?.message || (data as any)?.error || 'Não consegui verificar.'); return; }
+    const followers = (data as any)?.followers ?? null;
+    const postsProfile = (data as any)?.postsCount ?? null;
+    setIgSearches(prev => { const next = prev.map(x => x.id === s.id ? { ...x, followers, postsProfile } : x); persist(next); return next; });
+    setGrowthTick(t => t + 1);
   }
   function setGroupSort(id: number, sort: IgSort) {
     setIgSearches(prev => { const next = prev.map(s => s.id === id ? { ...s, sort } : s); persist(next); return next; });
@@ -192,7 +207,7 @@ export default function StudioPage() {
       });
       setGrowth(g);
     })();
-  }, [handleKey, activeCompanyId]);
+  }, [handleKey, activeCompanyId, growthTick]);
 
   // chip de variação (▲ verde / ▼ vermelho)
   const growthChip = (label: string, val: number | null) => {
@@ -346,6 +361,11 @@ export default function StudioPage() {
                       )}
                     </div>
                     <div className="ml-auto flex items-center gap-3 flex-shrink-0">
+                      <button onClick={() => verifyGroup(s)} disabled={checkingGroup === s.id}
+                        title="Atualizar seguidores/posts deste perfil (barato, sem raspar posts)"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-[#8B2214] hover:underline disabled:opacity-50">
+                        {checkingGroup === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />} Verificar
+                      </button>
                       {!s.collapsed && (
                         <button onClick={() => selectAllGroup(s)} className="text-xs font-semibold text-[#8B2214] hover:underline">
                           {allOn ? 'Limpar' : 'Selecionar todos'}
