@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
         const isVideo = p.type === "Video" || !!p.videoUrl;
         return { url: p.url || null, thumb: p.displayUrl || null, video: isVideo ? p.videoUrl || null : null, isVideo,
           views: Number(p.videoViewCount) || 0, likes: Number(p.likesCount) || 0, comments: Number(p.commentsCount) || 0,
-          caption: (p.caption || "").slice(0, 120), score: score(p) };
+          ts: p.timestamp || null, caption: (p.caption || "").slice(0, 120), score: score(p) };
       })
       .filter((p: any) => filter === "all" ? true : filter === "video" ? p.isVideo : !p.isVideo)
       .sort((a: any, b: any) => b.score - a.score);

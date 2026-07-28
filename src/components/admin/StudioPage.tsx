@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Clapperboard, Download, Loader2, Search, Check, Heart, PlayCircle } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Clapperboard, Download, Loader2, Search, Check, Heart, PlayCircle, MessageCircle, ArrowDownWideNarrow } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
@@ -25,7 +25,8 @@ export default function StudioPage() {
   const [modalVideo, setModalVideo] = useState<StudioVideo | null>(null);
   const [modalTab, setModalTab] = useState<'resumo' | 'publicar'>('resumo');
   const [view, setView] = useState<'videos' | 'campanhas' | 'conexoes' | 'marca'>('videos');
-  type IgPost = { url: string | null; thumb: string | null; video: string | null; isVideo: boolean; views: number; likes: number; comments: number; caption: string; score: number };
+  type IgPost = { url: string | null; thumb: string | null; video: string | null; isVideo: boolean; views: number; likes: number; comments: number; ts?: string | null; caption: string; score: number };
+  type IgSort = 'eng' | 'views' | 'likes' | 'comments' | 'recent';
   const [igHandle, setIgHandle] = useState('');
   const [igType, setIgType] = useState<'all' | 'video' | 'image'>('all');
   const [igDepth, setIgDepth] = useState(60);
@@ -33,6 +34,7 @@ export default function StudioPage() {
   const [importing, setImporting] = useState(false);
   const [igPosts, setIgPosts] = useState<IgPost[] | null>(null);
   const [igSel, setIgSel] = useState<Set<number>>(new Set());
+  const [igSort, setIgSort] = useState<IgSort>('eng');
 
   const COST_PER_POST = 0.066; // ~US$ por post analisado (Claude + Whisper)
   const SCAN_CACHE_KEY = 'studio_ig_scan';
@@ -96,6 +98,16 @@ export default function StudioPage() {
   }
 
   const fmt = (n: number) => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace('.0', '') + 'k' : String(n);
+
+  // ordena o grid na tela (não raspa de novo). Guarda o índice original pra seleção não bagunçar.
+  const igSorted = useMemo(() => {
+    if (!igPosts) return [];
+    const key = (p: IgPost) =>
+      igSort === 'views' ? p.views : igSort === 'likes' ? p.likes : igSort === 'comments' ? p.comments
+      : igSort === 'recent' ? (p.ts ? Date.parse(p.ts) : 0) : (p.views + p.likes + p.comments);
+    return igPosts.map((p, i) => ({ p, i })).sort((a, b) => key(b.p) - key(a.p));
+  }, [igPosts, igSort]);
+  const SORTS: [IgSort, string][] = [['eng', 'Engajamento'], ['views', 'Views'], ['likes', 'Curtidas'], ['comments', 'Comentários'], ['recent', 'Recentes']];
 
   const load = useCallback(async () => {
     if (!activeCompanyId) return;
@@ -200,15 +212,25 @@ export default function StudioPage() {
                 <p className="text-sm text-gray-400 py-4 text-center">Nenhum post encontrado com esse filtro.</p>
               ) : (
                 <div className="space-y-2.5 pt-1">
-                  <div className="flex items-center justify-between text-xs text-gray-500">
-                    <span>{igPosts.length} posts encontrados (mais bombados primeiro). Marque os que quer analisar.</span>
+                  <div className="flex items-center justify-between text-xs text-gray-500 flex-wrap gap-2">
+                    <span>{igPosts.length} posts encontrados. Marque os que quer analisar.</span>
                     <button onClick={() => setIgSel(igSel.size === igPosts.length ? new Set() : new Set(igPosts.map((_, i) => i)))}
                       className="font-semibold text-[#8B2214] hover:underline">
                       {igSel.size === igPosts.length ? 'Limpar' : 'Selecionar todos'}
                     </button>
                   </div>
+                  {/* Ordenar por */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs text-gray-400 flex items-center gap-1"><ArrowDownWideNarrow className="w-3.5 h-3.5" /> Ordenar:</span>
+                    {SORTS.map(([k, l]) => (
+                      <button key={k} onClick={() => setIgSort(k)}
+                        className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${igSort === k ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
                   <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 max-h-[420px] overflow-y-auto p-0.5">
-                    {igPosts.map((p, i) => {
+                    {igSorted.map(({ p, i }) => {
                       const on = igSel.has(i);
                       return (
                         <button key={i} onClick={() => toggleSel(i)}
@@ -218,9 +240,10 @@ export default function StudioPage() {
                                 onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }} />
                             : <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300"><Clapperboard className="w-6 h-6" /></div>}
                           {/* engajamento */}
-                          <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-1 flex items-center gap-2 text-[10px] font-semibold text-white">
+                          <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-1 flex items-center gap-1.5 text-[10px] font-semibold text-white">
                             {p.isVideo && <span className="flex items-center gap-0.5"><PlayCircle className="w-3 h-3" />{fmt(p.views)}</span>}
                             <span className="flex items-center gap-0.5"><Heart className="w-3 h-3" />{fmt(p.likes)}</span>
+                            <span className="flex items-center gap-0.5"><MessageCircle className="w-3 h-3" />{fmt(p.comments)}</span>
                           </div>
                           {/* check */}
                           <div className={`absolute top-1.5 left-1.5 w-5 h-5 rounded-full flex items-center justify-center ${on ? 'bg-[#8B2214] text-white' : 'bg-white/80 text-transparent'}`}>
