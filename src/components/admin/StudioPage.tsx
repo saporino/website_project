@@ -27,7 +27,7 @@ export default function StudioPage() {
   const [view, setView] = useState<'videos' | 'campanhas' | 'conexoes' | 'marca'>('videos');
   type IgPost = { uid: string; url: string | null; thumb: string | null; video: string | null; isVideo: boolean; views: number; likes: number; comments: number; ts?: string | null; caption: string; score: number };
   type IgSort = 'eng' | 'views' | 'likes' | 'comments' | 'recent';
-  type IgSearch = { id: number; handle: string; type: 'all' | 'video' | 'image'; posts: IgPost[]; ts: number; collapsed: boolean };
+  type IgSearch = { id: number; handle: string; type: 'all' | 'video' | 'image'; posts: IgPost[]; ts: number; collapsed: boolean; sort: IgSort };
   const [igHandle, setIgHandle] = useState('');
   const [igType, setIgType] = useState<'all' | 'video' | 'image'>('all');
   const [igDepth, setIgDepth] = useState(60);
@@ -37,7 +37,6 @@ export default function StudioPage() {
   const [importing, setImporting] = useState(false);
   const [igSearches, setIgSearches] = useState<IgSearch[]>([]);
   const [igSel, setIgSel] = useState<Set<string>>(new Set());
-  const [igSort, setIgSort] = useState<IgSort>('eng');
 
   const COST_PER_POST = 0.066; // ~US$ por post analisado (Claude + Whisper)
   const SCAN_CACHE_KEY = 'studio_ig_searches';
@@ -53,7 +52,7 @@ export default function StudioPage() {
       const raw = localStorage.getItem(SCAN_CACHE_KEY);
       if (!raw) return;
       const all = JSON.parse(raw) as IgSearch[];
-      const arr = all.filter(s => Date.now() - (s.ts || 0) <= SCAN_TTL);
+      const arr = all.filter(s => Date.now() - (s.ts || 0) <= SCAN_TTL).map(s => ({ ...s, sort: s.sort || 'eng' }));
       setIgSearches(arr);
       if (arr.length !== all.length) persist(arr);
     } catch { /* ignora */ }
@@ -89,7 +88,7 @@ export default function StudioPage() {
     const ts = Date.now();
     const posts = (((data as any)?.posts as IgPost[]) || []).map((p, i) => ({ ...p, uid: `${ts}_${i}` }));
     const profile = (data as any)?.profile || ('@' + igHandle.trim().replace(/^@/, ''));
-    const search: IgSearch = { id: ts, handle: profile, type: igType, posts, ts, collapsed: false };
+    const search: IgSearch = { id: ts, handle: profile, type: igType, posts, ts, collapsed: false, sort: 'eng' };
     setIgSearches(prev => {
       // nova busca entra aberta no topo; as anteriores colapsam pra não apertar
       const next = [search, ...prev.map(s => ({ ...s, collapsed: true }))];
@@ -103,6 +102,9 @@ export default function StudioPage() {
   }
   function toggleCollapse(id: number) {
     setIgSearches(prev => { const next = prev.map(s => s.id === id ? { ...s, collapsed: !s.collapsed } : s); persist(next); return next; });
+  }
+  function setGroupSort(id: number, sort: IgSort) {
+    setIgSearches(prev => { const next = prev.map(s => s.id === id ? { ...s, sort } : s); persist(next); return next; });
   }
   function deleteSearch(id: number) {
     setIgSearches(prev => {
@@ -151,11 +153,11 @@ export default function StudioPage() {
 
   const fmt = (n: number) => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace('.0', '') + 'k' : String(n);
 
-  // ordena os posts de um grupo na tela (não raspa de novo)
-  const sortPosts = (posts: IgPost[]) => {
+  // ordena os posts de um grupo na tela (não raspa de novo) — cada grupo tem seu próprio sort
+  const sortPosts = (posts: IgPost[], sort: IgSort) => {
     const key = (p: IgPost) =>
-      igSort === 'views' ? p.views : igSort === 'likes' ? p.likes : igSort === 'comments' ? p.comments
-      : igSort === 'recent' ? (p.ts ? Date.parse(p.ts) : 0) : (p.views + p.likes + p.comments);
+      sort === 'views' ? p.views : sort === 'likes' ? p.likes : sort === 'comments' ? p.comments
+      : sort === 'recent' ? (p.ts ? Date.parse(p.ts) : 0) : (p.views + p.likes + p.comments);
     return [...posts].sort((a, b) => key(b) - key(a));
   };
   const SORTS: [IgSort, string][] = [['eng', 'Engajamento'], ['views', 'Views'], ['likes', 'Curtidas'], ['comments', 'Comentários'], ['recent', 'Recentes']];
@@ -271,20 +273,7 @@ export default function StudioPage() {
               </div>
             )}
 
-            {/* Ordenar (vale pra todos os grupos) */}
-            {igSearches.length > 0 && (
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-xs text-gray-400 flex items-center gap-1"><ArrowDownWideNarrow className="w-3.5 h-3.5" /> Ordenar:</span>
-                {SORTS.map(([k, l]) => (
-                  <button key={k} onClick={() => setIgSort(k)}
-                    className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${igSort === k ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
-                    {l}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Grupos de busca (colapsáveis) — Pilão, Melitta… cada um com apagar-grupo e apagar-post */}
+            {/* Grupos de busca (colapsáveis) — Pilão, Melitta… cada um com seu próprio filtro, apagar-grupo e apagar-post */}
             {igSearches.map(s => {
               const selInGroup = s.posts.filter(p => igSel.has(p.uid)).length;
               const allOn = selInGroup === s.posts.length && s.posts.length > 0;
@@ -312,8 +301,19 @@ export default function StudioPage() {
                     </div>
                   </div>
                   {!s.collapsed && (
+                    <div className="flex items-center gap-1.5 flex-wrap px-3 py-2 border-b border-gray-100">
+                      <span className="text-xs text-gray-400 flex items-center gap-1"><ArrowDownWideNarrow className="w-3.5 h-3.5" /> Ordenar:</span>
+                      {SORTS.map(([k, l]) => (
+                        <button key={k} onClick={() => setGroupSort(s.id, k)}
+                          className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${s.sort === k ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
+                          {l}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {!s.collapsed && (
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 max-h-[420px] overflow-y-auto p-2.5">
-                      {sortPosts(s.posts).map(p => {
+                      {sortPosts(s.posts, s.sort).map(p => {
                         const on = igSel.has(p.uid);
                         return (
                           <div key={p.uid} className={`relative aspect-square rounded-lg overflow-hidden border-2 group ${on ? 'border-[#8B2214] ring-2 ring-[#8B2214]/30' : 'border-transparent hover:border-gray-300'}`}>
