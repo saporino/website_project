@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Megaphone, Pencil, Trash2, Clock, Film } from 'lucide-react';
+import { Megaphone, Pencil, Trash2, Clock, Film, Send, Loader2, Instagram, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import CampaignCreator, { type Campaign } from './CampaignCreator';
 
-interface Row extends Campaign { studio_videos?: { filename: string } | null; }
+interface Row extends Campaign { studio_videos?: { filename: string } | null; publish_error?: string | null; }
 
 const PLAT_LABEL: Record<string, string> = { instagram: 'Instagram', tiktok: 'TikTok', facebook: 'Facebook', youtube: 'YouTube', ecommerce: 'E-commerce' };
 const ST: Record<string, { label: string; cls: string }> = {
@@ -17,6 +17,8 @@ export default function CampaignsPanel({ companyId }: { companyId: string | null
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Campaign | null>(null);
+  const [confirmPub, setConfirmPub] = useState<Row | null>(null);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!companyId) return;
@@ -37,6 +39,27 @@ export default function CampaignsPanel({ companyId }: { companyId: string | null
     if (error) { toast.error('Erro ao excluir: ' + error.message); return; }
     setRows(prev => prev.filter(x => x.id !== r.id));
     toast.success('Campanha excluída.');
+  }
+
+  // clica em "Publicar agora": se falta arte, manda anexar; senão abre a confirmação
+  function askPublish(r: Row) {
+    if (!r.media_path) { toast.error('Anexe a arte final da Saporino na campanha (Editar) antes de publicar.'); setEditing(r); return; }
+    setConfirmPub(r);
+  }
+
+  async function doPublish(r: Row) {
+    setConfirmPub(null); setPublishingId(r.id);
+    const t = toast.loading('Publicando no Instagram… (vídeo pode levar 1-2 min)');
+    const { data, error } = await supabase.functions.invoke('publish-instagram', { body: { campaign_id: r.id } });
+    toast.dismiss(t); setPublishingId(null);
+    if (error || (data as any)?.error) {
+      toast.error((data as any)?.message || (data as any)?.error || error?.message || 'Falha ao publicar.');
+      load();
+      return;
+    }
+    const link = (data as any)?.permalink;
+    toast.success(link ? 'Publicado no Instagram! 🎉' : 'Publicado no Instagram!');
+    load();
   }
 
   if (loading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8B2214]" /></div>;
@@ -70,6 +93,16 @@ export default function CampaignsPanel({ companyId }: { companyId: string | null
                 </p>
                 {r.content && <p className="text-sm text-gray-600 mt-1.5 line-clamp-2 whitespace-pre-line">{r.content}</p>}
                 {r.external_url && <a href={r.external_url} target="_blank" rel="noreferrer" className="text-xs text-[#8B2214] font-medium hover:underline break-all">🔗 {r.external_url}</a>}
+                {r.publish_error && r.status !== 'published' && (
+                  <p className="text-xs text-red-600 mt-1 flex items-start gap-1"><AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /> Falha ao publicar: {r.publish_error}</p>
+                )}
+                {/* Publicar agora — só Instagram, ainda não publicada */}
+                {r.platform === 'instagram' && r.status !== 'published' && (
+                  <button onClick={() => askPublish(r)} disabled={publishingId === r.id}
+                    className="mt-2 inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-xs font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50">
+                    {publishingId === r.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />} Publicar agora
+                  </button>
+                )}
               </div>
               <div className="flex flex-col gap-1 flex-shrink-0">
                 <button onClick={() => setEditing(r)} title="Editar" className="p-1.5 rounded text-gray-500 hover:text-[#8B2214] hover:bg-gray-50"><Pencil className="w-4 h-4" /></button>
@@ -82,6 +115,24 @@ export default function CampaignsPanel({ companyId }: { companyId: string | null
 
       {editing && (
         <CampaignCreator companyId={companyId} campaign={editing} onClose={() => setEditing(null)} onSaved={load} />
+      )}
+
+      {confirmPub && (
+        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4" onClick={() => setConfirmPub(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
+            <div className="p-5 text-center">
+              <div className="w-12 h-12 rounded-full bg-[#f5f0ef] text-[#8B2214] flex items-center justify-center mx-auto mb-3"><Instagram className="w-6 h-6" /></div>
+              <h3 className="font-bold text-gray-900">Publicar agora no Instagram?</h3>
+              <p className="text-sm text-gray-500 mt-1">"{confirmPub.title}" ({confirmPub.media_type === 'video' ? 'Reels' : 'imagem'}) vai ao ar na conta @cafesaporino. Não dá pra desfazer pelo site.</p>
+            </div>
+            <div className="flex justify-center gap-2 px-5 pb-5">
+              <button onClick={() => setConfirmPub(null)} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>
+              <button onClick={() => doPublish(confirmPub)} className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg">
+                <Send className="w-4 h-4" /> Publicar agora
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
-import { X, Megaphone, Loader2 } from 'lucide-react';
+import { X, Megaphone, Loader2, Upload, Film, Image as ImageIcon, CheckCircle2 } from 'lucide-react';
 
 const PLATFORMS: [string, string][] = [
   ['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['facebook', 'Facebook'], ['youtube', 'YouTube'], ['ecommerce', 'E-commerce'],
@@ -13,6 +13,7 @@ export interface Campaign {
   title: string; platform: string; content: string | null; prompt_used: string | null;
   status: string; scheduled_at: string | null; created_at: string;
   external_url?: string | null; published_at?: string | null;
+  media_path?: string | null; media_type?: string | null; platform_post_id?: string | null;
 }
 
 // Cria (a partir da análise) OU edita uma campanha (studio_campaigns).
@@ -29,6 +30,24 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
   const [scheduledAt, setScheduledAt] = useState(campaign?.scheduled_at ? campaign.scheduled_at.slice(0, 16) : '');
   const [externalUrl, setExternalUrl] = useState(campaign?.external_url || '');
   const [saving, setSaving] = useState(false);
+  const [mediaPath, setMediaPath] = useState<string | null>(campaign?.media_path || null);
+  const [mediaType, setMediaType] = useState<string | null>(campaign?.media_type || null);
+  const [uploading, setUploading] = useState(false);
+
+  async function uploadMedia(file: File) {
+    if (!companyId) { toast.error('Selecione uma empresa.'); return; }
+    const isVid = file.type.startsWith('video/') || /\.(mp4|mov|m4v)$/i.test(file.name);
+    const isImg = file.type.startsWith('image/') || /\.(jpe?g|png|webp)$/i.test(file.name);
+    if (!isVid && !isImg) { toast.error('Envie uma imagem (JPG/PNG) ou vídeo (MP4).'); return; }
+    setUploading(true);
+    const ext = (file.name.split('.').pop() || (isVid ? 'mp4' : 'jpg')).toLowerCase();
+    const path = `campaigns/${companyId}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('studio-videos').upload(path, file, { contentType: file.type || undefined, upsert: false });
+    setUploading(false);
+    if (error) { toast.error('Erro no upload: ' + error.message); return; }
+    setMediaPath(path); setMediaType(isVid ? 'video' : 'image');
+    toast.success('Arte anexada!');
+  }
 
   async function save() {
     if (!title.trim()) { toast.error('Dê um título à campanha.'); return; }
@@ -38,6 +57,7 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
       title: title.trim(), platform, content, status: finalStatus,
       scheduled_at: scheduledAt ? new Date(scheduledAt).toISOString() : null,
       external_url: externalUrl.trim() || null,
+      media_path: mediaPath, media_type: mediaType,
       // ao marcar publicada manualmente, carimba a data (se ainda não tinha)
       published_at: finalStatus === 'published' ? (campaign?.published_at || new Date().toISOString()) : null,
     };
@@ -83,6 +103,26 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
             <label className="block text-[11px] font-semibold text-gray-500 mb-1">Conteúdo / legenda</label>
             <textarea value={content} onChange={e => setContent(e.target.value)} rows={5}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none" />
+          </div>
+          {/* Arte final da Saporino que vai ser PUBLICADA (não é o vídeo do concorrente) */}
+          <div>
+            <label className="block text-[11px] font-semibold text-gray-500 mb-1">Arte para publicar (imagem ou vídeo da Saporino)</label>
+            {mediaPath ? (
+              <div className="flex items-center gap-2 border border-green-200 bg-green-50 rounded-lg px-3 py-2 text-sm text-green-800">
+                {mediaType === 'video' ? <Film className="w-4 h-4" /> : <ImageIcon className="w-4 h-4" />}
+                <span className="flex items-center gap-1 font-medium"><CheckCircle2 className="w-4 h-4" /> Arte anexada ({mediaType === 'video' ? 'vídeo/Reels' : 'imagem'})</span>
+                <label className="ml-auto text-xs font-semibold text-[#8B2214] hover:underline cursor-pointer">
+                  Trocar
+                  <input type="file" accept="image/*,video/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadMedia(f); }} />
+                </label>
+              </div>
+            ) : (
+              <label className={`flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-lg px-3 py-4 text-sm text-gray-500 cursor-pointer hover:border-[#8B2214] hover:text-[#8B2214] ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
+                {uploading ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando…</> : <><Upload className="w-4 h-4" /> Anexar imagem ou vídeo</>}
+                <input type="file" accept="image/*,video/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadMedia(f); }} />
+              </label>
+            )}
+            <p className="text-[11px] text-gray-400 mt-1">É essa arte que vai pro Instagram. Vídeo = Reels (MP4 9:16). Sem arte, não dá pra publicar direto.</p>
           </div>
           {editing && (
             <div>
