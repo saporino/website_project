@@ -25,14 +25,15 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { action, handle, company_id, created_by, mediaFilter } = body;
-    if (!handle) return json({ error: "handle é obrigatório." }, 400);
-    const user = String(handle).replace(/^@/, "").trim().replace(/\/+$/, "").split("/").pop();
-    const profileUrl = `https://www.instagram.com/${user}/`;
+    const cleanUser = (h: any) => h ? String(h).replace(/^@/, "").trim().replace(/\/+$/, "").split("/").pop() : null;
+    const user = cleanUser(handle);
+    const profileUrl = user ? `https://www.instagram.com/${user}/` : "";
     const COST_PER_POST = 0.066; // ~Claude + Whisper por post analisado
     // quantos posts trazer pra galeria (raspagem é barata; teto 400 pra não estourar o tempo da função)
     const SCAN_MAX = Math.max(12, Math.min(Number(body?.scanLimit) || 60, 400));
 
     // ===================== IMPORT: analisa só os posts que o admin escolheu =====================
+    // (os posts podem vir de perfis diferentes — cada um traz seu próprio p.handle)
     if (action === "import") {
       if (!company_id) return json({ error: "company_id é obrigatório." }, 400);
       const chosen: any[] = Array.isArray(body.posts) ? body.posts.slice(0, 50) : [];
@@ -41,6 +42,7 @@ Deno.serve(async (req) => {
       let imported = 0;
       for (const p of chosen) {
         try {
+          const uname = cleanUser(p.handle) || user || "ig";
           const isVideo = !!p.video || p.isVideo === true;
           const mediaUrl = isVideo ? p.video : p.thumb;
           if (!mediaUrl) continue;
@@ -48,13 +50,13 @@ Deno.serve(async (req) => {
           if (!mres.ok) continue;
           const blob = await mres.blob();
           const ext = isVideo ? "mp4" : "jpg";
-          const path = `${company_id}/ig_${user}_${Date.now()}_${imported}.${ext}`;
+          const path = `${company_id}/ig_${uname}_${Date.now()}_${imported}.${ext}`;
           const up = await db.storage.from("studio-videos").upload(path, blob, { contentType: isVideo ? "video/mp4" : "image/jpeg" });
           if (up.error) continue;
           const { data: row } = await db.from("studio_videos").insert({
             company_id, created_by: created_by || null, media_type: isVideo ? "video" : "image",
-            filename: `@${user} — ${(p.caption || "post").slice(0, 40)}`, storage_path: path,
-            source_url: p.url || profileUrl, status: "pending",
+            filename: `@${uname} — ${(p.caption || "post").slice(0, 40)}`, storage_path: path,
+            source_url: p.url || (uname !== "ig" ? `https://www.instagram.com/${uname}/` : null), status: "pending",
           }).select("id").single();
           if (row?.id) {
             fetch(`${url}/functions/v1/process-studio-video`, {
@@ -65,10 +67,11 @@ Deno.serve(async (req) => {
           }
         } catch { /* pula esse post */ }
       }
-      return json({ ok: true, imported, profile: `@${user}` });
+      return json({ ok: true, imported });
     }
 
     // ===================== SCAN (padrão): raspa e devolve as miniaturas p/ escolher (barato) =====
+    if (!user) return json({ error: "handle é obrigatório." }, 400);
     const filter = mediaFilter === "video" || mediaFilter === "image" ? mediaFilter : "all";
     const run = await fetch(`${APIFY}/acts/${ACTOR}/run-sync-get-dataset-items?token=${token}`, {
       method: "POST", headers: { "Content-Type": "application/json" },

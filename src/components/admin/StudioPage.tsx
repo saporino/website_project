@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Clapperboard, Download, Loader2, Search, Check, Heart, PlayCircle, MessageCircle, ArrowDownWideNarrow } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Clapperboard, Download, Loader2, Search, Check, Heart, PlayCircle, MessageCircle, ArrowDownWideNarrow, ChevronRight, ChevronDown, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
@@ -25,38 +25,41 @@ export default function StudioPage() {
   const [modalVideo, setModalVideo] = useState<StudioVideo | null>(null);
   const [modalTab, setModalTab] = useState<'resumo' | 'publicar'>('resumo');
   const [view, setView] = useState<'videos' | 'campanhas' | 'conexoes' | 'marca'>('videos');
-  type IgPost = { url: string | null; thumb: string | null; video: string | null; isVideo: boolean; views: number; likes: number; comments: number; ts?: string | null; caption: string; score: number };
+  type IgPost = { uid: string; url: string | null; thumb: string | null; video: string | null; isVideo: boolean; views: number; likes: number; comments: number; ts?: string | null; caption: string; score: number };
   type IgSort = 'eng' | 'views' | 'likes' | 'comments' | 'recent';
+  type IgSearch = { id: number; handle: string; type: 'all' | 'video' | 'image'; posts: IgPost[]; ts: number; collapsed: boolean };
   const [igHandle, setIgHandle] = useState('');
   const [igType, setIgType] = useState<'all' | 'video' | 'image'>('all');
   const [igDepth, setIgDepth] = useState(60);
   const [scanning, setScanning] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [igPosts, setIgPosts] = useState<IgPost[] | null>(null);
-  const [igSel, setIgSel] = useState<Set<number>>(new Set());
+  const [igSearches, setIgSearches] = useState<IgSearch[]>([]);
+  const [igSel, setIgSel] = useState<Set<string>>(new Set());
   const [igSort, setIgSort] = useState<IgSort>('eng');
 
   const COST_PER_POST = 0.066; // ~US$ por post analisado (Claude + Whisper)
-  const SCAN_CACHE_KEY = 'studio_ig_scan';
+  const SCAN_CACHE_KEY = 'studio_ig_searches';
   const SCAN_TTL = 2 * 60 * 60 * 1000; // 2h (os links do IG expiram; depois disso, buscar de novo)
 
   // miniatura via proxy (o CDN do IG bloqueia hotlink direto)
   const thumbUrl = (t: string | null) => t ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/studio-ig-thumb?url=${encodeURIComponent(t)}` : '';
+  const persist = (arr: IgSearch[]) => { try { localStorage.setItem(SCAN_CACHE_KEY, JSON.stringify(arr)); } catch { /* quota */ } };
 
-  // restaura a última busca ao abrir/atualizar a página → refresh NÃO gasta raspagem de novo
+  // restaura buscas salvas ao abrir/atualizar → refresh NÃO gasta raspagem de novo
   useEffect(() => {
     try {
       const raw = localStorage.getItem(SCAN_CACHE_KEY);
       if (!raw) return;
-      const c = JSON.parse(raw);
-      if (Date.now() - (c.ts || 0) > SCAN_TTL) { localStorage.removeItem(SCAN_CACHE_KEY); return; }
-      setIgHandle(c.handle || ''); setIgType(c.type || 'all'); setIgPosts(c.posts || null);
+      const all = JSON.parse(raw) as IgSearch[];
+      const arr = all.filter(s => Date.now() - (s.ts || 0) <= SCAN_TTL);
+      setIgSearches(arr);
+      if (arr.length !== all.length) persist(arr);
     } catch { /* ignora */ }
   }, []);
 
   async function scanInstagram() {
     if (!igHandle.trim()) { toast.error('Cole o @ (ou link) do perfil do concorrente.'); return; }
-    setScanning(true); setIgPosts(null); setIgSel(new Set());
+    setScanning(true);
     const t = toast.loading(`Buscando os posts de ${igHandle}… (pode levar 1-2 min)`);
     const { data, error } = await supabase.functions.invoke('studio-import-instagram', {
       body: { handle: igHandle.trim(), mediaFilter: igType, scanLimit: igDepth },
@@ -67,23 +70,52 @@ export default function StudioPage() {
       toast.error((data as any)?.message || (data as any)?.error || error?.message || 'Não consegui buscar os posts.');
       return;
     }
-    const posts = ((data as any)?.posts as IgPost[]) || [];
-    setIgPosts(posts);
-    try { localStorage.setItem(SCAN_CACHE_KEY, JSON.stringify({ handle: igHandle.trim(), type: igType, posts, ts: Date.now() })); } catch { /* quota */ }
+    const ts = Date.now();
+    const posts = (((data as any)?.posts as IgPost[]) || []).map((p, i) => ({ ...p, uid: `${ts}_${i}` }));
+    const profile = (data as any)?.profile || ('@' + igHandle.trim().replace(/^@/, ''));
+    const search: IgSearch = { id: ts, handle: profile, type: igType, posts, ts, collapsed: false };
+    setIgSearches(prev => {
+      // nova busca entra aberta no topo; as anteriores colapsam pra não apertar
+      const next = [search, ...prev.map(s => ({ ...s, collapsed: true }))];
+      persist(next); return next;
+    });
+    setIgHandle('');
   }
 
-  function toggleSel(i: number) {
-    setIgSel(prev => { const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n; });
+  function toggleSel(uid: string) {
+    setIgSel(prev => { const n = new Set(prev); n.has(uid) ? n.delete(uid) : n.add(uid); return n; });
+  }
+  function toggleCollapse(id: number) {
+    setIgSearches(prev => { const next = prev.map(s => s.id === id ? { ...s, collapsed: !s.collapsed } : s); persist(next); return next; });
+  }
+  function deleteSearch(id: number) {
+    setIgSearches(prev => {
+      const gone = prev.find(s => s.id === id);
+      const next = prev.filter(s => s.id !== id);
+      persist(next);
+      if (gone) setIgSel(sel => { const n = new Set(sel); gone.posts.forEach(p => n.delete(p.uid)); return n; });
+      return next;
+    });
+  }
+  function deletePost(id: number, uid: string) {
+    setIgSearches(prev => { const next = prev.map(s => s.id === id ? { ...s, posts: s.posts.filter(p => p.uid !== uid) } : s).filter(s => s.posts.length); persist(next); return next; });
+    setIgSel(prev => { const n = new Set(prev); n.delete(uid); return n; });
+  }
+  function selectAllGroup(s: IgSearch) {
+    const allOn = s.posts.every(p => igSel.has(p.uid));
+    setIgSel(prev => { const n = new Set(prev); s.posts.forEach(p => allOn ? n.delete(p.uid) : n.add(p.uid)); return n; });
   }
 
   async function importSelected() {
     if (!activeCompanyId) { toast.error('Selecione uma empresa.'); return; }
-    if (!igPosts || !igSel.size) { toast.error('Marque ao menos um post.'); return; }
-    const chosen = [...igSel].map(i => igPosts[i]).filter(Boolean);
+    if (!igSel.size) { toast.error('Marque ao menos um post.'); return; }
+    // junta os posts escolhidos de todos os grupos, cada um levando seu @ (handle)
+    const chosen = igSearches.flatMap(s => s.posts.filter(p => igSel.has(p.uid)).map(p => ({ ...p, handle: s.handle })));
+    if (!chosen.length) { toast.error('Marque ao menos um post.'); return; }
     setImporting(true);
     const t = toast.loading(`Baixando e analisando ${chosen.length} post(s)…`);
     const { data, error } = await supabase.functions.invoke('studio-import-instagram', {
-      body: { action: 'import', handle: igHandle.trim(), company_id: activeCompanyId, created_by: user?.id, posts: chosen },
+      body: { action: 'import', company_id: activeCompanyId, created_by: user?.id, posts: chosen },
     });
     toast.dismiss(t);
     setImporting(false);
@@ -92,22 +124,26 @@ export default function StudioPage() {
       return;
     }
     toast.success(`${(data as any)?.imported || 0} post(s) importado(s). Analisando…`);
-    setIgHandle(''); setIgPosts(null); setIgSel(new Set());
-    try { localStorage.removeItem(SCAN_CACHE_KEY); } catch { /* ignora */ }
+    // tira os importados dos grupos e some com grupos que ficaram vazios
+    setIgSearches(prev => {
+      const next = prev.map(s => ({ ...s, posts: s.posts.filter(p => !igSel.has(p.uid)) })).filter(s => s.posts.length);
+      persist(next); return next;
+    });
+    setIgSel(new Set());
     load();
   }
 
   const fmt = (n: number) => n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace('.0', '') + 'k' : String(n);
 
-  // ordena o grid na tela (não raspa de novo). Guarda o índice original pra seleção não bagunçar.
-  const igSorted = useMemo(() => {
-    if (!igPosts) return [];
+  // ordena os posts de um grupo na tela (não raspa de novo)
+  const sortPosts = (posts: IgPost[]) => {
     const key = (p: IgPost) =>
       igSort === 'views' ? p.views : igSort === 'likes' ? p.likes : igSort === 'comments' ? p.comments
       : igSort === 'recent' ? (p.ts ? Date.parse(p.ts) : 0) : (p.views + p.likes + p.comments);
-    return igPosts.map((p, i) => ({ p, i })).sort((a, b) => key(b.p) - key(a.p));
-  }, [igPosts, igSort]);
+    return [...posts].sort((a, b) => key(b) - key(a));
+  };
   const SORTS: [IgSort, string][] = [['eng', 'Engajamento'], ['views', 'Views'], ['likes', 'Curtidas'], ['comments', 'Comentários'], ['recent', 'Recentes']];
+  const totalSel = igSel.size;
 
   const load = useCallback(async () => {
     if (!activeCompanyId) return;
@@ -186,7 +222,7 @@ export default function StudioPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <input value={igHandle} onChange={e => { setIgHandle(e.target.value); setIgPosts(null); }} placeholder="@concorrente (ou link do perfil)"
+              <input value={igHandle} onChange={e => setIgHandle(e.target.value)} placeholder="@concorrente (ou link do perfil)"
                 onKeyDown={e => { if (e.key === 'Enter') scanInstagram(); }}
                 className="flex-1 min-w-[200px] border border-gray-300 rounded-lg px-3 py-2 text-sm" />
               <select value={igType} onChange={e => setIgType(e.target.value as any)} className="border border-gray-300 rounded-lg px-2 py-2 text-sm">
@@ -206,65 +242,86 @@ export default function StudioPage() {
               </button>
             </div>
 
-            {/* Galeria de miniaturas pra escolher */}
-            {igPosts && (
-              igPosts.length === 0 ? (
-                <p className="text-sm text-gray-400 py-4 text-center">Nenhum post encontrado com esse filtro.</p>
-              ) : (
-                <div className="space-y-2.5 pt-1">
-                  <div className="flex items-center justify-between text-xs text-gray-500 flex-wrap gap-2">
-                    <span>{igPosts.length} posts encontrados. Marque os que quer analisar.</span>
-                    <button onClick={() => setIgSel(igSel.size === igPosts.length ? new Set() : new Set(igPosts.map((_, i) => i)))}
-                      className="font-semibold text-[#8B2214] hover:underline">
-                      {igSel.size === igPosts.length ? 'Limpar' : 'Selecionar todos'}
+            {/* Ordenar (vale pra todos os grupos) */}
+            {igSearches.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-xs text-gray-400 flex items-center gap-1"><ArrowDownWideNarrow className="w-3.5 h-3.5" /> Ordenar:</span>
+                {SORTS.map(([k, l]) => (
+                  <button key={k} onClick={() => setIgSort(k)}
+                    className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${igSort === k ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
+                    {l}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Grupos de busca (colapsáveis) — Pilão, Melitta… cada um com apagar-grupo e apagar-post */}
+            {igSearches.map(s => {
+              const selInGroup = s.posts.filter(p => igSel.has(p.uid)).length;
+              const allOn = selInGroup === s.posts.length && s.posts.length > 0;
+              return (
+                <div key={s.id} className="border border-gray-200 rounded-xl overflow-hidden">
+                  <div className="flex items-center gap-2 px-3 py-2 bg-[#f8f7f5] border-b border-gray-200">
+                    <button onClick={() => toggleCollapse(s.id)} className="flex items-center gap-1.5 font-semibold text-gray-800 text-sm">
+                      {s.collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      {s.handle}
                     </button>
-                  </div>
-                  {/* Ordenar por */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-xs text-gray-400 flex items-center gap-1"><ArrowDownWideNarrow className="w-3.5 h-3.5" /> Ordenar:</span>
-                    {SORTS.map(([k, l]) => (
-                      <button key={k} onClick={() => setIgSort(k)}
-                        className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${igSort === k ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
-                        {l}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 max-h-[420px] overflow-y-auto p-0.5">
-                    {igSorted.map(({ p, i }) => {
-                      const on = igSel.has(i);
-                      return (
-                        <button key={i} onClick={() => toggleSel(i)}
-                          className={`relative aspect-square rounded-lg overflow-hidden border-2 group ${on ? 'border-[#8B2214] ring-2 ring-[#8B2214]/30' : 'border-transparent hover:border-gray-300'}`}>
-                          {p.thumb
-                            ? <img src={thumbUrl(p.thumb)} alt="" loading="lazy" className="w-full h-full object-cover bg-gray-100"
-                                onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }} />
-                            : <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300"><Clapperboard className="w-6 h-6" /></div>}
-                          {/* engajamento */}
-                          <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-1 flex items-center gap-1.5 text-[10px] font-semibold text-white">
-                            {p.isVideo && <span className="flex items-center gap-0.5"><PlayCircle className="w-3 h-3" />{fmt(p.views)}</span>}
-                            <span className="flex items-center gap-0.5"><Heart className="w-3 h-3" />{fmt(p.likes)}</span>
-                            <span className="flex items-center gap-0.5"><MessageCircle className="w-3 h-3" />{fmt(p.comments)}</span>
-                          </div>
-                          {/* check */}
-                          <div className={`absolute top-1.5 left-1.5 w-5 h-5 rounded-full flex items-center justify-center ${on ? 'bg-[#8B2214] text-white' : 'bg-white/80 text-transparent'}`}>
-                            <Check className="w-3.5 h-3.5" />
-                          </div>
-                          {p.isVideo && <span className="absolute top-1.5 right-1.5 bg-black/60 text-white text-[9px] px-1 rounded">REEL</span>}
+                    <span className="text-xs text-gray-400">{s.posts.length} posts{selInGroup ? ` · ${selInGroup} sel.` : ''}</span>
+                    <div className="ml-auto flex items-center gap-3">
+                      {!s.collapsed && (
+                        <button onClick={() => selectAllGroup(s)} className="text-xs font-semibold text-[#8B2214] hover:underline">
+                          {allOn ? 'Limpar' : 'Selecionar todos'}
                         </button>
-                      );
-                    })}
+                      )}
+                      <button onClick={() => deleteSearch(s.id)} title="Apagar esta busca" className="text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between border-t border-gray-100 pt-2.5">
-                    <span className="text-xs text-gray-500">
-                      {igSel.size ? <><strong>{igSel.size}</strong> selecionado(s) · custo estimado <strong>~US$ {(igSel.size * COST_PER_POST).toFixed(2)}</strong></> : 'Nenhum selecionado ainda.'}
-                    </span>
-                    <button onClick={importSelected} disabled={importing || !igSel.size}
-                      className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-40">
-                      {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Analisar selecionados
-                    </button>
-                  </div>
+                  {!s.collapsed && (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 max-h-[420px] overflow-y-auto p-2.5">
+                      {sortPosts(s.posts).map(p => {
+                        const on = igSel.has(p.uid);
+                        return (
+                          <div key={p.uid} className={`relative aspect-square rounded-lg overflow-hidden border-2 group ${on ? 'border-[#8B2214] ring-2 ring-[#8B2214]/30' : 'border-transparent hover:border-gray-300'}`}>
+                            <button onClick={() => toggleSel(p.uid)} className="absolute inset-0 w-full h-full">
+                              {p.thumb
+                                ? <img src={thumbUrl(p.thumb)} alt="" loading="lazy" className="w-full h-full object-cover bg-gray-100"
+                                    onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }} />
+                                : <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300"><Clapperboard className="w-6 h-6" /></div>}
+                              <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-1 flex items-center gap-1.5 text-[10px] font-semibold text-white">
+                                {p.isVideo && <span className="flex items-center gap-0.5"><PlayCircle className="w-3 h-3" />{fmt(p.views)}</span>}
+                                <span className="flex items-center gap-0.5"><Heart className="w-3 h-3" />{fmt(p.likes)}</span>
+                                <span className="flex items-center gap-0.5"><MessageCircle className="w-3 h-3" />{fmt(p.comments)}</span>
+                              </div>
+                              <div className={`absolute top-1.5 left-1.5 w-5 h-5 rounded-full flex items-center justify-center ${on ? 'bg-[#8B2214] text-white' : 'bg-white/80 text-transparent'}`}>
+                                <Check className="w-3.5 h-3.5" />
+                              </div>
+                              {p.isVideo && <span className="absolute bottom-6 right-1.5 bg-black/60 text-white text-[9px] px-1 rounded">REEL</span>}
+                            </button>
+                            {/* apagar post individual */}
+                            <button onClick={() => deletePost(s.id, p.uid)} title="Apagar este post"
+                              className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-600 z-10">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              )
+              );
+            })}
+
+            {/* Barra de importar — aparece quando há seleção (soma de todos os grupos) */}
+            {totalSel > 0 && (
+              <div className="flex items-center justify-between border-t border-gray-100 pt-2.5">
+                <span className="text-xs text-gray-500">
+                  <strong>{totalSel}</strong> selecionado(s) · custo estimado <strong>~US$ {(totalSel * COST_PER_POST).toFixed(2)}</strong>
+                </span>
+                <button onClick={importSelected} disabled={importing}
+                  className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-40">
+                  {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Analisar selecionados
+                </button>
+              </div>
             )}
           </div>
 
