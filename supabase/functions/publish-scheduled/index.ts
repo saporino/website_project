@@ -15,26 +15,28 @@ Deno.serve(async (req) => {
 
     const db = createClient(url, service);
     const nowIso = new Date().toISOString();
-    // campanhas do IG agendadas, com hora vencida e mídia anexada
+    // campanhas agendadas (IG ou TikTok), com hora vencida e mídia anexada
+    const fn: Record<string, string> = { instagram: "publish-instagram", tiktok: "publish-tiktok" };
     const { data: due } = await db.from("studio_campaigns")
-      .select("id")
-      .eq("platform", "instagram").eq("status", "scheduled")
+      .select("id, platform")
+      .in("platform", ["instagram", "tiktok"]).eq("status", "scheduled")
       .not("media_path", "is", null)
       .lte("scheduled_at", nowIso)
-      .limit(10);
+      .limit(20);
 
-    const ids = (due || []).map((r: any) => r.id);
     const results: any[] = [];
-    for (const id of ids) {
-      const r = await fetch(`${url}/functions/v1/publish-instagram`, {
+    for (const c of due || []) {
+      const target = fn[c.platform];
+      if (!target) continue;
+      const r = await fetch(`${url}/functions/v1/${target}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-internal-secret": service },
-        body: JSON.stringify({ campaign_id: id }),
+        body: JSON.stringify({ campaign_id: c.id }),
       });
       const j = await r.json().catch(() => ({}));
-      results.push({ id, ok: !!j.ok, error: j.message || null });
+      results.push({ id: c.id, platform: c.platform, ok: !!j.ok, error: j.message || null });
     }
-    return json({ ok: true, processed: ids.length, results });
+    return json({ ok: true, processed: results.length, results });
   } catch (e) {
     return json({ error: String(e instanceof Error ? e.message : e) }, 500);
   }

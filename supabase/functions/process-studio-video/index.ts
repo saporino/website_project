@@ -21,7 +21,8 @@ Analise o vídeo (a partir da transcrição e metadados fornecidos) e retorne JS
 }
 - "marca_identificada" = a marca do CONCORRENTE (a que aparece na peça analisada).
 - "adaptacao_marca" = como pegar essa fórmula e refazer PARA A NOSSA MARCA (detalhado, usando o BRIEFING DA MARCA abaixo).
-- As legendas, "como_reproduzir" e TODOS os prompts (gpt/midjourney/etc.) já devem sair adaptados PARA A NOSSA MARCA — nunca reproduzindo a marca/embalagem do concorrente.`;
+- As legendas, "como_reproduzir" e TODOS os prompts (gpt/midjourney/etc.) já devem sair adaptados PARA A NOSSA MARCA — nunca reproduzindo a marca/embalagem do concorrente.
+- "legenda_instagram" e "legenda_tiktok" devem TERMINAR com um mix de 3 a 6 hashtags em português (1 da marca + 1-2 de nicho tipo #cafédeorigem/#torramédia + 1-2 amplas tipo #café/#cafézinho), sem exagero e sem spam. Preencha "hashtags" com de 6 a 10 opções relevantes.`;
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
 

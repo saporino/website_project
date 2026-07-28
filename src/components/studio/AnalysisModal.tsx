@@ -71,6 +71,25 @@ export default function AnalysisModal({ video, companyId, initialTab = 'resumo',
   const prompts = a?.prompts || {};
   const legendas = a?.legendas || {};
 
+  // junta um mix de hashtags (3-6) na legenda, sem repetir as que já estão no texto
+  const hashtags: string[] = a?.hashtags || [];
+  const mergeTags = (c?: string) => {
+    const base = (c || '').trim();
+    if (!base) return base;
+    const have = base.toLowerCase();
+    const add = hashtags.map(t => (String(t).startsWith('#') ? String(t) : '#' + t)).filter(t => !have.includes(t.toLowerCase())).slice(0, 6);
+    return add.length ? `${base}\n\n${add.join(' ')}` : base;
+  };
+  // título interno limpo (tira o parêntese comprido da marca detectada)
+  const cleanBrand = String(video.brand_detected || '').replace(/\(.*/s, '').trim();
+  const campaignTitle = cleanBrand || 'Café Saporino';
+  const campaignCaptions: Record<string, string> = {
+    instagram: mergeTags(legendas.instagram),
+    facebook: mergeTags(legendas.instagram),
+    tiktok: mergeTags(legendas.tiktok),
+    youtube: legendas.youtube || '',
+  };
+
   async function copyLegenda(key: string, text: string) {
     try { await navigator.clipboard.writeText(text); setCopiedLegenda(key); setTimeout(() => setCopiedLegenda(''), 1500); } catch { /* noop */ }
   }
@@ -187,8 +206,9 @@ export default function AnalysisModal({ video, companyId, initialTab = 'resumo',
       {showCampaign && (
         <CampaignCreator
           videoId={video.id} companyId={companyId}
-          initialTitle={`${video.brand_detected || 'Campanha'} — ${video.filename.replace(/\.[^.]+$/, '')}`}
-          initialContent={legendas.instagram || legendas.tiktok || ''}
+          initialTitle={campaignTitle}
+          initialContent={campaignCaptions.instagram || campaignCaptions.tiktok || ''}
+          initialCaptions={campaignCaptions}
           promptUsed={prompts.claude || ''}
           onClose={() => setShowCampaign(false)}
         />
