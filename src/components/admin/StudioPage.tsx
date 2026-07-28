@@ -209,9 +209,13 @@ export default function StudioPage() {
     })();
   }, [handleKey, activeCompanyId, growthTick]);
 
-  // chip de variação (▲ verde / ▼ vermelho)
+  // chip de variação (▲ verde sobe / ▼ vermelho cai). Cinza "–" enquanto não há histórico ainda.
   const growthChip = (label: string, val: number | null) => {
-    if (val == null) return null;
+    if (val == null) return (
+      <span className="inline-flex items-center gap-0.5 text-gray-300" title={`Sem histórico de ${label} ainda — aparece quando houver medição anterior`}>
+        <span className="text-[9px]">▲▼</span>–<span className="font-normal">/{label}</span>
+      </span>
+    );
     const up = val >= 0;
     return (
       <span className={`inline-flex items-center gap-0.5 ${up ? 'text-green-600' : 'text-red-600'}`}>
