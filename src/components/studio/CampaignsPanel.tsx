@@ -66,7 +66,7 @@ export default function CampaignsPanel({ companyId }: { companyId: string | null
       load();
       return;
     }
-    toast.success(`Publicado no ${target.label}! 🎉`);
+    toast.success((data as any)?.message || `Publicado no ${target.label}! 🎉`);
     load();
   }
 

@@ -23,45 +23,52 @@ async function publishCampaign(db: any, campaignId: string) {
   if (!conn || conn.status !== "connected" || !conn.access_token)
     throw new Error("TikTok não está conectado para esta empresa (aba Conexões).");
 
-  const { data: signed, error: sErr } = await db.storage.from("studio-videos").createSignedUrl(c.media_path, 3600);
-  if (sErr || !signed?.signedUrl) throw new Error("Falha ao gerar o link temporário do vídeo.");
-
-  const privacy = Deno.env.get("TIKTOK_PRIVACY") || "SELF_ONLY"; // sandbox: SELF_ONLY
   const token = conn.access_token as string;
 
-  // 1) init (PULL_FROM_URL)
-  const initRes = await fetch(`${TT}/post/publish/video/init/`, {
+  // baixa os bytes do vídeo do nosso storage (envio direto = FILE_UPLOAD, sem verificar domínio)
+  const { data: file, error: dErr } = await db.storage.from("studio-videos").download(c.media_path);
+  if (dErr || !file) throw new Error("Falha ao baixar o vídeo do storage.");
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const size = bytes.length;
+  if (size > 64 * 1024 * 1024) throw new Error(`Vídeo de ${(size / 1048576).toFixed(0)}MB — neste modo o limite é 64MB. Comprima o vídeo.`);
+
+  // 1) init: envia pros RASCUNHOS do TikTok (inbox) com FILE_UPLOAD — usa o escopo video.upload (sem auditoria)
+  const initRes = await fetch(`${TT}/post/publish/inbox/video/init/`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      post_info: { title: (c.content || c.title || "").slice(0, 2200), privacy_level: privacy, disable_comment: false },
-      source_info: { source: "PULL_FROM_URL", video_url: signed.signedUrl },
+      source_info: { source: "FILE_UPLOAD", video_size: size, chunk_size: size, total_chunk_count: 1 },
     }),
   });
   const initJson = await initRes.json().catch(() => ({}));
   const publishId = initJson?.data?.publish_id;
-  if (!initRes.ok || !publishId) throw new Error("TikTok (init): " + JSON.stringify(initJson).slice(0, 250));
+  const uploadUrl = initJson?.data?.upload_url;
+  if (!initRes.ok || !uploadUrl) throw new Error("TikTok (init): " + JSON.stringify(initJson).slice(0, 250));
 
-  // 2) acompanha o status até concluir (até ~120s)
-  let done = false;
-  for (let i = 0; i < 30; i++) {
-    await sleep(4000);
+  // 2) sobe os bytes do vídeo direto pro TikTok
+  const up = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: { "Content-Type": "video/mp4", "Content-Length": String(size), "Content-Range": `bytes 0-${size - 1}/${size}` },
+    body: bytes,
+  });
+  if (!up.ok) throw new Error("TikTok (upload): " + (await up.text()).slice(0, 200));
+
+  // 3) confere se não falhou de cara (o vídeo vai pros rascunhos; o post final é dado no app)
+  await sleep(3000);
+  try {
     const stRes = await fetch(`${TT}/post/publish/status/fetch/`, {
       method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ publish_id: publishId }),
     });
     const stJson = await stRes.json().catch(() => ({}));
-    const status = stJson?.data?.status;
-    if (status === "PUBLISH_COMPLETE") { done = true; break; }
-    if (status === "FAILED") throw new Error("TikTok falhou: " + JSON.stringify(stJson?.data?.fail_reason || stJson).slice(0, 200));
-  }
-  if (!done) throw new Error("O TikTok demorou demais pra processar. Verifique depois no app.");
+    if (stJson?.data?.status === "FAILED") throw new Error("TikTok falhou: " + JSON.stringify(stJson?.data?.fail_reason || stJson).slice(0, 200));
+  } catch (e) { if (String(e).includes("TikTok falhou")) throw e; /* status opcional */ }
 
   await db.from("studio_campaigns").update({
     status: "published", published_at: new Date().toISOString(),
     platform_post_id: publishId, publish_error: null,
   }).eq("id", campaignId);
-  return { ok: true, publish_id: publishId };
+  return { ok: true, publish_id: publishId, message: "Vídeo enviado pros RASCUNHOS do TikTok! Abra o app do TikTok → Rascunhos pra finalizar e postar." };
 }
 
 Deno.serve(async (req) => {
