@@ -40,18 +40,21 @@ async function publishCampaign(db: any, url: string, campaignId: string) {
   if (!cRes.ok || !cJson.id) throw new Error("IG (criar mídia): " + JSON.stringify(cJson).slice(0, 250));
   const containerId = cJson.id as string;
 
-  // 2) vídeo precisa processar → aguarda FINISHED (até ~100s)
-  if (isVideo) {
+  // 2) aguarda a mídia ficar PRONTA (FINISHED) antes de publicar — vale pra imagem E vídeo.
+  //    Imagem costuma ficar pronta em 1-2s; vídeo pode levar até ~100s.
+  {
+    const maxTries = isVideo ? 25 : 10;
+    const waitMs = isVideo ? 4000 : 1500;
     let ok = false;
-    for (let i = 0; i < 25; i++) {
-      await sleep(4000);
+    for (let i = 0; i < maxTries; i++) {
+      await sleep(waitMs);
       const sRes = await fetch(`${IG}/${containerId}?fields=status_code&access_token=${token}`);
       const sJson = await sRes.json().catch(() => ({}));
       if (sJson.status_code === "FINISHED") { ok = true; break; }
       if (sJson.status_code === "ERROR" || sJson.status_code === "EXPIRED")
-        throw new Error("IG não processou o vídeo (" + sJson.status_code + "). Verifique se é MP4 9:16.");
+        throw new Error("IG não processou a mídia (" + sJson.status_code + "). Imagem = JPG; vídeo = MP4 9:16.");
     }
-    if (!ok) throw new Error("O vídeo demorou demais pra processar no IG. Tente de novo.");
+    if (!ok) throw new Error("A mídia demorou demais pra ficar pronta no IG. Tente de novo (imagem = JPG, vídeo = MP4 9:16).");
   }
 
   // 3) publica
