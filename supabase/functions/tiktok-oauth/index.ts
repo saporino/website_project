@@ -10,7 +10,7 @@ const REDIRECT_URI = `${Deno.env.get("SUPABASE_URL")}/functions/v1/tiktok-oauth`
 const APP_RETURN = "https://www.cafesaporino.com.br/admin";
 
 function html(msg: string) {
-  return new Response(`<!doctype html><meta charset=utf8><body style="font-family:sans-serif;padding:40px;text-align:center">${msg}<p><a href="${APP_RETURN}">Voltar ao Studio</a></p></body>`, { headers: { "Content-Type": "text/html" } });
+  return new Response(`<!doctype html><html><head><meta charset="utf-8"></head><body style="font-family:sans-serif;padding:40px;text-align:center">${msg}<p><a href="${APP_RETURN}">Voltar ao Studio</a></p></body></html>`, { headers: { "Content-Type": "text/html; charset=utf-8" } });
 }
 
 const SCOPES = "user.info.basic,video.upload"; // video.publish só depois da auditoria
