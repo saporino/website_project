@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
-import { X, Megaphone, Loader2, Upload, Film, Image as ImageIcon, CheckCircle2, Check } from 'lucide-react';
+import { X, Megaphone, Loader2, Upload, Film, Image as ImageIcon, CheckCircle2, Check, AlertTriangle } from 'lucide-react';
 
 const PLATFORMS: [string, string][] = [
   ['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['facebook', 'Facebook'], ['youtube', 'YouTube'], ['ecommerce', 'E-commerce'],
@@ -67,6 +67,9 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
     if (!title.trim()) { toast.error('Dê um título à campanha.'); return; }
     const list = [...platforms];
     if (!list.length) { toast.error('Escolha ao menos uma rede.'); return; }
+    if (list.includes('tiktok') && mediaType === 'image') {
+      toast.error('O TikTok só aceita vídeo (MP4 9:16). Anexe um vídeo ou desmarque o TikTok.'); return;
+    }
     setSaving(true);
     const schedIso = scheduledAt ? new Date(scheduledAt).toISOString() : null;
 
@@ -126,6 +129,11 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
                 );
               })}
             </div>
+            {platforms.has('tiktok') && mediaType === 'image' && (
+              <p className="text-[11px] text-red-600 mt-1.5 flex items-start gap-1">
+                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /> O TikTok só publica <strong>vídeo</strong> (MP4 9:16). Anexe um vídeo ou desmarque o TikTok.
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-[11px] font-semibold text-gray-500 mb-1">Título da campanha <span className="font-normal text-gray-400">(interno — só pra você organizar, não vai pras redes)</span></label>
