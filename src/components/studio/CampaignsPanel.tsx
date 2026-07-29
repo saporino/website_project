@@ -11,6 +11,7 @@ const ST: Record<string, { label: string; cls: string }> = {
   draft: { label: 'Rascunho', cls: 'bg-gray-100 text-gray-600' },
   scheduled: { label: 'Agendada', cls: 'bg-amber-100 text-amber-800' },
   published: { label: 'Publicada', cls: 'bg-green-100 text-green-700' },
+  error: { label: 'Falhou', cls: 'bg-red-100 text-red-700' },
 };
 
 export default function CampaignsPanel({ companyId }: { companyId: string | null }) {

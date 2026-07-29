@@ -34,6 +34,8 @@ Deno.serve(async (req) => {
         body: JSON.stringify({ campaign_id: c.id }),
       });
       const j = await r.json().catch(() => ({}));
+      // se falhou, marca 'error' pra NÃO ficar retentando em loop a cada 5 min (o admin corrige e republica na mão)
+      if (!j.ok) await db.from("studio_campaigns").update({ status: "error" }).eq("id", c.id).eq("status", "scheduled");
       results.push({ id: c.id, platform: c.platform, ok: !!j.ok, error: j.message || null });
     }
     return json({ ok: true, processed: results.length, results });
