@@ -40,6 +40,7 @@ export default function StudioPage() {
   const [igSearches, setIgSearches] = useState<IgSearch[]>([]);
   const [igSel, setIgSel] = useState<Set<string>>(new Set());
   const [growth, setGrowth] = useState<Record<string, Growth>>({});
+  const [igHistory, setIgHistory] = useState<{ handle: string; followers: number | null }[]>([]);
   const [growthTick, setGrowthTick] = useState(0);
   const [checkingGroup, setCheckingGroup] = useState<number | null>(null);
   const [checkingAll, setCheckingAll] = useState(false);
@@ -232,6 +233,21 @@ export default function StudioPage() {
     })();
   }, [handleKey, activeCompanyId, growthTick]);
 
+  // histórico de perfis já buscados (autocomplete): perfis distintos dos snapshots, mais recente primeiro
+  useEffect(() => {
+    if (!activeCompanyId) { setIgHistory([]); return; }
+    (async () => {
+      const { data } = await supabase.from('studio_profile_snapshots')
+        .select('handle,followers,captured_at')
+        .eq('company_id', activeCompanyId)
+        .order('captured_at', { ascending: false })
+        .limit(500);
+      const seen = new Map<string, number | null>();
+      (data || []).forEach((r: any) => { if (!seen.has(r.handle)) seen.set(r.handle, r.followers ?? null); });
+      setIgHistory([...seen.entries()].map(([handle, followers]) => ({ handle, followers })));
+    })();
+  }, [activeCompanyId, growthTick, handleKey]);
+
   // chip de variação: ▲ verde sobe · ▼ vermelho cai · ● âmbar neutro · cinza "–" sem histórico ainda.
   // Mostra o nº de seguidores ganhos/perdidos + o % do lado.
   const growthChip = (label: string, d: Delta | null) => {
@@ -329,8 +345,13 @@ export default function StudioPage() {
 
             <div className="flex flex-wrap items-center gap-2">
               <input value={igHandle} onChange={e => { setIgHandle(e.target.value); setIgInfo(null); }} placeholder="@concorrente (ou link do perfil)"
-                onKeyDown={e => { if (e.key === 'Enter') scanInstagram(); }}
+                onKeyDown={e => { if (e.key === 'Enter') scanInstagram(); }} list="ig-history" autoComplete="off"
                 className="flex-1 min-w-[200px] border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+              <datalist id="ig-history">
+                {igHistory.map(h => (
+                  <option key={h.handle} value={h.handle}>{h.followers != null ? `${h.followers.toLocaleString('pt-BR')} seguidores` : ''}</option>
+                ))}
+              </datalist>
               <select value={igType} onChange={e => setIgType(e.target.value as any)} className="border border-gray-300 rounded-lg px-2 py-2 text-sm">
                 <option value="all">Vídeos e fotos</option>
                 <option value="video">Só vídeos</option>
