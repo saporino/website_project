@@ -80,7 +80,7 @@ export default function CoficoBrasilPage() {
             <div>
               <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Tecnologia própria</h2>
               <p className="mt-4 text-neutral-300 text-lg leading-relaxed">
-                Operamos com sistema proprietário. Cada pedido nasce no aplicativo do representante, percorre a separação com rastreio de lote e termina em comprovante de entrega com foto e localização. A indústria que distribui conosco acompanha o que entrou, o que saiu e onde está.
+                Operamos com o <strong className="text-white font-semibold">RepCo by COFICO</strong>, nosso sistema proprietário de pedidos e logística. Cada pedido nasce no aplicativo do representante, percorre a separação com rastreio de lote e termina em comprovante de entrega com foto e localização. Pelo RepCo, a indústria que distribui conosco acompanha, em tempo real, o que entrou, o que saiu e onde está.
               </p>
             </div>
           </div>
