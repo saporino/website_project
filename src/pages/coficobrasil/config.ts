@@ -1,17 +1,10 @@
-// COFICO — configuração. Tudo que é ambiente/externo vem daqui, porque esta pasta
-// vai migrar para um DOMÍNIO PRÓPRIO no futuro. Nenhum valor de URL fica hardcoded.
-// Base/canonical vêm de VITE_COFICO_BASE_URL. Contato/redes são configuráveis (env);
-// o que não estiver setado simplesmente não aparece (não inventamos dado de empresa).
-
+// COFICO — configuração e conteúdo de contato (final). A base/canonical vem de env porque
+// esta pasta vai migrar para domínio próprio; os contatos são conteúdo definitivo.
 export const COFICO = {
-  // Domínio próprio (ex.: https://www.coficobrasil.com.br). Sem barra final.
-  baseUrl: (import.meta.env.VITE_COFICO_BASE_URL || '').replace(/\/+$/, ''),
-  // Fato confirmado (vai também no JSON-LD como taxID).
+  baseUrl: (import.meta.env.VITE_COFICO_BASE_URL || 'https://www.cafesaporino.com.br/coficobrasil').replace(/\/+$/, ''),
   cnpj: '66.006.929/0001-36',
-  // Contato e redes — só aparecem se configurados via env.
-  email: import.meta.env.VITE_COFICO_EMAIL || '',
-  phone: import.meta.env.VITE_COFICO_PHONE || '',
-  instagram: import.meta.env.VITE_COFICO_INSTAGRAM || '',
-  linkedin: import.meta.env.VITE_COFICO_LINKEDIN || '',
-  google: import.meta.env.VITE_COFICO_GOOGLE || '',
+  email: 'coficobrasil@cafesaporino.com.br',
+  phone: '(11) 91771-9798',
+  instagram: 'https://instagram.com/coficobrasil',
+  maps: 'https://maps.app.goo.gl/rYKCPWBXWpKzJFZD7',
 } as const;
