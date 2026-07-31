@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import {
   Warehouse, PackageCheck, Truck, Radar, Cpu, Coffee, MapPin, Mail, Phone, Instagram,
-  ExternalLink, Building2, Store, UtensilsCrossed, Boxes,
+  ExternalLink, Building2, Store, UtensilsCrossed, Boxes, Briefcase, ArrowRight,
 } from 'lucide-react';
 import CoficoHeader from './CoficoHeader';
 import CoficoFooter from './CoficoFooter';
@@ -153,6 +153,38 @@ export default function CoficoBrasilPage() {
           <p className="mt-8 text-lg text-neutral-800 font-medium max-w-2xl">
             Trabalhamos melhor com volume. Quanto maior o pedido, mais longe a gente chega.
           </p>
+        </div>
+      </section>
+
+      {/* TRABALHE COM A COFICO */}
+      <section id="trabalhe" className="border-t border-neutral-200 bg-neutral-50">
+        <div className="mx-auto max-w-6xl px-6 py-20">
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Trabalhe com a COFICO</h2>
+          <p className="mt-3 text-neutral-600 max-w-2xl">Estamos crescendo e buscando parceiros para atender o Estado de São Paulo.</p>
+          <div className="mt-10 grid gap-6 md:grid-cols-2">
+            <article className="bg-white border border-neutral-200 p-8 flex flex-col">
+              <Briefcase className="w-7 h-7 text-cofico-ink" aria-hidden="true" />
+              <h3 className="mt-5 text-lg font-semibold">Representante de vendas</h3>
+              <p className="mt-2 text-neutral-600 leading-relaxed flex-1">
+                Buscamos representantes de vendas para as marcas de café que distribuímos no Estado de São Paulo.
+              </p>
+              <a href={`mailto:${COFICO.email}?subject=${encodeURIComponent('Quero ser representante de vendas')}`}
+                className="mt-6 inline-flex items-center gap-1.5 text-cofico-ink font-semibold hover:underline w-fit">
+                Quero representar <ArrowRight className="w-4 h-4" aria-hidden="true" />
+              </a>
+            </article>
+            <article className="bg-white border border-neutral-200 p-8 flex flex-col">
+              <Truck className="w-7 h-7 text-cofico-ink" aria-hidden="true" />
+              <h3 className="mt-5 text-lg font-semibold">Parceiro logístico</h3>
+              <p className="mt-2 text-neutral-600 leading-relaxed flex-1">
+                Buscamos parceiros logísticos para atender nossa demanda de distribuição em São Paulo.
+              </p>
+              <a href={`mailto:${COFICO.email}?subject=${encodeURIComponent('Parceria logística')}`}
+                className="mt-6 inline-flex items-center gap-1.5 text-cofico-ink font-semibold hover:underline w-fit">
+                Quero ser parceiro <ArrowRight className="w-4 h-4" aria-hidden="true" />
+              </a>
+            </article>
+          </div>
         </div>
       </section>
 
