@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import {
   Warehouse, PackageCheck, Truck, Radar, Cpu, Coffee, MapPin, Mail, Phone, Instagram,
-  ExternalLink, Building2, Store, UtensilsCrossed, Boxes, Briefcase, ArrowRight,
+  ExternalLink, Building2, Store, UtensilsCrossed, Boxes, Briefcase, ArrowRight, Users,
 } from 'lucide-react';
 import CoficoHeader from './CoficoHeader';
 import CoficoFooter from './CoficoFooter';
@@ -160,30 +160,52 @@ export default function CoficoBrasilPage() {
       <section id="trabalhe" className="border-t border-neutral-200 bg-neutral-50">
         <div className="mx-auto max-w-6xl px-6 py-20">
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Trabalhe com a COFICO</h2>
-          <p className="mt-3 text-neutral-600 max-w-2xl">Estamos crescendo e buscando parceiros para atender o Estado de São Paulo.</p>
-          <div className="mt-10 grid gap-6 md:grid-cols-2">
-            <article className="bg-white border border-neutral-200 p-8 flex flex-col">
-              <Briefcase className="w-7 h-7 text-cofico-ink" aria-hidden="true" />
-              <h3 className="mt-5 text-lg font-semibold">Representante de vendas</h3>
-              <p className="mt-2 text-neutral-600 leading-relaxed flex-1">
-                Buscamos representantes de vendas para as marcas de café que distribuímos no Estado de São Paulo.
-              </p>
-              <a href={`mailto:${COFICO.email}?subject=${encodeURIComponent('Quero ser representante de vendas')}`}
-                className="mt-6 inline-flex items-center gap-1.5 text-cofico-ink font-semibold hover:underline w-fit">
-                Quero representar <ArrowRight className="w-4 h-4" aria-hidden="true" />
-              </a>
-            </article>
-            <article className="bg-white border border-neutral-200 p-8 flex flex-col">
-              <Truck className="w-7 h-7 text-cofico-ink" aria-hidden="true" />
-              <h3 className="mt-5 text-lg font-semibold">Parceiro logístico</h3>
-              <p className="mt-2 text-neutral-600 leading-relaxed flex-1">
-                Buscamos parceiros logísticos para atender nossa demanda de distribuição em São Paulo.
-              </p>
-              <a href={`mailto:${COFICO.email}?subject=${encodeURIComponent('Parceria logística')}`}
-                className="mt-6 inline-flex items-center gap-1.5 text-cofico-ink font-semibold hover:underline w-fit">
-                Quero ser parceiro <ArrowRight className="w-4 h-4" aria-hidden="true" />
-              </a>
-            </article>
+          <p className="mt-4 text-lg font-semibold text-neutral-800 max-w-2xl">A gente está no começo. É justamente por isso que é interessante.</p>
+          <p className="mt-4 text-neutral-600 max-w-2xl leading-relaxed">
+            Somos uma operação nova de logística e distribuição de alimentos em São Paulo, construída com tecnologia própria e com muita coisa ainda por definir. Quem entra agora não recebe um processo pronto — ajuda a desenhar.
+          </p>
+
+          {/* Como a gente trabalha */}
+          <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { t: 'Começo é agora', d: 'Empresa nova, decisão rápida, sem cinco camadas de aprovação.' },
+              { t: 'Mão na massa', d: 'Todo mundo aqui faz. Não temos espaço para quem só assiste.' },
+              { t: 'Número acima de achismo', d: 'Pedido, estoque, rota e entrega passam por sistema próprio. O que você faz aparece — e é assim que a gente reconhece.' },
+              { t: 'Cresce quem entrega', d: 'Estrutura pequena significa que resultado não se perde no caminho.' },
+            ].map(({ t, d }) => (
+              <div key={t} className="border-t-2 border-cofico-ink pt-4">
+                <h3 className="text-base font-semibold">{t}</h3>
+                <p className="mt-2 text-sm text-neutral-600 leading-relaxed">{d}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Frentes abertas */}
+          <div className="mt-16">
+            <h3 className="text-xl md:text-2xl font-bold tracking-tight">Frentes abertas</h3>
+            <p className="mt-2 text-sm text-neutral-500">O cadastro é para profissionais com <strong className="text-neutral-700">MEI e CNPJ ativo</strong>.</p>
+            <div className="mt-8 grid gap-6 md:grid-cols-3">
+              {[
+                { img: '/cofico/vendas.png', icon: Briefcase, t: 'Vendas', roles: 'Representante comercial · Vendas externas', frente: 'vendas' },
+                { img: '/cofico/logistica.png', icon: Truck, t: 'Logística', roles: 'Motorista de entrega · Ajudante · Separação e conferência · Parceiro logístico', frente: 'logistica' },
+                { img: '/cofico/promotora.png', icon: Users, t: 'Promoção e ponto de venda', roles: 'Promotor(a) de vendas · Merchandising e reposição', frente: 'promocao' },
+              ].map(({ img, icon: Icon, t, roles, frente }) => (
+                <article key={frente} className="bg-white border border-neutral-200 flex flex-col overflow-hidden">
+                  {/* Foto ILUSTRATIVA da função (arquivo em public/cofico/). Sem nome/depoimento. onError esconde se faltar. */}
+                  <img src={img} alt={`Ilustração da função — ${t}`} loading="lazy" className="w-full h-56 object-cover object-top bg-neutral-100"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                  <div className="p-7 flex flex-col flex-1">
+                    <Icon className="w-6 h-6 text-cofico-ink" aria-hidden="true" />
+                    <h4 className="mt-4 text-lg font-semibold">{t}</h4>
+                    <p className="mt-2 text-sm text-neutral-600 leading-relaxed flex-1">{roles}</p>
+                    <a href={`/coficobrasil/cadastro?frente=${frente}`}
+                      className="mt-6 inline-flex items-center gap-1.5 bg-cofico-ink text-white text-sm font-semibold px-4 py-2.5 rounded-none hover:opacity-90 w-fit">
+                      Quero me cadastrar <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                    </a>
+                  </div>
+                </article>
+              ))}
+            </div>
           </div>
         </div>
       </section>
