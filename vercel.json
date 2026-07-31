@@ -13,6 +13,10 @@
       "dest": "/icons/$1"
     },
     {
+      "src": "/coficobrasil/?",
+      "dest": "/coficobrasil.html"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }

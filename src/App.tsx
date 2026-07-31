@@ -41,6 +41,7 @@ const RepCoDashboard = lazy(() => import('./pages/RepCoDashboard').then(m => ({ 
 const PromotorDashboard = lazy(() => import('./pages/PromotorDashboard').then(m => ({ default: m.PromotorDashboard })));
 const RepCoIntelligence = lazy(() => import('./pages/RepCoIntelligence'));
 const RepCoCoverageMap = lazy(() => import('./pages/RepCoCoverageMap'));
+const CoficoBrasilPage = lazy(() => import('./pages/coficobrasil/CoficoBrasilPage'));
 import ProductDetail from './components/ProductDetail';
 import PromoPopup from './components/PromoPopup';
 import { trackVisit } from './lib/trackVisit';
@@ -176,6 +177,7 @@ function AppRouter() {
   if (currentPath === '/cafe-cru') return <GreenCoffeePage />;
   if (currentPath === '/para-seu-negocio') return <BusinessPage />;
   if (currentPath === '/nossa-historia' || currentPath === '/sobre') return <HistoryPage />;
+  if (currentPath === '/coficobrasil') return <CoficoBrasilPage />;
 
   // Payment callback routes
   if (currentPath === '/payment/success') return <PaymentSuccess />;
