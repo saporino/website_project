@@ -6,7 +6,7 @@ export default function CoficoFooter() {
   return (
     <footer className="border-t border-neutral-200 bg-neutral-50">
       <div className="mx-auto max-w-6xl px-6 py-8">
-        <p className="text-sm text-neutral-500">COFICO Brasil · CNPJ {COFICO.cnpj}</p>
+        <p className="text-sm text-neutral-500">COFICO Brasil · Est. 2026 · CNPJ {COFICO.cnpj}</p>
       </div>
     </footer>
   );
