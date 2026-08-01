@@ -7,15 +7,16 @@ import { UserPlus, ChevronDown, ChevronUp, Loader2, Truck, Paperclip, FileText, 
 // Documentos exigidos p/ motorista (Lei 13.103/2015: exame toxicológico obrigatório p/ CNH C/D/E;
 // aptidão física/mental; MOPP quando carga perigosa).
 const DRIVER_DOC_TIPOS: [string, string][] = [
-  ['cnh', 'CNH'], ['exame_toxicologico', 'Exame toxicológico'], ['exame_medico', 'Exame médico / aptidão'],
-  ['mopp', 'MOPP (carga perigosa)'], ['cpf', 'CPF'], ['comprovante_residencia', 'Comprovante de residência'],
+  ['cnh', 'CNH'], ['rg', 'RG'], ['cpf', 'CPF'], ['curriculo', 'Currículo'],
+  ['exame_toxicologico', 'Exame toxicológico'], ['exame_medico', 'Exame médico / aptidão'],
+  ['mopp', 'MOPP (carga perigosa)'], ['comprovante_residencia', 'Comprovante de residência'],
   ['antt', 'ANTT'], ['outro', 'Outro'],
 ];
+const DTYPE: Record<string, string> = { proprio: 'Nosso', parceiro: 'Parceiro/Agregado' };
 const fmtD = (d: string | null) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : '';
 
 interface Driver {
-  id: string; full_name: string; phone: string | null; vehicle_desc: string | null;
-  vehicle_plate: string | null; cnh: string | null; status: string;
+  id: string; full_name: string; phone: string | null; status: string; driver_type: string;
 }
 
 export default function CoficoDrivers() {
@@ -26,12 +27,12 @@ export default function CoficoDrivers() {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [f, setF] = useState({ nome: '', telefone: '', veiculo: '', placa: '', cnh: '' });
+  const [f, setF] = useState({ nome: '', telefone: '', tipo: 'proprio' });
 
   async function load() {
     setLoading(true);
     const [{ data: d }, { data: co }] = await Promise.all([
-      supabase.from('drivers').select('id,full_name,phone,vehicle_desc,vehicle_plate,cnh,status').order('full_name'),
+      supabase.from('drivers').select('id,full_name,phone,status,driver_type').order('full_name'),
       supabase.from('companies').select('id').eq('is_operator', true).limit(1).maybeSingle(),
     ]);
     setDrivers((d as Driver[]) || []);
@@ -46,15 +47,13 @@ export default function CoficoDrivers() {
     const { error } = await supabase.from('drivers').insert({
       full_name: f.nome.trim(),
       phone: f.telefone.trim() || null,
-      vehicle_desc: f.veiculo.trim() || null,
-      vehicle_plate: f.placa.trim() || null,
-      cnh: f.cnh.trim() || null,
+      driver_type: f.tipo || 'proprio',
       company_id: companyId || null,
       status: 'active',
     });
     setSaving(false);
     if (error) { setErr(error.message); return; }
-    setF({ nome: '', telefone: '', veiculo: '', placa: '', cnh: '' });
+    setF({ nome: '', telefone: '', tipo: 'proprio' });
     load();
   }
 
@@ -73,14 +72,16 @@ export default function CoficoDrivers() {
 
       {open && (
         <div className="px-4 pb-4 border-t border-gray-100 pt-4 space-y-4">
-          {/* form */}
-          <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+          {/* form — motorista NOSSO ou PARCEIRO. Sem carro/placa (carro fica na Frota); documentos no expandir. */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <select value={f.tipo} onChange={e => setF({ ...f, tipo: e.target.value })} className="h-[36px] px-2 text-sm border border-gray-300 rounded bg-white">
+              <option value="proprio">Nosso (funcionário)</option>
+              <option value="parceiro">Parceiro / Agregado</option>
+            </select>
             <input value={f.nome} onChange={e => setF({ ...f, nome: e.target.value })} placeholder="Nome *" className="h-[36px] px-3 text-sm border border-gray-300 rounded" />
             <input value={f.telefone} onChange={e => setF({ ...f, telefone: e.target.value })} placeholder="Telefone" className="h-[36px] px-3 text-sm border border-gray-300 rounded" />
-            <input value={f.veiculo} onChange={e => setF({ ...f, veiculo: e.target.value })} placeholder="Veículo (ex.: Fiorino)" className="h-[36px] px-3 text-sm border border-gray-300 rounded" />
-            <input value={f.placa} onChange={e => setF({ ...f, placa: e.target.value })} placeholder="Placa" className="h-[36px] px-3 text-sm border border-gray-300 rounded" />
-            <input value={f.cnh} onChange={e => setF({ ...f, cnh: e.target.value })} placeholder="CNH" className="h-[36px] px-3 text-sm border border-gray-300 rounded" />
           </div>
+          <p className="text-[11px] text-gray-400">Carro e placa ficam na Frota. Aqui é só a pessoa e os documentos dela (CNH, RG, CPF, currículo…).</p>
           {err && <p className="text-[11px] text-red-600">{err}</p>}
           <button onClick={add} disabled={saving} className="inline-flex items-center gap-2 h-[36px] px-4 rounded-lg bg-[#8B2214] text-white text-sm font-semibold hover:bg-[#6d1a10] disabled:opacity-60">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />} Adicionar motorista
@@ -98,9 +99,10 @@ export default function CoficoDrivers() {
                   <div className="flex items-center justify-between gap-3">
                     <button onClick={() => setExpandedId(id => id === dv.id ? null : dv.id)} className="flex items-center gap-2 min-w-0 text-left">
                       {expandedId === dv.id ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />}
-                      <span className="min-w-0">
+                      <span className="min-w-0 flex items-center gap-2">
+                        <span className="text-[11px] px-2 py-0.5 rounded bg-[#f5f0ef] text-[#8B2214] font-medium shrink-0">{DTYPE[dv.driver_type] || 'Nosso'}</span>
                         <span className="font-medium text-gray-900">{dv.full_name}</span>
-                        <span className="text-gray-400"> · {[dv.vehicle_desc, dv.vehicle_plate, dv.phone].filter(Boolean).join(' · ') || 'sem veículo'}</span>
+                        {dv.phone && <span className="text-gray-400">· {dv.phone}</span>}
                       </span>
                     </button>
                     <button onClick={() => toggleStatus(dv)}
