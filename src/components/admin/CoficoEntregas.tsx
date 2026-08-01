@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Truck, Package, MapPin, ArrowUp, ArrowDown, X, Loader2, Boxes } from 'lucide-react';
+import CoficoDrivers from './CoficoDrivers';
 
 interface QueueRow {
   order_id: string; order_number: string; company_id: string; company_name: string;
@@ -74,6 +75,8 @@ export default function CoficoEntregas() {
         <h2 className="text-2xl font-bold text-gray-900">COFICO Entregas</h2>
         <p className="text-sm text-gray-500">Fila de entregas pela COFICO, por empresa. Monte a rota do dia e despache.</p>
       </div>
+
+      <CoficoDrivers />
 
       {/* filtro por empresa contratante */}
       <div className="flex flex-wrap gap-2 mb-4">
