@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { UserPlus, ChevronDown, ChevronUp, Loader2, Truck, Paperclip, FileText, Plus } from 'lucide-react';
+import { VehicleList } from './CoficoFrota';
 
 // Documentos exigidos p/ motorista (Lei 13.103/2015: exame toxicológico obrigatório p/ CNH C/D/E;
 // aptidão física/mental; MOPP quando carga perigosa).
@@ -110,7 +111,17 @@ export default function CoficoDrivers() {
                       {dv.status === 'active' ? 'Ativo' : 'Inativo'}
                     </button>
                   </div>
-                  {expandedId === dv.id && <div className="pl-6 pt-2"><DriverDocs driverId={dv.id} /></div>}
+                  {expandedId === dv.id && (
+                    <div className="pl-6 pt-2 space-y-4">
+                      <DriverDocs driverId={dv.id} />
+                      {dv.driver_type === 'parceiro' && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-600 mb-1 flex items-center gap-1"><Truck className="w-3.5 h-3.5" /> Veículo(s) do parceiro</p>
+                          <VehicleList ownerDriverId={dv.id} />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
