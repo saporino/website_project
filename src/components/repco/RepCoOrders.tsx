@@ -6,6 +6,7 @@ import { useCompany } from '../../contexts/CompanyContext';
 import { buildInvoiceShareUrls, extractStoragePath } from '../../utils/invoiceShare';
 import OrderInstallmentsView from './OrderInstallmentsView';
 import OrderNotes from './OrderNotes';
+import OrderDeliveryEdit from './OrderDeliveryEdit';
 
 interface Order {
   id: string;
@@ -31,6 +32,11 @@ interface Order {
   delivered_at: string | null;
   delivery_proof_url: string | null;
   delivery_proof_filename: string | null;
+  // responsável pela entrega (COFICO) — editável até despacho/NF
+  delivery_mode: string | null;
+  carrier_id: string | null;
+  freight_amount: number | null;
+  delivery_dispatched_at: string | null;
 }
 
 interface Props { repId: string; refreshKey?: number; }
@@ -347,6 +353,15 @@ export function RepCoOrders({ repId, refreshKey = 0 }: Props) {
                     </div>
                   </div>
                 )}
+                <OrderDeliveryEdit
+                  orderId={order.id}
+                  deliveryMode={order.delivery_mode}
+                  carrierId={order.carrier_id}
+                  freight={Number(order.freight_amount) || 0}
+                  locked={!!order.invoice_pdf_url || !!order.delivery_dispatched_at}
+                  lockReason={order.invoice_pdf_url ? 'NF anexada' : 'Despachado'}
+                  onSaved={fetchOrders}
+                />
                 {order.payment_method === 'boleto' && <OrderInstallmentsView orderId={order.id} />}
                 <OrderNotes orderId={order.id} />
                 </div>}
