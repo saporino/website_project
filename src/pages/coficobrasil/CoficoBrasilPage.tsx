@@ -1,6 +1,6 @@
 // Página pública /coficobrasil — STANDALONE (marca COFICO própria; nenhum componente Saporino;
 // nenhum link absoluto para cafesaporino.com.br). Conteúdo final aprovado. Marca Canaan não aparece.
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Warehouse, PackageCheck, Truck, Radar, Cpu, Coffee, MapPin, Mail, Phone, Instagram,
   ExternalLink, Building2, Store, UtensilsCrossed, Boxes, Briefcase, ArrowRight, Users,
@@ -9,6 +9,7 @@ import CoficoHeader from './CoficoHeader';
 import CoficoFooter from './CoficoFooter';
 import CoficoMap from './CoficoMap';
 import { COFICO } from './config';
+import { fetchCoficoStats } from './coficoClient';
 
 const FAZEMOS = [
   { icon: Warehouse, t: 'Recebimento e armazenagem', d: 'Conferência na entrada, controle de lote e de validade, armazenagem seca em centro de distribuição próprio em Várzea Paulista.' },
@@ -26,6 +27,11 @@ const INTERIOR = [
   'São José do Rio Preto', 'Votuporanga', 'Bauru', 'Marília', 'São José dos Campos e Vale do Paraíba',
 ];
 
+// Nº de regiões atendidas = derivado das listas de cobertura da própria página (dado real, não inventado).
+const REGIOES = ROTA_REGULAR.length + INTERIOR.length;
+const GRID_COLS: Record<number, string> = { 2: 'md:grid-cols-2', 3: 'md:grid-cols-3', 4: 'md:grid-cols-4' };
+const fmtBR = (n: number) => n.toLocaleString('pt-BR');
+
 const PARA_QUEM = [
   { icon: Building2, t: 'Redes e grandes contas', d: 'Abastecimento programado de múltiplas lojas, com carga fracionada por unidade.' },
   { icon: Boxes, t: 'Distribuidores e atacado', d: 'Entregas de volume, com pedido mínimo e frete cotado por destino.' },
@@ -34,7 +40,20 @@ const PARA_QUEM = [
 ];
 
 export default function CoficoBrasilPage() {
+  const [stats, setStats] = useState<{ entregas: number; clientes: number }>({ entregas: 0, clientes: 0 });
+
   useEffect(() => { document.title = 'COFICO Brasil — Operador logístico e distribuidor de alimentos em SP'; }, []);
+  useEffect(() => { let alive = true; fetchCoficoStats().then((s) => { if (alive) setStats(s); }); return () => { alive = false; }; }, []);
+
+  // Números ao vivo. Experiência e regiões são sempre reais; entregas/clientes só aparecem quando > 0
+  // (crescem sozinhos conforme a operação COFICO entrega — nunca mostra "+0").
+  const anos = new Date().getFullYear() - 1995;
+  const numeros = [
+    { n: `+${anos}`, label: 'anos de experiência', sub: 'desde 1995' },
+    { n: `+${REGIOES}`, label: 'regiões atendidas em SP' },
+    ...(stats.clientes > 0 ? [{ n: `+${fmtBR(stats.clientes)}`, label: 'clientes atendidos', sub: '' }] : []),
+    ...(stats.entregas > 0 ? [{ n: `+${fmtBR(stats.entregas)}`, label: 'entregas realizadas', sub: '' }] : []),
+  ];
 
   return (
     <div id="topo" className="min-h-screen bg-white text-neutral-900 antialiased selection:bg-cofico-ink selection:text-white">
@@ -53,6 +72,22 @@ export default function CoficoBrasilPage() {
           <a href="#contato" className="inline-flex items-center bg-cofico-ink text-white text-sm font-semibold px-6 py-3.5 rounded-none hover:opacity-90 transition-opacity">
             Fale com a gente
           </a>
+        </div>
+      </section>
+
+      {/* NOSSOS NÚMEROS — ao vivo (cofico_public_stats); entregas/clientes crescem com a operação */}
+      <section className="border-t border-neutral-200 bg-neutral-50">
+        <div className="mx-auto max-w-6xl px-6 py-16">
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Nossos números</h2>
+          <div className={`mt-10 grid grid-cols-2 gap-8 ${GRID_COLS[numeros.length] ?? 'md:grid-cols-4'}`}>
+            {numeros.map((item) => (
+              <div key={item.label} className="text-center sm:text-left">
+                <div className="text-4xl md:text-5xl font-black text-cofico-ink tracking-tight tabular-nums">{item.n}</div>
+                <div className="mt-2 text-sm font-medium text-neutral-700">{item.label}</div>
+                {item.sub ? <div className="text-xs text-neutral-400">{item.sub}</div> : null}
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
