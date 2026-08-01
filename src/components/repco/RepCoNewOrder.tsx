@@ -64,8 +64,21 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   const [, setPaymentTerms] = useState<number[]>([0,7,14,21,28,30]);
   const [boletoOffsets, setBoletoOffsets] = useState<number[]>([]);
   const [fiscalOrderType, setFiscalOrderType] = useState<FiscalOrderType>('non_taxpayer_consumer');
+  // Entrega: o vendedor escolhe a transportadora (COFICO própria ou externa) e aplica o frete no pedido.
+  const [carriers, setCarriers] = useState<{ id: string; name: string; is_own: boolean }[]>([]);
+  const [carrierId, setCarrierId] = useState<string>('');
+  const [freight, setFreight] = useState(0);
 
   useEffect(() => { if (activeCompanyId) fetchClients(); }, [representativeId, activeCompanyId]);
+  useEffect(() => {
+    supabase.from('shipping_carriers').select('id,name,is_own').eq('is_active', true)
+      .order('is_own', { ascending: false }).order('name')
+      .then(({ data }) => {
+        const list = (data as { id: string; name: string; is_own: boolean }[]) || [];
+        setCarriers(list);
+        setCarrierId(prev => prev || list.find(c => c.is_own)?.id || list[0]?.id || '');
+      });
+  }, []);
   // Empresa que não aceita dinheiro (ex.: Fazendinha) nunca fica em "dinheiro".
   useEffect(() => { if (activeCompany && !activeCompany.allow_cash && paymentMethod === 'dinheiro') setPaymentMethod('pix'); }, [activeCompany, paymentMethod]);
   useEffect(() => {
@@ -214,6 +227,8 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
       channel: 'repco',
       status: 'new',
       fiscal_order_type: fiscalOrderType,
+      carrier_id: carrierId || null,
+      freight_amount: Number(freight) || 0,
       notes: notes || null,
     }).select('id').single();
     if (err || !createdOrder) {
@@ -512,6 +527,25 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                 <div className="flex justify-between font-bold"><span>Total da NF</span><span className="text-[#a4240e]">R$ {netTotal().toFixed(2)}</span></div>
                 {paymentTerm===0&&paymentMethod==='pix'&&activeCompany?.commission_model==='formula'&&<p className="text-[11px] text-amber-600">PIX à vista: +0,5% de bônus na comissão.</p>}
               </div>
+            </div>
+            {/* Entrega — transportadora + frete (vendedor escolhe; externa fica p/ coleta no galpão, não entra na COFICO) */}
+            <div className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
+              <p className="text-xs font-semibold text-gray-600">Entrega <span className="text-gray-400 font-normal">— transportadora e frete</span></p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] text-gray-500 mb-1">Transportadora</label>
+                  <select value={carrierId} onChange={e=>setCarrierId(e.target.value)} className="w-full h-[34px] px-2 text-sm border border-gray-300 rounded focus:outline-none bg-white">
+                    {carriers.map(c => <option key={c.id} value={c.id}>{c.is_own ? `${c.name} (própria)` : c.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] text-gray-500 mb-1">Frete (R$)</label>
+                  <input type="number" value={freight} onChange={e=>setFreight(Math.max(0, parseFloat(e.target.value)||0))} min="0" step="0.01" className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded focus:outline-none"/>
+                </div>
+              </div>
+              {carrierId && !carriers.find(c=>c.id===carrierId)?.is_own && (
+                <p className="text-[11px] text-amber-700 bg-amber-50 rounded px-2 py-1">Transportadora externa: pedido fica pronto para coleta no galpão — não entra na COFICO. A empresa vendedora paga o frete à transportadora.</p>
+              )}
             </div>
             {/* Bonificação — itens grátis (R$ 0), sem comissão */}
             <div className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
