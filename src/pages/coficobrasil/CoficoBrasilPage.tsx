@@ -41,6 +41,7 @@ const PARA_QUEM = [
 
 export default function CoficoBrasilPage() {
   const [stats, setStats] = useState<{ entregas: number; clientes: number }>({ entregas: 0, clientes: 0 });
+  const [fazLogoOk, setFazLogoOk] = useState(true); // logo da Fazendinha em /cofico/fazendinha.png (fallback: ícone)
 
   useEffect(() => { document.title = 'COFICO Brasil — Operador logístico e distribuidor de alimentos em SP'; }, []);
   useEffect(() => { let alive = true; fetchCoficoStats().then((s) => { if (alive) setStats(s); }); return () => { alive = false; }; }, []);
@@ -128,7 +129,11 @@ export default function CoficoBrasilPage() {
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Marcas que distribuímos</h2>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <article className="border border-neutral-200 p-8">
-              <Coffee className="w-7 h-7 text-cofico-ink" aria-hidden="true" />
+              {fazLogoOk ? (
+                <img src="/cofico/fazendinha.png" alt="Café Fazendinha" className="h-14 w-auto object-contain" onError={() => setFazLogoOk(false)} />
+              ) : (
+                <Coffee className="w-7 h-7 text-cofico-ink" aria-hidden="true" />
+              )}
               <h3 className="mt-5 text-lg font-semibold">Café Fazendinha</h3>
               <p className="mt-1 text-sm text-neutral-500">Distribuição exclusiva no Estado de São Paulo</p>
               <p className="mt-4 text-sm text-neutral-700 font-medium">Tradicional · Extra Forte · Horizon Coffee · São Felipe</p>
