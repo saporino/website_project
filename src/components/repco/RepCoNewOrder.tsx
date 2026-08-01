@@ -64,10 +64,11 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   const [, setPaymentTerms] = useState<number[]>([0,7,14,21,28,30]);
   const [boletoOffsets, setBoletoOffsets] = useState<number[]>([]);
   const [fiscalOrderType, setFiscalOrderType] = useState<FiscalOrderType>('non_taxpayer_consumer');
-  // Entrega: o vendedor escolhe a transportadora (COFICO própria ou externa) e aplica o frete no pedido.
+  // Entrega: responsável (própria/retirada/COFICO/transportadora) + transportadora externa + frete.
   const [carriers, setCarriers] = useState<{ id: string; name: string; is_own: boolean }[]>([]);
   const [carrierId, setCarrierId] = useState<string>('');
   const [freight, setFreight] = useState(0);
+  const [deliveryMode, setDeliveryMode] = useState<'propria'|'retirada'|'cofico'|'transportadora'>('cofico');
 
   useEffect(() => { if (activeCompanyId) fetchClients(); }, [representativeId, activeCompanyId]);
   useEffect(() => {
@@ -76,7 +77,7 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
       .then(({ data }) => {
         const list = (data as { id: string; name: string; is_own: boolean }[]) || [];
         setCarriers(list);
-        setCarrierId(prev => prev || list.find(c => c.is_own)?.id || list[0]?.id || '');
+        setCarrierId(prev => prev || list.find(c => !c.is_own)?.id || list[0]?.id || '');
       });
   }, []);
   // Empresa que não aceita dinheiro (ex.: Fazendinha) nunca fica em "dinheiro".
@@ -227,8 +228,10 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
       channel: 'repco',
       status: 'new',
       fiscal_order_type: fiscalOrderType,
-      carrier_id: carrierId || null,
-      freight_amount: Number(freight) || 0,
+      delivery_mode: deliveryMode,
+      carrier_id: deliveryMode === 'cofico' ? (carriers.find(c=>c.is_own)?.id ?? null)
+        : deliveryMode === 'transportadora' ? (carrierId || null) : null,
+      freight_amount: deliveryMode === 'retirada' ? 0 : (Number(freight) || 0),
       notes: notes || null,
     }).select('id').single();
     if (err || !createdOrder) {
@@ -528,24 +531,37 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
                 {paymentTerm===0&&paymentMethod==='pix'&&activeCompany?.commission_model==='formula'&&<p className="text-[11px] text-amber-600">PIX à vista: +0,5% de bônus na comissão.</p>}
               </div>
             </div>
-            {/* Entrega — transportadora + frete (vendedor escolhe; externa fica p/ coleta no galpão, não entra na COFICO) */}
+            {/* Entrega — responsável (própria/retirada/COFICO/transportadora) + frete. Só COFICO entra na fila de logística. */}
             <div className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
-              <p className="text-xs font-semibold text-gray-600">Entrega <span className="text-gray-400 font-normal">— transportadora e frete</span></p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] text-gray-500 mb-1">Transportadora</label>
-                  <select value={carrierId} onChange={e=>setCarrierId(e.target.value)} className="w-full h-[34px] px-2 text-sm border border-gray-300 rounded focus:outline-none bg-white">
-                    {carriers.map(c => <option key={c.id} value={c.id}>{c.is_own ? `${c.name} (própria)` : c.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[11px] text-gray-500 mb-1">Frete (R$)</label>
-                  <input type="number" value={freight} onChange={e=>setFreight(Math.max(0, parseFloat(e.target.value)||0))} min="0" step="0.01" className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded focus:outline-none"/>
-                </div>
+              <p className="text-xs font-semibold text-gray-600">Entrega <span className="text-gray-400 font-normal">— responsável e frete</span></p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {([['cofico','COFICO'],['transportadora','Transportadora'],['propria','Entrega própria'],['retirada','Retirada']] as ['propria'|'retirada'|'cofico'|'transportadora',string][]).map(([m,lbl])=>(
+                  <button key={m} type="button" onClick={()=>setDeliveryMode(m)}
+                    className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${deliveryMode===m?'border-[#a4240e] bg-red-50 text-[#a4240e]':'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}`}>
+                    {lbl}
+                  </button>
+                ))}
               </div>
-              {carrierId && !carriers.find(c=>c.id===carrierId)?.is_own && (
-                <p className="text-[11px] text-amber-700 bg-amber-50 rounded px-2 py-1">Transportadora externa: pedido fica pronto para coleta no galpão — não entra na COFICO. A empresa vendedora paga o frete à transportadora.</p>
-              )}
+              <div className="grid grid-cols-2 gap-3">
+                {deliveryMode==='transportadora' && (
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Transportadora</label>
+                    <select value={carrierId} onChange={e=>setCarrierId(e.target.value)} className="w-full h-[34px] px-2 text-sm border border-gray-300 rounded focus:outline-none bg-white">
+                      {carriers.filter(c=>!c.is_own).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                )}
+                {deliveryMode!=='retirada' && (
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Frete (R$)</label>
+                    <input type="number" value={freight} onChange={e=>setFreight(Math.max(0, parseFloat(e.target.value)||0))} min="0" step="0.01" className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded focus:outline-none"/>
+                  </div>
+                )}
+              </div>
+              {deliveryMode==='cofico' && <p className="text-[11px] text-gray-500 bg-gray-50 rounded px-2 py-1">Entrega pela COFICO — entra na fila de logística.</p>}
+              {deliveryMode==='transportadora' && <p className="text-[11px] text-amber-700 bg-amber-50 rounded px-2 py-1">Transportadora externa: pedido fica pronto para coleta no galpão — não entra na COFICO. A empresa vendedora paga o frete à transportadora.</p>}
+              {deliveryMode==='propria' && <p className="text-[11px] text-gray-500 bg-gray-50 rounded px-2 py-1">A própria empresa entrega — não entra na COFICO.</p>}
+              {deliveryMode==='retirada' && <p className="text-[11px] text-gray-500 bg-gray-50 rounded px-2 py-1">Cliente retira no galpão — sem frete, não entra na COFICO.</p>}
             </div>
             {/* Bonificação — itens grátis (R$ 0), sem comissão */}
             <div className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
