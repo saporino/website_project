@@ -2,7 +2,16 @@
 // Vincular a um login (pra o motorista entrar no app) vem na etapa do app do motorista.
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { UserPlus, ChevronDown, ChevronUp, Loader2, Truck } from 'lucide-react';
+import { UserPlus, ChevronDown, ChevronUp, Loader2, Truck, Paperclip, FileText, Plus } from 'lucide-react';
+
+// Documentos exigidos p/ motorista (Lei 13.103/2015: exame toxicológico obrigatório p/ CNH C/D/E;
+// aptidão física/mental; MOPP quando carga perigosa).
+const DRIVER_DOC_TIPOS: [string, string][] = [
+  ['cnh', 'CNH'], ['exame_toxicologico', 'Exame toxicológico'], ['exame_medico', 'Exame médico / aptidão'],
+  ['mopp', 'MOPP (carga perigosa)'], ['cpf', 'CPF'], ['comprovante_residencia', 'Comprovante de residência'],
+  ['antt', 'ANTT'], ['outro', 'Outro'],
+];
+const fmtD = (d: string | null) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : '';
 
 interface Driver {
   id: string; full_name: string; phone: string | null; vehicle_desc: string | null;
@@ -16,6 +25,7 @@ export default function CoficoDrivers() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [f, setF] = useState({ nome: '', telefone: '', veiculo: '', placa: '', cnh: '' });
 
   async function load() {
@@ -82,22 +92,89 @@ export default function CoficoDrivers() {
           ) : drivers.length === 0 ? (
             <p className="text-sm text-gray-400">Nenhum motorista cadastrado ainda.</p>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <div className="divide-y divide-gray-100">
               {drivers.map(dv => (
-                <li key={dv.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                  <div className="min-w-0">
-                    <span className="font-medium text-gray-900">{dv.full_name}</span>
-                    <span className="text-gray-400"> · {[dv.vehicle_desc, dv.vehicle_plate, dv.phone].filter(Boolean).join(' · ') || 'sem veículo'}</span>
+                <div key={dv.id} className="py-2 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <button onClick={() => setExpandedId(id => id === dv.id ? null : dv.id)} className="flex items-center gap-2 min-w-0 text-left">
+                      {expandedId === dv.id ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />}
+                      <span className="min-w-0">
+                        <span className="font-medium text-gray-900">{dv.full_name}</span>
+                        <span className="text-gray-400"> · {[dv.vehicle_desc, dv.vehicle_plate, dv.phone].filter(Boolean).join(' · ') || 'sem veículo'}</span>
+                      </span>
+                    </button>
+                    <button onClick={() => toggleStatus(dv)}
+                      className={`text-[11px] px-2 py-0.5 rounded font-medium shrink-0 ${dv.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {dv.status === 'active' ? 'Ativo' : 'Inativo'}
+                    </button>
                   </div>
-                  <button onClick={() => toggleStatus(dv)}
-                    className={`text-[11px] px-2 py-0.5 rounded font-medium shrink-0 ${dv.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                    {dv.status === 'active' ? 'Ativo' : 'Inativo'}
-                  </button>
-                </li>
+                  {expandedId === dv.id && <div className="pl-6 pt-2"><DriverDocs driverId={dv.id} /></div>}
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+// Documentos do motorista (upload em representative-docs, pasta cofico/drivers/<id>).
+function DriverDocs({ driverId }: { driverId: string }) {
+  const [docs, setDocs] = useState<{ id: string; tipo: string; numero: string | null; validade: string | null; doc_path: string | null; doc_name: string | null }[]>([]);
+  const [tipo, setTipo] = useState('cnh');
+  const [numero, setNumero] = useState('');
+  const [validade, setValidade] = useState('');
+  const [up, setUp] = useState(false);
+
+  async function load() {
+    const { data } = await supabase.from('driver_documents').select('*').eq('driver_id', driverId).order('created_at', { ascending: false });
+    setDocs(data || []);
+  }
+  useEffect(() => { load(); }, [driverId]);
+
+  async function upload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file) return;
+    setUp(true);
+    try {
+      const path = `cofico/drivers/${driverId}/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const { error: upErr } = await supabase.storage.from('representative-docs').upload(path, file, { contentType: file.type });
+      if (upErr) throw upErr;
+      await supabase.from('driver_documents').insert({ driver_id: driverId, tipo, numero: numero || null, validade: validade || null, doc_path: path, doc_name: file.name });
+      setNumero(''); setValidade(''); await load();
+    } catch (err: any) { alert('Erro no upload: ' + (err.message || err)); }
+    finally { setUp(false); e.target.value = ''; }
+  }
+  async function openDoc(path: string) {
+    const { data } = await supabase.storage.from('representative-docs').createSignedUrl(path, 3600);
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+  }
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-gray-600 mb-1 flex items-center gap-1"><Paperclip className="w-3.5 h-3.5" /> Documentos do motorista</p>
+      <div className="flex flex-wrap items-center gap-2 mb-2">
+        <select value={tipo} onChange={e => setTipo(e.target.value)} className="h-[32px] px-2 text-xs border border-gray-300 rounded bg-white">
+          {DRIVER_DOC_TIPOS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+        <input value={numero} onChange={e => setNumero(e.target.value)} placeholder="Nº (opcional)" className="h-[32px] px-2 text-xs border border-gray-300 rounded w-28" />
+        <input type="date" value={validade} onChange={e => setValidade(e.target.value)} className="h-[32px] px-2 text-xs border border-gray-300 rounded" title="Validade" />
+        <label className="h-[32px] px-3 text-xs font-semibold rounded border border-gray-300 text-gray-700 hover:bg-gray-50 cursor-pointer flex items-center gap-1">
+          {up ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />} Anexar
+          <input type="file" accept="application/pdf,image/*" className="hidden" onChange={upload} />
+        </label>
+      </div>
+      {docs.length > 0 && (
+        <ul className="space-y-1">
+          {docs.map(d => (
+            <li key={d.id} className="flex items-center gap-2 text-xs">
+              <button onClick={() => d.doc_path && openDoc(d.doc_path)} className="flex items-center gap-1 text-[#8B2214] hover:underline">
+                <FileText className="w-3.5 h-3.5" /> {(DRIVER_DOC_TIPOS.find(t => t[0] === d.tipo)?.[1]) || d.tipo}
+              </button>
+              <span className="text-gray-400 truncate">{[d.numero, d.doc_name, d.validade ? `vence ${fmtD(d.validade)}` : ''].filter(Boolean).join(' · ')}</span>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
