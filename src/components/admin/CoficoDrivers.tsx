@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { UserPlus, ChevronDown, ChevronUp, Loader2, Truck, Paperclip, FileText, Plus } from 'lucide-react';
-import { VehicleList } from './CoficoFrota';
+import { VehicleList, expiry, expiryClass } from './CoficoFrota';
 
 // Documentos exigidos p/ motorista (Lei 13.103/2015: exame toxicológico obrigatório p/ CNH C/D/E;
 // aptidão física/mental; MOPP quando carga perigosa).
@@ -28,16 +28,26 @@ export default function CoficoDrivers() {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [docState, setDocState] = useState<Record<string, 'soon' | 'expired'>>({});
   const [f, setF] = useState({ nome: '', telefone: '', tipo: 'proprio' });
 
   async function load() {
     setLoading(true);
-    const [{ data: d }, { data: co }] = await Promise.all([
+    const [{ data: d }, { data: co }, { data: dd }] = await Promise.all([
       supabase.from('drivers').select('id,full_name,phone,status,driver_type').order('full_name'),
       supabase.from('companies').select('id').eq('is_operator', true).limit(1).maybeSingle(),
+      supabase.from('driver_documents').select('driver_id,validade'),
     ]);
     setDrivers((d as Driver[]) || []);
     if (co?.id) setCompanyId(co.id);
+    // pior estado de vencimento por motorista (o sistema lê a validade digitada e sinaliza 45 dias antes)
+    const map: Record<string, 'soon' | 'expired'> = {};
+    (dd || []).forEach((r: any) => {
+      const s = expiry(r.validade);
+      if (s === 'expired') map[r.driver_id] = 'expired';
+      else if (s === 'soon' && map[r.driver_id] !== 'expired') map[r.driver_id] = 'soon';
+    });
+    setDocState(map);
     setLoading(false);
   }
   useEffect(() => { load(); }, []);
@@ -59,9 +69,8 @@ export default function CoficoDrivers() {
     if (created?.id) setExpandedId(created.id); // auto-abre o recém-criado; os demais ficam recolhidos
   }
 
-  async function toggleStatus(dv: Driver) {
-    const next = dv.status === 'active' ? 'blocked' : 'active';
-    await supabase.from('drivers').update({ status: next }).eq('id', dv.id);
+  async function setStatus(dv: Driver, status: string) {
+    await supabase.from('drivers').update({ status }).eq('id', dv.id);
     load();
   }
 
@@ -105,12 +114,19 @@ export default function CoficoDrivers() {
                         <span className="text-[11px] px-2 py-0.5 rounded bg-[#f5f0ef] text-[#8B2214] font-medium shrink-0">{DTYPE[dv.driver_type] || 'Nosso'}</span>
                         <span className="font-medium text-gray-900">{dv.full_name}</span>
                         {dv.phone && <span className="text-gray-400">· {dv.phone}</span>}
+                        {docState[dv.id] && (
+                          <span className={`text-[11px] px-2 py-0.5 rounded font-medium shrink-0 ${docState[dv.id] === 'expired' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {docState[dv.id] === 'expired' ? 'Doc vencido' : 'Doc vencendo'}
+                          </span>
+                        )}
                       </span>
                     </button>
-                    <button onClick={() => toggleStatus(dv)}
-                      className={`text-[11px] px-2 py-0.5 rounded font-medium shrink-0 ${dv.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                      {dv.status === 'active' ? 'Ativo' : 'Inativo'}
-                    </button>
+                    <select value={dv.status === 'blocked' ? 'inactive' : dv.status} onChange={e => setStatus(dv, e.target.value)}
+                      className={`text-[11px] px-2 py-1 rounded font-medium shrink-0 border-0 cursor-pointer ${dv.status === 'active' ? 'bg-green-100 text-green-700' : dv.status === 'paused' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-500'}`}>
+                      <option value="active">Ativo</option>
+                      <option value="paused">Pausado</option>
+                      <option value="inactive">Inativo</option>
+                    </select>
                   </div>
                   {expandedId === dv.id && (
                     <div className="pl-6 pt-2 space-y-4">
@@ -185,7 +201,10 @@ function DriverDocs({ driverId }: { driverId: string }) {
               <button onClick={() => d.doc_path && openDoc(d.doc_path)} className="flex items-center gap-1 text-[#8B2214] hover:underline">
                 <FileText className="w-3.5 h-3.5" /> {(DRIVER_DOC_TIPOS.find(t => t[0] === d.tipo)?.[1]) || d.tipo}
               </button>
-              <span className="text-gray-400 truncate">{[d.numero, d.doc_name, d.validade ? `vence ${fmtD(d.validade)}` : ''].filter(Boolean).join(' · ')}</span>
+              <span className="text-gray-400 truncate">
+                {[d.numero, d.doc_name].filter(Boolean).join(' · ')}
+                {d.validade && <> · <span className={expiryClass(expiry(d.validade))}>vence {fmtD(d.validade)}</span></>}
+              </span>
             </li>
           ))}
         </ul>

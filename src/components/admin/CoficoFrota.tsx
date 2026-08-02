@@ -24,15 +24,18 @@ interface Vehicle {
   status: string; notes: string | null;
 }
 
-function expiry(date: string | null): 'ok' | 'soon' | 'expired' | null {
+// Alerta 45 dias antes (Brasil demora — pedir com folga evita problema).
+export function expiry(date: string | null): 'ok' | 'soon' | 'expired' | null {
   if (!date) return null;
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const d = new Date(date + 'T00:00:00');
   const days = Math.round((d.getTime() - today.getTime()) / 86400000);
   if (days < 0) return 'expired';
-  if (days <= 30) return 'soon';
+  if (days <= 45) return 'soon';
   return 'ok';
 }
+export const expiryClass = (s: ReturnType<typeof expiry>) =>
+  s === 'expired' ? 'text-red-600 font-semibold' : s === 'soon' ? 'text-amber-600 font-semibold' : '';
 const fmtDate = (d: string | null) => d ? new Date(d + 'T00:00:00').toLocaleDateString('pt-BR') : '—';
 
 // Lista de veículos reaproveitável. ownerDriverId=null => nossa frota; senão => veículos do parceiro.
@@ -230,7 +233,7 @@ function VehicleDocs({ vehicleId }: { vehicleId: string }) {
               <button onClick={() => d.doc_path && openDoc(d.doc_path)} className="flex items-center gap-1 text-[#8B2214] hover:underline">
                 <FileText className="w-3.5 h-3.5" /> {(DOC_TIPOS.find(t => t[0] === d.tipo)?.[1]) || d.tipo}
               </button>
-              <span className="text-gray-400 truncate">{d.doc_name}{d.validade ? ` · vence ${fmtDate(d.validade)}` : ''}</span>
+              <span className="text-gray-400 truncate">{d.doc_name}{d.validade && <span className={expiryClass(expiry(d.validade))}> · vence {fmtDate(d.validade)}</span>}</span>
             </li>
           ))}
         </ul>
