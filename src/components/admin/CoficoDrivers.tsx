@@ -45,17 +45,18 @@ export default function CoficoDrivers() {
   async function add() {
     if (!f.nome.trim()) { setErr('Informe o nome do motorista.'); return; }
     setSaving(true); setErr('');
-    const { error } = await supabase.from('drivers').insert({
+    const { data: created, error } = await supabase.from('drivers').insert({
       full_name: f.nome.trim(),
       phone: f.telefone.trim() || null,
       driver_type: f.tipo || 'proprio',
       company_id: companyId || null,
       status: 'active',
-    });
+    }).select('id').single();
     setSaving(false);
     if (error) { setErr(error.message); return; }
     setF({ nome: '', telefone: '', tipo: 'proprio' });
-    load();
+    await load();
+    if (created?.id) setExpandedId(created.id); // auto-abre o recém-criado; os demais ficam recolhidos
   }
 
   async function toggleStatus(dv: Driver) {
