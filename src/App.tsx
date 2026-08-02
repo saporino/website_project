@@ -1586,15 +1586,17 @@ const Footer = ({ scrollToSection }: any) => {
               </ul>
               {showBrands && brands.length > 0 && (
                 <>
-                  <h4 className="text-sm font-bold mt-7 mb-3 text-white">Marcas que Distribuímos</h4>
+                  <h4 className="text-sm font-bold mt-7 mb-3 text-white">
+                    <a href="/coficobrasil" className="hover:underline">COFICO</a> <span className="font-normal text-white/70">— marcas que distribuímos</span>
+                  </h4>
                   <ul className="space-y-3">
                     {brands.map((b, i) => (
                       <li key={i}>
                         {b.url ? (
                           b.url.startsWith('/') ? (
-                            <button onClick={() => handleNavigation(b.url!)} className="text-white/80 hover:text-white transition-colors text-sm">
+                            <a href={b.url} className="text-white/80 hover:text-white transition-colors text-sm">
                               {b.name}
-                            </button>
+                            </a>
                           ) : (
                             <a href={b.url} target="_blank" rel="noopener noreferrer" className="text-white/80 hover:text-white transition-colors text-sm">
                               {b.name}
@@ -1757,9 +1759,6 @@ const Footer = ({ scrollToSection }: any) => {
 
           <div className="border-t border-white/20 pt-8 flex flex-col md:flex-row justify-between items-center gap-3">
             <p className="text-white/80 text-sm">© {currentYear} Café Saporino Ltda. CNPJ 61.109.694/0001-94 Todos os direitos reservados.</p>
-            <a href="/coficobrasil" className="text-white/60 hover:text-white text-xs transition-colors underline-offset-2 hover:underline">
-              COFICO Brasil — logística e distribuição
-            </a>
             <div className="flex items-center space-x-2 mt-4 md:mt-0">
               <img src="/saporino-logo.png" alt="Saporino" className="h-8 opacity-70 hover:opacity-100 transition-all" />
             </div>
