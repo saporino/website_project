@@ -132,8 +132,8 @@ export default function CoficoBrasilPage() {
               <img src="/cofico/saporino.png" alt="Café Saporino" className="h-14 w-auto object-contain"
                 onError={(e) => { const t = e.currentTarget; if (!t.dataset.fb) { t.dataset.fb = '1'; t.src = '/saporino-logo.png'; } }} />
               <h3 className="mt-5 text-lg font-semibold">Café Saporino</h3>
-              <p className="mt-1 text-sm text-neutral-500">Logística e distribuição no Estado de São Paulo</p>
-              <p className="mt-4 text-sm text-neutral-700 font-medium">Saporino Clássico · Tropeiro Paulista · Grão Gourmet</p>
+              <p className="mt-1 text-sm text-neutral-500">Distribuição exclusiva no Estado de São Paulo</p>
+              <p className="mt-4 text-sm text-neutral-700 font-medium">Saporino Clássico Tradicional 100% Arábica · Tropeiro Paulista (Tradicional e Extra Forte) · Café Serrão (Tradicional e Extra Forte)</p>
             </article>
             <article className="border border-neutral-200 p-8">
               {/* tenta o arquivo em /cofico/, senão cai no logo do banco */}
