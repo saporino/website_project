@@ -1757,11 +1757,8 @@ const Footer = ({ scrollToSection }: any) => {
             </div>
           </div>
 
-          <div className="border-t border-white/20 pt-8 flex flex-col md:flex-row justify-between items-center gap-3">
+          <div className="border-t border-white/20 pt-8">
             <p className="text-white/80 text-sm">© {currentYear} Café Saporino Ltda. CNPJ 61.109.694/0001-94 Todos os direitos reservados.</p>
-            <div className="flex items-center space-x-2 mt-4 md:mt-0">
-              <img src="/saporino-logo.png" alt="Saporino" className="h-8 opacity-70 hover:opacity-100 transition-all" />
-            </div>
           </div>
         </div>
       </footer>
