@@ -129,7 +129,7 @@ export default function CoficoBrasilPage() {
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <article className="border border-neutral-200 p-8">
               {/* tenta o arquivo em /cofico/, senão cai no logo que já existe no site */}
-              <img src="/cofico/saporino.png" alt="Café Saporino" className="h-14 w-auto object-contain"
+              <img src="/cofico/saporino.png" alt="Café Saporino" className="h-28 w-auto object-contain"
                 onError={(e) => { const t = e.currentTarget; if (!t.dataset.fb) { t.dataset.fb = '1'; t.src = '/saporino-logo.png'; } }} />
               <h3 className="mt-5 text-lg font-semibold">Café Saporino</h3>
               <p className="mt-1 text-sm text-neutral-500">Distribuição exclusiva no Estado de São Paulo</p>
@@ -137,7 +137,7 @@ export default function CoficoBrasilPage() {
             </article>
             <article className="border border-neutral-200 p-8">
               {/* tenta o arquivo em /cofico/, senão cai no logo do banco */}
-              <img src="/cofico/fazendinha.png" alt="Café Fazendinha" className="h-14 w-auto object-contain"
+              <img src="/cofico/fazendinha.png" alt="Café Fazendinha" className="h-28 w-auto object-contain"
                 onError={(e) => { const t = e.currentTarget; if (!t.dataset.fb) { t.dataset.fb = '1'; t.src = 'https://rsvoazrkxtdrcjnatzcm.supabase.co/storage/v1/object/public/product-images/companies/f5a47ea4-32d3-4b15-966d-37cb2bb1acf3-1784146393495.jpeg'; } }} />
               <h3 className="mt-5 text-lg font-semibold">Café Fazendinha</h3>
               <p className="mt-1 text-sm text-neutral-500">Distribuição exclusiva no Estado de São Paulo</p>
