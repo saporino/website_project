@@ -141,7 +141,7 @@ export default function CoficoBrasilPage() {
             </article>
             <article className="border border-neutral-200 p-8">
               {fazLogoOk ? (
-                <img src="/cofico/fazendinha.png" alt="Café Fazendinha" className="h-14 w-auto object-contain" onError={() => setFazLogoOk(false)} />
+                <img src="https://rsvoazrkxtdrcjnatzcm.supabase.co/storage/v1/object/public/product-images/companies/f5a47ea4-32d3-4b15-966d-37cb2bb1acf3-1784146393495.jpeg" alt="Café Fazendinha" className="h-14 w-auto object-contain" onError={() => setFazLogoOk(false)} />
               ) : (
                 <Coffee className="w-7 h-7 text-cofico-ink" aria-hidden="true" />
               )}
