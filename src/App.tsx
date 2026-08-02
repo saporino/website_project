@@ -1586,9 +1586,10 @@ const Footer = ({ scrollToSection }: any) => {
               </ul>
               {showBrands && brands.length > 0 && (
                 <>
-                  <h4 className="text-sm font-bold mt-7 mb-3 text-white">
-                    <a href="/coficobrasil" className="hover:underline">COFICO</a> <span className="font-normal text-white/70">— marcas que distribuímos</span>
-                  </h4>
+                  <div className="mt-7 mb-3">
+                    <a href="/coficobrasil" className="text-sm font-bold text-white hover:underline">COFICO Brasil</a>
+                    <p className="text-xs text-white/60 mt-0.5">Marcas que distribuímos</p>
+                  </div>
                   <ul className="space-y-3">
                     {brands.map((b, i) => (
                       <li key={i}>
