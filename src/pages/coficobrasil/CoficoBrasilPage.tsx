@@ -36,7 +36,7 @@ const PARA_QUEM = [
   { icon: Building2, t: 'Redes e grandes contas', d: 'Abastecimento programado de múltiplas lojas, com carga fracionada por unidade.' },
   { icon: Boxes, t: 'Distribuidores e atacado', d: 'Entregas de volume, com pedido mínimo e frete cotado por destino.' },
   { icon: Store, t: 'Mercados e atacarejos', d: '' },
-  { icon: UtensilsCrossed, t: 'Food service, padarias e cafeterias', d: '' },
+  { icon: UtensilsCrossed, t: 'Food service, cozinhas industriais, padarias e cafeterias', d: '' },
 ];
 
 export default function CoficoBrasilPage() {
