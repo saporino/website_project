@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
 import { toast } from 'sonner';
 import { guide } from '../../lib/guide';
-import { UserCheck, ChevronDown, ChevronUp, CheckCircle, XCircle, Plus, Copy, Store, Loader2, Route as RouteIcon, ArrowUp, ArrowDown, Lock } from 'lucide-react';
+import { UserCheck, ChevronDown, ChevronUp, CheckCircle, XCircle, Plus, Copy, Store, Loader2, Route as RouteIcon, ArrowUp, ArrowDown, Lock, Trash2 } from 'lucide-react';
 import PromoterSupervisorPanel from './PromoterSupervisorPanel';
 
 // Admin → RepCo → "Promotores" (Bloco 2): aprovar/bloquear promotor, gerar código
@@ -62,6 +62,14 @@ export default function PromotersAdmin() {
     if (error) { toast.error('Erro ao gerar: ' + error.message); return; }
     const code = Array.isArray(data) ? (data[0] as any)?.code : (data as any)?.code;
     if (code) { setFresh(code); setNote(''); load(); }
+  }
+
+  async function revokeInvite(code: string) {
+    const { error } = await supabase.rpc('repco_revoke_invite', { p_code: code });
+    if (error) { toast.error('Erro ao apagar: ' + error.message); return; }
+    if (fresh === code) setFresh(null);
+    toast.success('Convite apagado.');
+    load();
   }
 
   async function setStatus(p: Promoter, status: 'active' | 'blocked') {
@@ -195,6 +203,7 @@ export default function PromotersAdmin() {
                 <span className="font-mono font-bold text-lg tracking-widest text-green-700">{fresh}</span>
                 <button onClick={() => navigator.clipboard.writeText(fresh)} className="text-xs text-gray-500 hover:text-gray-700 inline-flex items-center gap-1"><Copy className="w-3.5 h-3.5" /> copiar</button>
                 <span className="text-[11px] text-gray-400 ml-auto">mande para o promotor entrar em /promotor</span>
+                <button onClick={() => revokeInvite(fresh)} title="Apagar convite" className="text-gray-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             )}
             {invites.length > 0 && (
@@ -203,6 +212,7 @@ export default function PromotersAdmin() {
                   <div key={i.code} className="flex items-center gap-2 text-xs text-gray-500">
                     <span className="font-mono font-semibold">{i.code}</span>{i.note && <span>· {i.note}</span>}
                     <span className="ml-auto">expira {new Date(i.expires_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                    <button onClick={() => revokeInvite(i.code)} title="Apagar convite" className="text-gray-400 hover:text-red-600"><Trash2 className="w-3.5 h-3.5" /></button>
                   </div>
                 ))}
               </div>
