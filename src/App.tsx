@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, FormEvent, useCallback, lazy, Suspense } from 'react';
 import { Toaster, toast } from 'sonner';
-import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Send, User, ChevronDown, ChevronLeft, ChevronRight, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck, Briefcase, MapPin, Flame, Coffee, Mail } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Send, User, ChevronDown, ChevronLeft, ChevronRight, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck, Briefcase, MapPin, Flame, Coffee } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CompanyProvider, useCompany } from './contexts/CompanyContext';
 import { CartProvider, useCart } from './contexts/CartContext';
@@ -18,6 +18,7 @@ import { createPreference, MERCADO_PAGO_PUBLIC_KEY } from './lib/mercadopago';
 import { getCarrierQuotes, lookupCEP, formatCEP, calculateCartWeight, CarrierQuote } from './lib/shipping';
 import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
 import CookieConsent from './components/CookieConsent';
+import B2BLeadForm from './components/B2BLeadForm';
 const P = () => import('./pages/PolicyPages');
 const PrivacyPolicy = lazy(() => P().then(m => ({ default: m.PrivacyPolicy })));
 const ShippingPolicy = lazy(() => P().then(m => ({ default: m.ShippingPolicy })));
@@ -1769,7 +1770,7 @@ const Footer = ({ scrollToSection }: any) => {
         <div className="fixed inset-0 z-[1300] overflow-y-auto" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setBizInfo(null)} />
           <div className="relative min-h-full flex items-center justify-center p-4">
-            <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 md:p-8">
+            <div className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 md:p-8">
               <button onClick={() => setBizInfo(null)} aria-label="Fechar" className="absolute top-4 right-4 w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center">
                 <X className="w-5 h-5" />
               </button>
@@ -1784,12 +1785,12 @@ const Footer = ({ scrollToSection }: any) => {
                 ))}
               </ul>
               <div className="bg-[#f8f7f5] border border-[#ddd0cc] rounded-xl p-4">
-                <p className="text-sm font-semibold text-gray-800 mb-1">Fale com a gente</p>
-                <p className="text-xs text-gray-500 mb-3">Conte o que precisa (volume, cidade, tipo de negócio) que retornamos com a melhor proposta.</p>
-                <a href={`mailto:${BIZ_INFO[bizInfo].email}?subject=${encodeURIComponent(BIZ_INFO[bizInfo].title + ' — Café Saporino')}`}
-                  className="inline-flex items-center gap-2 bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold px-5 py-2.5 rounded-full transition-colors break-all">
-                  <Mail className="w-4 h-4 flex-shrink-0" /> {BIZ_INFO[bizInfo].email}
-                </a>
+                <B2BLeadForm segmento={BIZ_INFO[bizInfo].title} />
+                <p className="text-[11px] text-gray-400 mt-3 text-center">
+                  Prefere e-mail?{' '}
+                  <a href={`mailto:${BIZ_INFO[bizInfo].email}?subject=${encodeURIComponent(BIZ_INFO[bizInfo].title + ' — Café Saporino')}`}
+                    className="text-[#8B2214] hover:underline break-all">{BIZ_INFO[bizInfo].email}</a>
+                </p>
               </div>
             </div>
           </div>
