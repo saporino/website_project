@@ -7,6 +7,7 @@ import { Loader2, CheckCircle } from 'lucide-react';
 const TIPOS = ['Tradicional', 'Extra Forte', '100% Arábica', 'Café de Combate', 'Grão Expresso Gourmet'];
 const TORRAS = ['Média Clara', 'Média', 'Média Escura', 'Escura'];
 const EMBALAGENS = ['Fardo 5kg', 'Fardo 10kg', 'Fardo 20kg', 'Pacote 250g', 'Pacote 500g', 'Pacote 1kg', 'Pacote 5kg', 'Outra'];
+const MODALIDADES = ['Compra de café', 'Comodato (café + máquina)', 'Locação de máquina', 'Ainda não sei'];
 
 function Pill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
@@ -21,6 +22,7 @@ export default function B2BLeadForm({ segmento }: { segmento?: string }) {
   const [f, setF] = useState({
     nome: '', empresa: '', telefone: '', email: '', site: '', redes_sociais: '', cidade: '', uf: '',
     descricao: '', formato: '', grao_tipo: '', volume_valor: '', volume_unidade: 'kg',
+    modalidade: '', num_pessoas: '',
   });
   const [tipos, setTipos] = useState<string[]>([]);
   const [torras, setTorras] = useState<string[]>([]);
@@ -49,6 +51,8 @@ export default function B2BLeadForm({ segmento }: { segmento?: string }) {
       grao_tipo: f.formato === 'grao' ? (f.grao_tipo || null) : null,
       volume_valor: f.volume_valor ? Number(f.volume_valor) : null,
       volume_unidade: f.volume_unidade,
+      modalidade: f.modalidade || null,
+      num_pessoas: f.num_pessoas ? Number(f.num_pessoas) : null,
       embalagens: embalagens.length ? embalagens : null,
       consent_lgpd: consent,
     });
@@ -115,6 +119,20 @@ export default function B2BLeadForm({ segmento }: { segmento?: string }) {
         <label className="block text-xs font-semibold text-gray-600 mb-1.5">Torra</label>
         <div className="flex flex-wrap gap-1.5">
           {TORRAS.map(t => <Pill key={t} active={torras.includes(t)} onClick={() => toggle(torras, setTorras, t)}>{t}</Pill>)}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1.5">Modelo de fornecimento</label>
+          <div className="flex flex-wrap gap-1.5">
+            {MODALIDADES.map(m => <Pill key={m} active={f.modalidade === m} onClick={() => setF({ ...f, modalidade: f.modalidade === m ? '' : m })}>{m}</Pill>)}
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1.5">Pessoas atendidas (aprox.)</label>
+          <input type="number" min="0" value={f.num_pessoas} onChange={e => setF({ ...f, num_pessoas: e.target.value })} placeholder="Ex.: 50 colaboradores"
+            className="w-full h-10 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214]" />
         </div>
       </div>
 

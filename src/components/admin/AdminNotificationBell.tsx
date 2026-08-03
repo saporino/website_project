@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, BellOff, UserCheck, FileText, ShoppingBag, X, ChevronRight, AlertTriangle, PackageX } from 'lucide-react';
+import { Bell, BellOff, UserCheck, FileText, ShoppingBag, X, ChevronRight, AlertTriangle, PackageX, Mail } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
 
@@ -27,7 +27,7 @@ const SOUND_KEY = 'admin-bell-sound';
 
 interface Notification {
   id: string;
-  type: 'repco_pending' | 'repco_order_no_nf' | 'repco_boleto_overdue' | 'ecommerce_pending' | 'promotor_pending' | 'ruptura_aberta';
+  type: 'repco_pending' | 'repco_order_no_nf' | 'repco_boleto_overdue' | 'ecommerce_pending' | 'promotor_pending' | 'ruptura_aberta' | 'b2b_lead_new';
   title: string;
   description: string;
   count: number;
@@ -189,6 +189,25 @@ export function AdminNotificationBell({ onNavigate }: AdminNotificationBellProps
         });
       }
 
+      // 4. Leads B2B novos (formulário "Para Seu Negócio") — não filtra por empresa (lead é geral)
+      const { count: b2bNew } = await supabase
+        .from('b2b_leads')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'novo');
+
+      if (b2bNew && b2bNew > 0) {
+        items.push({
+          id: 'b2b_lead_new',
+          type: 'b2b_lead_new',
+          title: 'Leads B2B novos',
+          description: `${b2bNew} contato${b2bNew > 1 ? 's' : ''} do "Para Seu Negócio"`,
+          count: b2bNew,
+          tab: 'leads_b2b',
+          icon: Mail,
+          color: 'text-blue-600 bg-blue-50',
+        });
+      }
+
       setNotifications(items);
     } catch (err) {
       console.error('Error fetching notifications:', err);
@@ -206,6 +225,7 @@ export function AdminNotificationBell({ onNavigate }: AdminNotificationBellProps
       .on('postgres_changes', { event: '*', schema: 'public', table: 'representatives' }, () => fetchNotifications())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'promoters' }, () => fetchNotifications())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'promoter_incidents' }, () => fetchNotifications())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'b2b_leads' }, () => fetchNotifications())
       .subscribe();
     const interval = setInterval(fetchNotifications, 60_000);
     return () => { clearInterval(interval); supabase.removeChannel(ch); };

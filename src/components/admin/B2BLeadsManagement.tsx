@@ -16,6 +16,7 @@ interface Lead {
   site: string | null; redes_sociais: string | null; cidade: string | null; uf: string | null; descricao: string | null;
   tipos_cafe: string[] | null; formato: string | null; torras: string[] | null; grao_tipo: string | null;
   volume_valor: number | null; volume_unidade: string | null; embalagens: string[] | null;
+  modalidade: string | null; num_pessoas: number | null;
   status: string; converted_client_id: string | null; created_at: string;
 }
 interface Company { id: string; fantasia: string | null; name: string }
@@ -129,6 +130,8 @@ export default function B2BLeadsManagement() {
                     {l.formato && <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600">{l.formato === 'grao' ? `Grão${l.grao_tipo ? ' · ' + l.grao_tipo : ''}` : 'Moído'}</span>}
                     {(l.torras || []).map(t => <span key={t} className="px-2 py-0.5 rounded bg-gray-100 text-gray-600">{t}</span>)}
                     {(l.embalagens || []).map(t => <span key={t} className="px-2 py-0.5 rounded bg-gray-100 text-gray-600">{t}</span>)}
+                    {l.modalidade && <span className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 font-medium">{l.modalidade}</span>}
+                    {l.num_pessoas ? <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600">{l.num_pessoas} pessoas</span> : null}
                   </div>
                   {l.descricao && <p className="text-xs text-gray-600 bg-gray-50 rounded p-2">{l.descricao}</p>}
 
