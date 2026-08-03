@@ -62,8 +62,8 @@ export default function B2BLeadForm({ segmento }: { segmento?: string }) {
       <div className="rounded-xl border border-green-200 bg-green-50 p-4 flex items-start gap-3">
         <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm font-semibold text-green-800">Recebemos seu contato!</p>
-          <p className="text-xs text-green-700 mt-0.5">Nossa equipe comercial vai analisar e retornar com a melhor proposta.</p>
+          <p className="text-sm font-semibold text-green-800">Obrigado pelo seu contato! 🎉</p>
+          <p className="text-xs text-green-700 mt-0.5">Recebemos suas informações e, em breve, alguém do nosso time comercial vai entrar em contato com você.</p>
         </div>
       </div>
     );
