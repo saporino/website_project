@@ -59,16 +59,15 @@ export default function CoficoBrasilPage() {
   return (
     <div id="topo" className="min-h-screen bg-white text-neutral-900 antialiased selection:bg-cofico-ink selection:text-white">
       <CoficoHeader />
-      <CoficoCarousel />
 
       {/* HERO */}
       <section className="mx-auto max-w-6xl px-6 pt-20 pb-24 md:pt-28 md:pb-32">
         <p className="text-cofico-ink text-xs font-semibold uppercase tracking-[0.2em]">COFICO Brasil</p>
         <h1 className="mt-5 text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.05] max-w-3xl">
-          Operador logístico e distribuidor de alimentos.
+          Operador logístico e distribuidora de alimentos.
         </h1>
         <p className="mt-6 text-lg md:text-xl text-neutral-600 max-w-2xl leading-relaxed">
-          Recebemos, armazenamos, separamos e entregamos café e alimentos secos em todo o Estado de São Paulo. Distribuidor oficial das marcas de café que representamos.
+          Recebemos, armazenamos, separamos e entregamos cafés e alimentos secos em todo o Estado de São Paulo. Somos distribuidores oficiais das marcas que representamos, com operação própria de armazenagem, separação e entrega.
         </p>
         <div className="mt-9">
           <a href="#contato" className="inline-flex items-center bg-cofico-ink text-white text-sm font-semibold px-6 py-3.5 rounded-none hover:opacity-90 transition-opacity">
@@ -76,6 +75,7 @@ export default function CoficoBrasilPage() {
           </a>
         </div>
       </section>
+      <CoficoCarousel />
 
       {/* NOSSOS NÚMEROS — ao vivo (cofico_public_stats); entregas/clientes crescem com a operação */}
       <section className="border-t border-neutral-200 bg-neutral-50">
