@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { HelpCircle, Plus, Trash2, Save, Loader2, Eye, EyeOff } from 'lucide-react';
+import { HelpCircle, Plus, Trash2, Save, Loader2, Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface Article { id: string; question: string; answer: string; category: string; sort_order: number; is_active: boolean; audience: string; }
 
@@ -13,6 +13,7 @@ export default function RepCoHelpAdmin() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Partial<Article> | null>(null);
   const [saving, setSaving] = useState(false);
+  const [open, setOpen] = useState(false); // seção recolhida por padrão
 
   async function load() {
     setLoading(true);
@@ -53,22 +54,28 @@ export default function RepCoHelpAdmin() {
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-6">
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-stone-100 rounded-lg flex items-center justify-center">
+      <div className={`flex items-center justify-between ${open ? 'mb-5' : ''}`}>
+        <button onClick={() => setOpen(o => !o)} className="flex items-center space-x-3 text-left flex-1 min-w-0">
+          <div className="w-10 h-10 bg-stone-100 rounded-lg flex items-center justify-center flex-shrink-0">
             <HelpCircle className="w-5 h-5 text-[#8B2214]" />
           </div>
-          <div>
-            <h3 className="text-xl font-bold text-gray-900">Central de Ajuda do RepCo</h3>
+          <div className="min-w-0">
+            <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+              Central de Ajuda do RepCo
+              {open ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+            </h3>
             <p className="text-sm text-gray-500">Perguntas e respostas que o representante vê na aba Ajuda do app.</p>
           </div>
-        </div>
-        <button onClick={() => setEditing({ ...EMPTY })}
-          className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-3 py-2 rounded-lg">
-          <Plus className="w-4 h-4" /> Nova pergunta
         </button>
+        {open && (
+          <button onClick={() => setEditing({ ...EMPTY })}
+            className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-3 py-2 rounded-lg flex-shrink-0">
+            <Plus className="w-4 h-4" /> Nova pergunta
+          </button>
+        )}
       </div>
 
+      {open && (<>
       {editing && (
         <div className="border border-gray-200 rounded-xl p-4 mb-4 bg-gray-50 space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
@@ -136,6 +143,7 @@ export default function RepCoHelpAdmin() {
           ))}
         </div>
       )}
+      </>)}
     </div>
   );
 }
