@@ -21,7 +21,7 @@ const ROUTES = [
     path: '/coficobrasil',
     out: 'coficobrasil.html',
     title: 'COFICO Brasil — Operador logístico e distribuidor de alimentos em SP',
-    description: 'Recebimento, armazenagem, separação e entrega de café e alimentos secos em todo o Estado de São Paulo. Distribuidora exclusiva do Café Fazendinha. Centro de distribuição em Várzea Paulista.',
+    description: 'Recebimento, armazenagem, separação e entrega de café e alimentos secos em todo o Estado de São Paulo. Distribuidor oficial das marcas de café que representamos. Centro de distribuição em Várzea Paulista.',
     canonical: COFICO_BASE,
     ogSiteName: 'COFICO Brasil',
     ogImage: `${ASSET_ORIGIN}/og/cofico-og-1200x630.png`,

@@ -66,7 +66,7 @@ export default function CoficoBrasilPage() {
           Operador logístico e distribuidor de alimentos.
         </h1>
         <p className="mt-6 text-lg md:text-xl text-neutral-600 max-w-2xl leading-relaxed">
-          Recebemos, armazenamos, separamos e entregamos café e alimentos secos em todo o Estado de São Paulo. Distribuidora exclusiva do Café Fazendinha.
+          Recebemos, armazenamos, separamos e entregamos café e alimentos secos em todo o Estado de São Paulo. Distribuidor oficial das marcas de café que representamos.
         </p>
         <div className="mt-9">
           <a href="#contato" className="inline-flex items-center bg-cofico-ink text-white text-sm font-semibold px-6 py-3.5 rounded-none hover:opacity-90 transition-opacity">
