@@ -670,6 +670,7 @@ const PromoCarousel = ({ onAuthOpen }: { onAuthOpen?: (mode: 'login' | 'register
         .from('promo_banners')
         .select('image_url, title, link_url, button_text, button_link, button_x, button_y, button_scale, overlay_image_url, overlay_x, overlay_y, overlay_scale')
         .eq('active', true)
+        .eq('site', 'saporino')
         .order('sort_order', { ascending: true });
       if (data && data.length) {
         setSlides(data.map((b: any) => ({

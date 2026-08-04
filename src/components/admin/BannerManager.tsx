@@ -19,6 +19,7 @@ interface Banner {
   overlay_x: number;
   overlay_y: number;
   overlay_scale: number;
+  site: string;
 }
 
 const BUCKET = 'product-images';
@@ -33,6 +34,7 @@ const DESTINOS = [
 
 export function BannerManager() {
   const [banners, setBanners] = useState<Banner[]>([]);
+  const [siteFilter, setSiteFilter] = useState<'saporino' | 'cofico'>('saporino');
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -58,10 +60,11 @@ export function BannerManager() {
       const { data, error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
       if (error) throw error;
       const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(data.path);
-      const nextOrder = banners.length ? Math.max(...banners.map(b => b.sort_order)) + 1 : 0;
+      const siteB = banners.filter(b => b.site === siteFilter);
+      const nextOrder = siteB.length ? Math.max(...siteB.map(b => b.sort_order)) + 1 : 0;
       const { error: insErr } = await supabase
         .from('promo_banners')
-        .insert([{ image_url: pub.publicUrl, sort_order: nextOrder, active: true }]);
+        .insert([{ image_url: pub.publicUrl, sort_order: nextOrder, active: true, site: siteFilter }]);
       if (insErr) throw insErr;
       await load();
     } catch (e) {
@@ -116,9 +119,10 @@ export function BannerManager() {
   };
 
   const move = async (i: number, dir: -1 | 1) => {
+    const list = banners.filter(b => b.site === siteFilter);
     const j = i + dir;
-    if (j < 0 || j >= banners.length) return;
-    const a = banners[i], b = banners[j];
+    if (j < 0 || j >= list.length) return;
+    const a = list[i], b = list[j];
     await Promise.all([
       supabase.from('promo_banners').update({ sort_order: b.sort_order }).eq('id', a.id),
       supabase.from('promo_banners').update({ sort_order: a.sort_order }).eq('id', b.id),
@@ -136,6 +140,8 @@ export function BannerManager() {
   const selectValue = (link: string | null) =>
     !link ? '' : DESTINOS.some(d => d.v === link) ? link : '__custom__';
 
+  const siteBanners = banners.filter(b => b.site === siteFilter);
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-6">
       <div className="flex items-center space-x-3 mb-6">
@@ -143,9 +149,20 @@ export function BannerManager() {
           <Images className="w-5 h-5 text-[#8B2214]" />
         </div>
         <div>
-          <h3 className="text-xl font-bold text-gray-900">Banners do Carrossel (Home)</h3>
-          <p className="text-sm text-gray-600">Imagens que giram no topo da loja. Mantenha todas no mesmo tamanho.</p>
+          <h3 className="text-xl font-bold text-gray-900">Banners do Carrossel</h3>
+          <p className="text-sm text-gray-600">Imagens que giram no topo do site escolhido. Mantenha todas no mesmo tamanho.</p>
         </div>
+      </div>
+
+      {/* Escolhe em qual site o banner vai */}
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-sm text-gray-500">Publicar em:</span>
+        {(['saporino', 'cofico'] as const).map(s => (
+          <button key={s} onClick={() => setSiteFilter(s)}
+            className={`px-4 py-1.5 rounded-lg text-sm font-semibold border ${siteFilter === s ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+            {s === 'saporino' ? 'Café Saporino' : 'COFICO'}
+          </button>
+        ))}
       </div>
 
       <label className={`flex items-center justify-center gap-2 w-full md:w-auto md:inline-flex px-5 py-3 rounded-lg cursor-pointer mb-6 text-white transition-colors ${uploading ? 'bg-gray-400' : 'bg-[#8B2214] hover:bg-[#6d1a10]'}`}>
@@ -164,14 +181,14 @@ export function BannerManager() {
         <div className="flex justify-center py-10">
           <Loader2 className="w-8 h-8 animate-spin text-[#8B2214]" />
         </div>
-      ) : banners.length === 0 ? (
+      ) : siteBanners.length === 0 ? (
         <div className="text-center py-10 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
-          Nenhum banner ainda. Clique em "Adicionar banner" para enviar a primeira imagem.
+          Nenhum banner {siteFilter === 'cofico' ? 'da COFICO' : 'da Saporino'} ainda. Clique em "Adicionar banner".
         </div>
       ) : (
         <>
         <div className="space-y-6">
-          {banners.filter(bb => bb.active || expanded.has(bb.id)).map((b) => { const i = banners.indexOf(b); return (
+          {siteBanners.filter(bb => bb.active || expanded.has(bb.id)).map((b) => { const i = siteBanners.indexOf(b); return (
             <div key={b.id} className={`p-4 rounded-xl border ${b.active ? 'border-gray-200' : 'border-amber-200 bg-amber-50/40'}`}>
               {/* Preview GRANDE com botao arrastavel proporcional */}
               <div
@@ -326,7 +343,7 @@ export function BannerManager() {
                       className="flex-1 flex items-center justify-center py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30">
                       <ArrowUp className="w-4 h-4" />
                     </button>
-                    <button onClick={() => move(i, 1)} disabled={i === banners.length - 1} title="Descer"
+                    <button onClick={() => move(i, 1)} disabled={i === siteBanners.length - 1} title="Descer"
                       className="flex-1 flex items-center justify-center py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-30">
                       <ArrowDown className="w-4 h-4" />
                     </button>
@@ -342,16 +359,16 @@ export function BannerManager() {
         </div>
 
         {/* Desativados — lista compacta, recolhida por padrão (não ocupa espaço) */}
-        {banners.some(b => !b.active) && (
+        {siteBanners.some(b => !b.active) && (
           <div className="mt-6 border-t border-gray-100 pt-4">
             <button onClick={() => setShowInactive(v => !v)}
               className="flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-gray-900">
               <EyeOff className="w-4 h-4" />
-              Desativados ({banners.filter(b => !b.active).length}) {showInactive ? '▲' : '▼'}
+              Desativados ({siteBanners.filter(b => !b.active).length}) {showInactive ? '▲' : '▼'}
             </button>
             {showInactive && (
               <div className="space-y-2 mt-3">
-                {banners.filter(b => !b.active && !expanded.has(b.id)).map((b) => (
+                {siteBanners.filter(b => !b.active && !expanded.has(b.id)).map((b) => (
                   <div key={b.id} className="flex items-center gap-3 p-2 rounded-lg border border-gray-200 bg-gray-50">
                     <img src={b.image_url} alt="" className="w-16 h-10 object-cover rounded flex-shrink-0 border border-gray-200" draggable={false} />
                     <span className="flex-1 text-sm text-gray-600 truncate">{b.title || 'Banner sem título'}</span>

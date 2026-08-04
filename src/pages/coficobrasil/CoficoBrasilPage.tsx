@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import CoficoHeader from './CoficoHeader';
 import CoficoFooter from './CoficoFooter';
+import CoficoCarousel from './CoficoCarousel';
 import CoficoMap from './CoficoMap';
 import { COFICO } from './config';
 import { fetchCoficoStats } from './coficoClient';
@@ -58,6 +59,7 @@ export default function CoficoBrasilPage() {
   return (
     <div id="topo" className="min-h-screen bg-white text-neutral-900 antialiased selection:bg-cofico-ink selection:text-white">
       <CoficoHeader />
+      <CoficoCarousel />
 
       {/* HERO */}
       <section className="mx-auto max-w-6xl px-6 pt-20 pb-24 md:pt-28 md:pb-32">
