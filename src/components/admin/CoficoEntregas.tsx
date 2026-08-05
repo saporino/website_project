@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { Truck, Package, MapPin, ArrowUp, ArrowDown, X, Loader2, Boxes } from 'lucide-react';
 import CoficoDrivers from './CoficoDrivers';
 import CoficoFrota from './CoficoFrota';
+import CoficoRotas from './CoficoRotas';
 
 interface QueueRow {
   order_id: string; order_number: string; company_id: string; company_name: string;
@@ -79,6 +80,7 @@ export default function CoficoEntregas() {
 
       <CoficoDrivers />
       <CoficoFrota />
+      <CoficoRotas />
 
       {/* filtro por empresa contratante */}
       <div className="flex flex-wrap gap-2 mb-4">
