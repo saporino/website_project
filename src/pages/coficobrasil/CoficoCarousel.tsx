@@ -1,7 +1,6 @@
 // Carrossel do topo da página COFICO. Lê promo_banners (site='cofico', ativos) via client próprio.
 // Some sozinho se não houver banner COFICO — a página fica igual até você adicionar no admin.
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { coficoDb } from './coficoClient';
 
 interface Banner { id: string; image_url: string; link_url: string | null; }
@@ -23,7 +22,6 @@ export default function CoficoCarousel() {
   }, [banners.length]);
 
   if (banners.length === 0) return null;
-  const go = (d: number) => setI(v => (v + d + banners.length) % banners.length);
   const b = banners[i];
   const img = <img src={b.image_url} alt="" className="w-full h-full object-cover" />;
 
@@ -31,13 +29,9 @@ export default function CoficoCarousel() {
     <div className="relative w-full aspect-[16/7] md:aspect-[1900/650] overflow-hidden bg-neutral-100 border-b border-neutral-200">
       {b.link_url ? <a href={b.link_url} className="block w-full h-full">{img}</a> : img}
       {banners.length > 1 && (
-        <>
-          <button onClick={() => go(-1)} aria-label="Anterior" className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/85 hover:bg-white flex items-center justify-center shadow"><ChevronLeft className="w-5 h-5 text-neutral-800" /></button>
-          <button onClick={() => go(1)} aria-label="Próximo" className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/85 hover:bg-white flex items-center justify-center shadow"><ChevronRight className="w-5 h-5 text-neutral-800" /></button>
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-            {banners.map((_, k) => <button key={k} onClick={() => setI(k)} aria-label={`Banner ${k + 1}`} className={`w-2 h-2 rounded-full transition-colors ${k === i ? 'bg-white' : 'bg-white/50 hover:bg-white/80'}`} />)}
-          </div>
-        </>
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+          {banners.map((_, k) => <button key={k} onClick={() => setI(k)} aria-label={`Banner ${k + 1}`} className={`w-2 h-2 rounded-full transition-colors ${k === i ? 'bg-white' : 'bg-white/50 hover:bg-white/80'}`} />)}
+        </div>
       )}
     </div>
   );
