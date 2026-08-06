@@ -298,7 +298,7 @@ export default function CoficoBrasilPage() {
 
               <div className="p-6 sm:p-10">
                 {/* cabeçalho */}
-                <img src="/cofico/fazendinha.png" alt="Café Fazendinha" className="h-20 w-auto object-contain" />
+                <img src="/cofico/fazendinha.png" alt="Café Fazendinha" className="h-32 sm:h-40 w-auto object-contain" />
                 <h3 className="mt-4 text-2xl font-bold tracking-tight">Café Fazendinha</h3>
                 <p className="mt-1 text-sm text-neutral-500">Distribuição exclusiva no Estado de São Paulo · Tradicional · Extra Forte · Horizon Coffee · São Felipe</p>
 
