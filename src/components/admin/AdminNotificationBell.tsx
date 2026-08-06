@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, BellOff, UserCheck, FileText, ShoppingBag, X, ChevronRight, AlertTriangle, PackageX, Mail } from 'lucide-react';
+import { Bell, BellOff, UserCheck, FileText, ShoppingBag, X, ChevronRight, AlertTriangle, PackageX, Mail, UserPlus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
 
@@ -27,7 +27,7 @@ const SOUND_KEY = 'admin-bell-sound';
 
 interface Notification {
   id: string;
-  type: 'repco_pending' | 'repco_order_no_nf' | 'repco_boleto_overdue' | 'ecommerce_pending' | 'promotor_pending' | 'ruptura_aberta' | 'b2b_lead_new';
+  type: 'repco_pending' | 'repco_order_no_nf' | 'repco_boleto_overdue' | 'ecommerce_pending' | 'promotor_pending' | 'ruptura_aberta' | 'b2b_lead_new' | 'candidatura_rep_new';
   title: string;
   description: string;
   count: number;
@@ -208,6 +208,25 @@ export function AdminNotificationBell({ onNavigate }: AdminNotificationBellProps
         });
       }
 
+      // 5. Candidaturas de representante pendentes ("Seja um Representante") — geral, não filtra empresa
+      const { count: candNew } = await supabase
+        .from('candidaturas_representante')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pendente');
+
+      if (candNew && candNew > 0) {
+        items.push({
+          id: 'candidatura_rep_new',
+          type: 'candidatura_rep_new',
+          title: 'Candidaturas de representante',
+          description: `${candNew} candidatura${candNew > 1 ? 's' : ''} aguardando análise`,
+          count: candNew,
+          tab: 'candidaturas',
+          icon: UserPlus,
+          color: 'text-blue-600 bg-blue-50',
+        });
+      }
+
       setNotifications(items);
     } catch (err) {
       console.error('Error fetching notifications:', err);
@@ -226,6 +245,7 @@ export function AdminNotificationBell({ onNavigate }: AdminNotificationBellProps
       .on('postgres_changes', { event: '*', schema: 'public', table: 'promoters' }, () => fetchNotifications())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'promoter_incidents' }, () => fetchNotifications())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'b2b_leads' }, () => fetchNotifications())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'candidaturas_representante' }, () => fetchNotifications())
       .subscribe();
     const interval = setInterval(fetchNotifications, 60_000);
     return () => { clearInterval(interval); supabase.removeChannel(ch); };

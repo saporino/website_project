@@ -20,8 +20,9 @@ import RepCoPayoutBlocks from '../components/admin/RepCoPayoutBlocks';
 import StudioPage from '../components/admin/StudioPage';
 import CoficoEntregas from '../components/admin/CoficoEntregas';
 import B2BLeadsManagement from '../components/admin/B2BLeadsManagement';
+import RepApplicationsManagement from '../components/admin/RepApplicationsManagement';
 
-type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 'settings' | 'repco' | 'inventory' | 'messages' | 'ajuda' | 'promotores' | 'comissoes' | 'studio' | 'cofico' | 'leads_b2b';
+type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 'settings' | 'repco' | 'inventory' | 'messages' | 'ajuda' | 'promotores' | 'comissoes' | 'studio' | 'cofico' | 'leads_b2b' | 'candidaturas';
 
 // RBAC — "um console, abas por papel". O admin vê tudo; cada papel de console vê só o seu.
 // A trava REAL dos dados é a RLS no banco (esconder aba é só a fachada).
@@ -30,7 +31,7 @@ const ROLE_TABS: Record<string, TabType[]> = {
   gerente_comercial: ['repco', 'messages'],
   contabilidade: ['comissoes', 'messages'],
 };
-const ALL_ADMIN_TABS: TabType[] = ['dashboard', 'orders', 'products', 'customers', 'leads_b2b', 'shipping', 'cofico', 'repco', 'studio', 'messages', 'inventory', 'settings', 'ajuda'];
+const ALL_ADMIN_TABS: TabType[] = ['dashboard', 'orders', 'products', 'customers', 'leads_b2b', 'candidaturas', 'shipping', 'cofico', 'repco', 'studio', 'messages', 'inventory', 'settings', 'ajuda'];
 const ROLE_LABEL: Record<string, string> = { supervisor: 'Supervisor', gerente_comercial: 'Gerente Comercial', contabilidade: 'Contabilidade' };
 const TAB_DEFS: { id: TabType; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -38,6 +39,7 @@ const TAB_DEFS: { id: TabType; label: string }[] = [
   { id: 'products', label: 'Produtos' },
   { id: 'customers', label: 'Clientes' },
   { id: 'leads_b2b', label: 'Leads B2B' },
+  { id: 'candidaturas', label: 'Candidaturas' },
   { id: 'shipping', label: 'Transportadoras' },
   { id: 'cofico', label: 'COFICO Entregas' },
   { id: 'repco', label: 'RepCo' },
@@ -76,6 +78,7 @@ export function AdminDashboard() {
     studio: 0,
     cofico: 0,
     leads_b2b: 0,
+    candidaturas: 0,
   });
 
   // Se a aba ativa não é permitida pro papel, cai na primeira aba permitida
@@ -207,6 +210,7 @@ export function AdminDashboard() {
             {activeTab === 'shipping' && <ShippingManagement />}
             {activeTab === 'cofico' && <CoficoEntregas />}
             {activeTab === 'leads_b2b' && <B2BLeadsManagement />}
+            {activeTab === 'candidaturas' && <RepApplicationsManagement />}
             {activeTab === 'repco' && <RepCoManagement refreshKey={refreshVersion.repco} />}
             {activeTab === 'messages' && <Messenger currentUserId={user!.id} />}
             {activeTab === 'inventory' && <BatchManagement refreshKey={refreshVersion.inventory} />}
