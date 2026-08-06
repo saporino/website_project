@@ -12,6 +12,7 @@ const DOC_TYPES = [
   { key: 'cnpj_doc', label: 'CNPJ' },
   { key: 'core', label: 'CORE' },
   { key: 'contrato', label: 'Contrato de Representação' },
+  { key: 'curriculo', label: 'Currículo' },
 ];
 
 export function RepCoProfile({ rep, onUpdate }: Props) {
