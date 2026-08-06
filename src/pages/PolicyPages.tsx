@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import RepApplicationForm from '../components/RepApplicationForm';
-import { Check, Building2 } from 'lucide-react';
+import { Check, MapPin } from 'lucide-react';
 
 const PolicyLayout = ({ title, children }: { title: string; children: React.ReactNode }) => {
     useEffect(() => {
@@ -631,118 +631,170 @@ export const SubscriptionPolicy = () => (
 
 const OFERECEMOS_LISTA = [
   'Contrato formal de representação com a empresa',
-  'Sem CLT, sem salário fixo, sem ajuda de custo',
-  'Escritório comercial em Barueri/SP',
-  'Centro de distribuição em Várzea Paulista/SP',
+  'Sem CLT, sem salário fixo e sem ajuda de custo',
+  'Aplicativo próprio (RepCo) para lançar pedidos e acompanhar sua comissão',
+  'Apoio de material, tabela de preços e estrutura de distribuição',
 ];
 const PERFIL = [
-  'Experiência comercial no ramo de café',
-  'Carteira ativa de clientes é diferencial',
+  'Experiência comercial no ramo de café ou bens de consumo',
+  'Carteira ativa de clientes é um diferencial',
   'Atendimento a supermercados, padarias, mercearias, atacadistas e food service',
   'CPF com CORE ativo ou CNPJ regular (MEI não habilitado para representação comercial)',
   'Conhecimento do mercado regional de São Paulo',
 ];
 const ETAPAS = ['Preencha sua candidatura', 'Nossa equipe analisa seu perfil', 'Entrevista comercial', 'Assinatura do contrato', 'Início das atividades'];
-const ESTRUTURA = [
-  'Escritório comercial em Barueri/SP',
-  'Centro de distribuição em Várzea Paulista/SP',
-  'Fornecedor exclusivo do Café Fazendinha no Estado de SP',
-  'Contrato direto com a empresa',
+const REGIOES = ['SP Capital — ZN, ZL, ZS e ZO', 'ABC e Grande SP', 'Jundiaí e Várzea Paulista', 'Campinas e região', 'Litoral / Baixada Santista', 'Interior de SP'];
+
+const VAGAS = [
+  {
+    titulo: 'Consultor de Vendas',
+    resumo: 'O vendedor de rua completo.',
+    desc: 'Atende uma carteira de pontos de venda (mercados, padarias, cafeterias), faz visitas diárias, prospecta e cadastra clientes, negocia o mix, acompanha estoque e inadimplência e cuida da exposição, validade e merchandising no PDV — atuando como consultor do produto.',
+    req: ['Ensino médio completo (superior em administração/marketing é diferencial)', 'CNH categoria A ou B', 'Experiência comercial, de merchandising ou negociação', 'Disponibilidade para trabalho externo na região'],
+  },
+  {
+    titulo: 'Promotor de Vendas',
+    resumo: 'A execução no ponto de venda.',
+    desc: 'Abastece gôndolas e prateleiras, organiza e fixa o material de merchandising, controla validade, repõe e troca itens danificados ou vencidos e avisa o vendedor sobre novos pedidos e rupturas. É o braço de execução no PDV — não negocia a venda.',
+    req: ['Ensino médio completo', 'CNH categoria A', 'Disponibilidade em horário comercial (inclusive sábado de manhã)', 'Conhecimento em vendas/merchandising (experiência é diferencial, não obrigatória)'],
+  },
 ];
 
-const SejaRepresentante = () => (
-  <section className="bg-[#f8f7f5] border-t border-[#ddd0cc]">
-    <div className="max-w-5xl mx-auto px-6 lg:px-8 py-16">
-      {/* 2A — Hero com marcas */}
-      <div className="text-center">
-        <div className="inline-flex items-center justify-center gap-6 flex-wrap bg-white border border-gray-200 rounded-2xl py-5 px-8 mb-8">
-          <img src="/saporino-logo.png" alt="Café Saporino" className="h-14 w-auto object-contain" />
-          <span className="h-10 w-px bg-gray-200" />
-          <img src="/cofico/fazendinha.png" alt="Café Fazendinha" className="h-14 w-auto object-contain"
-            onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-        </div>
-        <h2 className="text-3xl md:text-4xl font-bold text-gray-900">Represente marcas em crescimento no Estado de São Paulo</h2>
-        <p className="mt-3 text-lg text-gray-600">Pela Café Saporino Ltda. ou pela COFICO Brasil, conforme seu perfil e região de atuação.</p>
-        <a href="#candidatura" className="inline-block mt-6 bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold px-8 py-3 rounded-full transition-colors">Quero me candidatar</a>
-      </div>
+const CARREIRAS_FOTOS = [
+  { img: '/carreiras/cafeteira-industrial.png', label: 'Consultor de Vendas', sub: 'Food service e cozinha industrial' },
+  { img: '/carreiras/vendas.png', label: 'Varejo & Atacado', sub: 'Mercados e distribuidores' },
+  { img: '/carreiras/promotora.png', label: 'Promotor de Vendas', sub: 'Merchandising e reposição' },
+  { img: '/carreiras/logistica.png', label: 'Distribuidor', sub: 'Cobertura regional' },
+];
 
-      {/* 2B — O que oferecemos */}
-      <h3 className="mt-16 text-2xl font-bold text-gray-900">O que oferecemos</h3>
-      <div className="mt-6 grid gap-5 md:grid-cols-2">
-        <div className="bg-white border border-gray-200 border-l-4 border-l-[#8B2214] rounded-xl p-6">
-          <p className="text-sm font-bold uppercase tracking-wide text-[#8B2214]">Linha Café Saporino</p>
-          <p className="mt-2 text-3xl font-bold text-gray-900">5%<span className="text-base font-medium text-gray-500"> de comissão</span></p>
-          <ul className="mt-3 space-y-1.5 text-sm text-gray-700">
-            <li>+ 0,5% adicional em pagamentos via PIX</li>
-            <li>+ possibilidade de até 8% com entrega própria (após 90 dias)</li>
-            <li>Comissão sobre vendas pagas</li>
+// Selo provisório da COFICO (empregadora). Trocar por <img src="/carreiras/cofico-logo.png"> quando o arquivo chegar.
+const CoficoTag = () => (
+  <span className="inline-flex items-center rounded-lg bg-[#EE3124] px-3 py-1.5 text-lg font-extrabold tracking-tight text-white">COFICO</span>
+);
+
+// Carrossel de funções rodando continuamente (faixa contínua, estilo Instagram/JDE).
+const RoleMarquee = () => (
+  <div className="mt-10 overflow-hidden">
+    <style>{`@keyframes carreiras-marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}`}</style>
+    <div className="flex w-max gap-4" style={{ animation: 'carreiras-marquee 32s linear infinite' }}>
+      {[...CARREIRAS_FOTOS, ...CARREIRAS_FOTOS].map((r, i) => (
+        <figure key={i} className="w-48 shrink-0 sm:w-52">
+          <div className="aspect-[3/4] overflow-hidden rounded-2xl border border-gray-200 bg-neutral-100">
+            <img src={r.img} alt={r.label} className="h-full w-full object-cover object-top" />
+          </div>
+          <figcaption className="mt-2">
+            <p className="text-sm font-semibold text-gray-900">{r.label}</p>
+            <p className="text-xs text-gray-500">{r.sub}</p>
+          </figcaption>
+        </figure>
+      ))}
+    </div>
+  </div>
+);
+
+export const CareersPage = () => {
+  useEffect(() => { window.scrollTo(0, 0); }, []);
+  return (
+    <div className="min-h-screen bg-white pt-24 pb-20">
+      <div className="mx-auto max-w-5xl px-6 lg:px-8">
+        {/* Hero — COFICO recruta */}
+        <div className="flex items-center gap-3">
+          <CoficoTag />
+          <span className="text-sm font-medium text-gray-400">Oportunidades comerciais</span>
+        </div>
+        <h1 className="mt-5 max-w-3xl text-4xl font-bold tracking-tight text-gray-900 md:text-5xl">
+          Venha vender os produtos que a COFICO distribui
+        </h1>
+        <p className="mt-4 max-w-2xl text-lg text-gray-600">
+          Representação comercial autônoma no Estado de São Paulo, começando pela linha <strong className="text-gray-900">Café Saporino</strong>. Você atende o ponto de venda — a gente cuida da estrutura, do sistema e da logística.
+        </p>
+        <a href="#candidatura" className="mt-7 inline-block rounded-full bg-[#8B2214] px-8 py-3 font-semibold text-white transition-colors hover:bg-[#6d1a10]">Quero me candidatar</a>
+
+        <RoleMarquee />
+
+        {/* Vagas abertas */}
+        <h2 className="mt-16 text-2xl font-bold text-gray-900">Vagas abertas</h2>
+        <p className="mt-1 text-gray-500">O que estamos buscando agora.</p>
+        <div className="mt-6 grid gap-5 md:grid-cols-2">
+          {VAGAS.map(v => (
+            <div key={v.titulo} className="rounded-2xl border border-gray-200 p-6">
+              <h3 className="text-lg font-bold text-gray-900">{v.titulo}</h3>
+              <p className="mt-0.5 text-sm font-semibold text-[#8B2214]">{v.resumo}</p>
+              <p className="mt-3 text-sm leading-relaxed text-gray-600">{v.desc}</p>
+              <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-gray-400">Requisitos</p>
+              <ul className="mt-2 space-y-1.5 text-sm text-gray-700">
+                {v.req.map(r => <li key={r} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#8B2214]" />{r}</li>)}
+              </ul>
+              <a href="#candidatura" className="mt-5 inline-block text-sm font-semibold text-[#8B2214] hover:underline">Candidatar-se a esta vaga →</a>
+            </div>
+          ))}
+        </div>
+
+        {/* Regiões */}
+        <h2 className="mt-16 text-2xl font-bold text-gray-900">Regiões de atuação</h2>
+        <ul className="mt-4 flex flex-wrap gap-2">
+          {REGIOES.map(r => (
+            <li key={r} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-sm text-gray-700">
+              <MapPin className="h-3.5 w-3.5 text-[#8B2214]" />{r}
+            </li>
+          ))}
+        </ul>
+
+        {/* O que oferecemos — Saporino */}
+        <h2 className="mt-16 text-2xl font-bold text-gray-900">O que oferecemos</h2>
+        <div className="mt-6 grid items-start gap-5 md:grid-cols-2">
+          <div className="rounded-2xl border border-gray-200 border-l-4 border-l-[#8B2214] p-6">
+            <p className="text-sm font-bold uppercase tracking-wide text-[#8B2214]">Comissão — Linha Café Saporino</p>
+            <p className="mt-2 text-3xl font-bold text-gray-900">5%<span className="text-base font-medium text-gray-500"> sobre vendas pagas</span></p>
+            <ul className="mt-3 space-y-1.5 text-sm text-gray-700">
+              <li>+ 0,5% adicional em pagamentos via PIX</li>
+              <li>+ possibilidade de até 8% com entrega própria (após 90 dias)</li>
+            </ul>
+          </div>
+          <ul className="space-y-2 text-sm text-gray-700">
+            {OFERECEMOS_LISTA.map(x => <li key={x} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#8B2214]" />{x}</li>)}
           </ul>
         </div>
-        <div className="bg-white border border-gray-200 border-l-4 border-l-[#8B2214] rounded-xl p-6">
-          <p className="text-sm font-bold uppercase tracking-wide text-[#8B2214]">Linha Café Fazendinha</p>
-          <p className="mt-2 text-3xl font-bold text-gray-900">até 3%<span className="text-base font-medium text-gray-500"> de comissão</span></p>
-          <ul className="mt-3 space-y-1.5 text-sm text-gray-700">
-            <li>Sobre vendas pagas</li>
-            <li>Distribuição exclusiva COFICO Brasil no Estado de SP</li>
-          </ul>
+
+        {/* Perfil */}
+        <h2 className="mt-16 text-2xl font-bold text-gray-900">Perfil procurado</h2>
+        <ul className="mt-4 grid gap-2 text-gray-700 sm:grid-cols-2">
+          {PERFIL.map(x => <li key={x} className="flex gap-2 text-sm"><Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#8B2214]" />{x}</li>)}
+        </ul>
+
+        {/* Como funciona */}
+        <h2 className="mt-16 text-2xl font-bold text-gray-900">Como funciona</h2>
+        <ol className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {ETAPAS.map((e, i) => (
+            <li key={e} className="rounded-xl border border-gray-200 p-4">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#8B2214] text-sm font-bold text-white">{i + 1}</span>
+              <p className="mt-2 text-sm font-medium text-gray-800">{e}</p>
+            </li>
+          ))}
+        </ol>
+
+        {/* Candidatura */}
+        <div id="candidatura" className="mt-16 grid scroll-mt-24 overflow-hidden rounded-2xl border border-gray-200 md:grid-cols-2">
+          <div className="flex flex-col justify-center bg-[#8B2214] p-8 text-white">
+            <CoficoTag />
+            <h3 className="mt-5 text-2xl font-bold">Faça parte do nosso time comercial</h3>
+            <p className="mt-3 text-sm text-white/80">Preencha sua candidatura. Se o perfil tiver aderência, entramos em contato pelo seu WhatsApp para a próxima etapa.</p>
+            <p className="mt-6 text-xs text-white/60">Café Saporino Ltda. · distribuição operada pela COFICO Brasil.</p>
+          </div>
+          <div className="p-8">
+            <RepApplicationForm />
+          </div>
         </div>
-      </div>
-      <ul className="mt-5 grid gap-2 sm:grid-cols-2 text-sm text-gray-600">
-        {OFERECEMOS_LISTA.map(x => <li key={x} className="flex gap-2"><Check className="w-4 h-4 text-[#8B2214] flex-shrink-0 mt-0.5" />{x}</li>)}
-      </ul>
 
-      {/* 2C — Perfil procurado */}
-      <h3 className="mt-16 text-2xl font-bold text-gray-900">Perfil procurado</h3>
-      <ul className="mt-4 space-y-2 text-gray-700">
-        {PERFIL.map(x => <li key={x} className="flex gap-2"><Check className="w-5 h-5 text-[#8B2214] flex-shrink-0 mt-0.5" />{x}</li>)}
-      </ul>
-
-      {/* 2D — Como funciona */}
-      <h3 className="mt-16 text-2xl font-bold text-gray-900">Como funciona</h3>
-      <ol className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {ETAPAS.map((e, i) => (
-          <li key={e} className="bg-white border border-gray-200 rounded-xl p-4">
-            <span className="w-8 h-8 rounded-full bg-[#8B2214] text-white text-sm font-bold flex items-center justify-center">{i + 1}</span>
-            <p className="mt-2 text-sm font-medium text-gray-800">{e}</p>
-          </li>
-        ))}
-      </ol>
-
-      {/* 2E — Nossa estrutura */}
-      <h3 className="mt-16 text-2xl font-bold text-gray-900">Nossa estrutura</h3>
-      <ul className="mt-4 grid gap-2 sm:grid-cols-2 text-gray-700">
-        {ESTRUTURA.map(x => <li key={x} className="flex gap-2"><Building2 className="w-5 h-5 text-[#8B2214] flex-shrink-0 mt-0.5" />{x}</li>)}
-      </ul>
-
-      {/* 2F — Formulário de candidatura */}
-      <div id="candidatura" className="mt-16 grid md:grid-cols-2 bg-white border border-gray-200 rounded-2xl overflow-hidden scroll-mt-24">
-        <div className="bg-[#8B2214] text-white p-8 flex flex-col justify-center">
-          <div className="bg-white rounded-lg p-2 inline-block w-fit mb-6"><img src="/saporino-logo.png" alt="Café Saporino" className="h-12 w-auto object-contain" /></div>
-          <h3 className="text-2xl font-bold">Faça parte do nosso time comercial</h3>
-          <p className="mt-3 text-white/80 text-sm">Preencha sua candidatura. Se o perfil tiver aderência, entramos em contato pelo seu WhatsApp para a próxima etapa.</p>
-        </div>
-        <div className="p-8">
-          <RepApplicationForm />
-        </div>
+        {/* Outras áreas */}
+        <p className="mt-12 text-sm text-gray-500">
+          Para outras áreas (produção, administrativo, atendimento), envie seu currículo para{' '}
+          <a href="mailto:trabalheconosco@cafesaporino.com.br" className="font-semibold text-[#8B2214] hover:underline">trabalheconosco@cafesaporino.com.br</a>.
+        </p>
       </div>
     </div>
-  </section>
-);
-
-export const CareersPage = () => (
-    <>
-    <PolicyLayout title="Trabalhe Conosco">
-        <p className="mb-4">A Café Saporino está sempre em busca de pessoas apaixonadas por café, comprometidas com qualidade e que queiram crescer junto com a marca. Aqui, valorizamos dedicação, atitude e o verdadeiro sabor de fazer bem feito.</p>
-        <p className="mb-4">Se você quer fazer parte do nosso time — em áreas como produção, logística, comercial, atendimento ou representação — envie seu currículo e conte um pouco sobre você.</p>
-        <h2 className="text-2xl font-bold text-gray-900 mt-8 mb-4">Como se candidatar</h2>
-        <p className="mb-2">Envie seu currículo e a área de interesse para:</p>
-        <p className="mb-4 text-lg"><a href="mailto:trabalheconosco@cafesaporino.com.br" className="text-[#a4240e] font-semibold hover:underline">trabalheconosco@cafesaporino.com.br</a></p>
-        <p className="text-sm text-gray-500">Analisamos todas as candidaturas e entramos em contato com os perfis compatíveis com as vagas disponíveis.</p>
-        <p className="mt-6"><a href="#candidatura" className="text-[#a4240e] font-semibold hover:underline">É representante comercial? Veja a oportunidade e candidate-se →</a></p>
-    </PolicyLayout>
-    <SejaRepresentante />
-    </>
-);
+  );
+};
 
 export const PressPage = () => (
     <PolicyLayout title="Imprensa">
