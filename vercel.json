@@ -1,7 +1,7 @@
 {
   "routes": [
     {
-      "src": "/(.*\\.(png|jpg|jpeg|webp|svg|gif|ico|woff|woff2|ttf|eot|js|css|map|webmanifest|json|txt|xml|html|mp4|webm|mov|m4v))",
+      "src": "/(.*\\.(png|jpg|jpeg|webp|svg|gif|ico|woff|woff2|ttf|eot|js|css|map|webmanifest|json|txt|xml|html|mp4|webm|mov|m4v|pdf))",
       "dest": "/$1"
     },
     {

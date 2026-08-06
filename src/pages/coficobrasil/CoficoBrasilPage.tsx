@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   Warehouse, PackageCheck, Truck, Radar, Cpu, MapPin, Mail, Phone, Instagram,
   ExternalLink, Building2, Store, UtensilsCrossed, Boxes, Briefcase, ArrowRight, Users,
-  X, Play,
+  X, Play, FileText,
 } from 'lucide-react';
 import CoficoHeader from './CoficoHeader';
 import CoficoFooter from './CoficoFooter';
@@ -34,13 +34,20 @@ const REGIOES = ROTA_REGULAR.length + INTERIOR.length;
 const GRID_COLS: Record<number, string> = { 2: 'md:grid-cols-2', 3: 'md:grid-cols-3', 4: 'md:grid-cols-4' };
 const fmtBR = (n: number) => n.toLocaleString('pt-BR');
 
-// Linha Café Fazendinha — foto da embalagem (kebab-case em /public/cofico) + ficha técnica.
-// ficha[] vazio => mostra "sob consulta". Preencher quando o Vlademir mandar as specs reais.
-const FAZENDINHA_LINHA: { nome: string; img: string; ficha: { k: string; v: string }[] }[] = [
-  { nome: 'Tradicional', img: '/cofico/fazendinha-tradicional.png', ficha: [] },
-  { nome: 'Extra Forte', img: '/cofico/fazendinha-extra-forte.png', ficha: [] },
-  { nome: 'Horizon Coffee', img: '/cofico/horizon-coffee.png', ficha: [] },
-  { nome: 'São Felipe', img: '/cofico/cafe-sao-felipe.png', ficha: [] },
+// Linha Café Fazendinha — foto da embalagem (kebab-case em /public/cofico) + PDF da ficha técnica.
+const FAZENDINHA_LINHA: { nome: string; img: string; pdf: string }[] = [
+  { nome: 'Tradicional', img: '/cofico/fazendinha-tradicional.png', pdf: '/cofico/ficha-fazendinha-tradicional.pdf' },
+  { nome: 'Extra Forte', img: '/cofico/fazendinha-extra-forte.png', pdf: '/cofico/ficha-fazendinha-extra-forte.pdf' },
+  { nome: 'Horizon Coffee', img: '/cofico/horizon-coffee.png', pdf: '/cofico/ficha-horizon-coffee.pdf' },
+  { nome: 'São Felipe', img: '/cofico/cafe-sao-felipe.png', pdf: '/cofico/ficha-sao-felipe.pdf' },
+];
+
+// Vídeos da Fazendinha — grade estilo Instagram (clica → abre → toca → fecha sozinho no fim).
+const FAZENDINHA_VIDEOS = [
+  '/cofico/fazendinha-video.mp4',
+  '/cofico/fazendinha-video-2.mp4',
+  '/cofico/fazendinha-video-3.mp4',
+  '/cofico/fazendinha-video-4.mp4',
 ];
 
 const PARA_QUEM = [
@@ -53,6 +60,7 @@ const PARA_QUEM = [
 export default function CoficoBrasilPage() {
   const [stats, setStats] = useState<{ entregas: number; clientes: number }>({ entregas: 0, clientes: 0 });
   const [showFazendinha, setShowFazendinha] = useState(false);
+  const [activeVideo, setActiveVideo] = useState<string | null>(null);
 
   useEffect(() => { document.title = 'COFICO Brasil — Operador logístico e distribuidor de alimentos em SP'; }, []);
   useEffect(() => { let alive = true; fetchCoficoStats().then((s) => { if (alive) setStats(s); }); return () => { alive = false; }; }, []);
@@ -302,10 +310,21 @@ export default function CoficoBrasilPage() {
                 <h3 className="mt-4 text-2xl font-bold tracking-tight">Café Fazendinha</h3>
                 <p className="mt-1 text-sm text-neutral-500">Distribuição exclusiva no Estado de São Paulo · Tradicional · Extra Forte · Horizon Coffee · São Felipe</p>
 
-                {/* vídeo */}
-                <div className="mt-6 bg-black">
-                  <video src="/cofico/fazendinha-video.mp4" controls playsInline preload="metadata"
-                    className="w-full max-h-[70vh]" />
+                {/* vídeos — grade estilo Instagram (clica → abre no player → fecha sozinho no fim) */}
+                <h4 className="mt-8 text-lg font-semibold">Vídeos</h4>
+                <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {FAZENDINHA_VIDEOS.map((src) => (
+                    <button key={src} type="button" onClick={() => setActiveVideo(src)}
+                      className="group relative aspect-[3/4] bg-black overflow-hidden focus:outline-none focus:ring-2 focus:ring-cofico-ink">
+                      <video src={`${src}#t=0.5`} muted playsInline preload="metadata"
+                        className="w-full h-full object-cover" />
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/25 transition-colors group-hover:bg-black/40">
+                        <span className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center">
+                          <Play className="w-6 h-6 text-neutral-900 translate-x-0.5" aria-hidden="true" />
+                        </span>
+                      </span>
+                    </button>
+                  ))}
                 </div>
 
                 {/* produtos + fichas técnicas */}
@@ -317,17 +336,10 @@ export default function CoficoBrasilPage() {
                         <img src={p.img} alt={`Café Fazendinha ${p.nome}`} className="max-h-full w-auto object-contain" />
                       </div>
                       <p className="mt-3 font-semibold text-sm">{p.nome}</p>
-                      {p.ficha.length > 0 ? (
-                        <dl className="mt-2 space-y-1 text-xs text-neutral-600">
-                          {p.ficha.map((f) => (
-                            <div key={f.k} className="flex justify-between gap-2">
-                              <dt className="text-neutral-400">{f.k}</dt><dd className="text-right font-medium">{f.v}</dd>
-                            </div>
-                          ))}
-                        </dl>
-                      ) : (
-                        <p className="mt-2 text-xs text-neutral-400">Ficha técnica sob consulta</p>
-                      )}
+                      <a href={p.pdf} target="_blank" rel="noopener noreferrer"
+                        className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-cofico-ink hover:underline">
+                        <FileText className="w-3.5 h-3.5" aria-hidden="true" /> Ficha Técnica — Clicar aqui
+                      </a>
                     </div>
                   ))}
                 </div>
@@ -340,6 +352,23 @@ export default function CoficoBrasilPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* PLAYER — vídeo em tela cheia; toca sozinho e fecha ao terminar */}
+      {activeVideo && (
+        <div className="fixed inset-0 z-[1400] bg-black/90 flex items-center justify-center p-4"
+          role="dialog" aria-modal="true" onClick={() => setActiveVideo(null)}>
+          <button type="button" onClick={() => setActiveVideo(null)} aria-label="Fechar vídeo"
+            className="absolute top-4 right-4 z-10 p-2 text-white/80 hover:text-white">
+            <X className="w-7 h-7" />
+          </button>
+          <video
+            ref={(el) => { if (el) el.play().catch(() => {}); }}
+            src={activeVideo} autoPlay playsInline controls
+            onEnded={() => setActiveVideo(null)}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[90vh] max-w-full" />
         </div>
       )}
 
