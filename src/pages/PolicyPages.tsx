@@ -661,10 +661,10 @@ const VAGAS = [
 ];
 
 const CARREIRAS_FOTOS = [
-  { img: '/carreiras/cafeteira-industrial.png', label: 'Consultor de Vendas', sub: 'Food service e cozinha industrial' },
-  { img: '/carreiras/vendas.png', label: 'Varejo & Atacado', sub: 'Mercados e distribuidores' },
-  { img: '/carreiras/promotora.png', label: 'Promotor de Vendas', sub: 'Merchandising e reposição' },
-  { img: '/carreiras/logistica.png', label: 'Distribuidor', sub: 'Cobertura regional' },
+  { img: '/carreiras/consultor-food-service.png', label: 'Consultor de Vendas', sub: 'Food service e cozinha industrial', bg: '#f3ece9' },
+  { img: '/carreiras/varejo-atacado.png', label: 'Varejo & Atacado', sub: 'Mercados e distribuidores', bg: '#fbe9e7' },
+  { img: '/carreiras/promotor-merchandising.png', label: 'Promotor de Vendas', sub: 'Merchandising e reposição', bg: '#eef1f5' },
+  { img: '/carreiras/distribuidor.png', label: 'Distribuidor', sub: 'Cobertura regional', bg: '#f6efe4' },
 ];
 
 // Selo da COFICO (empregadora) — MESMO padrão do header do site COFICO: quadrado (rounded-none), cofico-ink.
@@ -679,8 +679,8 @@ const RoleMarquee = () => (
     <div className="flex w-max gap-4" style={{ animation: 'carreiras-marquee 32s linear infinite' }}>
       {[...CARREIRAS_FOTOS, ...CARREIRAS_FOTOS].map((r, i) => (
         <figure key={i} className="w-48 shrink-0 sm:w-52">
-          <div className="aspect-[3/4] overflow-hidden rounded-2xl border border-gray-200 bg-neutral-100">
-            <img src={r.img} alt={r.label} className="h-full w-full object-cover object-top" />
+          <div className="flex aspect-[3/4] items-end justify-center overflow-hidden rounded-2xl" style={{ backgroundColor: r.bg }}>
+            <img src={r.img} alt={r.label} className="h-[97%] w-full object-contain object-bottom" />
           </div>
           <figcaption className="mt-2">
             <p className="text-sm font-semibold text-gray-900">{r.label}</p>
