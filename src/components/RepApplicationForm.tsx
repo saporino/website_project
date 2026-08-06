@@ -57,7 +57,7 @@ export default function RepApplicationForm() {
 
   const inp = (k: keyof typeof f, ph: string, type = 'text') => (
     <input type={type} value={f[k]} onChange={e => setF({ ...f, [k]: e.target.value })} placeholder={ph}
-      className="w-full h-11 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8B2214] focus:border-transparent" />
+      className="w-full h-11 px-3 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-cofico-ink focus:border-transparent" />
   );
 
   return (
@@ -69,7 +69,7 @@ export default function RepApplicationForm() {
       <div>
         <label className="block text-xs font-semibold text-gray-600 mb-1.5">Anos de experiência com café</label>
         <select value={f.experiencia} onChange={e => setF({ ...f, experiencia: e.target.value })}
-          className="w-full h-11 px-3 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-[#8B2214]">
+          className="w-full h-11 px-3 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-cofico-ink">
           <option value="">Selecione…</option>
           {EXPERIENCIA.map(x => <option key={x} value={x}>{x}</option>)}
         </select>
@@ -80,7 +80,7 @@ export default function RepApplicationForm() {
         <div className="flex gap-2">
           {[['sim', 'Sim'], ['nao', 'Não']].map(([v, l]) => (
             <button key={v} type="button" onClick={() => setF({ ...f, carteira_ativa: v })}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold border ${f.carteira_ativa === v ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'}`}>{l}</button>
+              className={`px-4 py-2 rounded-lg text-sm font-semibold border ${f.carteira_ativa === v ? 'bg-cofico-ink text-white border-cofico-ink' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'}`}>{l}</button>
           ))}
         </div>
       </div>
@@ -92,7 +92,7 @@ export default function RepApplicationForm() {
         <div className="flex flex-wrap gap-1.5">
           {CANAIS.map(c => (
             <button key={c} type="button" onClick={() => toggleCanal(c)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${canais.includes(c) ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'}`}>{c}</button>
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${canais.includes(c) ? 'bg-cofico-ink text-white border-cofico-ink' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'}`}>{c}</button>
           ))}
         </div>
       </div>
@@ -100,7 +100,7 @@ export default function RepApplicationForm() {
       <div>
         <label className="block text-xs font-semibold text-gray-600 mb-1.5">Situação cadastral</label>
         <select value={f.situacao_cadastral} onChange={e => setF({ ...f, situacao_cadastral: e.target.value })}
-          className="w-full h-11 px-3 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-[#8B2214]">
+          className="w-full h-11 px-3 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-cofico-ink">
           <option value="">Selecione…</option>
           {SITUACAO.map(x => <option key={x} value={x}>{x}</option>)}
         </select>
@@ -109,13 +109,13 @@ export default function RepApplicationForm() {
       {inp('marcas_atuais', 'Marcas que representa atualmente (opcional)')}
 
       <label className="flex items-start gap-2 text-xs text-gray-600 bg-[#f8f7f5] border border-[#ddd0cc] rounded-lg p-3">
-        <input type="checkbox" checked={ciente} onChange={e => setCiente(e.target.checked)} className="mt-0.5 accent-[#8B2214]" />
+        <input type="checkbox" checked={ciente} onChange={e => setCiente(e.target.checked)} className="mt-0.5 accent-cofico-ink" />
         <span>Estou ciente de que a representação é <strong>autônoma, com contrato formal</strong>, e que <strong>não há vínculo CLT, salário fixo nem ajuda de custo</strong> — a remuneração é por comissão sobre vendas. *</span>
       </label>
 
       {err && <p className="text-sm text-red-600">{err}</p>}
       <button type="submit" disabled={saving}
-        className="w-full h-12 rounded-full bg-cofico-ink hover:bg-[#b81c1c] text-white font-semibold text-sm disabled:opacity-60 flex items-center justify-center gap-2">
+        className="w-full h-12 rounded-full bg-cofico-ink hover:bg-cofico-dark text-white font-semibold text-sm disabled:opacity-60 flex items-center justify-center gap-2">
         {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando…</> : 'Enviar candidatura'}
       </button>
     </form>

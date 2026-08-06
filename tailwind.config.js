@@ -8,7 +8,7 @@ export default {
         saporino: { DEFAULT: '#8B2214', deep: '#8a1f0c', alt: '#a4240e' },
         // cofico.ink para texto/links/botões pequenos (#FF3131 sobre branco reprova WCAG AA);
         // cofico.DEFAULT só para superfícies/áreas grandes.
-        cofico: { DEFAULT: '#FF3131', ink: '#E02020' },
+        cofico: { DEFAULT: '#FF3131', ink: '#E02020', dark: '#B81C1C' },
       },
     },
   },

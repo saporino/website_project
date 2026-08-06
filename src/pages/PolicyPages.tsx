@@ -708,7 +708,7 @@ export const CareersPage = () => {
         <p className="mt-4 max-w-2xl text-lg text-gray-600">
           Representação comercial autônoma no Estado de São Paulo, começando pela linha <strong className="text-gray-900">Café Saporino</strong>. Você atende o ponto de venda — a gente cuida da estrutura, do sistema e da logística.
         </p>
-        <a href="#candidatura" className="mt-7 inline-block rounded-full bg-cofico-ink px-8 py-3 font-semibold text-white transition-colors hover:bg-[#b81c1c]">Quero me candidatar</a>
+        <a href="#candidatura" className="mt-7 inline-block rounded-full bg-cofico-ink px-8 py-3 font-semibold text-white transition-colors hover:bg-cofico-dark">Quero me candidatar</a>
 
         <RoleMarquee />
 
@@ -719,13 +719,13 @@ export const CareersPage = () => {
           {VAGAS.map(v => (
             <div key={v.titulo} className="rounded-2xl border border-gray-200 p-6">
               <h3 className="text-lg font-bold text-gray-900">{v.titulo}</h3>
-              <p className="mt-0.5 text-sm font-semibold text-[#8B2214]">{v.resumo}</p>
+              <p className="mt-0.5 text-sm font-semibold text-cofico-ink">{v.resumo}</p>
               <p className="mt-3 text-sm leading-relaxed text-gray-600">{v.desc}</p>
               <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-gray-400">Requisitos</p>
               <ul className="mt-2 space-y-1.5 text-sm text-gray-700">
-                {v.req.map(r => <li key={r} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#8B2214]" />{r}</li>)}
+                {v.req.map(r => <li key={r} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-cofico-ink" />{r}</li>)}
               </ul>
-              <a href="#candidatura" className="mt-5 inline-block text-sm font-semibold text-[#8B2214] hover:underline">Candidatar-se a esta vaga →</a>
+              <a href="#candidatura" className="mt-5 inline-block text-sm font-semibold text-cofico-ink hover:underline">Candidatar-se a esta vaga →</a>
             </div>
           ))}
         </div>
@@ -735,7 +735,7 @@ export const CareersPage = () => {
         <ul className="mt-4 flex flex-wrap gap-2">
           {REGIOES.map(r => (
             <li key={r} className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1.5 text-sm text-gray-700">
-              <MapPin className="h-3.5 w-3.5 text-[#8B2214]" />{r}
+              <MapPin className="h-3.5 w-3.5 text-cofico-ink" />{r}
             </li>
           ))}
         </ul>
@@ -743,8 +743,8 @@ export const CareersPage = () => {
         {/* O que oferecemos — Saporino */}
         <h2 className="mt-16 text-2xl font-bold text-gray-900">O que oferecemos</h2>
         <div className="mt-6 grid items-start gap-5 md:grid-cols-2">
-          <div className="rounded-2xl border border-gray-200 border-l-4 border-l-[#8B2214] p-6">
-            <p className="text-sm font-bold uppercase tracking-wide text-[#8B2214]">Comissão — Linha Café Saporino</p>
+          <div className="rounded-2xl border border-gray-200 border-l-4 border-l-cofico-ink p-6">
+            <p className="text-sm font-bold uppercase tracking-wide text-cofico-ink">Comissão — Linha Café Saporino</p>
             <p className="mt-2 text-3xl font-bold text-gray-900">5%<span className="text-base font-medium text-gray-500"> sobre vendas pagas</span></p>
             <ul className="mt-3 space-y-1.5 text-sm text-gray-700">
               <li>+ 0,5% adicional em pagamentos via PIX</li>
@@ -752,14 +752,14 @@ export const CareersPage = () => {
             </ul>
           </div>
           <ul className="space-y-2 text-sm text-gray-700">
-            {OFERECEMOS_LISTA.map(x => <li key={x} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#8B2214]" />{x}</li>)}
+            {OFERECEMOS_LISTA.map(x => <li key={x} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-cofico-ink" />{x}</li>)}
           </ul>
         </div>
 
         {/* Perfil */}
         <h2 className="mt-16 text-2xl font-bold text-gray-900">Perfil procurado</h2>
         <ul className="mt-4 grid gap-2 text-gray-700 sm:grid-cols-2">
-          {PERFIL.map(x => <li key={x} className="flex gap-2 text-sm"><Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-[#8B2214]" />{x}</li>)}
+          {PERFIL.map(x => <li key={x} className="flex gap-2 text-sm"><Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-cofico-ink" />{x}</li>)}
         </ul>
 
         {/* Como funciona */}
@@ -767,7 +767,7 @@ export const CareersPage = () => {
         <ol className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {ETAPAS.map((e, i) => (
             <li key={e} className="rounded-xl border border-gray-200 p-4">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#8B2214] text-sm font-bold text-white">{i + 1}</span>
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-cofico-ink text-sm font-bold text-white">{i + 1}</span>
               <p className="mt-2 text-sm font-medium text-gray-800">{e}</p>
             </li>
           ))}
@@ -775,9 +775,15 @@ export const CareersPage = () => {
 
         {/* Candidatura */}
         <div id="candidatura" className="mt-16 grid scroll-mt-24 overflow-hidden rounded-2xl border border-gray-200 md:grid-cols-2">
-          <div className="relative min-h-[460px] bg-[#6d1a10] md:min-h-0">
-            <img src="/carreiras/candidatura-cafe.png" alt="Faça parte do nosso time comercial da Café Saporino, distribuída pela COFICO Brasil"
-              className="absolute inset-0 h-full w-full object-cover object-left" />
+          <div className="relative min-h-[440px] overflow-hidden bg-[#c1181a] md:min-h-0">
+            <img src="/carreiras/candidatura-cafe.png" alt="Café Saporino Clássico"
+              className="absolute inset-0 h-full w-full object-cover object-center" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/10 to-transparent" />
+            <div className="relative p-8 text-white">
+              <h3 className="max-w-[14ch] text-2xl font-bold leading-tight drop-shadow">Faça parte do nosso time comercial</h3>
+              <p className="mt-3 max-w-[24ch] text-sm text-white/90 drop-shadow">Preencha sua candidatura. Se o perfil tiver aderência, entramos em contato pelo seu WhatsApp para a próxima etapa.</p>
+              <p className="mt-6 max-w-[24ch] text-xs text-white/75 drop-shadow">Café Saporino Ltda. · distribuição operada pela COFICO Brasil.</p>
+            </div>
           </div>
           <div className="p-8">
             <RepApplicationForm />
@@ -787,7 +793,7 @@ export const CareersPage = () => {
         {/* Outras áreas */}
         <p className="mt-12 text-sm text-gray-500">
           Para outras áreas (produção, administrativo, atendimento), envie seu currículo para{' '}
-          <a href="mailto:trabalheconosco@cafesaporino.com.br" className="font-semibold text-[#8B2214] hover:underline">trabalheconosco@cafesaporino.com.br</a>.
+          <a href="mailto:trabalheconosco@cafesaporino.com.br" className="font-semibold text-cofico-ink hover:underline">trabalheconosco@cafesaporino.com.br</a>.
         </p>
       </div>
     </div>
