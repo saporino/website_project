@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   Warehouse, PackageCheck, Truck, Radar, Cpu, MapPin, Mail, Phone, Instagram,
   ExternalLink, Building2, Store, UtensilsCrossed, Boxes, Briefcase, ArrowRight, Users,
+  X, Play,
 } from 'lucide-react';
 import CoficoHeader from './CoficoHeader';
 import CoficoFooter from './CoficoFooter';
@@ -33,6 +34,15 @@ const REGIOES = ROTA_REGULAR.length + INTERIOR.length;
 const GRID_COLS: Record<number, string> = { 2: 'md:grid-cols-2', 3: 'md:grid-cols-3', 4: 'md:grid-cols-4' };
 const fmtBR = (n: number) => n.toLocaleString('pt-BR');
 
+// Linha Café Fazendinha — foto da embalagem (kebab-case em /public/cofico) + ficha técnica.
+// ficha[] vazio => mostra "sob consulta". Preencher quando o Vlademir mandar as specs reais.
+const FAZENDINHA_LINHA: { nome: string; img: string; ficha: { k: string; v: string }[] }[] = [
+  { nome: 'Tradicional', img: '/cofico/fazendinha-tradicional.png', ficha: [] },
+  { nome: 'Extra Forte', img: '/cofico/fazendinha-extra-forte.png', ficha: [] },
+  { nome: 'Horizon Coffee', img: '/cofico/horizon-coffee.png', ficha: [] },
+  { nome: 'São Felipe', img: '/cofico/cafe-sao-felipe.png', ficha: [] },
+];
+
 const PARA_QUEM = [
   { icon: Building2, t: 'Redes e grandes contas', d: 'Abastecimento programado de múltiplas lojas, com carga fracionada por unidade.' },
   { icon: Boxes, t: 'Distribuidores e atacado', d: 'Entregas de volume, com pedido mínimo e frete cotado por destino.' },
@@ -42,6 +52,7 @@ const PARA_QUEM = [
 
 export default function CoficoBrasilPage() {
   const [stats, setStats] = useState<{ entregas: number; clientes: number }>({ entregas: 0, clientes: 0 });
+  const [showFazendinha, setShowFazendinha] = useState(false);
 
   useEffect(() => { document.title = 'COFICO Brasil — Operador logístico e distribuidor de alimentos em SP'; }, []);
   useEffect(() => { let alive = true; fetchCoficoStats().then((s) => { if (alive) setStats(s); }); return () => { alive = false; }; }, []);
@@ -137,14 +148,18 @@ export default function CoficoBrasilPage() {
               <p className="mt-1 text-sm text-neutral-500">Distribuição exclusiva no Estado de São Paulo</p>
               <p className="mt-4 text-sm text-neutral-700 font-medium">Saporino Clássico Tradicional 100% Arábica · Tropeiro Paulista (Tradicional e Extra Forte) · Café Serrão (Tradicional e Extra Forte)</p>
             </article>
-            <article className="border border-neutral-200 p-8">
+            <button type="button" onClick={() => setShowFazendinha(true)}
+              className="text-left border border-neutral-200 p-8 transition-colors hover:border-cofico-ink hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-cofico-ink">
               {/* tenta o arquivo em /cofico/, senão cai no logo do banco */}
               <img src="/cofico/fazendinha.png" alt="Café Fazendinha" className="h-28 w-auto object-contain"
                 onError={(e) => { const t = e.currentTarget; if (!t.dataset.fb) { t.dataset.fb = '1'; t.src = 'https://rsvoazrkxtdrcjnatzcm.supabase.co/storage/v1/object/public/product-images/companies/f5a47ea4-32d3-4b15-966d-37cb2bb1acf3-1784146393495.jpeg'; } }} />
               <h3 className="mt-5 text-lg font-semibold">Café Fazendinha</h3>
               <p className="mt-1 text-sm text-neutral-500">Distribuição exclusiva no Estado de São Paulo</p>
               <p className="mt-4 text-sm text-neutral-700 font-medium">Tradicional · Extra Forte · Horizon Coffee · São Felipe</p>
-            </article>
+              <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-cofico-ink">
+                <Play className="w-4 h-4" aria-hidden="true" /> Ver vídeo, produtos e fichas técnicas
+              </span>
+            </button>
           </div>
           <p className="mt-6 text-sm text-neutral-500">Portfólio em expansão.</p>
         </div>
@@ -269,6 +284,64 @@ export default function CoficoBrasilPage() {
           </ul>
         </div>
       </section>
+
+      {/* MODAL — área do Café Fazendinha: vídeo + produtos + fichas técnicas */}
+      {showFazendinha && (
+        <div className="fixed inset-0 z-[1300] overflow-y-auto bg-black/60" role="dialog" aria-modal="true"
+          onClick={() => setShowFazendinha(false)}>
+          <div className="min-h-full flex items-start justify-center p-4 sm:p-6">
+            <div className="relative w-full max-w-4xl bg-white my-4" onClick={(e) => e.stopPropagation()}>
+              <button type="button" onClick={() => setShowFazendinha(false)} aria-label="Fechar"
+                className="absolute top-3 right-3 z-10 p-2 bg-white/90 border border-neutral-200 text-neutral-500 hover:text-neutral-900">
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="p-6 sm:p-10">
+                {/* cabeçalho */}
+                <img src="/cofico/fazendinha.png" alt="Café Fazendinha" className="h-20 w-auto object-contain" />
+                <h3 className="mt-4 text-2xl font-bold tracking-tight">Café Fazendinha</h3>
+                <p className="mt-1 text-sm text-neutral-500">Distribuição exclusiva no Estado de São Paulo · Tradicional · Extra Forte · Horizon Coffee · São Felipe</p>
+
+                {/* vídeo */}
+                <div className="mt-6 bg-black">
+                  <video src="/cofico/fazendinha-video.mp4" controls playsInline preload="metadata"
+                    className="w-full max-h-[70vh]" />
+                </div>
+
+                {/* produtos + fichas técnicas */}
+                <h4 className="mt-10 text-lg font-semibold">Nossos produtos</h4>
+                <div className="mt-5 grid gap-6 grid-cols-2 lg:grid-cols-4">
+                  {FAZENDINHA_LINHA.map((p) => (
+                    <div key={p.nome} className="border border-neutral-200 p-4 flex flex-col">
+                      <div className="h-36 flex items-center justify-center bg-neutral-50">
+                        <img src={p.img} alt={`Café Fazendinha ${p.nome}`} className="max-h-full w-auto object-contain" />
+                      </div>
+                      <p className="mt-3 font-semibold text-sm">{p.nome}</p>
+                      {p.ficha.length > 0 ? (
+                        <dl className="mt-2 space-y-1 text-xs text-neutral-600">
+                          {p.ficha.map((f) => (
+                            <div key={f.k} className="flex justify-between gap-2">
+                              <dt className="text-neutral-400">{f.k}</dt><dd className="text-right font-medium">{f.v}</dd>
+                            </div>
+                          ))}
+                        </dl>
+                      ) : (
+                        <p className="mt-2 text-xs text-neutral-400">Ficha técnica sob consulta</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <p className="mt-8 text-sm text-neutral-500">
+                  Quer distribuir o Café Fazendinha ou receber as fichas técnicas completas?{' '}
+                  <a href={`mailto:${COFICO.email}?subject=${encodeURIComponent('Café Fazendinha — informações')}`}
+                    className="font-semibold text-cofico-ink hover:underline">Fale com a gente</a>.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <CoficoFooter />
     </div>
