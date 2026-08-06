@@ -708,7 +708,7 @@ export const CareersPage = () => {
         <p className="mt-4 max-w-2xl text-lg text-gray-600">
           Representação comercial autônoma no Estado de São Paulo, começando pela linha <strong className="text-gray-900">Café Saporino</strong>. Você atende o ponto de venda — a gente cuida da estrutura, do sistema e da logística.
         </p>
-        <a href="#candidatura" className="mt-7 inline-block rounded-full bg-[#8B2214] px-8 py-3 font-semibold text-white transition-colors hover:bg-[#6d1a10]">Quero me candidatar</a>
+        <a href="#candidatura" className="mt-7 inline-block rounded-full bg-cofico-ink px-8 py-3 font-semibold text-white transition-colors hover:bg-[#b81c1c]">Quero me candidatar</a>
 
         <RoleMarquee />
 

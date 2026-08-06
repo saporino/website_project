@@ -115,7 +115,7 @@ export default function RepApplicationForm() {
 
       {err && <p className="text-sm text-red-600">{err}</p>}
       <button type="submit" disabled={saving}
-        className="w-full h-12 rounded-full bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold text-sm disabled:opacity-60 flex items-center justify-center gap-2">
+        className="w-full h-12 rounded-full bg-cofico-ink hover:bg-[#b81c1c] text-white font-semibold text-sm disabled:opacity-60 flex items-center justify-center gap-2">
         {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Enviando…</> : 'Enviar candidatura'}
       </button>
     </form>
