@@ -667,9 +667,9 @@ const CARREIRAS_FOTOS = [
   { img: '/carreiras/logistica.png', label: 'Distribuidor', sub: 'Cobertura regional' },
 ];
 
-// Selo provisório da COFICO (empregadora). Trocar por <img src="/carreiras/cofico-logo.png"> quando o arquivo chegar.
-const CoficoTag = () => (
-  <span className="inline-flex items-center rounded-lg bg-[#EE3124] px-3 py-1.5 text-lg font-extrabold tracking-tight text-white">COFICO</span>
+// Selo da COFICO (empregadora). object-cover corta a margem vermelha do quadrado e mostra o wordmark.
+const CoficoTag = ({ className = 'h-9 w-32' }: { className?: string }) => (
+  <img src="/carreiras/cofico-logo.png" alt="COFICO" className={`${className} rounded-md object-cover`} />
 );
 
 // Carrossel de funções rodando continuamente (faixa contínua, estilo Instagram/JDE).
@@ -776,7 +776,7 @@ export const CareersPage = () => {
         {/* Candidatura */}
         <div id="candidatura" className="mt-16 grid scroll-mt-24 overflow-hidden rounded-2xl border border-gray-200 md:grid-cols-2">
           <div className="flex flex-col justify-center bg-[#8B2214] p-8 text-white">
-            <CoficoTag />
+            <div className="w-fit rounded-lg bg-white p-2"><CoficoTag className="h-8 w-28" /></div>
             <h3 className="mt-5 text-2xl font-bold">Faça parte do nosso time comercial</h3>
             <p className="mt-3 text-sm text-white/80">Preencha sua candidatura. Se o perfil tiver aderência, entramos em contato pelo seu WhatsApp para a próxima etapa.</p>
             <p className="mt-6 text-xs text-white/60">Café Saporino Ltda. · distribuição operada pela COFICO Brasil.</p>
