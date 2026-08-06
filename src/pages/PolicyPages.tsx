@@ -679,8 +679,8 @@ const RoleMarquee = () => (
     <div className="flex w-max gap-4" style={{ animation: 'carreiras-marquee 32s linear infinite' }}>
       {[...CARREIRAS_FOTOS, ...CARREIRAS_FOTOS].map((r, i) => (
         <figure key={i} className="w-48 shrink-0 sm:w-52">
-          <div className="flex aspect-[3/4] items-end justify-center overflow-hidden rounded-2xl" style={{ backgroundColor: r.bg }}>
-            <img src={r.img} alt={r.label} className="h-[97%] w-full object-contain object-bottom" />
+          <div className="flex aspect-[3/4] items-end justify-center">
+            <img src={r.img} alt={r.label} className="h-full w-full object-contain object-bottom" />
           </div>
           <figcaption className="mt-2">
             <p className="text-sm font-semibold text-gray-900">{r.label}</p>
@@ -775,11 +775,9 @@ export const CareersPage = () => {
 
         {/* Candidatura */}
         <div id="candidatura" className="mt-16 grid scroll-mt-24 overflow-hidden rounded-2xl border border-gray-200 md:grid-cols-2">
-          <div className="flex flex-col justify-center bg-[#8B2214] p-8 text-white">
-            <div className="w-fit rounded-none bg-white p-2"><CoficoTag /></div>
-            <h3 className="mt-5 text-2xl font-bold">Faça parte do nosso time comercial</h3>
-            <p className="mt-3 text-sm text-white/80">Preencha sua candidatura. Se o perfil tiver aderência, entramos em contato pelo seu WhatsApp para a próxima etapa.</p>
-            <p className="mt-6 text-xs text-white/60">Café Saporino Ltda. · distribuição operada pela COFICO Brasil.</p>
+          <div className="relative min-h-[460px] bg-[#6d1a10] md:min-h-0">
+            <img src="/carreiras/candidatura-cafe.png" alt="Faça parte do nosso time comercial da Café Saporino, distribuída pela COFICO Brasil"
+              className="absolute inset-0 h-full w-full object-cover object-left" />
           </div>
           <div className="p-8">
             <RepApplicationForm />
