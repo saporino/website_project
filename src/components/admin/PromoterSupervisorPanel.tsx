@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
+import { toast } from 'sonner';
 import { BarChart3, ChevronDown, ChevronUp, Camera, AlertTriangle, MessageCircle, Clock, Check } from 'lucide-react';
 
 // Bloco 6 — Painel do supervisor/admin: lê das views vw_promoter_* (não recalcula no front).
@@ -56,11 +57,24 @@ export default function PromoterSupervisorPanel() {
     setAbertas((ab as any[]) || []);
   }
 
-  async function resolverRuptura(id: string) {
-    setResolvendo(id);
-    await supabase.from('promoter_incidents').update({ status: 'resolvida', closed_at: new Date().toISOString() }).eq('id', id);
-    setAbertas(prev => prev.filter(r => r.id !== id));
+  async function resolverRuptura(r: any) {
+    setResolvendo(r.id);
+    const { error } = await supabase.from('promoter_incidents').update({ status: 'resolvida', closed_at: new Date().toISOString() }).eq('id', r.id);
     setResolvendo(null);
+    if (error) { toast.error('Não deu para resolver. Tente de novo.'); return; }
+    setAbertas(prev => prev.filter(x => x.id !== r.id));
+    // Rede de segurança: "Desfazer" reabre caso tenha sido clicado por engano.
+    toast.success('Ruptura resolvida.', {
+      duration: 8000,
+      action: { label: 'Desfazer', onClick: () => reabrirRuptura(r) },
+    });
+  }
+
+  async function reabrirRuptura(r: any) {
+    const { error } = await supabase.from('promoter_incidents').update({ status: 'aberta', closed_at: null }).eq('id', r.id);
+    if (error) { toast.error('Não deu para reabrir. Tente de novo.'); return; }
+    setAbertas(prev => prev.some(x => x.id === r.id) ? prev : [r, ...prev].sort((a, b) => (Number(b.horas_aberta) || 0) - (Number(a.horas_aberta) || 0)));
+    toast.success('Ruptura reaberta.');
   }
 
   function tempoAberta(horas: number) {
@@ -156,7 +170,7 @@ export default function PromoterSupervisorPanel() {
                       ) : (
                         <span className="text-[11px] text-gray-400 flex-shrink-0">sem WhatsApp</span>
                       )}
-                      <button onClick={() => resolverRuptura(r.id)} disabled={resolvendo === r.id}
+                      <button onClick={() => resolverRuptura(r)} disabled={resolvendo === r.id}
                         className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700 border border-gray-300 hover:bg-gray-50 rounded-lg px-2.5 py-1.5 flex-shrink-0 disabled:opacity-50">
                         <Check className="w-3.5 h-3.5" /> {resolvendo === r.id ? '...' : 'Resolver'}
                       </button>
