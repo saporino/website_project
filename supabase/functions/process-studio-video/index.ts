@@ -183,7 +183,10 @@ Regra de ouro: o concorrente é só referência de ESTRATÉGIA. Extraia o PRINC�
       if (dlErr || !file) throw new Error("Falha ao baixar o arquivo do storage");
       if (file.size > WHISPER_MAX_BYTES) throw new Error(`O áudio extraído tem ${(file.size / 1048576).toFixed(0)}MB e passa do limite de 25MB da transcrição — o vídeo é muito longo. Divida em partes menores.`);
       const fd = new FormData();
-      fd.append("file", file, video.audio_path ? "audio.wav" : video.filename);
+      // Whisper detecta o formato pela EXTENSÃO do nome. O filename de posts importados é a legenda (sem extensão),
+      // então usamos o nome do arquivo do storage (que tem .mp4/.jpg) — senão dá "Unrecognized file format".
+      const waName = video.audio_path ? "audio.wav" : (video.storage_path.split("/").pop() || `video.${(video.storage_path.split(".").pop() || "mp4").toLowerCase()}`);
+      fd.append("file", file, waName);
       fd.append("model", WHISPER_MODEL);
       fd.append("response_format", "verbose_json");
       const wRes = await fetch("https://api.openai.com/v1/audio/transcriptions", { method: "POST", headers: { Authorization: `Bearer ${OPENAI}` }, body: fd });
