@@ -29,7 +29,7 @@ Retorne JSON puro (sem markdown) com ESTA estrutura EXATA (mantenha TODOS os cam
   "estrategia":"", "copywriting":"", "gatilhos_psicologicos":[], "pontos_fortes":[], "pontos_fracos":[],
   "como_reproduzir":"", "como_melhorar":"", "como_vender":"", "workflow":"", "nivel_dificuldade":"",
   "tempo_estimado":"", "marca_identificada":"", "competitor_text":"", "adaptacao_marca":"",
-  "creative_principle":"", "do_not_copy":[], "originality_changes":[], "suggestions_not_facts":[],
+  "creative_principle":"", "do_not_copy":[], "originality_changes":[], "suggestions_not_facts":[], "protected_competitor_phrases":[],
   "claims_used":[{"claim":"","scope":"product","product_id":null,"source":"approved_guardrail"}],
   "assets_required":[{"asset":"package","asset_id":"","required":true}],
   "validation_warnings":[{"severity":"info","code":"","message":""}],
@@ -37,6 +37,7 @@ Retorne JSON puro (sem markdown) com ESTA estrutura EXATA (mantenha TODOS os cam
   "legenda_instagram":"", "legenda_tiktok":"", "titulo_youtube":"", "hashtags":[]
 }
 - "marca_identificada" = a marca do CONCORRENTE. "competitor_text" = APENAS as frases legíveis principais da peça do concorrente (para checagem de similaridade) — NUNCA copie essas frases na nossa copy.
+- "protected_competitor_phrases" = 3 a 10 EXPRESSÕES DISTINTIVAS (2 a 5 palavras) da peça do concorrente (ex.: "boas histórias", "café e boas histórias"). Essas expressões NÃO podem aparecer na nossa saída (headline, legenda, hashtags, prompts, roteiro de vídeo, CTA). A EXECUÇÃO VERBAL da nossa marca deve ser NOVA — mantenha só o PRINCÍPIO (memória afetiva/encontro/ritual), mas MUDE O TERRITÓRIO VERBAL (ex.: ritual do café, pausa gostosa, começo do dia, momento que aquece, pequenos prazeres, companhia para a rotina). NÃO reutilize as palavras distintivas do concorrente, mesmo parcialmente.
 - "creative_principle" = o princípio do PASSO 2 (uma frase). "do_not_copy" = a lista do PASSO 3. "originality_changes" = as dimensões que você mudou (>=4). "claims_used" = só claims aprovados nos guardrails (com origem "approved_guardrail"). "assets_required" = quais assets oficiais precisam ser anexados depois (logo/cup/package). "suggestions_not_facts" = ideias criativas/comerciais que NÃO são fato confirmado.
 - "como_reproduzir" agora significa COMO ADAPTAR de forma ORIGINAL (nunca copiar a execução).
 - "legenda_instagram" e "legenda_tiktok" TERMINAM com 3 a 6 hashtags (1 da marca + 1-2 de nicho + 1-2 amplas). SEM preço. Preencha "hashtags" com 6 a 10 opções. Idioma pt-BR.
@@ -46,6 +47,44 @@ const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers
 
 // ------- normalização e checagem determinística (MODE=WARNING, não bloqueia) -------
 const norm = (s: unknown) => (s ?? "").toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+const ASSET_TOKENS: Record<string, string> = { logo: "[INSERT OFFICIAL SAPORINO LOGO ASSET]", cup: "[INSERT OFFICIAL SAPORINO CUP ASSET]", package: "[INSERT OFFICIAL SAPORINO CLASSICO PACKAGE ASSET]" };
+// TERMOS EXPLÍCITOS do asset (não usar palavras genéricas como "official/asset/product" — evita falso positivo).
+const ASSET_TERMS: Record<string, RegExp> = { logo: /\blogo\b|logotipo/, cup: /\bcup\b|xicara|caneca/, package: /package|packaging|embalagem|pacote/ };
+
+// V1.2 — injeta o TOKEN LITERAL de asset nos prompts visuais quando o prompt prevê o asset (não depende só do LLM).
+function enforceAssetPlaceholders(a: any) {
+  const required = new Set((a.assets_required || []).filter((x: any) => x && x.required === true && ASSET_TOKENS[x.asset]).map((x: any) => x.asset));
+  if (!required.size) return;
+  for (const k of ["prompt_midjourney", "prompt_veo", "prompt_runway", "prompt_capcut"]) {
+    let p = a[k]; if (!p || !String(p).trim()) continue;
+    for (const asset of required) {
+      const token = ASSET_TOKENS[asset]; const term = ASSET_TERMS[asset];
+      const pn = norm(p);
+      const foresees = pn.includes(norm(token)) || term.test(pn);
+      if (foresees && !pn.includes(norm(token))) p = String(p).replace(/\s*$/, "") + ` ${token}`;
+    }
+    a[k] = p;
+  }
+}
+
+// V1.2 — expressões distintivas (2-4 palavras) da peça do concorrente que NÃO podem vazar na saída Saporino.
+const STOP = new Set(["de", "a", "o", "e", "em", "com", "que", "do", "da", "no", "na", "um", "uma", "os", "as", "pra", "para", "por", "se", "ao", "dos", "das", "the", "and", "of", "to"]);
+const GENERIC_WORDS = new Set(["cafe", "coffee", "saporino", "rancheiro", "extra", "forte", "tradicional", "tradicionais", "cafezinho"]);
+function protectedPhrases(competitorText: unknown, modelPhrases: any): string[] {
+  const isContent = (w: string) => w.length > 2 && !STOP.has(w) && !GENERIC_WORDS.has(w);
+  const set = new Set<string>();
+  const words = norm(competitorText).replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean);
+  for (let n = 2; n <= 4; n++) for (let i = 0; i + n <= words.length; i++) {
+    const g = words.slice(i, i + n);
+    if (g.filter(isContent).length >= 2) set.add(g.join(" "));
+  }
+  for (const p of (Array.isArray(modelPhrases) ? modelPhrases : [])) {
+    const g = norm(p).replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean);
+    if (g.length >= 2) set.add(g.join(" "));
+  }
+  return [...set];
+}
 
 function validateBrandCompliance(a: any, g: any): any[] {
   const w: any[] = [];
@@ -90,18 +129,24 @@ function validateBrandCompliance(a: any, g: any): any[] {
   const finalOut = norm([a.legenda_instagram, a.legenda_tiktok, a.titulo_youtube, (a.hashtags || []).join(" "), a.adaptacao_marca, a.como_reproduzir, a.prompt_midjourney, a.prompt_capcut, a.prompt_veo, a.prompt_runway, a.prompt_gpt, a.prompt_claude].filter(Boolean).join("  \n  "));
   const rm = finalOut.match(REGION_RE);
   if (rm) push("warning", "REGION_POSITIONING_PENDING", `Referência regional não aprovada na saída final ("${rm[0]}"). Sem aprovação regional, use linguagem neutra (ritual matinal, café da manhã, tradição do cafezinho, momento do café).`);
-  // WARNING — placeholder literal de asset oficial ausente (V1.1)
-  const TOKENS: Record<string, string> = { logo: "[insert official saporino logo asset]", cup: "[insert official saporino cup asset]", package: "[insert official saporino classico package asset]" };
-  const ASSET_KW: Record<string, RegExp> = { logo: /\blogo\b/, cup: /\bcup\b|xicara/, package: /package|packaging|embalagem|pacote/ };
+  // WARNING — placeholder literal ausente (rede de segurança; o enforce já injeta). Detecta por TERMO EXPLÍCITO ou token — NUNCA por palavra genérica (official/asset/product).
   const visualPrompts = ([["imagem", a.prompt_midjourney], ["Veo", a.prompt_veo], ["Runway", a.prompt_runway], ["DaVinci", a.prompt_capcut]] as [string, any][]).filter(([, v]) => v && String(v).trim());
   for (const ar of (a.assets_required || [])) {
     if (!ar || ar.required !== true) continue;
-    const token = TOKENS[ar.asset]; if (!token) continue;
+    const token = ASSET_TOKENS[ar.asset]; const term = ASSET_TERMS[ar.asset]; if (!token || !term) continue;
     for (const [pl, ptext] of visualPrompts) {
       const ptn = norm(ptext);
-      const foresees = (ASSET_KW[ar.asset]?.test(ptn)) || /\bofficial\b|reserved|composition|\basset\b/.test(ptn);
-      if (foresees && !ptn.includes(token)) push("warning", "ASSET_PLACEHOLDER_MISSING", `Prompt "${pl}" prevê o asset "${ar.asset}" mas não contém o token literal ${token.toUpperCase()}.`);
+      const foresees = ptn.includes(norm(token)) || term.test(ptn);
+      if (foresees && !ptn.includes(norm(token))) push("warning", "ASSET_PLACEHOLDER_MISSING", `Prompt "${pl}" prevê o asset "${ar.asset}" mas não contém o token literal ${token}.`);
     }
+  }
+  // WARNING — vazamento de expressão distintiva do concorrente na saída Saporino (copy distance)
+  const prot = protectedPhrases(a.competitor_text, a.protected_competitor_phrases);
+  const seen = new Set<string>();
+  for (const p of prot) {
+    if (p.length < 5 || seen.has(p)) continue;
+    if ((" " + finalOut + " ").includes(" " + p + " ")) { seen.add(p); push("warning", "COMPETITOR_PHRASE_LEAK", `Expressão do concorrente "${p}" apareceu na saída Saporino — reescreva a execução verbal (mantenha só o princípio).`); }
+    if (seen.size >= 5) break;
   }
   // WARNING — originalidade / campos-chave
   const origN = Array.isArray(a.originality_changes) ? a.originality_changes.length : 0;
@@ -214,6 +259,9 @@ Regra de ouro: o concorrente é só referência de ESTRATÉGIA. Extraia o PRINC�
     let a: any = {};
     try { a = JSON.parse(raw); } catch { a = {}; }
     if (!a.resumo && !a.gancho) throw new Error("A análise da IA veio vazia — tente Reprocessar.");
+
+    // 3.4) V1.2 — injeta os TOKENS LITERAIS de asset nos prompts (não depende só da obediência do LLM).
+    enforceAssetPlaceholders(a);
 
     // 3.5) VALIDAÇÃO DE MARCA (modo WARNING — não bloqueia). Junta o que a IA marcou + checagem determinística.
     const modelWarns = Array.isArray(a.validation_warnings) ? a.validation_warnings.filter((x: any) => x && x.message) : [];
