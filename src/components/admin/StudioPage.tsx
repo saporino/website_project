@@ -274,7 +274,15 @@ export default function StudioPage() {
       .select('id,filename,storage_path,status,duration,brand_detected,created_at,error_text,source_url,media_type')
       .eq('company_id', activeCompanyId)
       .order('created_at', { ascending: false });
-    setVideos((data as StudioVideo[]) || []);
+    let list = (data as StudioVideo[]) || [];
+    // miniaturas: bucket studio-videos é privado → signed URLs (1h) pra mostrar a arte no card
+    const paths = list.map(v => v.storage_path).filter(Boolean);
+    if (paths.length) {
+      const { data: signed } = await supabase.storage.from('studio-videos').createSignedUrls(paths, 3600);
+      const map = new Map((signed || []).map((s: any) => [s.path, s.signedUrl]));
+      list = list.map(v => ({ ...v, thumbUrl: map.get(v.storage_path) || null }));
+    }
+    setVideos(list);
     setLoading(false);
   }, [activeCompanyId]);
 

@@ -3,7 +3,7 @@ import { Film, CheckCircle2, Loader2, Clock, AlertCircle, Sparkles, Megaphone, T
 export interface StudioVideo {
   id: string; filename: string; storage_path: string; status: string;
   duration: number | null; brand_detected: string | null; created_at: string; error_text: string | null;
-  source_url?: string | null; media_type?: string | null;
+  source_url?: string | null; media_type?: string | null; thumbUrl?: string | null;
 }
 
 const STATUS: Record<string, { label: string; cls: string; icon: any }> = {
@@ -32,12 +32,22 @@ export default function VideoCard({ v, onAnalyze, onCampaign, onDelete, onReproc
   const st = STATUS[v.status] || STATUS.pending;
   const Icon = st.icon;
   const done = v.status === 'completed';
+  const isVideoMedia = v.media_type === 'video' || /\.(mp4|mov|m4v|webm)$/i.test(v.filename || '');
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4">
       <div className="flex items-start gap-3">
-        <div className="w-11 h-11 rounded-lg bg-[#f5f0ef] text-[#8B2214] flex items-center justify-center flex-shrink-0">
-          <Film className="w-5 h-5" />
-        </div>
+        {v.thumbUrl ? (
+          <button type="button" onClick={() => window.open(v.thumbUrl!, '_blank')} title="Ver em tamanho grande"
+            className="w-16 h-16 rounded-lg bg-[#f5f0ef] overflow-hidden flex-shrink-0 border border-gray-200 hover:ring-2 hover:ring-[#8B2214]">
+            {isVideoMedia
+              ? <video src={`${v.thumbUrl}#t=0.1`} muted playsInline preload="metadata" className="w-full h-full object-cover" />
+              : <img src={v.thumbUrl} alt={v.filename} className="w-full h-full object-cover" />}
+          </button>
+        ) : (
+          <div className="w-16 h-16 rounded-lg bg-[#f5f0ef] text-[#8B2214] flex items-center justify-center flex-shrink-0">
+            <Film className="w-6 h-6" />
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="font-semibold text-gray-900 truncate">{v.filename}</p>
