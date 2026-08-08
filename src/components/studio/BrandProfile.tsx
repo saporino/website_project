@@ -7,6 +7,7 @@ interface Brand {
   id: string; company_id: string | null; name: string; is_primary: boolean;
   colors: any; tone: string | null; audience: string | null; product_line: string | null;
   dos: string | null; donts: string | null; logo_url: string | null; product_images: any; notes: string | null;
+  guardrails: any;
 }
 
 // Perfil da Marca (Brand Kit): a IA usa isto pra adaptar TODA análise pra sua marca.
@@ -15,6 +16,8 @@ export default function BrandProfile({ companyId }: { companyId: string | null }
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [f, setF] = useState<Partial<Brand>>({});
+  const [piText, setPiText] = useState('[]');   // product_images (assets oficiais) em JSON
+  const [grText, setGrText] = useState('{}');   // brand guardrails em JSON
 
   const load = useCallback(async () => {
     if (!companyId) return;
@@ -22,6 +25,8 @@ export default function BrandProfile({ companyId }: { companyId: string | null }
       .eq('company_id', companyId).order('is_primary', { ascending: false }).limit(1).maybeSingle();
     setBrand(data as Brand | null);
     setF((data as Brand) || { name: '', tone: '', audience: '', product_line: '', dos: '', donts: '', logo_url: '', notes: '' });
+    setPiText(JSON.stringify((data as any)?.product_images ?? [], null, 2));
+    setGrText(JSON.stringify((data as any)?.guardrails ?? {}, null, 2));
     setLoading(false);
   }, [companyId]);
   useEffect(() => { load(); }, [load]);
@@ -29,10 +34,14 @@ export default function BrandProfile({ companyId }: { companyId: string | null }
   async function save() {
     if (!f.name?.trim()) { toast.error('Dê um nome à marca.'); return; }
     setSaving(true);
+    let product_images: any, guardrails: any;
+    try { product_images = piText.trim() ? JSON.parse(piText) : []; } catch { toast.error('JSON dos Assets oficiais inválido.'); setSaving(false); return; }
+    try { guardrails = grText.trim() ? JSON.parse(grText) : {}; } catch { toast.error('JSON dos Brand Guardrails inválido.'); setSaving(false); return; }
     const payload: any = {
       company_id: companyId, name: f.name.trim(), is_primary: true,
       tone: f.tone || null, audience: f.audience || null, product_line: f.product_line || null,
       dos: f.dos || null, donts: f.donts || null, logo_url: f.logo_url || null, notes: f.notes || null,
+      product_images, guardrails,
       updated_at: new Date().toISOString(),
     };
     const { error } = brand
@@ -80,6 +89,21 @@ export default function BrandProfile({ companyId }: { companyId: string | null }
           {f.logo_url && <img src={f.logo_url} alt="logo" className="mt-2 h-12 object-contain" />}
         </div>
         <Campo label="Observações" k="notes" />
+
+        <div className="border-t border-gray-100 pt-3">
+          <label className="block text-xs font-semibold text-gray-600 mb-1">Assets oficiais (JSON)</label>
+          <p className="text-[11px] text-gray-400 mb-1">Lista de assets aprovados (embalagem, xícara, etc.) com id, type, status e url. A IA nunca gera esses assets — só pede pra anexar.</p>
+          <textarea value={piText} onChange={e => setPiText(e.target.value)} rows={4}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono resize-y" spellCheck={false} />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">Brand Guardrails (JSON)</label>
+          <p className="text-[11px] text-gray-400 mb-1">Produtos aprovados/futuros, claims aprovados/proibidos, regras de asset/visual/copy e de adaptação do concorrente. A IA obedece isto em toda análise. Edite com cuidado (JSON válido).</p>
+          <textarea value={grText} onChange={e => setGrText(e.target.value)} rows={12}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs font-mono resize-y" spellCheck={false} />
+        </div>
+
         <div className="flex justify-end">
           <button onClick={save} disabled={saving} className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar perfil

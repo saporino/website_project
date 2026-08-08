@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Loader2, FileText, Target, Wand2, Sparkles, Megaphone, Copy, Check } from 'lucide-react';
+import { X, Loader2, FileText, Target, Wand2, Sparkles, Megaphone, Copy, Check, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import PromptCard from './PromptCard';
 import CampaignCreator from './CampaignCreator';
@@ -48,7 +48,7 @@ function Lista({ label, items, cls }: { label: string; items?: any[]; cls?: stri
 
 const TABS: [Tab, string, any][] = [
   ['resumo', 'Resumo', FileText], ['estrategia', 'Estratégia', Target],
-  ['reproduzir', 'Como Reproduzir', Wand2], ['prompts', 'Prompts', Sparkles], ['publicar', 'Publicar', Megaphone],
+  ['reproduzir', 'Como Adaptar', Wand2], ['prompts', 'Prompts', Sparkles], ['publicar', 'Publicar', Megaphone],
 ];
 
 export default function AnalysisModal({ video, companyId, initialTab = 'resumo', onClose }: {
@@ -76,6 +76,11 @@ export default function AnalysisModal({ video, companyId, initialTab = 'resumo',
   const av = a?.analise_visual || {};
   const prompts = a?.prompts || {};
   const legendas = a?.legendas || {};
+  // Verificação de Marca (Brand Guardrails)
+  const warns: any[] = a?.validation_warnings || [];
+  const hasCrit = warns.some((w: any) => w?.severity === 'critical');
+  const topSev = hasCrit ? 'critical' : warns.some((w: any) => w?.severity === 'warning') ? 'warning' : 'info';
+  const sevBadge: Record<string, string> = { critical: 'bg-red-100 text-red-700', warning: 'bg-amber-100 text-amber-800', info: 'bg-gray-100 text-gray-600' };
 
   // junta um mix de hashtags (3-6) na legenda, sem repetir as que já estão no texto
   const hashtags: string[] = a?.hashtags || [];
@@ -108,6 +113,11 @@ export default function AnalysisModal({ video, companyId, initialTab = 'resumo',
           <div className="min-w-0">
             <h3 className="font-bold text-gray-900 truncate flex items-center gap-2"><Sparkles className="w-4 h-4 text-[#8B2214]" /> Análise — {video.filename}</h3>
             {video.brand_detected && <p className="text-xs text-gray-500 truncate">Marca detectada: {video.brand_detected}</p>}
+            {warns.length > 0 && (
+              <span className={`inline-flex items-center gap-1 mt-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${sevBadge[topSev]}`}>
+                <ShieldAlert className="w-3 h-3" /> Verificação de Marca · {warns.length}
+              </span>
+            )}
           </div>
           <button onClick={onClose} className="p-1.5 rounded text-gray-400 hover:bg-gray-100 flex-shrink-0"><X className="w-4 h-4" /></button>
         </div>
@@ -130,14 +140,18 @@ export default function AnalysisModal({ video, companyId, initialTab = 'resumo',
             <p className="text-sm text-gray-400 text-center py-8">Sem análise disponível. Tente Reprocessar o vídeo.</p>
           ) : (
             <>
+              {warns.length > 0 && (
+                <div className="mb-4 space-y-1.5">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500 flex items-center gap-1"><ShieldAlert className="w-3.5 h-3.5" /> Verificação de Marca</p>
+                  {warns.map((w, i) => (
+                    <div key={i} className={`text-xs rounded-lg px-3 py-2 border ${w.severity === 'critical' ? 'bg-red-50 border-red-200 text-red-700' : w.severity === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-gray-50 border-gray-200 text-gray-600'}`}>
+                      <span className="font-semibold uppercase">{w.severity}</span> · {w.message}
+                    </div>
+                  ))}
+                </div>
+              )}
               {tab === 'resumo' && (
                 <div className="space-y-4">
-                  {a.adaptacao_marca && (
-                    <div className="rounded-xl border border-[#ddd0cc] bg-[#f5f0ef] p-3">
-                      <p className="text-[11px] font-bold text-[#8B2214] uppercase tracking-wide mb-1">🎯 Adaptação pra sua marca</p>
-                      <p className="text-sm text-gray-800 whitespace-pre-line leading-relaxed">{a.adaptacao_marca}</p>
-                    </div>
-                  )}
                   <Campo label="Resumo">{a.resumo}</Campo>
                   <Campo label="Objetivo">{a.objetivo}</Campo>
                   <Campo label="Público-alvo">{a.publico_alvo}</Campo>
@@ -160,10 +174,22 @@ export default function AnalysisModal({ video, companyId, initialTab = 'resumo',
               )}
               {tab === 'reproduzir' && (
                 <div className="space-y-4">
-                  <Campo label="Como reproduzir">{a.como_reproduzir}</Campo>
-                  <Campo label="Workflow (passo a passo)">{a.workflow}</Campo>
+                  <Campo label="Princípio criativo (o que reaproveitar do concorrente)">{a.creative_principle}</Campo>
+                  <Lista label="O que NÃO copiar (execução do concorrente)" items={a.do_not_copy} cls="text-red-600" />
+                  {a.adaptacao_marca && (
+                    <div className="rounded-xl border border-[#ddd0cc] bg-[#f5f0ef] p-3">
+                      <p className="text-[11px] font-bold text-[#8B2214] uppercase tracking-wide mb-1">✨ Oportunidade original pra Saporino</p>
+                      <p className="text-sm text-gray-800 whitespace-pre-line leading-relaxed">{a.adaptacao_marca}</p>
+                    </div>
+                  )}
+                  <Lista label="Dimensões alteradas (originalidade ≥ 4)" items={a.originality_changes} cls="text-green-700" />
+                  <Campo label="Como adaptar (passo a passo)">{a.como_reproduzir}</Campo>
+                  <Campo label="Workflow">{a.workflow}</Campo>
                   <Campo label="Como melhorar">{a.como_melhorar}</Campo>
                   <Campo label="Como vender / aplicar no negócio">{a.como_vender}</Campo>
+                  <Lista label="Claims usados (aprovados)" items={(a.claims_used || []).map((c: any) => `${c.claim}${c.scope ? ' · ' + c.scope : ''}`)} />
+                  <Lista label="Assets oficiais necessários" items={(a.assets_required || []).map((x: any) => `${x.asset}${x.required ? ' (obrigatório)' : ''}`)} />
+                  <Lista label="Sugestões (NÃO são fatos — requer aprovação)" items={a.suggestions_not_facts} cls="text-amber-700" />
                   {transcript && (
                     <details className="border border-gray-200 rounded-xl">
                       <summary className="cursor-pointer px-3 py-2 text-sm font-semibold text-gray-700 bg-[#f8f7f5]">Ver transcrição completa</summary>
@@ -198,6 +224,11 @@ export default function AnalysisModal({ video, companyId, initialTab = 'resumo',
                     </div>
                   ) : null)}
                   <Chips label="Hashtags" items={a?.hashtags} />
+                  {hasCrit && (
+                    <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs px-3 py-2 flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" /> Há avisos <strong>CRÍTICOS</strong> na Verificação de Marca (produto futuro, claim proibido, preço/promoção inventados ou marca do concorrente na copy). Revise antes de publicar.
+                    </div>
+                  )}
                   <button onClick={() => setShowCampaign(true)}
                     className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2.5 rounded-lg">
                     <Megaphone className="w-4 h-4" /> Criar campanha com isto
