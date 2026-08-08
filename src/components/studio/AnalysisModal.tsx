@@ -7,6 +7,12 @@ import type { StudioVideo } from './VideoCard';
 
 type Tab = 'resumo' | 'estrategia' | 'reproduzir' | 'prompts' | 'publicar';
 
+// Remove flags do Midjourney (--ar, --v, --stylize, etc.) pra o prompt de imagem colar limpo no ChatGPT.
+function forChatGPT(s?: string | null) {
+  const t = (s || '').replace(/\s*--[a-z]+(\s+[0-9a-z:.]+)?/gi, '').trim();
+  return t;
+}
+
 // Bloco de rótulo + texto.
 function Campo({ label, children }: { label: string; children: any }) {
   if (!children) return null;
@@ -173,8 +179,8 @@ export default function AnalysisModal({ video, companyId, initialTab = 'resumo',
                   <PromptCard label="ChatGPT / GPT" value={prompts.gpt} />
                   <PromptCard label="Google Veo (vídeo)" value={prompts.veo} />
                   <PromptCard label="Runway (vídeo)" value={prompts.runway} />
-                  <PromptCard label="Midjourney (imagem)" value={prompts.midjourney} />
-                  <PromptCard label="CapCut (edição)" value={prompts.capcut} />
+                  <PromptCard label="Imagem (ChatGPT)" value={forChatGPT(prompts.midjourney)} />
+                  <PromptCard label="Vídeo — roteiro de edição (DaVinci)" value={prompts.capcut} />
                   {!prompts.claude && !prompts.gpt && !prompts.veo && <p className="text-sm text-gray-400 text-center py-6">Nenhum prompt gerado. Tente Reprocessar.</p>}
                 </div>
               )}
