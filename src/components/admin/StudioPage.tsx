@@ -304,6 +304,19 @@ export default function StudioPage() {
     toast.info('Reprocessando o vídeo…');
   }
 
+  async function handleDownload(v: StudioVideo) {
+    const { data, error } = await supabase.storage.from('studio-videos').download(v.storage_path);
+    if (error || !data) { toast.error('Erro ao baixar o arquivo.'); return; }
+    const ext = (v.storage_path.split('.').pop() || (v.media_type === 'video' ? 'mp4' : 'jpg')).toLowerCase();
+    const base = (v.filename || 'saporino-studio').replace(/[^\w.-]+/g, '_').slice(0, 60);
+    const name = /\.\w+$/.test(base) ? base : `${base}.${ext}`;
+    const url = URL.createObjectURL(data);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   async function handleDelete(v: StudioVideo) {
     if (!confirm(`Excluir "${v.filename}"? Isso remove o vídeo e a análise.`)) return;
     await supabase.storage.from('studio-videos').remove([v.storage_path]);
@@ -530,7 +543,8 @@ export default function StudioPage() {
                   onAnalyze={(vid) => { setModalTab('resumo'); setModalVideo(vid); }}
                   onCampaign={(vid) => { setModalTab('publicar'); setModalVideo(vid); }}
                   onDelete={handleDelete}
-                  onReprocess={handleReprocess} />
+                  onReprocess={handleReprocess}
+                  onDownload={handleDownload} />
               ))}
             </div>
           )}

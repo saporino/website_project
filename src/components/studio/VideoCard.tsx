@@ -1,4 +1,4 @@
-import { Film, CheckCircle2, Loader2, Clock, AlertCircle, Sparkles, Megaphone, Trash2, RotateCcw } from 'lucide-react';
+import { Film, CheckCircle2, Loader2, Clock, AlertCircle, Sparkles, Megaphone, Trash2, RotateCcw, Download } from 'lucide-react';
 
 export interface StudioVideo {
   id: string; filename: string; storage_path: string; status: string;
@@ -22,12 +22,13 @@ function tempoAtras(iso: string) {
   return `há ${Math.floor(h / 24)}d`;
 }
 
-export default function VideoCard({ v, onAnalyze, onCampaign, onDelete, onReprocess }: {
+export default function VideoCard({ v, onAnalyze, onCampaign, onDelete, onReprocess, onDownload }: {
   v: StudioVideo;
   onAnalyze: (v: StudioVideo) => void;
   onCampaign: (v: StudioVideo) => void;
   onDelete: (v: StudioVideo) => void;
   onReprocess: (v: StudioVideo) => void;
+  onDownload: (v: StudioVideo) => void;
 }) {
   const st = STATUS[v.status] || STATUS.pending;
   const Icon = st.icon;
@@ -73,9 +74,14 @@ export default function VideoCard({ v, onAnalyze, onCampaign, onDelete, onReproc
             </div>
           )}
         </div>
-        <button onClick={() => onDelete(v)} title="Excluir" className="p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-gray-50 flex-shrink-0">
-          <Trash2 className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-0.5 flex-shrink-0">
+          <button onClick={() => onDownload(v)} title="Baixar para o computador" className="p-1.5 rounded text-gray-400 hover:text-[#8B2214] hover:bg-gray-50">
+            <Download className="w-4 h-4" />
+          </button>
+          <button onClick={() => onDelete(v)} title="Excluir" className="p-1.5 rounded text-gray-400 hover:text-red-600 hover:bg-gray-50">
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
       {(done || v.status === 'error') && (
         <div className="flex flex-wrap gap-2 mt-3">
