@@ -18,9 +18,10 @@ PASSO 3 — O QUE NÃO COPIAR: liste os elementos de EXECUÇÃO do concorrente q
 PASSO 4 — CONSULTAR OS BRAND GUARDRAILS (fornecidos abaixo): use SOMENTE produtos/claims/assets APROVADOS. REGRA ABSOLUTA: se algo NÃO estiver explicitamente aprovado, NÃO trate como fato e NÃO invente. Não preencha lacunas com "fatos" sobre a marca. Toda ideia criativa/comercial não confirmada vai em "suggestions_not_facts" (marcada como SUGESTÃO — requer aprovação), nunca como algo que já existe.
 PASSO 5 — EXECUÇÃO ORIGINAL: crie uma execução da NOSSA marca baseada SÓ no princípio. Mude no MÍNIMO 4 dimensões entre {headline structure, composition, setting, character/pose, palette, props, typography, product placement}. PROIBIDO: "trocar o logo", "mesma campanha com outras cores", "mesma frase com a nossa marca", usar a imagem do concorrente como storyboard.
 
-REGRAS DE PROMPT DE IMAGEM: nunca peça para GERAR o logo/embalagem/xícara da nossa marca. Use placeholders literais: [INSERT OFFICIAL SAPORINO LOGO ASSET], [INSERT OFFICIAL SAPORINO CUP ASSET], [INSERT OFFICIAL SAPORINO CLASSICO PACKAGE ASSET]. Se o asset oficial não estiver disponível, gere só cenário/composição/luz e deixe espaço para composição posterior. NUNCA use "Saporino-style package", "red package labeled Saporino", "Saporino logo", "white cup with Saporino logo" como geração sintética.
+REGRAS DE PLACEHOLDER DE ASSET (imagem, vídeo, Veo, Runway, DaVinci — e qualquer gerador futuro): nunca peça para GERAR o logo/embalagem/xícara da nossa marca. Se "assets_required" indicar um asset oficial (logo/cup/package) E o prompt usar ou prever esse asset, o prompt DEVE conter OBRIGATORIAMENTE o TOKEN LITERAL correspondente (pode haver texto descritivo junto, mas o TOKEN precisa aparecer literalmente): [INSERT OFFICIAL SAPORINO LOGO ASSET], [INSERT OFFICIAL SAPORINO CUP ASSET], [INSERT OFFICIAL SAPORINO CLASSICO PACKAGE ASSET]. NÃO é aceitável usar apenas descrição equivalente como "empty space reserved for official cup" ou "space for package composition" — o TOKEN LITERAL é obrigatório. Se o asset oficial não estiver disponível, gere só cenário/composição/luz. NUNCA use "Saporino-style package", "red package labeled Saporino", "Saporino logo", "white cup with Saporino logo" como geração sintética.
 REGRAS DE PROMPT DE VÍDEO: se partir de um asset oficial pronto, preserve logo/xícara/embalagem/tipografia EXATAMENTE — nunca morph/redesenhar/distorcer/trocar letras/adicionar marca. Café quente = vapor natural; NUNCA "boiling/bubbling/simmering/artificial liquid agitation".
 REGRAS DE PUBLICAÇÃO (legendas/hashtags/título): obedeça aos guardrails. NUNCA invente preço, promoção, combo, cupom, edição limitada, brinde, assinatura, kit. NUNCA use produto "future" nem o nome do concorrente na copy final. Se o concorrente usa promoção, você pode NOTAR o mecanismo ("urgência/promocional") na análise, mas NÃO transforme em promoção nossa — no máximo registre em "suggestions_not_facts" como "SUGESTÃO COMERCIAL — requer aprovação".
+REGRAS DE REFERÊNCIA REGIONAL: NÃO conclua que Minas/mineiro/mineira é posicionamento universal da nossa marca. Termos regionais (Minas, mineiro, mineira, tradição mineira, sabor de Minas, café mineiro, origem mineira, Cerrado Mineiro, Patrocínio-MG) EXIGEM aprovação e NÃO podem aparecer na SAÍDA FINAL da nossa marca (adaptacao_marca, como_reproduzir, prompts, legendas, hashtags, títulos) sem aprovação. Você PODE descrever esses elementos livremente quando eles estão NA PEÇA DO CONCORRENTE (competitor_text, do_not_copy e análise do concorrente). Sem aprovação regional, use linguagem NEUTRA e válida: "ritual brasileiro do café", "ritual matinal", "café da manhã", "tradição do cafezinho", "pequenos prazeres do dia", "momento do café".
 
 Retorne JSON puro (sem markdown) com ESTA estrutura EXATA (mantenha TODOS os campos, mesmo vazios):
 {
@@ -79,9 +80,28 @@ function validateBrandCompliance(a: any, g: any): any[] {
     push("critical", "prompt_generates_brand_asset", "Prompt de imagem parece pedir para GERAR logo/embalagem/xícara Saporino — use o placeholder [INSERT OFFICIAL SAPORINO ...].");
   }
 
-  // WARNING — termo que exige aprovação manual usado como fato na copy
+  // WARNING — termo que exige aprovação manual usado como fato na copy (região tem check próprio)
+  const REGION_RE = /\bminas\b|\bmineir[oa]\b|sabor de minas|origem mineir[oa]/;
   for (const t of (g.requires_manual_approval || [])) {
-    if (t && finalCopy.includes(norm(t))) push("warning", "requires_manual_approval", `"${t}" exige aprovação manual — não usar como fato na copy sem autorizar.`);
+    if (!t || REGION_RE.test(norm(t))) continue;
+    if (finalCopy.includes(norm(t))) push("warning", "requires_manual_approval", `"${t}" exige aprovação manual — não usar como fato na copy sem autorizar.`);
+  }
+  // WARNING — referência regional NÃO aprovada na SAÍDA FINAL da marca (não vale para a descrição do concorrente)
+  const finalOut = norm([a.legenda_instagram, a.legenda_tiktok, a.titulo_youtube, (a.hashtags || []).join(" "), a.adaptacao_marca, a.como_reproduzir, a.prompt_midjourney, a.prompt_capcut, a.prompt_veo, a.prompt_runway, a.prompt_gpt, a.prompt_claude].filter(Boolean).join("  \n  "));
+  const rm = finalOut.match(REGION_RE);
+  if (rm) push("warning", "REGION_POSITIONING_PENDING", `Referência regional não aprovada na saída final ("${rm[0]}"). Sem aprovação regional, use linguagem neutra (ritual matinal, café da manhã, tradição do cafezinho, momento do café).`);
+  // WARNING — placeholder literal de asset oficial ausente (V1.1)
+  const TOKENS: Record<string, string> = { logo: "[insert official saporino logo asset]", cup: "[insert official saporino cup asset]", package: "[insert official saporino classico package asset]" };
+  const ASSET_KW: Record<string, RegExp> = { logo: /\blogo\b/, cup: /\bcup\b|xicara/, package: /package|packaging|embalagem|pacote/ };
+  const visualPrompts = ([["imagem", a.prompt_midjourney], ["Veo", a.prompt_veo], ["Runway", a.prompt_runway], ["DaVinci", a.prompt_capcut]] as [string, any][]).filter(([, v]) => v && String(v).trim());
+  for (const ar of (a.assets_required || [])) {
+    if (!ar || ar.required !== true) continue;
+    const token = TOKENS[ar.asset]; if (!token) continue;
+    for (const [pl, ptext] of visualPrompts) {
+      const ptn = norm(ptext);
+      const foresees = (ASSET_KW[ar.asset]?.test(ptn)) || /\bofficial\b|reserved|composition|\basset\b/.test(ptn);
+      if (foresees && !ptn.includes(token)) push("warning", "ASSET_PLACEHOLDER_MISSING", `Prompt "${pl}" prevê o asset "${ar.asset}" mas não contém o token literal ${token.toUpperCase()}.`);
+    }
   }
   // WARNING — originalidade / campos-chave
   const origN = Array.isArray(a.originality_changes) ? a.originality_changes.length : 0;
