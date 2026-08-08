@@ -307,12 +307,14 @@ export default function StudioPage() {
   async function handleDownload(v: StudioVideo) {
     const { data, error } = await supabase.storage.from('studio-videos').download(v.storage_path);
     if (error || !data) { toast.error('Erro ao baixar o arquivo.'); return; }
-    const ext = (v.storage_path.split('.').pop() || (v.media_type === 'video' ? 'mp4' : 'jpg')).toLowerCase();
-    const base = (v.filename || 'saporino-studio').replace(/[^\w.-]+/g, '_').slice(0, 60);
-    const name = /\.\w+$/.test(base) ? base : `${base}.${ext}`;
+    const rawExt = (v.storage_path.split('.').pop() || '').toLowerCase();
+    const ext = /^(jpe?g|png|webp|gif|mp4|mov|m4v|webm)$/.test(rawExt) ? rawExt : (v.media_type === 'video' ? 'mp4' : 'jpg');
+    // limpa o nome e SEMPRE anexa a extensão real (evita arquivo sem extensão)
+    const base = (v.filename || 'saporino-studio')
+      .replace(/\.[a-z0-9]{2,4}$/i, '').replace(/[^\w-]+/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '').slice(0, 50) || 'saporino-studio';
     const url = URL.createObjectURL(data);
     const a = document.createElement('a');
-    a.href = url; a.download = name;
+    a.href = url; a.download = `${base}.${ext}`;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
   }
