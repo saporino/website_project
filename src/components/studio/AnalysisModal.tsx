@@ -206,6 +206,8 @@ export default function AnalysisModal({ video, companyId, initialTab = 'resumo',
       {showCampaign && (
         <CampaignCreator
           videoId={video.id} companyId={companyId}
+          sourceMediaPath={video.storage_path} sourceMediaType={video.media_type}
+          sourceIsOwnArt={!video.source_url} sourceThumbUrl={video.thumbUrl}
           initialTitle={campaignTitle}
           initialContent={campaignCaptions.instagram || campaignCaptions.tiktok || ''}
           initialCaptions={campaignCaptions}

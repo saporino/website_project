@@ -17,9 +17,10 @@ export interface Campaign {
 }
 
 // Cria (a partir da análise, podendo publicar em VÁRIAS redes de uma vez) OU edita 1 campanha.
-export default function CampaignCreator({ videoId, companyId, campaign, initialTitle, initialContent, initialCaptions, promptUsed, onClose, onSaved }: {
+export default function CampaignCreator({ videoId, companyId, campaign, initialTitle, initialContent, initialCaptions, promptUsed, sourceMediaPath, sourceMediaType, sourceIsOwnArt, sourceThumbUrl, onClose, onSaved }: {
   videoId?: string | null; companyId: string | null; campaign?: Campaign;
   initialTitle?: string; initialContent?: string; initialCaptions?: Record<string, string>; promptUsed?: string;
+  sourceMediaPath?: string | null; sourceMediaType?: string | null; sourceIsOwnArt?: boolean; sourceThumbUrl?: string | null;
   onClose: () => void; onSaved?: () => void;
 }) {
   const editing = !!campaign;
@@ -36,8 +37,10 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
   const [scheduledAt, setScheduledAt] = useState(campaign?.scheduled_at ? campaign.scheduled_at.slice(0, 16) : '');
   const [externalUrl, setExternalUrl] = useState(campaign?.external_url || '');
   const [saving, setSaving] = useState(false);
-  const [mediaPath, setMediaPath] = useState<string | null>(campaign?.media_path || null);
-  const [mediaType, setMediaType] = useState<string | null>(campaign?.media_type || null);
+  // Numa campanha NOVA a partir de uma arte PRÓPRIA (upload seu, não vídeo de concorrente),
+  // já reaproveita a mídia do item — não precisa subir de novo. Pode trocar se quiser.
+  const [mediaPath, setMediaPath] = useState<string | null>(campaign?.media_path ?? (!editing && sourceIsOwnArt ? (sourceMediaPath ?? null) : null));
+  const [mediaType, setMediaType] = useState<string | null>(campaign?.media_type ?? (!editing && sourceIsOwnArt ? (sourceMediaType ?? null) : null));
   const [uploading, setUploading] = useState(false);
 
   function togglePlatform(k: string) {
@@ -157,8 +160,14 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
             <label className="block text-[11px] font-semibold text-gray-500 mb-1">Arte para publicar (imagem ou vídeo da Saporino)</label>
             {mediaPath ? (
               <div className="flex items-center gap-2 border border-green-200 bg-green-50 rounded-lg px-3 py-2 text-sm text-green-800">
-                {mediaType === 'video' ? <Film className="w-4 h-4" /> : <ImageIcon className="w-4 h-4" />}
-                <span className="flex items-center gap-1 font-medium"><CheckCircle2 className="w-4 h-4" /> Arte anexada ({mediaType === 'video' ? 'vídeo/Reels' : 'imagem'})</span>
+                {sourceThumbUrl && mediaPath === sourceMediaPath ? (
+                  mediaType === 'video'
+                    ? <video src={`${sourceThumbUrl}#t=0.1`} muted playsInline preload="metadata" className="w-9 h-9 rounded object-cover border border-green-200 flex-shrink-0" />
+                    : <img src={sourceThumbUrl} alt="arte" className="w-9 h-9 rounded object-cover border border-green-200 flex-shrink-0" />
+                ) : (
+                  mediaType === 'video' ? <Film className="w-4 h-4" /> : <ImageIcon className="w-4 h-4" />
+                )}
+                <span className="flex items-center gap-1 font-medium"><CheckCircle2 className="w-4 h-4" /> Arte {mediaPath === sourceMediaPath ? 'deste item' : 'anexada'} ({mediaType === 'video' ? 'vídeo/Reels' : 'imagem'})</span>
                 <label className="ml-auto text-xs font-semibold text-[#8B2214] hover:underline cursor-pointer">
                   Trocar
                   <input type="file" accept="image/*,video/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) uploadMedia(f); }} />
