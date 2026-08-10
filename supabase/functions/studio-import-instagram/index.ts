@@ -84,6 +84,13 @@ Deno.serve(async (req) => {
       return json({ ok: true, thumbnail_saved, audio_saved, topLevelKeys: Object.keys(item).sort(), audioVideoSample: sample, item });
     }
     const cleanUser = (h: any) => h ? String(h).replace(/^@/, "").trim().replace(/\/+$/, "").split("/").pop() : null;
+    // extrai o @usuario de uma URL do Instagram (ex.: instagram.com/cafepilao/reel/XXX → cafepilao).
+    // URLs de post curto (instagram.com/p/SHORTCODE) NÃO têm handle → devolve null. Só parsing, sem scraping.
+    const handleFromUrl = (u: any) => {
+      const m = String(u || "").match(/instagram\.com\/([^\/?#]+)/i);
+      const seg = m && m[1] ? m[1].toLowerCase() : "";
+      return seg && !["p", "reel", "reels", "tv", "stories", "explore"].includes(seg) ? seg : null;
+    };
     const user = cleanUser(handle);
     const profileUrl = user ? `https://www.instagram.com/${user}/` : "";
     const COST_PER_POST = 0.066; // ~Claude + Whisper por post analisado
@@ -116,7 +123,8 @@ Deno.serve(async (req) => {
       let imported = 0;
       for (const p of chosen) {
         try {
-          const uname = cleanUser(p.handle) || user || "ig";
+          // handle: 1) p.handle  2) handle do body (user)  3) parse da URL do post  4) "ig"
+          const uname = cleanUser(p.handle) || user || handleFromUrl(p.url || p.source_url) || "ig";
           const isVideo = !!p.video || p.isVideo === true;
           const mediaUrl = isVideo ? p.video : p.thumb;
           if (!mediaUrl) continue;

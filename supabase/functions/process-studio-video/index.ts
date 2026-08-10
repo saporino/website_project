@@ -149,8 +149,9 @@ function validateBrandCompliance(a: any, g: any): any[] {
     if (!t || REGION_RE.test(norm(t))) continue;
     if (finalCopy.includes(norm(t))) push("warning", "requires_manual_approval", `"${t}" exige aprovação manual — não usar como fato na copy sem autorizar.`);
   }
-  // WARNING — referência regional NÃO aprovada na SAÍDA FINAL da marca (não vale para a descrição do concorrente)
-  const finalOut = norm([a.legenda_instagram, a.legenda_tiktok, a.titulo_youtube, (a.hashtags || []).join(" "), a.adaptacao_marca, a.como_reproduzir, a.prompt_midjourney, a.prompt_capcut, a.prompt_veo, a.prompt_runway, a.prompt_gpt, a.prompt_claude].filter(Boolean).join("  \n  "));
+  // WARNING — referência regional NÃO aprovada na SAÍDA FINAL da marca (não vale para a descrição do concorrente).
+  // NÃO varre prompt_claude/prompt_gpt: são META-PROMPTS (instruções ao LLM, ex. "não use Minas/mineiro"), não execução/copy final.
+  const finalOut = norm([a.legenda_instagram, a.legenda_tiktok, a.titulo_youtube, (a.hashtags || []).join(" "), a.adaptacao_marca, a.como_reproduzir, a.prompt_midjourney, a.prompt_capcut, a.prompt_veo, a.prompt_runway].filter(Boolean).join("  \n  "));
   const rm = finalOut.match(REGION_RE);
   if (rm) push("warning", "REGION_POSITIONING_PENDING", `Referência regional não aprovada na saída final ("${rm[0]}"). Sem aprovação regional, use linguagem neutra (ritual matinal, café da manhã, tradição do cafezinho, momento do café).`);
   // WARNING — placeholder literal ausente (rede de segurança; o enforce já injeta). Detecta por TERMO EXPLÍCITO ou token — NUNCA por palavra genérica (official/asset/product).
