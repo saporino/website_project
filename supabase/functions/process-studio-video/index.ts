@@ -86,6 +86,30 @@ function protectedPhrases(competitorText: unknown, modelPhrases: any): string[] 
   return [...set];
 }
 
+// Detecta se um MP4 tem faixa de ÁUDIO (walk moov→trak→mdia→hdlr, handler 'soun'). Sem ffmpeg.
+function mp4HasAudioTrack(bytes: Uint8Array): boolean {
+  try {
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const t = (p: number) => String.fromCharCode(bytes[p + 4], bytes[p + 5], bytes[p + 6], bytes[p + 7]);
+    const walk = (start: number, end: number, want: string, cb: (ds: number, de: number) => void) => {
+      let p = start;
+      while (p + 8 <= end) {
+        let size = dv.getUint32(p); let hs = 8;
+        if (size === 1) { size = Number(dv.getBigUint64(p + 8)); hs = 16; } else if (size === 0) { size = end - p; }
+        if (size < 8 || p + size > end) break;
+        if (t(p) === want) cb(p + hs, p + size);
+        p += size;
+      }
+    };
+    let found = false;
+    walk(0, bytes.length, "moov", (ds, de) => walk(ds, de, "trak", (ts, te) => walk(ts, te, "mdia", (ms, me) => walk(ms, me, "hdlr", (hs) => {
+      const h = String.fromCharCode(bytes[hs + 8], bytes[hs + 9], bytes[hs + 10], bytes[hs + 11]);
+      if (h === "soun") found = true;
+    }))));
+    return found;
+  } catch { return false; }
+}
+
 function validateBrandCompliance(a: any, g: any): any[] {
   const w: any[] = [];
   const push = (severity: string, code: string, message: string) => w.push({ severity, code, message });
@@ -206,9 +230,25 @@ Regra de ouro: o concorrente é só referência de ESTRATÉGIA. Extraia o PRINC�
     await supabase.from("studio_transcriptions").delete().eq("video_id", videoId);
     await supabase.from("studio_analyses").delete().eq("video_id", videoId);
 
-    // 1+2) prepara a entrada da Claude: FOTO (visão) ou VÍDEO (transcrição do áudio via Whisper)
+    // 1+2) prepara a entrada da Claude. IMAGEM = visão direta. VÍDEO = tenta transcrição (Whisper) + usa a THUMBNAIL
+    // como referência visual; se não houver áudio OU o Whisper falhar, faz fallback SÓ visual (nunca deixa em erro).
     let userContent: any;
     let trDuration = 0, trLang = "";
+    let analysisMode = "";
+    let audioStatus = "";
+
+    // baixa a thumbnail (bucket) e devolve bloco de imagem base64 pra Claude (Claude não aceita vídeo)
+    const thumbImageBlock = async (): Promise<any | null> => {
+      if (!video.thumbnail_path) return null;
+      const { data: th } = await supabase.storage.from("studio-videos").download(video.thumbnail_path);
+      if (!th) return null;
+      const tb = new Uint8Array(await th.arrayBuffer());
+      let bin = ""; const CH = 8192; for (let i = 0; i < tb.length; i += CH) bin += String.fromCharCode(...tb.subarray(i, i + CH));
+      const tp = video.thumbnail_path.toLowerCase();
+      const mt = tp.endsWith(".png") ? "image/png" : tp.endsWith(".webp") ? "image/webp" : "image/jpeg";
+      return { type: "image", source: { type: "base64", media_type: mt, data: btoa(bin) } };
+    };
+
     if (video.media_type === "image") {
       const { data: img, error: iErr } = await supabase.storage.from("studio-videos").download(video.storage_path);
       if (iErr || !img) throw new Error("Falha ao baixar a imagem do storage");
@@ -218,28 +258,57 @@ Regra de ouro: o concorrente é só referência de ESTRATÉGIA. Extraia o PRINC�
       const b64 = btoa(bin);
       const fn = video.filename.toLowerCase();
       const mt = fn.endsWith(".png") ? "image/png" : fn.endsWith(".webp") ? "image/webp" : "image/jpeg";
+      analysisMode = "image"; audioStatus = "skipped";
       userContent = [
         { type: "image", source: { type: "base64", media_type: mt, data: b64 } },
         { type: "text", text: `Analise esta IMAGEM como REFERÊNCIA ESTRATÉGICA de um concorrente. NÃO recrie uma imagem parecida. Extraia o mecanismo criativo, identifique os elementos de EXECUÇÃO que NÃO devem ser copiados e proponha uma execução visual ORIGINAL para a NOSSA marca usando apenas informações e produtos permitidos pelos Brand Guardrails. A imagem do concorrente é fonte de INSIGHT, não storyboard. Preencha "competitor_text" com as frases legíveis da peça. Retorne o JSON estruturado solicitado.` },
       ];
     } else {
+      // ---- VÍDEO ----
       const srcPath = video.audio_path || video.storage_path;
       const { data: file, error: dlErr } = await supabase.storage.from("studio-videos").download(srcPath);
-      if (dlErr || !file) throw new Error("Falha ao baixar o arquivo do storage");
-      if (file.size > WHISPER_MAX_BYTES) throw new Error(`O áudio extraído tem ${(file.size / 1048576).toFixed(0)}MB e passa do limite de 25MB da transcrição — o vídeo é muito longo. Divida em partes menores.`);
-      const fd = new FormData();
-      // Whisper detecta o formato pela EXTENSÃO do nome. O filename de posts importados é a legenda (sem extensão),
-      // então usamos o nome do arquivo do storage (que tem .mp4/.jpg) — senão dá "Unrecognized file format".
-      const waName = video.audio_path ? "audio.wav" : (video.storage_path.split("/").pop() || `video.${(video.storage_path.split(".").pop() || "mp4").toLowerCase()}`);
-      fd.append("file", file, waName);
-      fd.append("model", WHISPER_MODEL);
-      fd.append("response_format", "verbose_json");
-      const wRes = await fetch("https://api.openai.com/v1/audio/transcriptions", { method: "POST", headers: { Authorization: `Bearer ${OPENAI}` }, body: fd });
-      if (!wRes.ok) throw new Error("Whisper: " + (await wRes.text()).slice(0, 200));
-      const tr = await wRes.json();
-      trDuration = tr.duration || 0; trLang = tr.language || "";
-      await supabase.from("studio_transcriptions").insert({ video_id: videoId, full_text: tr.text || "", segments: tr.segments || null });
-      userContent = `Transcrição do vídeo do CONCORRENTE "${video.filename}" (idioma ${trLang || "?"}, ${Math.round(trDuration)}s). Trate como REFERÊNCIA ESTRATÉGICA: extraia o princípio, NÃO copie a execução/frases, e proponha algo ORIGINAL para a NOSSA marca respeitando os Brand Guardrails. Preencha "competitor_text" com as frases-chave do concorrente.\n\n${tr.text || "(sem fala detectada)"}`;
+      if (dlErr || !file) throw new Error("Falha ao baixar o vídeo do storage");
+      const vbytes = new Uint8Array(await file.arrayBuffer());
+      const hasAudio = video.audio_path ? true : mp4HasAudioTrack(vbytes); // áudio já extraído = sim; senão, olha os boxes
+      let transcript: string | null = null;
+      if (hasAudio) {
+        if (file.size > WHISPER_MAX_BYTES) {
+          audioStatus = "decode_failed"; // grande demais → fallback visual (não erro)
+        } else {
+          try {
+            const fd = new FormData();
+            const waName = video.audio_path ? "audio.wav" : (video.storage_path.split("/").pop() || "video.mp4");
+            fd.append("file", new Blob([vbytes]), waName);
+            fd.append("model", WHISPER_MODEL);
+            fd.append("response_format", "verbose_json");
+            const wRes = await fetch("https://api.openai.com/v1/audio/transcriptions", { method: "POST", headers: { Authorization: `Bearer ${OPENAI}` }, body: fd });
+            if (!wRes.ok) throw new Error((await wRes.text()).slice(0, 200));
+            const tr = await wRes.json();
+            trDuration = tr.duration || 0; trLang = tr.language || "";
+            transcript = tr.text || "";
+            await supabase.from("studio_transcriptions").insert({ video_id: videoId, full_text: transcript, segments: tr.segments || null });
+            audioStatus = "success";
+          } catch (_e) {
+            transcript = null; audioStatus = "decode_failed";
+          }
+        }
+      } else {
+        audioStatus = "no_audio";
+      }
+
+      const thumb = await thumbImageBlock();
+      if (transcript && thumb) {
+        analysisMode = "video_visual_plus_audio";
+        userContent = [thumb, { type: "text", text: `Esta é uma peça em VÍDEO (Reel) de um CONCORRENTE. A imagem fornecida é uma REFERÊNCIA VISUAL/thumbnail do Reel. A transcrição abaixo representa o áudio/fala disponível. Analise os DOIS em conjunto (visual + fala). NÃO presuma que a thumbnail representa TODAS as cenas. Trate como referência ESTRATÉGICA: extraia estratégia, hook verbal, mensagem e mecanismo criativo SEM copiar a execução/frases, respeitando os Brand Guardrails. Preencha "competitor_text" com as frases-chave do concorrente. Retorne o JSON.\n\nTRANSCRIÇÃO:\n${transcript || "(vazia)"}` }];
+      } else if (thumb) {
+        analysisMode = (audioStatus === "no_audio") ? "video_visual_no_audio" : "video_visual_fallback";
+        userContent = [thumb, { type: "text", text: `Esta peça é um Reel/vídeo de um CONCORRENTE, porém SOMENTE o contexto visual (thumbnail/frame) está disponível para esta análise. Analise a thumbnail/frame como evidência visual. NÃO presuma: fala, narração, música, áudio, sequência de cenas não visíveis, CTA falado, acontecimentos fora do frame. Você PODE analisar: composição, produto, textos visíveis, cenário, personagem, identidade visual, mecanismo visual. Qualquer interpretação além disso deve ser marcada como inferência (em "suggestions_not_facts"). Trate como referência ESTRATÉGICA — extraia o princípio, NÃO copie a execução; respeite os Brand Guardrails. Preencha "competitor_text" com os textos visíveis na peça. Retorne o JSON.` }];
+      } else if (transcript) {
+        analysisMode = "video_visual_plus_audio";
+        userContent = `Transcrição do vídeo do CONCORRENTE "${video.filename}" (idioma ${trLang || "?"}, ${Math.round(trDuration)}s). Trate como REFERÊNCIA ESTRATÉGICA: extraia o princípio, NÃO copie a execução/frases, e proponha algo ORIGINAL para a NOSSA marca respeitando os Brand Guardrails. Preencha "competitor_text" com as frases-chave do concorrente.\n\n${transcript}`;
+      } else {
+        throw new Error("Vídeo sem áudio e sem thumbnail para análise visual. Reimporte o post (o import agora salva a thumbnail).");
+      }
     }
 
     // 3) analisa com Claude (texto/imagem → JSON estruturado)
@@ -266,7 +335,10 @@ Regra de ouro: o concorrente é só referência de ESTRATÉGIA. Extraia o PRINC�
     // 3.5) VALIDAÇÃO DE MARCA (modo WARNING — não bloqueia). Junta o que a IA marcou + checagem determinística.
     const modelWarns = Array.isArray(a.validation_warnings) ? a.validation_warnings.filter((x: any) => x && x.message) : [];
     const guardWarns = brand?.guardrails ? validateBrandCompliance(a, brand.guardrails) : [];
-    const validation_warnings = [...modelWarns, ...guardWarns];
+    const videoWarns: any[] = [];
+    if (audioStatus === "no_audio") videoWarns.push({ code: "VIDEO_NO_AUDIO_STREAM", level: "info", message: "Este vídeo não possui faixa de áudio disponível para transcrição. A análise foi feita apenas com o contexto visual (thumbnail/frame). Interpretações sobre fala, narração ou música não se aplicam." });
+    if (audioStatus === "decode_failed") videoWarns.push({ code: "VIDEO_AUDIO_FALLBACK", level: "warning", message: "Havia áudio, mas a transcrição falhou. A análise foi concluída apenas com o contexto visual (thumbnail/frame). Reprocessar pode recuperar o áudio." });
+    const validation_warnings = [...modelWarns, ...guardWarns, ...videoWarns];
 
     // 4) salva a análise (mapeando pro schema das colunas — campos antigos + novos aditivos)
     await supabase.from("studio_analyses").insert({
@@ -295,6 +367,7 @@ Regra de ouro: o concorrente é só referência de ESTRATÉGIA. Extraia o PRINC�
     await supabase.from("studio_videos").update({
       status: "completed", processed_at: new Date().toISOString(),
       duration: trDuration || null, language: trLang || null, brand_detected: a.marca_identificada || null,
+      analysis_mode: analysisMode || null, audio_transcription_status: audioStatus || null,
     }).eq("id", videoId);
 
     return new Response(JSON.stringify({ ok: true, warnings: validation_warnings.length }), { headers: { ...cors, "Content-Type": "application/json" } });

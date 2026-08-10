@@ -17,14 +17,58 @@ Deno.serve(async (req) => {
     const token = Deno.env.get("APIFY_TOKEN");
     const authHeader = req.headers.get("Authorization") ?? "";
 
-    // gate: só admin
-    const asUser = createClient(url, anon, { global: { headers: { Authorization: authHeader } } });
-    const { data: isAdmin } = await asUser.rpc("is_admin");
-    if (!isAdmin) return json({ error: "forbidden" }, 403);
+    // gate: admin (via JWT) OU chamada interna com o service role secret (x-internal-secret)
+    const internalSecret = req.headers.get("x-internal-secret") ?? "";
+    const isInternal = internalSecret && internalSecret === service;
+    if (!isInternal) {
+      const asUser = createClient(url, anon, { global: { headers: { Authorization: authHeader } } });
+      const { data: isAdmin } = await asUser.rpc("is_admin");
+      if (!isAdmin) return json({ error: "forbidden" }, 403);
+    }
     if (!token) return json({ error: "APIFY_TOKEN ausente nos secrets do Supabase." }, 500);
 
     const body = await req.json();
     const { action, handle, company_id, created_by, mediaFilter } = body;
+    const db2 = createClient(url, service);
+
+    // ===================== DEBUG_POST: raspa 1 post pela URL, devolve o ITEM CRU do Apify (Parte 2) e
+    // opcionalmente recupera a thumbnail de um studio_videos existente (video_id). SÓ interno/admin. =====
+    if (action === "debug_post") {
+      const postUrl = String(body.postUrl || body.url || "").trim();
+      if (!postUrl) return json({ error: "postUrl é obrigatório." }, 400);
+      const r = await fetch(`${APIFY}/acts/${ACTOR}/run-sync-get-dataset-items?token=${token}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ directUrls: [postUrl], resultsType: "posts", resultsLimit: 1, addParentData: false }),
+      });
+      if (!r.ok) return json({ error: "apify_error", message: (await r.text()).slice(0, 400) }, 502);
+      const arr = await r.json();
+      const item = (Array.isArray(arr) ? arr : [])[0] || null;
+      if (!item) return json({ error: "sem_item", message: "Apify não retornou o post." }, 404);
+
+      // top-level keys + amostra dos campos que podem carregar áudio/vídeo progressivo (só leitura)
+      const audioVideoKeys = ["videoUrl", "videoUrlBackup", "musicInfo", "audio", "audioUrl", "musicInfoAttachment", "coauthorProducers", "displayUrl", "images", "videoDuration", "productType", "videoResources", "audioResources", "clipsMetadata", "hasAudio", "isMuted"];
+      const sample: Record<string, unknown> = {};
+      for (const k of audioVideoKeys) if (k in item) sample[k] = (item as any)[k];
+
+      // recupera thumbnail p/ um registro existente, se pedido
+      let thumbnail_saved: string | null = null;
+      const video_id = body.video_id ? String(body.video_id) : null;
+      const cid = company_id || (video_id ? (await db2.from("studio_videos").select("company_id").eq("id", video_id).maybeSingle()).data?.company_id : null);
+      const thumbUrl = item.displayUrl || (Array.isArray(item.images) ? item.images[0] : null) || null;
+      if (video_id && thumbUrl && cid) {
+        try {
+          const tres = await fetch(thumbUrl);
+          if (tres.ok) {
+            const tblob = await tres.blob();
+            const tpath = `${cid}/recovered_${video_id}_thumb.jpg`;
+            const tup = await db2.storage.from("studio-videos").upload(tpath, tblob, { contentType: "image/jpeg", upsert: true });
+            if (!tup.error) { thumbnail_saved = tpath; await db2.from("studio_videos").update({ thumbnail_path: tpath }).eq("id", video_id); }
+          }
+        } catch { /* best-effort */ }
+      }
+
+      return json({ ok: true, thumbnail_saved, topLevelKeys: Object.keys(item).sort(), audioVideoSample: sample, item });
+    }
     const cleanUser = (h: any) => h ? String(h).replace(/^@/, "").trim().replace(/\/+$/, "").split("/").pop() : null;
     const user = cleanUser(handle);
     const profileUrl = user ? `https://www.instagram.com/${user}/` : "";
@@ -69,9 +113,22 @@ Deno.serve(async (req) => {
           const path = `${company_id}/ig_${uname}_${Date.now()}_${imported}.${ext}`;
           const up = await db.storage.from("studio-videos").upload(path, blob, { contentType: isVideo ? "video/mp4" : "image/jpeg" });
           if (up.error) continue;
+          // Para VÍDEO: também salva a THUMBNAIL (frame do Reel) — é o que a Claude Vision analisa quando não há áudio.
+          let thumbnail_path: string | null = null;
+          if (isVideo && p.thumb) {
+            try {
+              const tres = await fetch(p.thumb);
+              if (tres.ok) {
+                const tblob = await tres.blob();
+                const tpath = `${company_id}/ig_${uname}_${Date.now()}_${imported}_thumb.jpg`;
+                const tup = await db.storage.from("studio-videos").upload(tpath, tblob, { contentType: "image/jpeg" });
+                if (!tup.error) thumbnail_path = tpath;
+              }
+            } catch { /* thumbnail é best-effort */ }
+          }
           const { data: row } = await db.from("studio_videos").insert({
             company_id, created_by: created_by || null, media_type: isVideo ? "video" : "image",
-            filename: `@${uname} — ${(p.caption || "post").slice(0, 40)}`, storage_path: path,
+            filename: `@${uname} — ${(p.caption || "post").slice(0, 40)}`, storage_path: path, thumbnail_path,
             source_url: p.url || (uname !== "ig" ? `https://www.instagram.com/${uname}/` : null), status: "pending",
           }).select("id").single();
           if (row?.id) {
