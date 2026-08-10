@@ -50,24 +50,38 @@ Deno.serve(async (req) => {
       const sample: Record<string, unknown> = {};
       for (const k of audioVideoKeys) if (k in item) sample[k] = (item as any)[k];
 
-      // recupera thumbnail p/ um registro existente, se pedido
+      // recupera thumbnail + áudio p/ um registro existente, se pedido (backfill)
       let thumbnail_saved: string | null = null;
+      let audio_saved: string | null = null;
       const video_id = body.video_id ? String(body.video_id) : null;
       const cid = company_id || (video_id ? (await db2.from("studio_videos").select("company_id").eq("id", video_id).maybeSingle()).data?.company_id : null);
       const thumbUrl = item.displayUrl || (Array.isArray(item.images) ? item.images[0] : null) || null;
-      if (video_id && thumbUrl && cid) {
-        try {
-          const tres = await fetch(thumbUrl);
-          if (tres.ok) {
-            const tblob = await tres.blob();
-            const tpath = `${cid}/recovered_${video_id}_thumb.jpg`;
-            const tup = await db2.storage.from("studio-videos").upload(tpath, tblob, { contentType: "image/jpeg", upsert: true });
-            if (!tup.error) { thumbnail_saved = tpath; await db2.from("studio_videos").update({ thumbnail_path: tpath }).eq("id", video_id); }
-          }
-        } catch { /* best-effort */ }
+      if (video_id && cid) {
+        if (thumbUrl) {
+          try {
+            const tres = await fetch(thumbUrl);
+            if (tres.ok) {
+              const tblob = await tres.blob();
+              const tpath = `${cid}/recovered_${video_id}_thumb.jpg`;
+              const tup = await db2.storage.from("studio-videos").upload(tpath, tblob, { contentType: "image/jpeg", upsert: true });
+              if (!tup.error) { thumbnail_saved = tpath; await db2.from("studio_videos").update({ thumbnail_path: tpath }).eq("id", video_id); }
+            }
+          } catch { /* best-effort */ }
+        }
+        if (item.audioUrl) {
+          try {
+            const ares = await fetch(item.audioUrl);
+            if (ares.ok) {
+              const ablob = await ares.blob();
+              const apath = `${cid}/recovered_${video_id}_audio.mp4`;
+              const aup = await db2.storage.from("studio-videos").upload(apath, ablob, { contentType: "audio/mp4", upsert: true });
+              if (!aup.error) { audio_saved = apath; await db2.from("studio_videos").update({ audio_path: apath }).eq("id", video_id); }
+            }
+          } catch { /* best-effort */ }
+        }
       }
 
-      return json({ ok: true, thumbnail_saved, topLevelKeys: Object.keys(item).sort(), audioVideoSample: sample, item });
+      return json({ ok: true, thumbnail_saved, audio_saved, topLevelKeys: Object.keys(item).sort(), audioVideoSample: sample, item });
     }
     const cleanUser = (h: any) => h ? String(h).replace(/^@/, "").trim().replace(/\/+$/, "").split("/").pop() : null;
     const user = cleanUser(handle);
@@ -126,9 +140,23 @@ Deno.serve(async (req) => {
               }
             } catch { /* thumbnail é best-effort */ }
           }
+          // Para VÍDEO: o Apify entrega o ÁUDIO ISOLADO (AAC/HE-AAC) em p.audioUrl, separado do videoUrl (VP9 video-only).
+          // Salvamos esse áudio pra o Whisper transcrever direto (sem ffmpeg/mux). Best-effort: falha aqui NÃO cancela o import.
+          let audio_path: string | null = null;
+          if (isVideo && p.audioUrl) {
+            try {
+              const ares = await fetch(p.audioUrl);
+              if (ares.ok) {
+                const ablob = await ares.blob();
+                const apath = `${company_id}/ig_${uname}_${Date.now()}_${imported}_audio.mp4`;
+                const aup = await db.storage.from("studio-videos").upload(apath, ablob, { contentType: "audio/mp4" });
+                if (!aup.error) audio_path = apath;
+              }
+            } catch { /* áudio é best-effort — sem ele, cai no fallback visual */ }
+          }
           const { data: row } = await db.from("studio_videos").insert({
             company_id, created_by: created_by || null, media_type: isVideo ? "video" : "image",
-            filename: `@${uname} — ${(p.caption || "post").slice(0, 40)}`, storage_path: path, thumbnail_path,
+            filename: `@${uname} — ${(p.caption || "post").slice(0, 40)}`, storage_path: path, thumbnail_path, audio_path,
             source_url: p.url || (uname !== "ig" ? `https://www.instagram.com/${uname}/` : null), status: "pending",
           }).select("id").single();
           if (row?.id) {
@@ -176,7 +204,8 @@ Deno.serve(async (req) => {
     posts = posts
       .map((p: any) => {
         const isVideo = p.type === "Video" || !!p.videoUrl;
-        return { url: p.url || null, thumb: p.displayUrl || null, video: isVideo ? p.videoUrl || null : null, isVideo,
+        return { url: p.url || null, thumb: p.displayUrl || null, video: isVideo ? p.videoUrl || null : null,
+          audioUrl: isVideo ? (p.audioUrl || null) : null, isVideo,
           views: Number(p.videoViewCount) || 0, likes: Number(p.likesCount) || 0, comments: Number(p.commentsCount) || 0,
           ts: p.timestamp || null, caption: (p.caption || "").slice(0, 120), score: score(p) };
       })

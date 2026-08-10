@@ -277,7 +277,7 @@ Regra de ouro: o concorrente é só referência de ESTRATÉGIA. Extraia o PRINC�
         } else {
           try {
             const fd = new FormData();
-            const waName = video.audio_path ? "audio.wav" : (video.storage_path.split("/").pop() || "video.mp4");
+            const waName = video.audio_path ? (video.audio_path.split("/").pop() || "audio.mp4") : (video.storage_path.split("/").pop() || "video.mp4");
             fd.append("file", new Blob([vbytes]), waName);
             fd.append("model", WHISPER_MODEL);
             fd.append("response_format", "verbose_json");
@@ -285,9 +285,9 @@ Regra de ouro: o concorrente é só referência de ESTRATÉGIA. Extraia o PRINC�
             if (!wRes.ok) throw new Error((await wRes.text()).slice(0, 200));
             const tr = await wRes.json();
             trDuration = tr.duration || 0; trLang = tr.language || "";
-            transcript = tr.text || "";
-            await supabase.from("studio_transcriptions").insert({ video_id: videoId, full_text: transcript, segments: tr.segments || null });
-            audioStatus = "success";
+            transcript = (tr.text || "").trim() || null; // sem fala útil → null (não fingir texto falado); cai no visual
+            if (transcript) await supabase.from("studio_transcriptions").insert({ video_id: videoId, full_text: transcript, segments: tr.segments || null });
+            audioStatus = "success"; // Whisper rodou; se transcript==null, foi áudio sem fala (música/ambiente)
           } catch (_e) {
             transcript = null; audioStatus = "decode_failed";
           }
