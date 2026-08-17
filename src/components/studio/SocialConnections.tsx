@@ -61,6 +61,14 @@ export default function SocialConnections({ companyId }: { companyId: string | n
     toast.info('Autorize o app na aba do TikTok que abriu; depois volte e atualize a página.');
   }
 
+  // Instagram conecta por OAuth (login do Instagram numa nova aba). Se o app da Meta ainda não
+  // estiver configurado (sem App ID/Secret), a aba mostra o erro e você usa "Editar" pra colar o token.
+  function connectInstagram() {
+    const base = import.meta.env.VITE_SUPABASE_URL;
+    window.open(`${base}/functions/v1/instagram-oauth?start=1&company=${companyId || ''}`, '_blank');
+    toast.info('Entre com a conta certa (ex.: @coficobrasil) na aba que abriu; depois volte e atualize.');
+  }
+
   async function save() {
     if (!form.access_token.trim() && !conns[editing!]?.access_token) { toast.error('Cole o token de acesso da rede.'); return; }
     setSaving(true);
@@ -118,9 +126,10 @@ export default function SocialConnections({ companyId }: { companyId: string | n
                 <p className="text-xs text-gray-400 mt-1">{n.hint}</p>
               </div>
               <div className="flex flex-col gap-1.5 flex-shrink-0">
-                <button onClick={() => n.key === 'tiktok' ? connectTikTok() : openEdit(n.key)} className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-[#8B2214] hover:bg-[#6d1a10] rounded-lg px-3 py-1.5">
-                  <Link2 className="w-3.5 h-3.5" /> {n.key === 'tiktok' ? (on ? 'Reconectar' : 'Conectar') : (on ? 'Editar' : 'Conectar')}
+                <button onClick={() => n.key === 'tiktok' ? connectTikTok() : n.key === 'instagram' ? connectInstagram() : openEdit(n.key)} className="inline-flex items-center gap-1 text-xs font-semibold text-white bg-[#8B2214] hover:bg-[#6d1a10] rounded-lg px-3 py-1.5">
+                  <Link2 className="w-3.5 h-3.5" /> {(n.key === 'tiktok' || n.key === 'instagram') ? (on ? 'Reconectar' : 'Conectar') : (on ? 'Editar' : 'Conectar')}
                 </button>
+                {n.key === 'instagram' && <button onClick={() => openEdit('instagram')} className="text-[11px] text-gray-500 hover:text-[#8B2214] px-3">colar token</button>}
                 {on && <button onClick={() => disconnect(n.key)} className="text-xs text-gray-500 hover:text-red-600 px-3 py-1">Desconectar</button>}
               </div>
             </div>

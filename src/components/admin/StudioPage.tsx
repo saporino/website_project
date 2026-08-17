@@ -17,8 +17,19 @@ import BrandProfile from '../studio/BrandProfile';
 type Filtro = 'todos' | 'processando' | 'concluidos';
 
 export default function StudioPage() {
-  const { activeCompanyId } = useCompany();
+  const { activeCompanyId: salesCompanyId } = useCompany();
   const { user } = useAuth();
+  // O Studio tem seu PRÓPRIO seletor de marca — inclui a COFICO (operadora logística, que NÃO entra no
+  // switcher de vendas do topo). Assim o conteúdo/campanhas/conexões da COFICO ficam separados, sem misturar
+  // com vendas. Default = empresa de vendas ativa; o usuário troca no seletor do Studio.
+  const [studioCompanyId, setStudioCompanyId] = useState<string | null>(null);
+  const [studioBrands, setStudioBrands] = useState<{ id: string; label: string; logo: string | null }[]>([]);
+  const activeCompanyId = studioCompanyId ?? salesCompanyId;
+  // marcas que podem ter conteúdo/redes próprias no Studio (inclui operadora COFICO). Todas as empresas ativas.
+  useEffect(() => {
+    supabase.from('companies').select('id,name,fantasia,logo_url,sort_order').eq('is_active', true).order('sort_order')
+      .then(({ data }) => setStudioBrands((data || []).map((c: any) => ({ id: c.id, label: c.fantasia || c.name, logo: c.logo_url }))));
+  }, []);
   const [videos, setVideos] = useState<StudioVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<Filtro>('todos');
@@ -343,6 +354,20 @@ export default function StudioPage() {
           <p className="text-sm text-gray-500">Engenharia reversa de vídeos com IA</p>
         </div>
       </div>
+
+      {/* Marca do Studio — separa conteúdo/campanhas/conexões por empresa (inclui a COFICO, que não vende). */}
+      {studioBrands.length > 1 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-semibold text-gray-500">Publicando pela marca:</span>
+          {studioBrands.map(b => (
+            <button key={b.id} onClick={() => setStudioCompanyId(b.id)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border ${activeCompanyId === b.id ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
+              {b.logo ? <img src={b.logo} alt="" className="h-4 w-4 rounded object-contain" /> : null}
+              {b.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Visão: Vídeos, Campanhas ou Conexões */}
       <div className="flex bg-white border border-gray-200 rounded-xl text-sm font-semibold overflow-hidden w-fit">
