@@ -16,6 +16,21 @@ import BrandProfile from '../studio/BrandProfile';
 // Análise (Claude/Whisper) e campanhas entram nos próximos passos.
 type Filtro = 'todos' | 'processando' | 'concluidos';
 
+// Nome de exibição da marca (título padrão das campanhas). Normaliza o fantasia da empresa
+// pros nomes bonitos que o Vlademir quer; siglas (ex.: COFICO) ficam em maiúsculo; fallback title-case.
+function brandTitleOf(fantasia?: string | null): string {
+  const raw = (fantasia || '').trim();
+  if (!raw) return 'Café Saporino';
+  const norm = raw.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const MAP: Record<string, string> = {
+    'cafe saporino': 'Café Saporino',
+    'cafe fazendinha': 'Café Fazendinha',
+    'cofico brasil': 'COFICO Brasil',
+  };
+  if (MAP[norm]) return MAP[norm];
+  return raw.split(/\s+/).map(w => (w.length > 1 && w === w.toUpperCase()) ? w : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
 export default function StudioPage() {
   const { activeCompanyId: salesCompanyId } = useCompany();
   const { user } = useAuth();
@@ -579,7 +594,7 @@ export default function StudioPage() {
       )}
 
       {modalVideo && (
-        <AnalysisModal video={modalVideo} companyId={activeCompanyId} initialTab={modalTab} onClose={() => setModalVideo(null)} />
+        <AnalysisModal video={modalVideo} companyId={activeCompanyId} brandTitle={brandTitleOf(studioBrands.find(b => b.id === activeCompanyId)?.label)} initialTab={modalTab} onClose={() => setModalVideo(null)} />
       )}
     </div>
   );

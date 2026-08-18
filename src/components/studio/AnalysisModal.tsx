@@ -51,8 +51,8 @@ const TABS: [Tab, string, any][] = [
   ['reproduzir', 'Como Adaptar', Wand2], ['prompts', 'Prompts', Sparkles], ['publicar', 'Publicar', Megaphone],
 ];
 
-export default function AnalysisModal({ video, companyId, initialTab = 'resumo', onClose }: {
-  video: StudioVideo; companyId: string | null; initialTab?: Tab; onClose: () => void;
+export default function AnalysisModal({ video, companyId, brandTitle, initialTab = 'resumo', onClose }: {
+  video: StudioVideo; companyId: string | null; brandTitle?: string; initialTab?: Tab; onClose: () => void;
 }) {
   const [tab, setTab] = useState<Tab>(initialTab);
   const [a, setA] = useState<any>(null);
@@ -91,9 +91,9 @@ export default function AnalysisModal({ video, companyId, initialTab = 'resumo',
     const add = hashtags.map(t => (String(t).startsWith('#') ? String(t) : '#' + t)).filter(t => !have.includes(t.toLowerCase())).slice(0, 6);
     return add.length ? `${base}\n\n${add.join(' ')}` : base;
   };
-  // título interno limpo (tira o parêntese comprido da marca detectada)
-  const cleanBrand = String(video.brand_detected || '').replace(/\(.*/s, '').trim();
-  const campaignTitle = cleanBrand || 'Café Saporino';
+  // Título interno da campanha = NOSSA marca ativa no Studio (Café Saporino / Café Fazendinha / COFICO Brasil),
+  // NÃO a marca do concorrente detectada. Vem pronto de StudioPage; fallback só por segurança.
+  const campaignTitle = brandTitle || 'Café Saporino';
   const campaignCaptions: Record<string, string> = {
     instagram: mergeTags(legendas.instagram),
     facebook: mergeTags(legendas.instagram),
