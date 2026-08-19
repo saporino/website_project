@@ -48,18 +48,23 @@ const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers
 // ------- normalização e checagem determinística (MODE=WARNING, não bloqueia) -------
 const norm = (s: unknown) => (s ?? "").toString().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
-const ASSET_TOKENS: Record<string, string> = { logo: "[INSERT OFFICIAL SAPORINO LOGO ASSET]", cup: "[INSERT OFFICIAL SAPORINO CUP ASSET]", package: "[INSERT OFFICIAL SAPORINO CLASSICO PACKAGE ASSET]" };
+// Tokens de asset por MARCA (multi-marca): o token literal referencia a marca ativa (Saporino, COFICO Brasil, etc.).
+const assetTokens = (brand: string): Record<string, string> => {
+  const B = (brand || "MARCA").toUpperCase();
+  return { logo: `[INSERT OFFICIAL ${B} LOGO ASSET]`, cup: `[INSERT OFFICIAL ${B} CUP ASSET]`, package: `[INSERT OFFICIAL ${B} PACKAGE ASSET]` };
+};
 // TERMOS EXPLÍCITOS do asset (não usar palavras genéricas como "official/asset/product" — evita falso positivo).
 const ASSET_TERMS: Record<string, RegExp> = { logo: /\blogo\b|logotipo/, cup: /\bcup\b|xicara|caneca/, package: /package|packaging|embalagem|pacote/ };
 
 // V1.2 — injeta o TOKEN LITERAL de asset nos prompts visuais quando o prompt prevê o asset (não depende só do LLM).
-function enforceAssetPlaceholders(a: any) {
-  const required = new Set((a.assets_required || []).filter((x: any) => x && x.required === true && ASSET_TOKENS[x.asset]).map((x: any) => x.asset));
+function enforceAssetPlaceholders(a: any, brand: string) {
+  const TOK = assetTokens(brand);
+  const required = new Set((a.assets_required || []).filter((x: any) => x && x.required === true && TOK[x.asset]).map((x: any) => x.asset));
   if (!required.size) return;
   for (const k of ["prompt_midjourney", "prompt_veo", "prompt_runway", "prompt_capcut"]) {
     let p = a[k]; if (!p || !String(p).trim()) continue;
     for (const asset of required) {
-      const token = ASSET_TOKENS[asset]; const term = ASSET_TERMS[asset];
+      const token = TOK[asset as string]; const term = ASSET_TERMS[asset as string];
       const pn = norm(p);
       const foresees = pn.includes(norm(token)) || term.test(pn);
       if (foresees && !pn.includes(norm(token))) p = String(p).replace(/\s*$/, "") + ` ${token}`;
@@ -110,10 +115,18 @@ function mp4HasAudioTrack(bytes: Uint8Array): boolean {
   } catch { return false; }
 }
 
-function validateBrandCompliance(a: any, g: any): any[] {
+function validateBrandCompliance(a: any, g: any, brand: string): any[] {
   const w: any[] = [];
   const push = (severity: string, code: string, message: string) => w.push({ severity, code, message });
   if (!g || typeof g !== "object") return w;
+
+  const TOK = assetTokens(brand);
+  const brandNorm = norm(brand);
+  const brandCore = brandNorm.split(/\s+/)[0] || brandNorm; // 1ª palavra (ex.: "cofico", "saporino")
+  // PEÇA PRÓPRIA? Se a marca detectada na peça é a NOSSA marca ativa, não é concorrente — é referência própria.
+  // Nesse caso não faz sentido tratar as nossas frases como "vazamento do concorrente" nem o nome como "concorrente na copy".
+  const detected = norm((a.marca_identificada || "").replace(/\(.*/s, ""));
+  const isOwnPiece = !!brandCore && !!detected && (detected.includes(brandCore) || brandCore.includes(detected.split(/\s+/)[0] || detected));
 
   const legendsRaw = [a.legenda_instagram, a.legenda_tiktok, a.titulo_youtube, (a.hashtags || []).join(" ")].filter(Boolean).join("  \n  ");
   const finalCopy = norm(legendsRaw);
@@ -134,13 +147,16 @@ function validateBrandCompliance(a: any, g: any): any[] {
     ["brinde", /\bbrinde\b/], ["assinatura", /\bassinatura\b/], ["kit", /\bkit\b/],
   ];
   for (const [label, re] of commercial) if (re.test(finalCopy)) push("critical", "invented_commercial", `Possível ${label} inventado na copy final — não use oferta/preço sem aprovação.`);
-  // CRITICAL — nome do concorrente na copy final
-  const comp = norm((a.marca_identificada || "").replace(/\(@[^)]*\)/g, "").replace(/\b(cafe|coffee|oficial|ltda)\b/g, "").trim());
-  if (comp.length >= 3 && finalCopy.includes(comp)) push("critical", "competitor_in_copy", `Nome do concorrente ("${a.marca_identificada}") apareceu na copy final.`);
-  // CRITICAL — prompt pedindo GERAR asset da marca (sem placeholder)
+  // CRITICAL — nome do concorrente na copy final (NÃO vale se a peça é da própria marca — aí o nome DEVE aparecer)
+  if (!isOwnPiece) {
+    const comp = norm((a.marca_identificada || "").replace(/\(@[^)]*\)/g, "").replace(/\b(cafe|coffee|oficial|ltda)\b/g, "").trim());
+    if (comp.length >= 3 && finalCopy.includes(comp)) push("critical", "competitor_in_copy", `Nome do concorrente ("${a.marca_identificada}") apareceu na copy final.`);
+  }
+  // CRITICAL — prompt pedindo GERAR asset da marca ativa (sem placeholder)
   const hasPlaceholder = /\[insert official/i.test((a.prompt_midjourney || "") + (a.prompt_gpt || ""));
-  if (/saporino[^.]{0,25}(logo|package|packaging|cup|embalagem|xicara)|(logo|package|packaging|cup|embalagem|xicara)[^.]{0,25}saporino/.test(promptsText) && !hasPlaceholder) {
-    push("critical", "prompt_generates_brand_asset", "Prompt de imagem parece pedir para GERAR logo/embalagem/xícara Saporino — use o placeholder [INSERT OFFICIAL SAPORINO ...].");
+  const brandAssetRe = new RegExp(`${brandCore}[^.]{0,25}(logo|package|packaging|cup|embalagem|xicara)|(logo|package|packaging|cup|embalagem|xicara)[^.]{0,25}${brandCore}`);
+  if (brandCore.length >= 3 && brandAssetRe.test(promptsText) && !hasPlaceholder) {
+    push("critical", "prompt_generates_brand_asset", `Prompt de imagem parece pedir para GERAR logo/embalagem/xícara de ${brand} — use o placeholder ${TOK.logo}.`);
   }
 
   // WARNING — termo que exige aprovação manual usado como fato na copy (região tem check próprio)
@@ -158,19 +174,20 @@ function validateBrandCompliance(a: any, g: any): any[] {
   const visualPrompts = ([["imagem", a.prompt_midjourney], ["Veo", a.prompt_veo], ["Runway", a.prompt_runway], ["DaVinci", a.prompt_capcut]] as [string, any][]).filter(([, v]) => v && String(v).trim());
   for (const ar of (a.assets_required || [])) {
     if (!ar || ar.required !== true) continue;
-    const token = ASSET_TOKENS[ar.asset]; const term = ASSET_TERMS[ar.asset]; if (!token || !term) continue;
+    const token = TOK[ar.asset]; const term = ASSET_TERMS[ar.asset]; if (!token || !term) continue;
     for (const [pl, ptext] of visualPrompts) {
       const ptn = norm(ptext);
       const foresees = ptn.includes(norm(token)) || term.test(ptn);
       if (foresees && !ptn.includes(norm(token))) push("warning", "ASSET_PLACEHOLDER_MISSING", `Prompt "${pl}" prevê o asset "${ar.asset}" mas não contém o token literal ${token}.`);
     }
   }
-  // WARNING — vazamento de expressão distintiva do concorrente na saída Saporino (copy distance)
-  const prot = protectedPhrases(a.competitor_text, a.protected_competitor_phrases);
+  // WARNING — vazamento de expressão distintiva do CONCORRENTE na saída da marca (copy distance).
+  // Só faz sentido quando a peça é de CONCORRENTE — numa peça PRÓPRIA, reusar as próprias frases não é vazamento.
+  const prot = isOwnPiece ? [] : protectedPhrases(a.competitor_text, a.protected_competitor_phrases);
   const seen = new Set<string>();
   for (const p of prot) {
     if (p.length < 5 || seen.has(p)) continue;
-    if ((" " + finalOut + " ").includes(" " + p + " ")) { seen.add(p); push("warning", "COMPETITOR_PHRASE_LEAK", `Expressão do concorrente "${p}" apareceu na saída Saporino — reescreva a execução verbal (mantenha só o princípio).`); }
+    if ((" " + finalOut + " ").includes(" " + p + " ")) { seen.add(p); push("warning", "COMPETITOR_PHRASE_LEAK", `Expressão do concorrente "${p}" apareceu na saída de ${brand} — reescreva a execução verbal (mantenha só o princípio).`); }
     if (seen.size >= 5) break;
   }
   // WARNING — originalidade / campos-chave
@@ -330,12 +347,15 @@ Regra de ouro: o concorrente é só referência de ESTRATÉGIA. Extraia o PRINC�
     try { a = JSON.parse(raw); } catch { a = {}; }
     if (!a.resumo && !a.gancho) throw new Error("A análise da IA veio vazia — tente Reprocessar.");
 
+    // Nome da MARCA ATIVA (multi-marca): usado nos tokens de asset e nas mensagens (não mais "Saporino" chumbado).
+    const brandName = brand?.guardrails?.brand_identity?.brand_name || brand?.name || "a marca";
+
     // 3.4) V1.2 — injeta os TOKENS LITERAIS de asset nos prompts (não depende só da obediência do LLM).
-    enforceAssetPlaceholders(a);
+    enforceAssetPlaceholders(a, brandName);
 
     // 3.5) VALIDAÇÃO DE MARCA (modo WARNING — não bloqueia). Junta o que a IA marcou + checagem determinística.
     const modelWarns = Array.isArray(a.validation_warnings) ? a.validation_warnings.filter((x: any) => x && x.message) : [];
-    const guardWarns = brand?.guardrails ? validateBrandCompliance(a, brand.guardrails) : [];
+    const guardWarns = brand?.guardrails ? validateBrandCompliance(a, brand.guardrails, brandName) : [];
     const videoWarns: any[] = [];
     if (audioStatus === "no_audio") videoWarns.push({ code: "VIDEO_NO_AUDIO_STREAM", level: "info", message: "Este vídeo não possui faixa de áudio disponível para transcrição. A análise foi feita apenas com o contexto visual (thumbnail/frame). Interpretações sobre fala, narração ou música não se aplicam." });
     if (audioStatus === "decode_failed") videoWarns.push({ code: "VIDEO_AUDIO_FALLBACK", level: "warning", message: "Havia áudio, mas a transcrição falhou. A análise foi concluída apenas com o contexto visual (thumbnail/frame). Reprocessar pode recuperar o áudio." });
