@@ -48,6 +48,8 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
   // Verificação de Marca na legenda final (seu texto OU o da IA) — por rede.
   const [capWarnings, setCapWarnings] = useState<Record<string, any[]>>({});
   const [verifying, setVerifying] = useState<string | null>(null);
+  // Sugestão da IA (mostrada SEPARADA — não sobrescreve o seu texto; você compara e aproveita).
+  const [aiSuggestion, setAiSuggestion] = useState<Record<string, { caption: string; notes_ia: string | null; warnings: any[] }>>({});
 
   async function generateCaption(p: string) {
     setAiBusy(p);
@@ -58,10 +60,9 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
     if (error || (data as any)?.error) { toast.error((data as any)?.error || error?.message || 'Falha ao gerar a legenda.'); return; }
     const cap = (data as any)?.caption || '';
     if (!cap) { toast.error('A IA não devolveu legenda. Tente de novo.'); return; }
-    setCap(p, cap);
-    setCapWarnings(prev => ({ ...prev, [p]: (data as any)?.warnings || [] }));
-    const n = (data as any)?.notes_ia;
-    toast.success('Legenda gerada — revise e confira a verificação de marca.' + (n ? ` (${n})` : ''));
+    // NÃO sobrescreve o campo do usuário — mostra a versão da IA numa caixa separada pra comparar.
+    setAiSuggestion(prev => ({ ...prev, [p]: { caption: cap, notes_ia: (data as any)?.notes_ia || null, warnings: (data as any)?.warnings || [] } }));
+    toast.success('Sugestão da IA pronta — compare abaixo e aproveite o que quiser.');
   }
 
   // Confere a legenda ATUAL (o que estiver no campo — seu texto ou o da IA) contra os guardrails da marca.
@@ -180,15 +181,15 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
           </div>
 
-          {/* Assistente de IA: sua ideia + a arte + guardrails da marca → legenda pronta */}
+          {/* Instruções pra IA (opcional). A legenda FINAL fica no campo grande abaixo — a IA não apaga a sua. */}
           <div className="bg-[#f8f7f5] border border-[#ddd0cc] rounded-lg p-3">
             <label className="block text-[11px] font-semibold text-gray-600 mb-1">
-              <Sparkles className="w-3.5 h-3.5 inline -mt-0.5 text-[#8B2214]" /> Sua ideia / rascunho <span className="font-normal text-gray-400">(opcional — a IA escreve a legenda a partir disto + a arte anexada + os guardrails da marca)</span>
+              <Sparkles className="w-3.5 h-3.5 inline -mt-0.5 text-[#8B2214]" /> Instruções pra IA <span className="font-normal text-gray-400">(opcional — tom, o que destacar). A sua legenda final vai no campo grande abaixo.</span>
             </label>
-            <textarea value={aiNotes} onChange={e => setAiNotes(e.target.value)} rows={3}
-              placeholder="Ex.: post de recrutamento de vendedores PJ, tom profissional B2B, destacar regiões de SP e o portfólio — ou cole aqui o rascunho que você já tem."
+            <textarea value={aiNotes} onChange={e => setAiNotes(e.target.value)} rows={2}
+              placeholder="Ex.: tom profissional B2B, destacar regiões de SP e o portfólio, incluir o WhatsApp. (Deixe em branco se quiser que a IA decida.)"
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-y bg-white" />
-            <p className="text-[11px] text-gray-400 mt-1">Clique em <strong>Escrever com IA</strong> em cada rede abaixo. Ela respeita os guardrails da marca — não inventa preço, promoção nem claim.</p>
+            <p className="text-[11px] text-gray-400 mt-1"><strong>Escrever com IA</strong> mostra a versão da IA numa caixa <strong>separada</strong> pra você comparar — não apaga o seu texto. <strong>Verificar marca</strong> confere o que estiver na sua legenda.</p>
           </div>
 
           {/* Uma legenda por rede escolhida (cada rede tem a sua — é isso que aparece publicamente) */}
@@ -223,6 +224,29 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
                   ))}
                 </div>
               ))}
+              {aiSuggestion[p] && (
+                <div className="mt-2 border border-[#ddd0cc] bg-[#f8f7f5] rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] font-bold text-[#8B2214] inline-flex items-center gap-1"><Sparkles className="w-3.5 h-3.5" /> Sugestão da IA — compare com a sua e aproveite o que quiser</span>
+                    <button type="button" onClick={() => setAiSuggestion(prev => { const n = { ...prev }; delete n[p]; return n; })} className="text-[11px] text-gray-400 hover:text-gray-700">fechar</button>
+                  </div>
+                  <div className="text-sm text-gray-700 whitespace-pre-wrap bg-white border border-gray-200 rounded-md px-3 py-2 max-h-52 overflow-auto">{aiSuggestion[p].caption}</div>
+                  {aiSuggestion[p].notes_ia && <p className="text-[11px] text-gray-500 mt-1">💡 {aiSuggestion[p].notes_ia}</p>}
+                  {aiSuggestion[p].warnings?.length ? (
+                    <div className="mt-1.5 space-y-1">
+                      {aiSuggestion[p].warnings.map((wn: any, i: number) => (
+                        <div key={i} className={`text-[11px] rounded-md px-2.5 py-1.5 border ${wn.severity === 'critical' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-yellow-50 border-yellow-200 text-yellow-800'}`}><strong>{wn.severity === 'critical' ? 'ATENÇÃO' : 'Revisar'}:</strong> {wn.message}</div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-[11px] font-medium text-green-700 inline-flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5" /> Sugestão de acordo com os guardrails.</p>
+                  )}
+                  <div className="flex gap-2 mt-2">
+                    <button type="button" onClick={() => { setCap(p, aiSuggestion[p].caption); setCapWarnings(prev => ({ ...prev, [p]: aiSuggestion[p].warnings || [] })); toast.success('Usei a sugestão na legenda — ajuste à vontade.'); }} className="text-[11px] font-semibold text-white bg-[#8B2214] hover:bg-[#6d1a10] rounded px-2.5 py-1">Usar esta na legenda</button>
+                    <button type="button" onClick={() => { navigator.clipboard?.writeText(aiSuggestion[p].caption); toast.success('Copiado.'); }} className="text-[11px] font-semibold text-[#8B2214] hover:bg-[#f5f0ef] rounded px-2.5 py-1">Copiar</button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
 
