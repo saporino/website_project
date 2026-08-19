@@ -377,8 +377,7 @@ export default function StudioPage() {
           <span className="text-xs font-semibold text-gray-500">Publicando pela marca:</span>
           {studioBrands.map(b => (
             <button key={b.id} onClick={() => setStudioCompanyId(b.id)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border ${activeCompanyId === b.id ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
-              {b.logo ? <img src={b.logo} alt="" className="h-4 w-4 rounded object-contain" /> : null}
+              className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium border ${activeCompanyId === b.id ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
               {b.label}
             </button>
           ))}
