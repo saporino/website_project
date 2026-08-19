@@ -40,9 +40,10 @@ export default function StudioPage() {
   const [studioCompanyId, setStudioCompanyId] = useState<string | null>(null);
   const [studioBrands, setStudioBrands] = useState<{ id: string; label: string; logo: string | null }[]>([]);
   const activeCompanyId = studioCompanyId ?? salesCompanyId;
-  // marcas que podem ter conteúdo/redes próprias no Studio (inclui operadora COFICO). Todas as empresas ativas.
+  // Contas que a gente publica no Studio (studio_enabled=true): Saporino e COFICO. A Fazendinha tem IG próprio
+  // que não gerenciamos — o conteúdo dela sai pela conta da COFICO, então ela NÃO entra no seletor.
   useEffect(() => {
-    supabase.from('companies').select('id,name,fantasia,logo_url,sort_order').eq('is_active', true).order('sort_order')
+    supabase.from('companies').select('id,name,fantasia,logo_url,sort_order').eq('is_active', true).eq('studio_enabled', true).order('sort_order')
       .then(({ data }) => setStudioBrands((data || []).map((c: any) => ({ id: c.id, label: c.fantasia || c.name, logo: c.logo_url }))));
   }, []);
   const [videos, setVideos] = useState<StudioVideo[]>([]);

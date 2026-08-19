@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
-import { X, Megaphone, Loader2, Upload, Film, Image as ImageIcon, CheckCircle2, Check, AlertTriangle } from 'lucide-react';
+import { X, Megaphone, Loader2, Upload, Film, Image as ImageIcon, CheckCircle2, Check, AlertTriangle, Sparkles } from 'lucide-react';
 
 const PLATFORMS: [string, string][] = [
   ['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['facebook', 'Facebook'], ['youtube', 'YouTube'], ['ecommerce', 'E-commerce'],
@@ -42,6 +42,23 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
   const [mediaPath, setMediaPath] = useState<string | null>(campaign?.media_path ?? (!editing && sourceIsOwnArt ? (sourceMediaPath ?? null) : null));
   const [mediaType, setMediaType] = useState<string | null>(campaign?.media_type ?? (!editing && sourceIsOwnArt ? (sourceMediaType ?? null) : null));
   const [uploading, setUploading] = useState(false);
+  // Assistente de legenda com IA: a partir da ARTE anexada + a IDEIA do usuário + os guardrails da marca.
+  const [aiNotes, setAiNotes] = useState('');
+  const [aiBusy, setAiBusy] = useState<string | null>(null);
+
+  async function generateCaption(p: string) {
+    setAiBusy(p);
+    const { data, error } = await supabase.functions.invoke('studio-caption', {
+      body: { company_id: companyId, media_path: mediaPath, notes: aiNotes, network: p, current: capOf(p) },
+    });
+    setAiBusy(null);
+    if (error || (data as any)?.error) { toast.error((data as any)?.error || error?.message || 'Falha ao gerar a legenda.'); return; }
+    const cap = (data as any)?.caption || '';
+    if (!cap) { toast.error('A IA não devolveu legenda. Tente de novo.'); return; }
+    setCap(p, cap);
+    const n = (data as any)?.notes_ia;
+    toast.success('Legenda gerada — revise e ajuste.' + (n ? ` (${n})` : ''));
+  }
 
   function togglePlatform(k: string) {
     if (editing) return;
@@ -144,14 +161,31 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
           </div>
 
+          {/* Assistente de IA: sua ideia + a arte + guardrails da marca → legenda pronta */}
+          <div className="bg-[#f8f7f5] border border-[#ddd0cc] rounded-lg p-3">
+            <label className="block text-[11px] font-semibold text-gray-600 mb-1">
+              <Sparkles className="w-3.5 h-3.5 inline -mt-0.5 text-[#8B2214]" /> Sua ideia / rascunho <span className="font-normal text-gray-400">(opcional — a IA escreve a legenda a partir disto + a arte anexada + os guardrails da marca)</span>
+            </label>
+            <textarea value={aiNotes} onChange={e => setAiNotes(e.target.value)} rows={3}
+              placeholder="Ex.: post de recrutamento de vendedores PJ, tom profissional B2B, destacar regiões de SP e o portfólio — ou cole aqui o rascunho que você já tem."
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-y bg-white" />
+            <p className="text-[11px] text-gray-400 mt-1">Clique em <strong>Escrever com IA</strong> em cada rede abaixo. Ela respeita os guardrails da marca — não inventa preço, promoção nem claim.</p>
+          </div>
+
           {/* Uma legenda por rede escolhida (cada rede tem a sua — é isso que aparece publicamente) */}
           {selected.map(p => (
             <div key={p}>
-              <label className="block text-[11px] font-semibold text-gray-500 mb-1">
-                Legenda {PLATFORMS.find(x => x[0] === p)?.[1] || p} <span className="font-normal text-gray-400">(aparece na rede + ajuda no SEO/busca)</span>
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-[11px] font-semibold text-gray-500">
+                  Legenda {PLATFORMS.find(x => x[0] === p)?.[1] || p} <span className="font-normal text-gray-400">(aparece na rede + ajuda no SEO/busca)</span>
+                </label>
+                <button type="button" onClick={() => generateCaption(p)} disabled={aiBusy === p}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#8B2214] hover:bg-[#f5f0ef] rounded px-2 py-1 disabled:opacity-50">
+                  {aiBusy === p ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Escrever com IA
+                </button>
+              </div>
               <textarea value={capOf(p)} onChange={e => setCap(p, e.target.value)} rows={4}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none" />
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-y" />
             </div>
           ))}
 
