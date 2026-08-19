@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
-import { X, Megaphone, Loader2, Upload, Film, Image as ImageIcon, CheckCircle2, Check, AlertTriangle, Sparkles } from 'lucide-react';
+import { X, Megaphone, Loader2, Upload, Film, Image as ImageIcon, CheckCircle2, Check, AlertTriangle, Sparkles, ShieldCheck } from 'lucide-react';
 
 const PLATFORMS: [string, string][] = [
   ['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['facebook', 'Facebook'], ['youtube', 'YouTube'], ['ecommerce', 'E-commerce'],
@@ -45,6 +45,9 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
   // Assistente de legenda com IA: a partir da ARTE anexada + a IDEIA do usuário + os guardrails da marca.
   const [aiNotes, setAiNotes] = useState('');
   const [aiBusy, setAiBusy] = useState<string | null>(null);
+  // Verificação de Marca na legenda final (seu texto OU o da IA) — por rede.
+  const [capWarnings, setCapWarnings] = useState<Record<string, any[]>>({});
+  const [verifying, setVerifying] = useState<string | null>(null);
 
   async function generateCaption(p: string) {
     setAiBusy(p);
@@ -56,8 +59,24 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
     const cap = (data as any)?.caption || '';
     if (!cap) { toast.error('A IA não devolveu legenda. Tente de novo.'); return; }
     setCap(p, cap);
+    setCapWarnings(prev => ({ ...prev, [p]: (data as any)?.warnings || [] }));
     const n = (data as any)?.notes_ia;
-    toast.success('Legenda gerada — revise e ajuste.' + (n ? ` (${n})` : ''));
+    toast.success('Legenda gerada — revise e confira a verificação de marca.' + (n ? ` (${n})` : ''));
+  }
+
+  // Confere a legenda ATUAL (o que estiver no campo — seu texto ou o da IA) contra os guardrails da marca.
+  async function verifyCaption(p: string) {
+    setVerifying(p);
+    const { data, error } = await supabase.functions.invoke('studio-caption', {
+      body: { company_id: companyId, network: p, action: 'verify', text: capOf(p) },
+    });
+    setVerifying(null);
+    if (error || (data as any)?.error) { toast.error((data as any)?.error || error?.message || 'Falha ao verificar.'); return; }
+    const wns = (data as any)?.warnings || [];
+    setCapWarnings(prev => ({ ...prev, [p]: wns }));
+    if (!(data as any)?.has_guardrails) { toast.info('Esta marca ainda não tem guardrails cadastrados — sem verificação.'); return; }
+    if (wns.length) toast.warning(`${wns.length} ponto(s) de atenção na legenda — veja abaixo.`);
+    else toast.success('Legenda de acordo com os guardrails ✓');
   }
 
   function togglePlatform(k: string) {
@@ -175,17 +194,35 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
           {/* Uma legenda por rede escolhida (cada rede tem a sua — é isso que aparece publicamente) */}
           {selected.map(p => (
             <div key={p}>
-              <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center justify-between mb-1 gap-2">
                 <label className="block text-[11px] font-semibold text-gray-500">
-                  Legenda {PLATFORMS.find(x => x[0] === p)?.[1] || p} <span className="font-normal text-gray-400">(aparece na rede + ajuda no SEO/busca)</span>
+                  Legenda {PLATFORMS.find(x => x[0] === p)?.[1] || p} <span className="font-normal text-gray-400">(aparece na rede)</span>
                 </label>
-                <button type="button" onClick={() => generateCaption(p)} disabled={aiBusy === p}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#8B2214] hover:bg-[#f5f0ef] rounded px-2 py-1 disabled:opacity-50">
-                  {aiBusy === p ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Escrever com IA
-                </button>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <button type="button" onClick={() => verifyCaption(p)} disabled={verifying === p || !capOf(p).trim()}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-100 rounded px-2 py-1 disabled:opacity-50">
+                    {verifying === p ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />} Verificar marca
+                  </button>
+                  <button type="button" onClick={() => generateCaption(p)} disabled={aiBusy === p}
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#8B2214] hover:bg-[#f5f0ef] rounded px-2 py-1 disabled:opacity-50">
+                    {aiBusy === p ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} Escrever com IA
+                  </button>
+                </div>
               </div>
-              <textarea value={capOf(p)} onChange={e => setCap(p, e.target.value)} rows={4}
+              <textarea value={capOf(p)} onChange={e => { setCap(p, e.target.value); if (capWarnings[p]?.length) setCapWarnings(prev => ({ ...prev, [p]: [] })); }} rows={4}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-y" />
+              {/* Verificação de Marca da legenda (seu texto ou o da IA) */}
+              {capWarnings[p] && (capWarnings[p].length === 0 ? (
+                <p className="mt-1 text-[11px] font-medium text-green-700 inline-flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5" /> Legenda de acordo com os guardrails da marca.</p>
+              ) : (
+                <div className="mt-1.5 space-y-1">
+                  {capWarnings[p].map((wn: any, i: number) => (
+                    <div key={i} className={`text-[11px] rounded-md px-2.5 py-1.5 border ${wn.severity === 'critical' ? 'bg-red-50 border-red-200 text-red-700' : 'bg-yellow-50 border-yellow-200 text-yellow-800'}`}>
+                      <strong>{wn.severity === 'critical' ? 'ATENÇÃO' : 'Revisar'}:</strong> {wn.message}
+                    </div>
+                  ))}
+                </div>
+              ))}
             </div>
           ))}
 
