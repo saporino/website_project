@@ -197,6 +197,9 @@ function AppRouter() {
 
   // Home (default) — rotas conhecidas acima; o resto e 404.
   if (currentPath === '/' || currentPath === '' || currentPath === '/index.html') {
+    // No domínio coficobrasil.com.br, a HOME é a página da COFICO (não a loja Saporino).
+    const host = window.location.hostname.toLowerCase();
+    if (host === 'coficobrasil.com.br' || host.endsWith('.coficobrasil.com.br')) return <CoficoBrasilPage />;
     return <AppContent />;
   }
   return <NotFound />;
