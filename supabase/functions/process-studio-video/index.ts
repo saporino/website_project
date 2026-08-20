@@ -267,6 +267,11 @@ Regra de ouro: o concorrente é só referência de ESTRATÉGIA. Extraia o PRINC�
       return { type: "image", source: { type: "base64", media_type: mt, data: btoa(bin) } };
     };
 
+    // ORIGEM da peça: importada do Instagram (tem source_url) = CONCORRENTE (engenharia reversa).
+    // Enviada pelo usuário (upload, sem source_url) = PEÇA PRÓPRIA — NÃO tratar como concorrente.
+    const ownUpload = !video.source_url;
+    const ownNote = "IMPORTANTE: esta peça foi ENVIADA pela própria marca (upload do usuário), NÃO foi importada de um concorrente. Trate como PEÇA PRÓPRIA / referência interna da NOSSA marca. É NORMAL e ESPERADO que ela use o logo, as cores, o WhatsApp e a identidade da própria marca — NÃO sinalize isso como suspeito, nem como 'asset de concorrente', nem levante alerta sobre origem. 'marca_identificada' é a NOSSA própria marca. Analise a estratégia da peça para ajudar a evoluir/publicar, respeitando os Brand Guardrails. 'competitor_text' aqui = os textos visíveis na própria peça.";
+
     if (video.media_type === "image") {
       const { data: img, error: iErr } = await supabase.storage.from("studio-videos").download(video.storage_path);
       if (iErr || !img) throw new Error("Falha ao baixar a imagem do storage");
@@ -277,9 +282,12 @@ Regra de ouro: o concorrente é só referência de ESTRATÉGIA. Extraia o PRINC�
       const fn = video.filename.toLowerCase();
       const mt = fn.endsWith(".png") ? "image/png" : fn.endsWith(".webp") ? "image/webp" : "image/jpeg";
       analysisMode = "image"; audioStatus = "skipped";
+      const imgText = ownUpload
+        ? `${ownNote}\n\nAnalise esta IMAGEM (peça PRÓPRIA da marca). Descreva a estratégia/mecanismo criativo e proponha como evoluir ou variar a peça mantendo a identidade da marca e respeitando os Brand Guardrails. Retorne o JSON estruturado solicitado.`
+        : `Analise esta IMAGEM como REFERÊNCIA ESTRATÉGICA de um concorrente. NÃO recrie uma imagem parecida. Extraia o mecanismo criativo, identifique os elementos de EXECUÇÃO que NÃO devem ser copiados e proponha uma execução visual ORIGINAL para a NOSSA marca usando apenas informações e produtos permitidos pelos Brand Guardrails. A imagem do concorrente é fonte de INSIGHT, não storyboard. Preencha "competitor_text" com as frases legíveis da peça. Retorne o JSON estruturado solicitado.`;
       userContent = [
         { type: "image", source: { type: "base64", media_type: mt, data: b64 } },
-        { type: "text", text: `Analise esta IMAGEM como REFERÊNCIA ESTRATÉGICA de um concorrente. NÃO recrie uma imagem parecida. Extraia o mecanismo criativo, identifique os elementos de EXECUÇÃO que NÃO devem ser copiados e proponha uma execução visual ORIGINAL para a NOSSA marca usando apenas informações e produtos permitidos pelos Brand Guardrails. A imagem do concorrente é fonte de INSIGHT, não storyboard. Preencha "competitor_text" com as frases legíveis da peça. Retorne o JSON estruturado solicitado.` },
+        { type: "text", text: imgText },
       ];
     } else {
       // ---- VÍDEO ----
@@ -326,6 +334,11 @@ Regra de ouro: o concorrente é só referência de ESTRATÉGIA. Extraia o PRINC�
         userContent = `Transcrição do vídeo do CONCORRENTE "${video.filename}" (idioma ${trLang || "?"}, ${Math.round(trDuration)}s). Trate como REFERÊNCIA ESTRATÉGICA: extraia o princípio, NÃO copie a execução/frases, e proponha algo ORIGINAL para a NOSSA marca respeitando os Brand Guardrails. Preencha "competitor_text" com as frases-chave do concorrente.\n\n${transcript}`;
       } else {
         throw new Error("Vídeo sem áudio e sem thumbnail para análise visual. Reimporte o post (o import agora salva a thumbnail).");
+      }
+      // Peça PRÓPRIA (upload de vídeo): sobrepõe o enquadramento de "concorrente" com a nota de origem.
+      if (ownUpload) {
+        if (typeof userContent === "string") userContent = ownNote + "\n\n" + userContent;
+        else if (Array.isArray(userContent)) userContent = userContent.map((b: any) => b?.type === "text" ? { ...b, text: ownNote + "\n\n" + b.text } : b);
       }
     }
 
