@@ -17,6 +17,11 @@
       "dest": "/coficobrasil.html"
     },
     {
+      "src": "/",
+      "has": [{ "type": "host", "value": "(www\\.)?coficobrasil\\.com\\.br" }],
+      "dest": "/coficobrasil.html"
+    },
+    {
       "src": "/(.*)",
       "dest": "/index.html"
     }

@@ -10,8 +10,8 @@ const DIST = resolve('dist');
 const env = (k, d = '') => process.env[k] || d;
 
 // Configuráveis por env (com fallback pro valor atual). Vercel injeta env no build.
-const COFICO_BASE = env('VITE_COFICO_BASE_URL', 'https://www.cafesaporino.com.br/coficobrasil').replace(/\/+$/, '');
-const ASSET_ORIGIN = 'https://www.cafesaporino.com.br'; // origem que serve /og/... hoje
+const COFICO_BASE = env('VITE_COFICO_BASE_URL', 'https://www.coficobrasil.com.br').replace(/\/+$/, '');
+const ASSET_ORIGIN = env('VITE_COFICO_BASE_URL', 'https://www.coficobrasil.com.br').replace(/\/+$/, ''); // domínio próprio da COFICO serve /og/...
 const coficoSameAs = [env('VITE_COFICO_INSTAGRAM'), env('VITE_COFICO_LINKEDIN'), env('VITE_COFICO_GOOGLE')].filter(Boolean);
 
 // ── LISTA DE ROTAS PÚBLICAS COM SEO PRÓPRIO ──────────────────────────────
