@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Clapperboard, Download, Loader2, Search, Check, Heart, PlayCircle, MessageCircle, ArrowDownWideNarrow, ChevronRight, ChevronDown, Trash2, X } from 'lucide-react';
+import { Clapperboard, Download, Loader2, Search, Check, Heart, PlayCircle, MessageCircle, ArrowDownWideNarrow, ChevronRight, ChevronDown, Trash2, X, Megaphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
@@ -8,6 +8,7 @@ import VideoDropzone from '../studio/VideoDropzone';
 import VideoCard, { type StudioVideo } from '../studio/VideoCard';
 import AnalysisModal from '../studio/AnalysisModal';
 import CampaignsPanel from '../studio/CampaignsPanel';
+import CampaignCreator from '../studio/CampaignCreator';
 import SocialConnections from '../studio/SocialConnections';
 import BrandProfile from '../studio/BrandProfile';
 
@@ -40,6 +41,24 @@ export default function StudioPage() {
   const [studioCompanyId, setStudioCompanyId] = useState<string | null>(null);
   const [studioBrands, setStudioBrands] = useState<{ id: string; label: string; logo: string | null }[]>([]);
   const activeCompanyId = studioCompanyId ?? salesCompanyId;
+  // "Criar post (arte pronta)": sua arte vai DIRETO pra campanha (legenda + publicar), sem análise de concorrente.
+  const [ownPost, setOwnPost] = useState<{ mediaPath: string; mediaType: string; thumbUrl: string | null } | null>(null);
+  const [uploadingOwn, setUploadingOwn] = useState(false);
+
+  async function createOwnPost(file: File) {
+    if (!activeCompanyId) { toast.error('Selecione a marca no topo (Saporino/COFICO).'); return; }
+    const isVid = file.type.startsWith('video/') || /\.(mp4|mov|m4v)$/i.test(file.name);
+    const isImg = file.type.startsWith('image/') || /\.(jpe?g|png|webp)$/i.test(file.name);
+    if (!isVid && !isImg) { toast.error('Envie uma imagem (JPG/PNG) ou vídeo (MP4).'); return; }
+    setUploadingOwn(true);
+    const ext = (file.name.split('.').pop() || (isVid ? 'mp4' : 'jpg')).toLowerCase();
+    const path = `campaigns/${activeCompanyId}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('studio-videos').upload(path, file, { contentType: file.type || undefined, upsert: false });
+    if (error) { setUploadingOwn(false); toast.error('Erro no upload: ' + error.message); return; }
+    const { data: signed } = await supabase.storage.from('studio-videos').createSignedUrl(path, 3600);
+    setUploadingOwn(false);
+    setOwnPost({ mediaPath: path, mediaType: isVid ? 'video' : 'image', thumbUrl: signed?.signedUrl || null });
+  }
   // Contas que a gente publica no Studio (studio_enabled=true): Saporino e COFICO. A Fazendinha tem IG próprio
   // que não gerenciamos — o conteúdo dela sai pela conta da COFICO, então ela NÃO entra no seletor.
   useEffect(() => {
@@ -563,6 +582,15 @@ export default function StudioPage() {
             )}
           </div>
 
+          {/* Caminho DIRETO pra arte própria: pula a análise de concorrente e vai pra legenda + publicar. */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-wrap items-center gap-3">
+            <label className={`inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg cursor-pointer ${uploadingOwn ? 'opacity-60 pointer-events-none' : ''}`}>
+              {uploadingOwn ? <Loader2 className="w-4 h-4 animate-spin" /> : <Megaphone className="w-4 h-4" />} Criar post (arte pronta)
+              <input type="file" accept="image/*,video/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) createOwnPost(f); }} />
+            </label>
+            <span className="text-xs text-gray-500">Já tem a arte? Anexe aqui e vá direto pra <strong>legenda + publicar</strong> — sem análise de concorrente.</span>
+          </div>
+
           <VideoDropzone companyId={activeCompanyId} userId={user?.id} onUploaded={load} />
 
           <div className="flex bg-white border border-gray-200 rounded-xl text-sm font-semibold overflow-hidden w-fit">
@@ -595,6 +623,12 @@ export default function StudioPage() {
 
       {modalVideo && (
         <AnalysisModal video={modalVideo} companyId={activeCompanyId} brandTitle={brandTitleOf(studioBrands.find(b => b.id === activeCompanyId)?.label)} initialTab={modalTab} onClose={() => setModalVideo(null)} />
+      )}
+      {ownPost && (
+        <CampaignCreator companyId={activeCompanyId}
+          sourceMediaPath={ownPost.mediaPath} sourceMediaType={ownPost.mediaType} sourceIsOwnArt sourceThumbUrl={ownPost.thumbUrl || undefined}
+          initialTitle={brandTitleOf(studioBrands.find(b => b.id === activeCompanyId)?.label)}
+          onClose={() => setOwnPost(null)} onSaved={() => { setOwnPost(null); setView('campanhas'); }} />
       )}
     </div>
   );
