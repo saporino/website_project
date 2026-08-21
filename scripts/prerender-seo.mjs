@@ -24,7 +24,7 @@ const ROUTES = [
     description: 'Recebimento, armazenagem, separação e entrega de café e alimentos secos em todo o Estado de São Paulo. Distribuidor oficial das marcas de café que representamos. Centro de distribuição em Várzea Paulista.',
     canonical: COFICO_BASE,
     ogSiteName: 'COFICO Brasil',
-    ogImage: `${ASSET_ORIGIN}/og/cofico-og-1200x630.png`,
+    ogImage: `${ASSET_ORIGIN}/og/cofico-og-1200.png`,
     jsonLd: {
       '@context': 'https://schema.org',
       '@type': 'Organization',
