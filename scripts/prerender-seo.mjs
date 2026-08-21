@@ -25,6 +25,8 @@ const ROUTES = [
     canonical: COFICO_BASE,
     ogSiteName: 'COFICO Brasil',
     ogImage: `${ASSET_ORIGIN}/og/cofico-og-1200.png`,
+    favicon: '/icons/cofico-icon-512.png',            // COFICO tem favicon próprio (não herda o da Saporino)
+    faviconApple: '/icons/cofico-apple-touch-icon.png',
     jsonLd: {
       '@context': 'https://schema.org',
       '@type': 'Organization',
@@ -75,6 +77,9 @@ function buildHead(r) {
 const index = readFileSync(resolve(DIST, 'index.html'), 'utf8');
 for (const r of ROUTES) {
   let html = stripSeo(index).replace('</head>', `    ${buildHead(r)}\n  </head>`);
+  // Favicon próprio da rota (ex.: COFICO não pode herdar o ícone da Saporino na aba/Google).
+  if (r.favicon) html = html.replace('/icons/saporino-icon-512.png', r.favicon);
+  if (r.faviconApple) html = html.replace('/icons/apple-touch-icon.png', r.faviconApple);
   // Validação: exatamente 1 og:title, 1 canonical, 1 JSON-LD (garante que substituiu, não somou).
   const n = (re) => (html.match(re) || []).length;
   const [nOg, nCanon, nLd] = [n(/property="og:title"/g), n(/rel="canonical"/g), n(/application\/ld\+json/g)];
