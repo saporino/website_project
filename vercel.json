@@ -1,6 +1,15 @@
 {
   "routes": [
     {
+      "src": "/favicon.ico",
+      "has": [{ "type": "host", "value": "(www\\.)?coficobrasil\\.com\\.br" }],
+      "dest": "/icons/cofico-favicon.ico"
+    },
+    {
+      "src": "/favicon.ico",
+      "dest": "/icons/saporino-favicon.ico"
+    },
+    {
       "src": "/(.*\\.(png|jpg|jpeg|webp|svg|gif|ico|woff|woff2|ttf|eot|js|css|map|webmanifest|json|txt|xml|html|mp4|webm|mov|m4v|pdf))",
       "dest": "/$1"
     },
