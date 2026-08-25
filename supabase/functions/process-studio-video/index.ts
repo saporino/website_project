@@ -211,7 +211,16 @@ function validateBrandCompliance(a: any, g: any, brand: string): any[] {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  // Gate: admin logado (JWT) OU chamada interna (x-internal-secret = service role). Sem isso, qualquer um
+  // que alcançasse a função com um video_id dispararia análise (custo Claude/Whisper).
+  const internal = req.headers.get("x-internal-secret");
+  if (internal !== service) {
+    const asUser = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } } });
+    const { data: isAdmin } = await asUser.rpc("is_admin");
+    if (!isAdmin) return new Response(JSON.stringify({ ok: false, error: "forbidden" }), { status: 403, headers: { ...cors, "Content-Type": "application/json" } });
+  }
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, service);
   let videoId: string | null = null;
   try {
     const body = await req.json();

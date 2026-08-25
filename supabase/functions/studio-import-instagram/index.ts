@@ -169,7 +169,7 @@ Deno.serve(async (req) => {
           }).select("id").single();
           if (row?.id) {
             fetch(`${url}/functions/v1/process-studio-video`, {
-              method: "POST", headers: { apikey: anon, Authorization: `Bearer ${anon}`, "Content-Type": "application/json" },
+              method: "POST", headers: { apikey: anon, Authorization: `Bearer ${anon}`, "x-internal-secret": service, "Content-Type": "application/json" },
               body: JSON.stringify({ video_id: row.id }),
             }).catch(() => {});
             imported++;

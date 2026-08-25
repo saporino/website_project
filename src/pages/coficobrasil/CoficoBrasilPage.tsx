@@ -268,7 +268,8 @@ export default function CoficoBrasilPage() {
                     <Icon className="w-6 h-6 text-cofico-ink" aria-hidden="true" />
                     <h4 className="mt-4 text-lg font-semibold">{t}</h4>
                     <p className="mt-2 text-sm text-neutral-600 leading-relaxed flex-1">{roles}</p>
-                    <a href={`/coficobrasil/cadastro?frente=${frente}`}
+                    <a href={`https://wa.me/55${COFICO.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Olá! Vim pelo site da COFICO e tenho interesse na frente de ${t}. Tenho MEI/CNPJ ativo.`)}`}
+                      target="_blank" rel="noopener noreferrer"
                       className="mt-6 inline-flex items-center gap-1.5 bg-cofico-ink text-white text-sm font-semibold px-4 py-2.5 rounded-none hover:opacity-90 w-fit">
                       Quero me cadastrar <ArrowRight className="w-4 h-4" aria-hidden="true" />
                     </a>
