@@ -5,7 +5,7 @@ import { Menu, X } from 'lucide-react';
 const NAV: [string, string][] = [
   ['#o-que-fazemos', 'O que fazemos'],
   ['#marcas', 'Marcas'],
-  ['#produtos', 'Produtos'],
+  ['#loja', 'Produtos'],
   ['#atuacao', 'Atuação'],
   ['#contato', 'Contato'],
 ];
