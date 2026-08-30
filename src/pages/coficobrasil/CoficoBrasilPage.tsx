@@ -83,7 +83,7 @@ export default function CoficoBrasilPage() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
-  useEffect(() => { if (view === 'home') document.title = 'COFICO Brasil — Operador logístico e distribuidor de alimentos em SP'; }, [view]);
+  useEffect(() => { if (view === 'home') document.title = 'COFICO Brasil — Desenvolvimento comercial e distribuição de marcas de alimentos em SP'; }, [view]);
   useEffect(() => { let alive = true; fetchCoficoStats().then((s) => { if (alive) setStats(s); }); return () => { alive = false; }; }, []);
 
   // Números ao vivo. Experiência e regiões são sempre reais; entregas/clientes só aparecem quando > 0
@@ -109,14 +109,17 @@ export default function CoficoBrasilPage() {
       <section className="mx-auto max-w-6xl px-6 pt-20 pb-24 md:pt-28 md:pb-32">
         <p className="text-cofico-ink text-xs font-semibold uppercase tracking-[0.2em]">COFICO Brasil</p>
         <h1 className="mt-5 text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.05] max-w-3xl">
-          Operador logístico e distribuidora de alimentos.
+          Desenvolvimento comercial e distribuição de marcas de alimentos.
         </h1>
         <p className="mt-6 text-lg md:text-xl text-neutral-600 max-w-2xl leading-relaxed">
-          Recebemos, armazenamos, separamos e entregamos cafés e alimentos secos em todo o Estado de São Paulo. Somos distribuidores oficiais das marcas que representamos, com operação própria de armazenagem, separação e entrega.
+          Levamos marcas ao mercado no Estado de São Paulo — da armazenagem à entrega: distribuição oficial, força de vendas própria e logística com tecnologia proprietária.
         </p>
-        <div className="mt-9">
+        <div className="mt-9 flex flex-wrap items-center gap-3">
           <a href="#contato" className="inline-flex items-center bg-cofico-ink text-white text-sm font-semibold px-6 py-3.5 rounded-none hover:opacity-90 transition-opacity">
             Fale com a gente
+          </a>
+          <a href="#marcas" className="inline-flex items-center border border-neutral-300 text-neutral-900 text-sm font-semibold px-6 py-3.5 rounded-none hover:border-cofico-ink hover:text-cofico-ink transition-colors">
+            Conheça as marcas
           </a>
         </div>
       </section>
