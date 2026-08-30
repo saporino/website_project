@@ -65,7 +65,7 @@ export default function CoficoProdutosPage() {
         {/* Catálogo por marca — cards estilo loja Saporino (flutuante) */}
         {CATALOGO.map(({ marca, produtos }) => (
           <div key={marca} className="mt-14">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-cofico-ink">{marca}</h2>
+            <h2 className="text-sm font-bold uppercase tracking-wide text-neutral-900">{marca}</h2>
             <div className="mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {produtos.map((p) => (
                 <div key={p.nome} className="bg-white flex flex-col group">
