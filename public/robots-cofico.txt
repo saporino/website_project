@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /repco
+Disallow: /promotor
+Disallow: /meu-perfil
+Disallow: /rastrear
+
+Sitemap: https://www.coficobrasil.com.br/sitemap.xml

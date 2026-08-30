@@ -10,6 +10,16 @@
       "dest": "/icons/saporino-favicon.ico"
     },
     {
+      "src": "/robots.txt",
+      "has": [{ "type": "host", "value": "(www\\.)?coficobrasil\\.com\\.br" }],
+      "dest": "/robots-cofico.txt"
+    },
+    {
+      "src": "/sitemap.xml",
+      "has": [{ "type": "host", "value": "(www\\.)?coficobrasil\\.com\\.br" }],
+      "dest": "/sitemap-cofico.xml"
+    },
+    {
       "src": "/(.*\\.(png|jpg|jpeg|webp|svg|gif|ico|woff|woff2|ttf|eot|js|css|map|webmanifest|json|txt|xml|html|mp4|webm|mov|m4v|pdf))",
       "dest": "/$1"
     },
