@@ -317,39 +317,12 @@ export const CustomersManagement = ({ refreshKey = 0 }: { refreshKey?: number })
     }
   };
 
-  const handleSendAnniversaryEmail = async (customer: Customer) => {
-    if (!confirm(`Enviar email de agradecimento para ${customer.full_name}?`)) return;
-
-    try {
-      const oneYearAgo = new Date();
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-
-      const { error: giftError } = await supabase
-        .from('anniversary_gifts')
-        .insert({
-          user_id: customer.id,
-          anniversary_year: 1,
-          email_sent_at: new Date().toISOString(),
-          status: 'email_sent',
-        })
-        .select()
-        .single();
-      if (giftError) throw giftError;
-
-      await supabase
-        .from('user_profiles')
-        .update({
-          anniversary_email_sent: true,
-          last_anniversary_email_date: new Date().toISOString(),
-        })
-        .eq('id', customer.id);
-
-      alert('Email de agradecimento enviado com sucesso!');
-      loadCustomers();
-    } catch (error) {
-      console.error('Error sending anniversary email:', error);
-      alert('Erro ao enviar email');
-    }
+  const handleSendAnniversaryEmail = async (_customer: Customer) => {
+    // Fase 0: recurso de brinde de aniversário NÃO está lançado (a tabela
+    // anniversary_gifts não existe — feature DEPRECATED). Em vez de falhar com
+    // erro, avisamos claramente que não está disponível. Não recriar tabela só
+    // para o botão parar de dar erro.
+    alert('Recurso de brinde de aniversário ainda não está disponível.');
   };
 
   const isAnniversary = (createdAt: string) => {

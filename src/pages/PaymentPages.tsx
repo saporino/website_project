@@ -9,8 +9,19 @@ interface OrderDetails {
     total_amount: number;
     status: string;
     created_at: string;
-    customer_name: string;
-    customer_email: string;
+    items?: { product_name: string; quantity: number }[];
+}
+
+// Consulta pública do pedido: usa o token público (guardado no localStorage no
+// checkout, nunca na URL) via RPC get_order_public. Não expõe dados de outro
+// cliente e não lê a tabela orders direto (a RLS bloqueia leitura anônima).
+async function loadPublicOrder(orderId: string): Promise<OrderDetails | null> {
+    let token: string | null = null;
+    try { token = localStorage.getItem(`order_token_${orderId}`); } catch (_) { /* ignore */ }
+    if (!token) return null;
+    const { data, error } = await supabase.rpc('get_order_public', { p_order_id: orderId, p_token: token });
+    if (error || !data) return null;
+    return data as OrderDetails;
 }
 
 // Payment Success Page
@@ -28,28 +39,8 @@ export const PaymentSuccess = () => {
         try {
             const urlParams = new URLSearchParams(window.location.search);
             const externalReference = urlParams.get('external_reference');
-            const paymentId = urlParams.get('payment_id');
-            const collectionId = urlParams.get('collection_id');
-            const collectionStatus = urlParams.get('collection_status');
-
-            if (externalReference) {
-                // Update order with payment information
-                const { data, error } = await supabase
-                    .from('orders')
-                    .update({
-                        status: 'approved',
-                        mercadopago_payment_id: paymentId,
-                        mercadopago_collection_id: collectionId,
-                        mercadopago_collection_status: collectionStatus,
-                        paid_at: new Date().toISOString(),
-                    })
-                    .eq('id', externalReference)
-                    .select()
-                    .single();
-
-                if (error) throw error;
-                setOrderDetails(data);
-            }
+            // READ-ONLY via token público. O status é autoritativo só pelo webhook.
+            if (externalReference) setOrderDetails(await loadPublicOrder(externalReference));
         } catch (error) {
             console.error('Error loading order details:', error);
         } finally {
@@ -110,14 +101,6 @@ export const PaymentSuccess = () => {
 
                                 {/* Order Details */}
                                 <div className="space-y-4">
-                                    <div className="flex items-center justify-between py-3 border-b border-gray-200">
-                                        <span className="text-gray-600 font-medium">Cliente</span>
-                                        <span className="text-gray-900 font-semibold">{orderDetails.customer_name}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between py-3 border-b border-gray-200">
-                                        <span className="text-gray-600 font-medium">E-mail</span>
-                                        <span className="text-gray-900">{orderDetails.customer_email}</span>
-                                    </div>
                                     <div className="flex items-center justify-between py-3 border-b border-gray-200">
                                         <span className="text-gray-600 font-medium">Total Pago</span>
                                         <span className="text-2xl font-bold text-green-600">
@@ -301,23 +284,8 @@ export const PaymentPending = () => {
         try {
             const urlParams = new URLSearchParams(window.location.search);
             const externalReference = urlParams.get('external_reference');
-            const paymentId = urlParams.get('payment_id');
-
-            if (externalReference) {
-                // Update order status to pending
-                const { data, error } = await supabase
-                    .from('orders')
-                    .update({
-                        status: 'in_process',
-                        mercadopago_payment_id: paymentId,
-                    })
-                    .eq('id', externalReference)
-                    .select()
-                    .single();
-
-                if (error) throw error;
-                setOrderDetails(data);
-            }
+            // READ-ONLY via token público (mesmo padrão do PaymentSuccess).
+            if (externalReference) setOrderDetails(await loadPublicOrder(externalReference));
         } catch (error) {
             console.error('Error loading order details:', error);
         } finally {

@@ -173,6 +173,16 @@ export const SubscriptionCheckout = ({
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
+    // Fase 0: assinatura ISOLADA até validar preço/tier/desconto/periodicidade
+    // no servidor. O fluxo antigo inseria orders/order_items direto do browser,
+    // o que a RLS agora bloqueia. Desabilitado com aviso claro (não é botão fake).
+    // Flag vem de env (não-literal) para o restante seguir type-checável.
+    const subscriptionEnabled = import.meta.env.VITE_SUBSCRIPTION_ENABLED === 'true';
+    if (!subscriptionEnabled) {
+      alert('A assinatura estará disponível em breve. Por enquanto, você pode comprar avulso na loja.');
+      return;
+    }
+
     if (!formData.customer_name.trim()) {
       alert('Por favor, preencha o campo Nome Completo.');
       return;

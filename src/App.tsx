@@ -958,101 +958,60 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
     }
   };
 
-  const getFullAddress = () =>
-    `${street}, ${number}${complement ? `, ${complement}` : ''} — ${neighborhood}, ${city}/${state} — CEP ${cep}`;
-
   const handleCheckout = () => {
-    if (!user) {
-      onAuthOpen('login');
-      onClose();
-      return;
-    }
+    // Checkout anônimo permitido: o login é opcional (oferecido, não obrigatório).
     setIsCheckout(true);
   };
 
   const handleSubmitOrder = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user) return;
-
     setIsSubmitting(true);
 
     try {
-      const selectedCarrier = carriers.find(c => c.id === selectedCarrierId);
-      const shippingAddress = getFullAddress();
-      const shippingCost = selectedCarrier?.price || 0;
-      const shippingRecipient = isGift ? recipientName : formData.name;
-
-      // Create order in database
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: user.id,
-          customer_name: formData.name,
-          customer_email: formData.email,
-          customer_phone: formData.phone,
-          shipping_address: shippingAddress,
-          shipping_recipient: shippingRecipient,
-          is_gift: isGift,
-          shipping_carrier_id: selectedCarrierId,
-          shipping_carrier_name: selectedCarrier?.name || null,
-          shipping_cost: shippingCost,
-          total_amount: getCartTotal() + shippingCost,
-          status: 'pending',
-          order_type: 'single',
-        })
-        .select()
-        .single();
-
-      if (orderError) throw orderError;
-
-      if (orderData) {
-        // Create order items with product names
-        const orderItems = cart.map((item: CartItem) => ({
-          order_id: orderData.id,
-          product_id: item.id,
-          product_name: item.name,
-          quantity: item.quantity,
-          unit_price: item.price,
-          subtotal: item.price * item.quantity,
-        }));
-
-        const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
-        if (itemsError) throw itemsError;
-
-        // Create Mercado Pago preference
-        const preferenceResponse = await createPreference({
-          items: cart.map((item: CartItem) => ({
-            title: item.name,
-            quantity: item.quantity,
-            unit_price: item.price,
-            currency_id: 'BRL',
-          })),
-          back_urls: {
-            success: `${window.location.origin}/payment/success`,
-            failure: `${window.location.origin}/payment/failure`,
-            pending: `${window.location.origin}/payment/pending`,
-          },
-          auto_return: 'approved',
-          payer: {
+      // O pedido é criado no SERVIDOR (create-checkout-order): preço/estoque
+      // validados server-side; o navegador NÃO insere em orders/order_items.
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-order`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          items: cart.map((item: CartItem) => ({ product_id: item.id, quantity: item.quantity })),
+          customer: {
             name: formData.name,
             email: formData.email,
-            phone: {
-              number: formData.phone,
-            },
+            phone: formData.phone,
+            cep, street, number, complement, neighborhood, city, state,
+            is_gift: isGift,
+            recipient_name: isGift ? recipientName : formData.name,
+            shipping_carrier_id: selectedCarrierId,
           },
-          external_reference: orderData.id,
-        });
+        }),
+      });
+      const created = await resp.json();
+      if (!resp.ok || !created?.order_id) throw new Error(created?.error || 'Falha ao criar pedido');
 
-        if (preferenceResponse.id) {
-          // Update order with preference ID
-          await supabase
-            .from('orders')
-            .update({ mercadopago_preference_id: preferenceResponse.id })
-            .eq('id', orderData.id);
+      // Token público do pedido: guardado localmente (NÃO vai na URL) para a
+      // página de sucesso consultar via get_order_public.
+      try { localStorage.setItem(`order_token_${created.order_id}`, created.public_token); } catch (_) { /* ignore */ }
 
-          setPreferenceId(preferenceResponse.id);
-        }
-      }
+      // create-payment recalcula o preço a partir do banco e ignora estes valores.
+      const preferenceResponse = await createPreference({
+        items: cart.map((item: CartItem) => ({
+          title: item.name, quantity: item.quantity, unit_price: item.price, currency_id: 'BRL',
+        })),
+        back_urls: {
+          success: `${window.location.origin}/payment/success`,
+          failure: `${window.location.origin}/payment/failure`,
+          pending: `${window.location.origin}/payment/pending`,
+        },
+        auto_return: 'approved',
+        payer: { name: formData.name, email: formData.email, phone: { number: formData.phone } },
+        external_reference: created.order_id,
+      });
+
+      if (preferenceResponse.id) setPreferenceId(preferenceResponse.id);
     } catch (error) {
       console.error('Error submitting order:', error);
       toast.error('Erro ao processar pedido. Por favor, tente novamente.');
@@ -1089,6 +1048,12 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
         ) : isCheckout ? (
           <form onSubmit={handleSubmitOrder} className="flex-1 flex flex-col min-h-0">
             <div className="flex-1 overflow-y-auto p-8 space-y-6">
+              {!user && (
+                <div className="text-sm text-gray-600 bg-stone-50 border border-gray-200 rounded-xl p-3 flex items-center justify-between gap-3">
+                  <span>Comprando como visitante — não precisa criar conta.</span>
+                  <button type="button" onClick={() => onAuthOpen?.('login')} className="font-semibold text-[#8B2214] hover:underline whitespace-nowrap">Entrar</button>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Nome Completo *</label>
                 <input
@@ -1378,7 +1343,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                 onClick={handleCheckout}
                 className="w-full bg-[#8B2214] text-white py-4 rounded-full font-semibold hover:bg-[#8a1f0c] transition-all shadow-lg mb-3"
               >
-                {user ? 'Finalizar Pedido' : 'Fazer Login para Comprar'}
+                Finalizar Pedido
               </button>
               <button
                 onClick={clearCart}

@@ -61,7 +61,6 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
   const [descLogistico, setDescLogistico] = useState(0);
   const [bonusItems, setBonusItems] = useState<{ productId: string; quantity: number }[]>([]);
   const [bonusPick, setBonusPick] = useState('');
-  const [, setPaymentTerms] = useState<number[]>([0,7,14,21,28,30]);
   const [boletoOffsets, setBoletoOffsets] = useState<number[]>([]);
   const [fiscalOrderType, setFiscalOrderType] = useState<FiscalOrderType>('non_taxpayer_consumer');
   // Entrega: responsável (própria/retirada/COFICO/transportadora) + transportadora externa + frete.
@@ -103,17 +102,15 @@ export default function RepCoNewOrder({ representativeId, onOrderCreated, preSel
     setError('');
     setProducts([]);
     setPrices([]);
-    const [{ data: prods }, { data: priceData }, { data: termsData }] = await Promise.all([
+    const [{ data: prods }, { data: priceData }] = await Promise.all([
       supabase.from('products').select('id,name,image_url,stock,in_stock').eq('is_active', true).eq('company_id', activeCompanyId).order('name'),
       supabase.from('price_lists').select('product_id,segment,price,volume_discount,volume_min_qty').eq('segment', segment).eq('company_id', activeCompanyId).eq('is_active', true),
-      supabase.from('segment_payment_terms').select('payment_terms').eq('segment', segment).single(),
     ]);
     if (prods) setProducts(prods);
     if (priceData) setPrices(priceData);
     if (prods?.length && (!priceData || priceData.length === 0)) {
       setError(`Nenhum preço encontrado para o segmento ${SEGMENT_LABEL[segment] ?? segment}. Ajuste a Tabela de Preços Global antes de criar o pedido.`);
     }
-    if ((termsData as any)?.payment_terms) setPaymentTerms((termsData as any).payment_terms);
     setLoading(false);
   }
 

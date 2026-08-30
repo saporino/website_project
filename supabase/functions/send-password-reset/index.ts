@@ -4,6 +4,7 @@
 // Se o e-mail não existe, responde ok SEM enviar (não vaza quem tem conta).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { checkRateLimit, clientKey } from '../_shared/rateLimit.ts';
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -38,6 +39,14 @@ Deno.serve(async (req) => {
     const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (!resendKey) return json({ error: "RESEND_API_KEY ausente" }, 500);
+
+    // Rate limit (fail-open): por IP (bloqueia abuso) e por e-mail (silencioso,
+    // não revela conta). Anti-spam de recuperação de senha.
+    const rlClient = createClient(url, service);
+    const okIp = await checkRateLimit(rlClient, clientKey(req, 'send-password-reset'), 8, 3600);
+    if (!okIp) return json({ error: "Muitas solicitações. Tente novamente mais tarde." }, 429);
+    const okEmail = await checkRateLimit(rlClient, `send-password-reset:email:${email.toLowerCase()}`, 4, 3600);
+    if (!okEmail) return json({ ok: true }); // silencioso: não revela nem spamma
 
     // só aceita redirect do próprio domínio (ou localhost em dev)
     let redirect = DEFAULT_REDIRECT;
