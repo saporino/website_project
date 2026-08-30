@@ -11,6 +11,8 @@ import CoficoFooter from './CoficoFooter';
 import CoficoCarousel from './CoficoCarousel';
 import CoficoMap from './CoficoMap';
 import CoficoProdutosPage from './CoficoProdutosPage';
+import { CoficoPrivacidade, CoficoTermos } from './CoficoPolicyPages';
+import CoficoCookieConsent from './CoficoCookieConsent';
 import { COFICO } from './config';
 import { fetchCoficoStats } from './coficoClient';
 
@@ -64,12 +66,15 @@ export default function CoficoBrasilPage() {
   const [activeVideo, setActiveVideo] = useState<string | null>(null);
   // "Produtos" é uma PÁGINA separada dentro da COFICO, controlada pelo hash #loja
   // (sem depender do router do App.tsx). Assim entra/sai da vitrine sem recarregar.
-  const [view, setView] = useState<'home' | 'loja'>(() => (typeof window !== 'undefined' && window.location.hash === '#loja') ? 'loja' : 'home');
+  const viewFromHash = (h: string): 'home' | 'loja' | 'privacidade' | 'termos' =>
+    h === '#loja' ? 'loja' : h === '#privacidade' ? 'privacidade' : h === '#termos' ? 'termos' : 'home';
+  const [view, setView] = useState<'home' | 'loja' | 'privacidade' | 'termos'>(
+    () => (typeof window !== 'undefined' ? viewFromHash(window.location.hash) : 'home'));
 
   useEffect(() => {
     const onHash = () => {
       const h = window.location.hash;
-      if (h === '#loja') { setView('loja'); window.scrollTo(0, 0); return; }
+      if (h === '#loja' || h === '#privacidade' || h === '#termos') { setView(viewFromHash(h)); window.scrollTo(0, 0); return; }
       setView('home');
       if (h && h !== '#topo') { setTimeout(() => { const el = document.querySelector(h); if (el) el.scrollIntoView(); }, 30); }
       else window.scrollTo(0, 0);
@@ -92,7 +97,9 @@ export default function CoficoBrasilPage() {
   ];
 
   // Vitrine/loja é uma página separada (aberta pelo menu "Produtos").
-  if (view === 'loja') return <CoficoProdutosPage />;
+  if (view === 'loja') return <><CoficoProdutosPage /><CoficoCookieConsent /></>;
+  if (view === 'privacidade') return <><CoficoPrivacidade /><CoficoCookieConsent /></>;
+  if (view === 'termos') return <><CoficoTermos /><CoficoCookieConsent /></>;
 
   return (
     <div id="topo" className="min-h-screen bg-white text-neutral-900 antialiased selection:bg-cofico-ink selection:text-white">
@@ -393,6 +400,7 @@ export default function CoficoBrasilPage() {
       )}
 
       <CoficoFooter />
+      <CoficoCookieConsent />
     </div>
   );
 }
