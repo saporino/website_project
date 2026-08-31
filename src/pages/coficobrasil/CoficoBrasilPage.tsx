@@ -13,6 +13,7 @@ import CoficoMap from './CoficoMap';
 import CoficoProdutosPage from './CoficoProdutosPage';
 import { CoficoPrivacidade, CoficoTermos } from './CoficoPolicyPages';
 import CoficoCookieConsent from './CoficoCookieConsent';
+import CoficoMarcaLeadForm from './CoficoMarcaLeadForm';
 import { COFICO } from './config';
 import { fetchCoficoStats } from './coficoClient';
 
@@ -151,7 +152,10 @@ export default function CoficoBrasilPage() {
               </span>
             </button>
           </div>
-          <p className="mt-6 text-sm text-neutral-500">Portfólio em expansão.</p>
+          <p className="mt-6 text-sm text-neutral-500">
+            Portfólio em expansão. Sua marca também pode estar aqui —{' '}
+            <a href="#distribua" className="font-semibold text-cofico-ink hover:underline">distribua com a COFICO</a>.
+          </p>
         </div>
       </section>
 
@@ -353,6 +357,36 @@ export default function CoficoBrasilPage() {
                   </div>
                 </article>
               ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* DISTRIBUA SUA MARCA — captação de representadas. Grava em b2b_leads (reusa pipeline RepCo). */}
+      <section id="distribua" className="border-t border-neutral-200 bg-neutral-50">
+        <div className="mx-auto max-w-6xl px-6 py-20">
+          <div className="grid gap-12 lg:grid-cols-2 lg:items-start">
+            <div className="max-w-xl">
+              <span className="text-cofico-ink text-xs font-semibold uppercase tracking-[0.18em]">Para marcas</span>
+              <h2 className="mt-4 text-2xl md:text-3xl font-bold tracking-tight">Distribua sua marca com a COFICO</h2>
+              <p className="mt-4 text-neutral-600 leading-relaxed">
+                Tem uma marca de alimentos e quer ganhar presença no Estado de São Paulo? A COFICO leva a sua marca ao mercado — da armazenagem à gôndola — com estrutura própria e tecnologia para você acompanhar tudo.
+              </p>
+              <ul className="mt-6 space-y-3 text-sm text-neutral-700">
+                {[
+                  'Distribuição oficial e cobertura em todo o Estado de SP',
+                  'Força de vendas própria com representantes (RepCo)',
+                  'Armazenagem, separação e entrega com frota própria',
+                  'Acompanhamento em tempo real do que entrou, saiu e onde está',
+                ].map((t) => (
+                  <li key={t} className="flex gap-2"><ArrowRight className="w-4 h-4 text-cofico-ink flex-shrink-0 mt-0.5" aria-hidden="true" />{t}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="bg-white border border-neutral-200 p-6 sm:p-8">
+              <p className="text-sm font-semibold text-neutral-900">Conte sobre a sua marca</p>
+              <p className="mt-1 text-xs text-neutral-500 mb-5">Nosso time comercial avalia e entra em contato.</p>
+              <CoficoMarcaLeadForm />
             </div>
           </div>
         </div>
