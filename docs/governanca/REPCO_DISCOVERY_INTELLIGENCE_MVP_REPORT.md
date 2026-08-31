@@ -120,3 +120,31 @@ Admin → RepCo → Prospecção
 3. Ligar **canais** (`memo23`) e, se houver ganho, o fallback `scrapier`.
 4. Botão **"Enviar BUSINESS aprovado → prospect_leads"** (reuso do pipeline).
 5. Aba **"Minhas palavras-chave"** com taxa de aproveitamento por keyword (funil keyword→descoberta→aprovado).
+
+---
+
+## 15. Discovery Intelligence HUB — multi-source (foundation)
+Ajuste de **foundation** (não expansão de escopo): a subaba nasce como **hub multi-fonte**, não WhatsApp-específica.
+
+**Fontes — estado:**
+| Fonte | result_type | Estado |
+|---|---|---|
+| Google Places (`compass/crawler-google-places`) | BUSINESS | ✅ **já existia** (reusada como baseline/prova de compatibilidade) |
+| WhatsApp grupos (`lofomachines/whatsapp-group-search`) | PUBLIC_WHATSAPP_GROUP | ✅ **integrada** (adapter + normalizer; run pendente de billing) |
+| WhatsApp canais (`memo23/whatsapp-channel-search`) | PUBLIC_WHATSAPP_CHANNEL | 🟡 **preparada** (adapter no registry; ligar após validar) |
+| Base CNPJ (`prospects_b2b`, 758k) | BUSINESS | 🟡 **preparada** (fonte interna grátis; adapter futuro) |
+| TikTok / Instagram / creators / afiliados / Web | CREATOR/AFFILIATE/INFLUENCER/PUBLIC_SOCIAL_* | ⚪ **futuras** (só entram com actor validado — sem checkbox fake) |
+
+**Como um novo Actor entra SEM refazer UI/banco:** (1) adiciona um adapter na edge `discovery-run` (source→actor→input); (2) um `case` em `normalizeItem`; (3) uma entrada em `DISCOVERY_SOURCES`. `discovery_results` e a UI **não mudam de forma** — a diferenciação é por `result_type/source/provider/actor/campaign/keyword/score`. A UI já filtra por tipo/fonte/status e lista o registry em **"Fontes & Agentes (infra)"**.
+
+**Como Creator Intelligence reutiliza esta foundation depois:** `discovery_results` já tem `follower_count/engagement_rate/niche/confidence` + `raw_payload` (proveniência) + score/status. Um `CreatorNormalizer` (TikTok/Instagram) grava `result_type=CREATOR/AFFILIATE` nas **mesmas colunas** — sem migration. Creator/Affiliate **nunca** viram `prospect_leads`; após aprovação humana, alimentam programas próprios (Creator/Affiliate), que são **camadas futuras separadas**.
+
+## 16. ARCHITECTURE CHALLENGE — veredito
+**Sem blocker.** Nenhuma decisão da INTEL-1 impede ou encarece Partner Network / Creator Intelligence / Affiliate / Commission Engine / multi-channel attribution:
+- `discovery_results ≠ prospect_leads` + `result_type` aberto → creator/affiliate/rep como **tipos próprios** (não leads). ✅
+- Registry/adapters → novas fontes sem refazer UI/banco. ✅
+- Custo por `source/actor/run/campaign` já registrado → comparação futura de custo-por-resultado/lead/creator. ✅
+- **Commission/attribution ficam FORA do Discovery** (correto): Discovery é topo do funil. Venda→atribuição→comissão→payout são um **futuro REPCO COMMISSION ENGINE** separado — a foundation não os bloqueia nem os antecipa. ✅
+- `converted_prospect_lead_id` cobre o caminho BUSINESS→lead; conversões de parceiro (creator→programa) adicionam suas próprias referências depois (aditivo). ✅
+
+**Não implementado (por design, conforme pedido):** Commission Engine, Partner Portal, pagamentos, tracking de afiliados, integração TikTok, Creator Program, Ai.Bot autônomo, aba "Agents". A UI operacional continua **RepCo → Prospecção → Descobrir**; agentes/actors ficam **atrás** da interface (visão "Fontes & Agentes" = administração da infra).
