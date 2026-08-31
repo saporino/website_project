@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   Warehouse, PackageCheck, Truck, Radar, Cpu, MapPin, Mail, Phone, Instagram,
   ExternalLink, Building2, Store, UtensilsCrossed, Boxes, Briefcase, ArrowRight, Users,
-  X, Play, FileText,
+  X, Play, FileText, Globe, ShoppingBag,
 } from 'lucide-react';
 import CoficoHeader from './CoficoHeader';
 import CoficoFooter from './CoficoFooter';
@@ -198,6 +198,54 @@ export default function CoficoBrasilPage() {
                 Operamos com o <strong className="text-white font-semibold">RepCo by COFICO</strong>, nosso sistema proprietário de pedidos e logística. Cada pedido nasce no aplicativo do representante, percorre a separação com rastreio de lote e termina em comprovante de entrega com foto e localização. Pelo RepCo, a indústria que distribui conosco acompanha, em tempo real, o que entrou, o que saiu e onde está.
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CASA COFICO — canal digital (institucional, SEM loja/checkout). Explica os dois
+          canais: atacado B2B (ativo, via representante/RepCo) e Casa Cofico B2C (em construção). */}
+      <section id="canal-digital" className="border-t border-neutral-200">
+        <div className="mx-auto max-w-6xl px-6 py-20">
+          <div className="max-w-3xl">
+            <span className="inline-flex items-center gap-1.5 text-cofico-ink text-xs font-semibold uppercase tracking-[0.18em]">
+              <Globe className="w-4 h-4" aria-hidden="true" /> Canal digital
+            </span>
+            <h2 className="mt-4 text-2xl md:text-3xl font-bold tracking-tight">Casa Cofico</h2>
+            <p className="mt-4 text-neutral-600 text-lg leading-relaxed">
+              A COFICO não é só operação física. A <strong className="text-neutral-900 font-semibold">Casa Cofico</strong> é o nosso canal digital: leva as marcas que distribuímos até o cliente com a mesma tecnologia e logística que já usamos no dia a dia. Do pedido à entrega, tudo pela operação COFICO.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-6 md:grid-cols-2">
+            {/* Atacado — já ativo */}
+            <article className="border border-neutral-200 p-8 flex flex-col">
+              <Boxes className="w-7 h-7 text-cofico-ink" aria-hidden="true" />
+              <div className="mt-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold">Atacado (B2B)</h3>
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-green-700 bg-green-50 px-2 py-0.5 rounded-full">Ativo</span>
+              </div>
+              <p className="mt-2 text-sm text-neutral-600 leading-relaxed flex-1">
+                Para quem tem CNPJ ativo: cadastro, tabela de preços e condições comerciais liberadas, com pedido acompanhado de ponta a ponta pelo RepCo — do representante à entrega.
+              </p>
+              <a href="#loja" className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-cofico-ink hover:underline w-fit">
+                Ver produtos e comprar no atacado <ArrowRight className="w-4 h-4" aria-hidden="true" />
+              </a>
+            </article>
+
+            {/* Casa Cofico online — em construção (SEM loja) */}
+            <article className="border border-neutral-200 p-8 flex flex-col bg-neutral-50">
+              <ShoppingBag className="w-7 h-7 text-cofico-ink" aria-hidden="true" />
+              <div className="mt-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold">Loja online</h3>
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-600 bg-neutral-200 px-2 py-0.5 rounded-full">Em construção</span>
+              </div>
+              <p className="mt-2 text-sm text-neutral-600 leading-relaxed flex-1">
+                Estamos preparando a loja digital da COFICO para o consumidor comprar as marcas que distribuímos, com entrega pela nossa operação. Ainda não está no ar — sem carrinho nem pagamento por aqui por enquanto.
+              </p>
+              <a href="#contato" className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-cofico-ink hover:underline w-fit">
+                Quero ser avisado quando abrir <ArrowRight className="w-4 h-4" aria-hidden="true" />
+              </a>
+            </article>
           </div>
         </div>
       </section>
