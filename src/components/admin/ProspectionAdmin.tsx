@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import ProspectionManager from './ProspectionManager';
 import PoolAssignment from './PoolAssignment';
-import { List, Users, MapPin } from 'lucide-react';
+import DiscoveryPanel from './DiscoveryPanel';
+import { List, Users, MapPin, Search } from 'lucide-react';
 
 function goToMap() { window.history.pushState({}, '', '/repco/inteligencia/cobertura'); window.dispatchEvent(new PopStateEvent('popstate')); }
 
-type Tab = 'listas' | 'pools';
+type Tab = 'listas' | 'pools' | 'descobrir';
 
 export default function ProspectionAdmin({ refreshKey }: { refreshKey?: number }) {
   const [tab, setTab] = useState<Tab>('listas');
@@ -24,6 +25,7 @@ export default function ProspectionAdmin({ refreshKey }: { refreshKey?: number }
         <div className="flex flex-wrap gap-1 bg-white border border-gray-200 rounded-xl p-1 w-fit">
           <TabBtn id="listas" icon={<List className="w-4 h-4" />} label="Listas / Importar" />
           <TabBtn id="pools" icon={<Users className="w-4 h-4" />} label="Atribuir pools" />
+          <TabBtn id="descobrir" icon={<Search className="w-4 h-4" />} label="Descobrir" />
         </div>
         <button onClick={goToMap}
           className="flex items-center gap-2 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg">
@@ -32,6 +34,7 @@ export default function ProspectionAdmin({ refreshKey }: { refreshKey?: number }
       </div>
       {tab === 'listas' && <ProspectionManager refreshKey={refreshKey} />}
       {tab === 'pools' && <PoolAssignment />}
+      {tab === 'descobrir' && <DiscoveryPanel />}
     </div>
   );
 }
