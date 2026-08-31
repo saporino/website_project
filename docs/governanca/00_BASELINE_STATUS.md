@@ -36,5 +36,8 @@ As **4 migrations acima JÁ ESTÃO APLICADAS no banco de PRODUÇÃO** (via exec_
 - `docs/specs/SAPORINO_AI_BOT_MASTER_SPEC_COMPLETO_V4.md`
 - `docs/REPCO_ECOSYSTEM_IMPLEMENTATION_STATUS.md` (relatório da Fase 0)
 
+## Addendum (30/08/2026)
+- [`BASELINE_ADDENDUM_GOVERNANCA_LOGISTICA.md`](BASELINE_ADDENDUM_GOVERNANCA_LOGISTICA.md) — inventário de 5 documentos-fonte de governança/logística (Diretrizes V3.0, Motor Logístico V1.1, Motor Governança V1.0, benchmark Total Express, briefing), preservados em [`fontes/`](fontes/). São **fontes de arquitetura/regras futuras** (TASKS 022–031 e 032/033) — **não implementar agora**; não interrompem o Site Sprint.
+
 ## Regra de segurança do baseline
 Antes de qualquer operação **destrutiva/merge/perda de trabalho**: PARAR. Não reverter migrations aplicadas só para limpar git. Fase 0 só sai da branch com aprovação (após MP PJ + E2E).

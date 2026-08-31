@@ -1,0 +1,466 @@
+Estou trazendo DOIS documentos novos para serem incorporados à arquitetura central do RepCo:
+
+1. Motor_Logistico_COFICO_RepCo_Especificacao_V1_1_PRE_CLAUDE.md
+2. REPCO_Motor_Governanca_Comercial_COFICO_V1_0.md
+
+Além deles, considerar como referência comercial vigente:
+
+3. Diretrizes Comerciais COFICO — Café Fazendinha Ltda. — Versão 3.0
+
+IMPORTANTE:
+Não implementar nada ainda.
+
+Quero primeiro uma AUDITORIA ARQUITETURAL UNIFICADA desses materiais contra tudo que já existe no ecossistema RepCo.
+
+==================================================
+1. PAPEL DE CADA DOCUMENTO
+==================================================
+
+A) DIRETRIZES COMERCIAIS V3.0
+São a referência oficial vigente do que o representante pode fazer, apresentar, prometer, negociar e quando deve pedir aprovação.
+
+B) MOTOR LOGÍSTICO COFICO / REPCO
+É a especificação interna da inteligência de:
+- frete;
+- frota própria;
+- transportadoras;
+- elegibilidade;
+- rotas;
+- consolidação;
+- cubagem;
+- capacidade;
+- custos;
+- reserva logística;
+- escolha da alternativa operacionalmente válida mais eficiente.
+
+Essas informações são ADMIN ONLY quando sensíveis.
+
+C) MOTOR DE GOVERNANÇA COMERCIAL COFICO / REPCO
+É a arquitetura para transformar as Diretrizes em sistema dinâmico, multiempresa e multicategoria.
+
+Deve permitir trabalhar no futuro com:
+- Café Fazendinha;
+- outras marcas de café;
+- açúcar;
+- guaraná;
+- bebidas;
+- alimentos;
+- outras representadas;
+
+sem reconstruir as Diretrizes do zero.
+
+==================================================
+2. NÃO CRIAR SISTEMAS PARALELOS
+==================================================
+
+Antes de propor novas tabelas, módulos, agentes ou serviços:
+
+- auditar o schema atual;
+- identificar estruturas existentes;
+- reutilizar o que já existe;
+- evitar duplicação.
+
+Especialmente:
+
+- COFICO Entregas já existe;
+- RepCo já existe;
+- Studio já existe;
+- Saporino Ai.Bot já foi especificado;
+- E-CoHub já foi especificado;
+- integrações com Bling e demais módulos podem existir ou estar previstas.
+
+Não criar “um segundo RepCo”.
+Não criar “um segundo COFICO Entregas”.
+Não duplicar cadastro de empresa, produto, cliente, pedido, preço ou usuário.
+
+==================================================
+3. MOTOR DE GOVERNANÇA COMERCIAL
+==================================================
+
+Quero que o RepCo evolua para ser a fonte de verdade da governança comercial da COFICO.
+
+A arquitetura deve separar:
+
+CORE COFICO
+→ regras corporativas permanentes.
+
+REPRESENTADA
+→ condições específicas da empresa representada.
+
+MARCA / CATEGORIA / SKU
+→ dados específicos.
+
+TABELA COMERCIAL
+→ preço, piso, unidade, vigência e histórico.
+
+POLÍTICAS
+→ crédito, prazo, mix, descontos, alçadas, degustações, devoluções, marketing etc.
+
+GERADOR DE DOCUMENTOS
+→ monta Diretrizes completas, versão de bolso, tabela ou comunicado a partir dos dados vigentes.
+
+==================================================
+4. MOTOR DE DECISÃO COMERCIAL EM TEMPO REAL
+==================================================
+
+Quero transformar as Diretrizes em controles sistêmicos.
+
+O representante NÃO deve depender de calculadora nem de memória.
+
+Fluxo desejado:
+
+representante monta pedido/proposta
+→ RepCo identifica cliente
+→ representada
+→ tabela vigente
+→ SKUs
+→ descontos/verbas da rede
+→ piso líquido
+→ mix permitido
+→ margem/markup
+→ crédito
+→ prazo
+→ alçada
+→ logística
+→ decisão final.
+
+Resultado visível ao representante:
+
+🟢 PODE FECHAR
+
+🟡 REQUER APROVAÇÃO
+
+🔴 NÃO PERMITIDO
+
+O sistema deve explicar o motivo sem revelar dados confidenciais.
+
+Exemplos de motivo:
+- tabela vencida;
+- preço rompe piso;
+- prazo fora da política;
+- crédito pendente;
+- verba exige aprovação;
+- mix acima da alçada;
+- frete precisa de validação;
+- dado obrigatório ausente.
+
+==================================================
+5. SELL-OUT / TRADE
+==================================================
+
+Quero também colocar no roadmap a inteligência de pós-venda e giro.
+
+Estrutura conceitual:
+
+cliente
+→ loja
+→ SKU
+→ primeiro pedido
+→ estoque estimado
+→ reposição
+→ última compra
+→ dias sem recompra
+→ giro estimado
+→ ruptura
+→ ação comercial
+→ degustação/promotoria
+→ resultado
+→ próxima ação.
+
+O objetivo é não parar no sell-in.
+
+O RepCo deve ajudar a construir recompra e execução no PDV.
+
+==================================================
+6. GUARDIAN COFICO
+==================================================
+
+A inteligência deve observar acontecimentos internos e detectar lacunas de governança.
+
+Exemplos:
+
+- muitas redes pedindo a mesma verba;
+- representantes cometendo o mesmo erro;
+- regra gerando muitas exceções;
+- preço perdendo competitividade;
+- margem comprimindo;
+- devolução recorrente;
+- problema de giro;
+- logística atrapalhando fechamento;
+- prazo causando inadimplência;
+- política contraditória;
+- política desatualizada;
+- situação recorrente sem regra.
+
+A IA NÃO altera política sozinha.
+
+Fluxo:
+
+acontecimento
+→ evidência
+→ lacuna
+→ recomendação
+→ impacto
+→ aprovação humana
+→ nova política
+→ nova versão
+→ publicação
+→ monitoramento.
+
+==================================================
+7. DECISION LOG
+==================================================
+
+Quero uma memória institucional de decisões.
+
+Registrar:
+
+- problema;
+- evidência;
+- alternativas;
+- recomendação;
+- decisão humana;
+- aprovador;
+- justificativa;
+- vigência;
+- política afetada;
+- versão resultante.
+
+Decisões importantes não devem ficar perdidas em WhatsApp, reunião ou conversa com IA.
+
+==================================================
+8. MOTOR LOGÍSTICO
+==================================================
+
+O Motor Logístico deve evoluir o COFICO Entregas existente.
+
+Princípios:
+
+- primeiro validar elegibilidade;
+- depois comparar custo;
+- depois SLA;
+- escolher a alternativa operacionalmente válida de menor custo total.
+
+Comparar quando aplicável:
+
+- frota COFICO;
+- Total Express;
+- Jadlog;
+- Rodonaves;
+- futuras transportadoras homologadas.
+
+Não escolher transportadora apenas por preço.
+
+Considerar:
+- CD de rede;
+- agendamento;
+- janela;
+- palete;
+- POD;
+- veículo;
+- peso;
+- cubagem;
+- região;
+- SLA;
+- documentação.
+
+==================================================
+9. DADOS CONFIDENCIAIS
+==================================================
+
+Não expor ao representante:
+
+- R$ 1,50/kg interno;
+- 2% interno;
+- reserva logística;
+- saldo da reserva;
+- custo interno de veículo;
+- custo-base da frota;
+- ledger;
+- margem logística interna;
+- fórmulas de rateio;
+- remuneração individual.
+
+Representante vê somente o resultado permitido.
+
+==================================================
+10. MULTIEMPRESA / MULTICATEGORIA
+==================================================
+
+A arquitetura deve funcionar para:
+
+CAFÉ
+AÇÚCAR
+BEBIDAS
+OUTROS ALIMENTOS
+
+Não hardcodar:
+
+- Café Fazendinha;
+- café;
+- pacote de 500 g;
+- fardo;
+- mix;
+- R$ 19;
+- R$ 15;
+- 750 kg como regra universal de produto;
+- atributos exclusivos de café.
+
+Tudo que puder ser configuração deve ser configuração.
+
+==================================================
+11. SINGLE SOURCE OF TRUTH
+==================================================
+
+Definir claramente a fonte oficial de:
+
+- empresa;
+- marca;
+- produto;
+- SKU;
+- preço;
+- piso;
+- crédito;
+- política;
+- logística;
+- cliente;
+- pedido;
+- documento.
+
+Não duplicar informação em várias tabelas sem necessidade.
+
+==================================================
+12. GERADOR DE DIRETRIZES
+==================================================
+
+Quero no RepCo uma tela para:
+
+Selecionar representada
+→ marca
+→ categoria
+→ território/canal
+→ tabela vigente
+→ versão da política
+→ tipo de documento.
+
+Tipos:
+
+- Diretrizes completas;
+- versão de bolso;
+- tabela comercial;
+- comunicado de alteração;
+- anexo específico.
+
+Depois:
+
+prévia
+→ QA
+→ aprovação
+→ PDF
+→ publicação
+→ distribuição por WhatsApp.
+
+==================================================
+13. VERSIONAMENTO
+==================================================
+
+Documento publicado é imutável.
+
+Mudança gera nova versão.
+
+Preço deve ter sua própria vigência/versionamento.
+
+Não reconstruir o manual inteiro apenas porque um preço mudou.
+
+==================================================
+14. PERMISSÕES / RBAC
+==================================================
+
+Separar acesso de:
+
+- Representante;
+- Diretoria Comercial;
+- CFO/Financeiro;
+- Logística;
+- Admin.
+
+Aplicar menor privilégio.
+
+==================================================
+15. P0 ANTES DE QUALQUER IMPLEMENTAÇÃO
+==================================================
+
+Quero que você faça primeiro:
+
+1. mapa do schema atual;
+2. mapa dos módulos existentes;
+3. mapa de autenticação/RBAC;
+4. lista de tabelas reutilizáveis;
+5. lista de módulos reutilizáveis;
+6. lista de duplicações potenciais;
+7. conflitos com arquitetura atual;
+8. dependências;
+9. P0 técnicos;
+10. P0 de negócio;
+11. decisões humanas pendentes;
+12. questões fiscais externas;
+13. migrations necessárias;
+14. APIs/serviços necessários;
+15. componentes de UI;
+16. testes;
+17. riscos;
+18. ordem exata de implementação.
+
+==================================================
+16. O QUE QUERO COMO RESPOSTA
+==================================================
+
+Não escreva código.
+
+Primeiro me entregue:
+
+A. AUDITORIA ARQUITETURAL
+- o que já existe;
+- o que pode ser reutilizado;
+- o que falta;
+- o que conflita;
+- o que não deve ser duplicado.
+
+B. MAPA DE RESPONSABILIDADES
+- RepCo;
+- COFICO Entregas;
+- Motor de Governança;
+- Motor de Decisão Comercial;
+- Guardian;
+- Sell-out/Trade;
+- Studio;
+- Ai.Bot;
+- E-CoHub;
+- Bling.
+
+C. MODELO DE DADOS
+- tabelas novas necessárias;
+- tabelas existentes reutilizadas;
+- relacionamentos;
+- fonte oficial de cada dado.
+
+D. ROADMAP
+- fases;
+- dependências;
+- critérios de aceite;
+- bloqueios;
+- aprovação humana.
+
+E. RISCOS
+- segurança;
+- financeiro;
+- comercial;
+- fiscal;
+- arquitetura;
+- duplicação;
+- vazamento de dados;
+- automação indevida.
+
+Depois dessa auditoria, eu decidirei o que entra no plano-mestre de implementação.
+
+Não implemente nada antes dessa aprovação.
