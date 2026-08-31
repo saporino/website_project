@@ -125,6 +125,36 @@ export default function CoficoBrasilPage() {
       </section>
       <CoficoCarousel />
 
+      {/* MARCAS — logo após o hero: substancia "distribuição de marcas" e atende o CTA "Conheça as marcas" */}
+      <section id="marcas" className="border-t border-neutral-200">
+        <div className="mx-auto max-w-6xl px-6 py-20">
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Marcas que distribuímos</h2>
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <article className="border border-neutral-200 p-8">
+              {/* tenta o arquivo em /cofico/, senão cai no logo que já existe no site */}
+              <img src="/cofico/saporino.png" alt="Café Saporino" className="h-28 w-auto object-contain"
+                onError={(e) => { const t = e.currentTarget; if (!t.dataset.fb) { t.dataset.fb = '1'; t.src = '/saporino-logo.png'; } }} />
+              <h3 className="mt-5 text-lg font-semibold">Café Saporino</h3>
+              <p className="mt-1 text-sm text-neutral-500">Distribuição exclusiva no Estado de São Paulo</p>
+              <p className="mt-4 text-sm text-neutral-700 font-medium">Saporino Clássico Tradicional 100% Arábica · Tropeiro Paulista (Tradicional e Extra Forte) · Café Serrão (Tradicional e Extra Forte)</p>
+            </article>
+            <button type="button" onClick={() => setShowFazendinha(true)}
+              className="text-left border border-neutral-200 p-8 transition-colors hover:border-cofico-ink hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-cofico-ink">
+              {/* tenta o arquivo em /cofico/, senão cai no logo do banco */}
+              <img src="/cofico/fazendinha.png" alt="Café Fazendinha" className="h-28 w-auto object-contain"
+                onError={(e) => { const t = e.currentTarget; if (!t.dataset.fb) { t.dataset.fb = '1'; t.src = 'https://rsvoazrkxtdrcjnatzcm.supabase.co/storage/v1/object/public/product-images/companies/f5a47ea4-32d3-4b15-966d-37cb2bb1acf3-1784146393495.jpeg'; } }} />
+              <h3 className="mt-5 text-lg font-semibold">Café Fazendinha</h3>
+              <p className="mt-1 text-sm text-neutral-500">Distribuição exclusiva no Estado de São Paulo</p>
+              <p className="mt-4 text-sm text-neutral-700 font-medium">Tradicional · Extra Forte · Horizon Coffee · São Felipe</p>
+              <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-cofico-ink">
+                <Play className="w-4 h-4" aria-hidden="true" /> Ver vídeo, produtos e fichas técnicas
+              </span>
+            </button>
+          </div>
+          <p className="mt-6 text-sm text-neutral-500">Portfólio em expansão.</p>
+        </div>
+      </section>
+
       {/* NOSSOS NÚMEROS — ao vivo (cofico_public_stats); entregas/clientes crescem com a operação */}
       <section className="border-t border-neutral-200 bg-neutral-50">
         <div className="mx-auto max-w-6xl px-6 py-16">
@@ -169,36 +199,6 @@ export default function CoficoBrasilPage() {
               </p>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* MARCAS */}
-      <section id="marcas" className="border-t border-neutral-200">
-        <div className="mx-auto max-w-6xl px-6 py-20">
-          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Marcas que distribuímos</h2>
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <article className="border border-neutral-200 p-8">
-              {/* tenta o arquivo em /cofico/, senão cai no logo que já existe no site */}
-              <img src="/cofico/saporino.png" alt="Café Saporino" className="h-28 w-auto object-contain"
-                onError={(e) => { const t = e.currentTarget; if (!t.dataset.fb) { t.dataset.fb = '1'; t.src = '/saporino-logo.png'; } }} />
-              <h3 className="mt-5 text-lg font-semibold">Café Saporino</h3>
-              <p className="mt-1 text-sm text-neutral-500">Distribuição exclusiva no Estado de São Paulo</p>
-              <p className="mt-4 text-sm text-neutral-700 font-medium">Saporino Clássico Tradicional 100% Arábica · Tropeiro Paulista (Tradicional e Extra Forte) · Café Serrão (Tradicional e Extra Forte)</p>
-            </article>
-            <button type="button" onClick={() => setShowFazendinha(true)}
-              className="text-left border border-neutral-200 p-8 transition-colors hover:border-cofico-ink hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-cofico-ink">
-              {/* tenta o arquivo em /cofico/, senão cai no logo do banco */}
-              <img src="/cofico/fazendinha.png" alt="Café Fazendinha" className="h-28 w-auto object-contain"
-                onError={(e) => { const t = e.currentTarget; if (!t.dataset.fb) { t.dataset.fb = '1'; t.src = 'https://rsvoazrkxtdrcjnatzcm.supabase.co/storage/v1/object/public/product-images/companies/f5a47ea4-32d3-4b15-966d-37cb2bb1acf3-1784146393495.jpeg'; } }} />
-              <h3 className="mt-5 text-lg font-semibold">Café Fazendinha</h3>
-              <p className="mt-1 text-sm text-neutral-500">Distribuição exclusiva no Estado de São Paulo</p>
-              <p className="mt-4 text-sm text-neutral-700 font-medium">Tradicional · Extra Forte · Horizon Coffee · São Felipe</p>
-              <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-cofico-ink">
-                <Play className="w-4 h-4" aria-hidden="true" /> Ver vídeo, produtos e fichas técnicas
-              </span>
-            </button>
-          </div>
-          <p className="mt-6 text-sm text-neutral-500">Portfólio em expansão.</p>
         </div>
       </section>
 
