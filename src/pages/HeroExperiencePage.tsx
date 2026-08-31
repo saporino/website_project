@@ -92,7 +92,7 @@ export default function HeroExperiencePage() {
             <div key={src} ref={layer[i]} className="absolute inset-0 will-change-[opacity]" style={{ opacity: i === 0 ? 1 : 0 }}>
               <img
                 ref={img[i]} src={src} alt="" aria-hidden="true"
-                loading={i === 0 ? 'eager' : 'lazy'} decoding="async"
+                loading="eager" decoding="async"
                 className={`w-full h-full object-cover will-change-transform ${OBJ[i]}`}
                 style={{ transform: 'translate3d(0,0,0)' }}
               />
