@@ -45,6 +45,9 @@ export default function DiscoveryPanel() {
   const [results, setResults] = useState<DResult[]>([]);
   const [runs, setRuns] = useState<Run[]>([]);
   const [account, setAccount] = useState<{ ok: boolean; blocked?: boolean; message?: string; plan?: string; monthlyUsageUsd?: number } | null>(null);
+  const [fType, setFType] = useState('all');
+  const [fSource, setFSource] = useState('all');
+  const [fStatus, setFStatus] = useState('all');
 
   async function loadGroups() {
     const { data } = await supabase.from('discovery_keywords').select('group_name').eq('active', true);
@@ -122,6 +125,25 @@ export default function DiscoveryPanel() {
     setResults(prev => prev.map(r => r.id === id ? { ...r, status } : r));
   }
 
+  const filtered = useMemo(() => results.filter(r =>
+    (fType === 'all' || r.result_type === fType) &&
+    (fSource === 'all' || r.source === fSource) &&
+    (fStatus === 'all' || r.status === fStatus)
+  ), [results, fType, fSource, fStatus]);
+  const typeOptions = useMemo(() => Array.from(new Set(results.map(r => r.result_type))), [results]);
+
+  // Fontes & Agentes (infra): registry + stats por fonte (derivado dos runs, sem tabela nova)
+  const sourceStats = useMemo(() => {
+    const by: Record<string, { runs: number; last?: string; lastStatus?: string; cost: number }> = {};
+    runs.forEach(r => {
+      const k = r.source_type || '—';
+      by[k] = by[k] || { runs: 0, cost: 0 };
+      by[k].runs++; by[k].cost += (r.cost_actual_usd || 0);
+      if (!by[k].last) { by[k].last = r.created_at; by[k].lastStatus = r.status; }
+    });
+    return by;
+  }, [runs]);
+
   const metrics = useMemo(() => {
     const total = results.length;
     const approved = results.filter(r => r.status === 'approved').length;
@@ -144,8 +166,8 @@ export default function DiscoveryPanel() {
       )}
 
       <div>
-        <h3 className="text-lg font-bold text-gray-900">Inteligência de Prospecção</h3>
-        <p className="text-sm text-gray-500">Descubra empresas, comunidades e oportunidades públicas por nicho, região e palavras-chave. Resultados não viram leads automaticamente — você aprova.</p>
+        <h3 className="text-lg font-bold text-gray-900">Discovery Intelligence <span className="text-gray-400 font-normal">· hub multi-fonte</span></h3>
+        <p className="text-sm text-gray-500">Descubra empresas, comunidades, grupos e (no futuro) creators/afiliados por nicho, região e palavras-chave. Resultados são tipados e <strong>não viram leads automaticamente</strong> — você aprova.</p>
       </div>
 
       {/* Campanha */}
@@ -238,15 +260,31 @@ export default function DiscoveryPanel() {
 
       {/* Resultados */}
       <div>
-        <h4 className="font-semibold text-gray-900 mb-2">Resultados ({results.length})</h4>
+        <div className="flex flex-wrap items-center gap-3 mb-2">
+          <h4 className="font-semibold text-gray-900">Resultados ({filtered.length}{filtered.length !== results.length ? ` de ${results.length}` : ''})</h4>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <select value={fType} onChange={e => setFType(e.target.value)} className="h-8 px-2 border border-gray-300 rounded-lg bg-white">
+              <option value="all">Todos os tipos</option>
+              {typeOptions.map(t => <option key={t} value={t}>{t.replace('PUBLIC_', '').replace(/_/g, ' ').toLowerCase()}</option>)}
+            </select>
+            <select value={fSource} onChange={e => setFSource(e.target.value)} className="h-8 px-2 border border-gray-300 rounded-lg bg-white">
+              <option value="all">Todas as fontes</option>
+              {DISCOVERY_SOURCES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+            </select>
+            <select value={fStatus} onChange={e => setFStatus(e.target.value)} className="h-8 px-2 border border-gray-300 rounded-lg bg-white">
+              <option value="all">Todos os status</option>
+              {Object.entries(STATUS_PT).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </div>
+        </div>
         <div className="overflow-x-auto border border-gray-200 rounded-xl">
           <table className="w-full min-w-[820px] text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs">
               <tr>{['Resultado', 'Tipo', 'Keyword', 'Local', 'Prioridade', 'Status', 'Ações'].map(h => <th key={h} className="text-left font-semibold px-3 py-2">{h}</th>)}</tr>
             </thead>
             <tbody>
-              {results.length === 0 && <tr><td colSpan={7} className="px-3 py-8 text-center text-gray-400">Nenhum resultado ainda. Rode uma busca acima.</td></tr>}
-              {results.map(r => (
+              {filtered.length === 0 && <tr><td colSpan={7} className="px-3 py-8 text-center text-gray-400">Nenhum resultado {results.length ? 'com esse filtro' : 'ainda. Rode uma busca acima'}.</td></tr>}
+              {filtered.map(r => (
                 <tr key={r.id} className="border-t border-gray-100">
                   <td className="px-3 py-2"><div className="font-medium text-gray-900 line-clamp-1">{r.title || '(sem título)'}</div>{r.description && <div className="text-xs text-gray-400 line-clamp-1">{r.description}</div>}</td>
                   <td className="px-3 py-2"><span className="inline-flex items-center gap-1 text-xs text-gray-600">{TYPE_ICON[r.result_type] || null}{r.result_type.replace('PUBLIC_', '').replace('_', ' ').toLowerCase()}</span></td>
@@ -296,6 +334,36 @@ export default function DiscoveryPanel() {
           </table>
         </div>
       </div>
+
+      {/* Fontes & Agentes (infra) — registry por trás da UI. Só fontes com actor real. Provider/actor/status/uso. */}
+      <details className="border border-gray-200 rounded-xl">
+        <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-gray-700">Fontes &amp; Agentes (infraestrutura)</summary>
+        <div className="px-4 pb-4 overflow-x-auto">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead className="bg-gray-50 text-gray-500 text-xs">
+              <tr>{['Fonte', 'Tipo', 'Provider', 'Actor', 'Status', 'Runs', 'Última', 'Custo'].map(h => <th key={h} className="text-left font-semibold px-3 py-2">{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {DISCOVERY_SOURCES.map(s => {
+                const st = sourceStats[s.id];
+                return (
+                  <tr key={s.id} className="border-t border-gray-100 text-xs">
+                    <td className="px-3 py-2 font-medium text-gray-800">{s.label}</td>
+                    <td className="px-3 py-2 text-gray-500">{s.kind === 'community' ? 'Comunidade' : 'Empresa'}</td>
+                    <td className="px-3 py-2 text-gray-500">{s.provider}</td>
+                    <td className="px-3 py-2 text-gray-400">{s.actor}</td>
+                    <td className="px-3 py-2"><span className="text-green-700 bg-green-50 px-2 py-0.5 rounded-full font-medium">ativa</span></td>
+                    <td className="px-3 py-2 text-gray-700">{st?.runs ?? 0}</td>
+                    <td className="px-3 py-2 text-gray-500">{st?.last ? new Date(st.last).toLocaleDateString('pt-BR') : '—'}</td>
+                    <td className="px-3 py-2 text-gray-500">{st ? `$${st.cost.toFixed(2)}` : '—'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <p className="mt-3 text-[11px] text-gray-400">Futuras (preparadas, não ativas até validar actor): TikTok, Instagram, Web, Base CNPJ (prospects_b2b), creators/afiliados. Entram como nova entrada no registry — sem refazer UI/banco.</p>
+        </div>
+      </details>
     </div>
   );
 }

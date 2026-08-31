@@ -4,13 +4,25 @@
 // gravando em discovery_results. Grupo/comunidade NUNCA vira lead automaticamente.
 import { supabase } from './supabase';
 
+// HUB multi-source. Novas fontes entram adicionando: (1) adapter na edge discovery-run,
+// (2) um case em normalizeItem, (3) uma entrada em DISCOVERY_SOURCES. discovery_results e a UI
+// NÃO mudam de forma. Só aparece como ATIVA a fonte com actor/provider real (sem checkbox fake).
 export type DiscoverySource = 'whatsapp_group' | 'whatsapp_channel' | 'google_places';
 
-// Fontes operacionais no MVP (só as com actor real). label + tipo + se é "business" (mapa) ou comunidade.
-export const DISCOVERY_SOURCES: { id: DiscoverySource; label: string; kind: 'community' | 'business'; note?: string }[] = [
-  { id: 'whatsapp_group', label: 'WhatsApp — grupos públicos', kind: 'community' },
-  { id: 'whatsapp_channel', label: 'WhatsApp — canais públicos', kind: 'community', note: 'secundário' },
-  { id: 'google_places', label: 'Empresas (Google Maps)', kind: 'business', note: 'baseline existente' },
+// Vocabulário ABERTO de tipos (result_type). Fontes futuras (TikTok/Instagram/creators/afiliados)
+// usam estes tipos sem alterar o schema. Creator/Affiliate NUNCA viram lead automaticamente.
+export const RESULT_TYPES = [
+  'BUSINESS', 'B2B_LEAD', 'SALES_REP_CANDIDATE', 'INDEPENDENT_SELLER', 'AFFILIATE', 'CREATOR',
+  'UGC_CREATOR', 'INFLUENCER', 'DISTRIBUTOR', 'PUBLIC_WHATSAPP_GROUP', 'PUBLIC_WHATSAPP_CHANNEL',
+  'COMMUNITY', 'PUBLIC_SOCIAL_PROFILE', 'PUBLIC_SOCIAL_POST', 'OTHER',
+] as const;
+
+// Fontes operacionais no MVP (só as com actor real). Futuras (preparadas, NÃO ativas): tiktok_creator,
+// instagram_profile, web, prospects_b2b — entram como novas entradas aqui quando o adapter existir.
+export const DISCOVERY_SOURCES: { id: DiscoverySource; label: string; kind: 'community' | 'business'; provider: string; actor: string; note?: string }[] = [
+  { id: 'whatsapp_group', label: 'WhatsApp — grupos públicos', kind: 'community', provider: 'apify', actor: 'lofomachines/whatsapp-group-search' },
+  { id: 'whatsapp_channel', label: 'WhatsApp — canais públicos', kind: 'community', provider: 'apify', actor: 'memo23/whatsapp-channel-search', note: 'secundário' },
+  { id: 'google_places', label: 'Empresas (Google Maps)', kind: 'business', provider: 'apify', actor: 'compass/crawler-google-places', note: 'baseline existente' },
 ];
 
 const RESULT_TYPE: Record<DiscoverySource, string> = {
@@ -42,8 +54,13 @@ export interface NormalizedResult {
   state: string | null;
   city: string | null;
   member_count: number | null;
+  follower_count: number | null;   // perfis/creators (fontes sociais futuras)
+  engagement_rate: number | null;
+  niche: string | null;
+  confidence: number | null;
   raw_payload: any;
 }
+const SOCIAL_DEFAULTS = { follower_count: null, engagement_rate: null, niche: null, confidence: null };
 
 // --------- Normalização por fonte ---------
 function canonWhatsApp(url: string | null | undefined, code: string | null | undefined): string | null {
@@ -73,6 +90,7 @@ export function normalizeItem(source: DiscoverySource, it: any): NormalizedResul
       keyword: it.keyword || it.search_term || null,
       country: it.country || null, state: null, city: null,
       member_count: (typeof it.member_count === 'number' ? it.member_count : null),
+      ...SOCIAL_DEFAULTS,
       raw_payload: it,
     };
   }
@@ -89,6 +107,7 @@ export function normalizeItem(source: DiscoverySource, it: any): NormalizedResul
     keyword: it.searchString || null,
     country: 'BR', state: it.state || null, city: it.city || null,
     member_count: null,
+    ...SOCIAL_DEFAULTS,
     raw_payload: it,
   };
 }
@@ -158,7 +177,8 @@ export async function importResults(runId: string, campaignId: string | null, p:
       campaign_id: campaignId, run_id: runId, source: n.source, result_type: n.result_type,
       title: n.title, description: n.description, public_url: n.public_url, canonical_url: n.canonical_url,
       external_id: n.external_id, keyword: n.keyword, country: n.country, state: n.state, city: n.city,
-      member_count: n.member_count, provider: 'apify', raw_payload: n.raw_payload,
+      member_count: n.member_count, follower_count: n.follower_count, engagement_rate: n.engagement_rate,
+      niche: n.niche, confidence: n.confidence, provider: 'apify', actor_id: null, raw_payload: n.raw_payload,
       score, score_factors: factors, status: 'new',
     };
   }).filter(r => !(r.canonical_url && existing.has(r.canonical_url)));
