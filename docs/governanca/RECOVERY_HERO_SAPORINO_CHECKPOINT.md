@@ -123,4 +123,11 @@ Capturadas na sessão: desktop **início / meio (0.50) / transição 1→2 (0.30
 - **Ressalva (não alterada, só registrada):** a subline original *"Torra artesanal em pequenos lotes, direto do Cerrado Mineiro"* contraria a regra de marca do projeto (Saporino não é torrefação). Ficou **como era** por decisão de manter a home page intacta; mudar é decisão do Vlademir.
 - **Validado:** typecheck 0 · build 0 · clicar no HERO → home page com o topo original (`hero-colheita.webp`, h1, botão), header, carrossel depois, `scrollY 0` · sessão com flag → home page direto com o topo original · console limpo.
 
+---
+
+## 19. HERO em TODA entrada (03/09) — supera o "1ª entrada da sessão" do §17
+O Vlademir recarregou o site depois de já ter clicado no botão e viu a home page direto — pareceu que "a entrada do cafezal e da moça sumiu". Era o `sessionStorage` do §17 (minha escolha, avisada, mas errada para ele).
+- **Agora:** `heroGate` inicia **sempre `true`** — **cada carregamento de `/` começa no HERO**; só o botão entra na home page. Navegar **dentro** do site de volta para `/` (logo/menu) **não** repete a abertura (o estado do `AppRouter` sobrevive à navegação SPA). Sem `sessionStorage`.
+- **Validado:** typecheck 0 · build 0 · HERO aparece mesmo com a flag antiga gravada · clique → home page com o topo original (`scrollY 0`) · `/nossa-historia` → `/` dentro do site = home page direto, sem HERO · recarregar = HERO de novo · console limpo.
+
 **PARADO AQUI.** Nenhuma task nova iniciada.
