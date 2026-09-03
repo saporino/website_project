@@ -44,8 +44,8 @@ Não era bug. O "não deu certo" foi a soma de: **(1)** procurar na HOME (o hero
 
 ## 9. Testes
 - **typecheck:** exit **0** · **build:** ✓ (8,2s)
-- **browser desktop (1440×900):** p=0 HERO1+cena1 · 0.30 `[1,.5,0]` · 0.50 HERO2+cena2 · 0.66 `[1,1,.5]` · 0.73 `[1,1,1,.5]` vídeo **tocando** (t=0,71) · 0.95 `[1,1,1,1]` cena 4 + **2 CTAs** · volta 0.50 → **pausado, t=1,75 mantido** · topo → **t=0**
-- **browser mobile (375×812):** seção 4710 (=580vh) · **overflow-x 0** · h1 46px dentro · fim: cena 4 + **2 CTAs dentro do viewport** · vídeo tocando
+- **browser desktop (1440×900):** p=0 HERO1+cena1 · 0.30 `[1,.5,0]` · 0.50 HERO2+cena2 · 0.66 `[1,1,.5]` · 0.73 `[1,1,1,.5]` vídeo **tocando** (t=0,71) · 0.95 `[1,1,1,1]` cena 4 + **1 CTA** (atualizado: era 2) · volta 0.50 → **pausado, t=1,75 mantido** · topo → **t=0**
+- **browser mobile (375×812):** seção 4710 (=580vh) · **overflow-x 0** · h1 46px dentro · fim: cena 4 + **1 CTA dentro do viewport** (atualizado: era 2) · vídeo tocando
 - **console:** **0 erros do hero**. (Erros `Error loading products` = HOME `App.tsx:248`, pré-existentes — §4.)
 - **assets (network):** hero-1/2/3 **200** · poster **200** · mp4 **206** (range)
 - **reduced-motion:** validado **por código** (early return → estático); a pane não emula `prefers-reduced-motion`.
