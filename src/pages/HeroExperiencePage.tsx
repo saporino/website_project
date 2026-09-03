@@ -18,8 +18,8 @@ function nav(path: string) {
 const SCENES = [
   { eyebrow: 'CERRADO MINEIRO · MINAS GERAIS', head: ['O verdadeiro', 'sabor de Minas.'], reg: true, text: 'Cafés ligados ao Cerrado Mineiro, principalmente à região de Patrocínio, feitos para transformar o café do dia em um momento especial.', cta: false },
   { eyebrow: '', head: ['Do Cerrado', 'para perto.'], text: 'A origem faz parte de cada café Saporino.', cta: false },
-  { eyebrow: '', head: ['Da origem', 'à xícara.'], text: '', cta: false },
-  { eyebrow: '', head: ['O verdadeiro', 'sabor de Minas.'], reg: true, text: 'Uma marca feita para quem valoriza café, origem e sabor.', cta: true },
+  { eyebrow: '', head: ['Da origem', 'à xícara.'], text: 'Uma marca feita para quem valoriza café, origem e sabor.', cta: false },
+  { eyebrow: '', head: ['O verdadeiro', 'sabor de Minas.'], reg: true, text: '', cta: true },
 ];
 
 const SRC = ['/experiencia/hero-1-saporino.jpg', '/experiencia/hero-2-saporino.jpg', '/experiencia/hero-3-saporino.jpg'];
@@ -157,9 +157,6 @@ export default function HeroExperiencePage() {
                   {s.cta && (
                     <div className="mt-8 flex flex-wrap items-center gap-3">
                       <button onClick={() => nav('/')} className="inline-flex items-center bg-white text-neutral-900 text-sm font-bold tracking-wide px-7 py-4 hover:bg-white/90 transition-colors">
-                        CONHEÇA NOSSOS CAFÉS
-                      </button>
-                      <button onClick={() => nav('/nossa-historia')} className="inline-flex items-center border border-white/50 text-white text-sm font-semibold tracking-wide px-7 py-4 hover:border-white transition-colors">
                         CONHEÇA A SAPORINO
                       </button>
                     </div>
