@@ -19,7 +19,7 @@
 - **HERO 4 (final com a xícara):** não existia no código. → **Concluído nesta sessão** (ver §7/§8), com pendências humanas (§12).
 
 ## 4. PENDING / BLOCKED / UNKNOWN
-- **PENDING:** promover HERO à HOME (explicitamente **não feito**); logo Saporino **na xícara** do vídeo (produção externa); versão "olha pra câmera e sorri"; render 1080p (vídeos do gerador saem em 720p).
+- **PENDING (superado — promoção FEITA depois, ver §15):** ~~promover HERO à HOME~~; logo Saporino **na xícara** do vídeo (produção externa); versão "olha pra câmera e sorri"; render 1080p (vídeos do gerador saem em 720p).
 - **BLOCKED (não é desta task):** run Apify ao vivo do INTEL-1 (faturas Apify + sessão admin).
 - **UNKNOWN / NEEDS HUMAN:** (a) console da **HOME** em dev: `Error loading products: invalid input syntax for type uuid: "null"` (origem `App.tsx:248`) — **pré-existente, não é do hero** (hero não toca products); confirmar se ocorre em produção. (b) **Migrations aplicadas via RPC `exec_migration`** — a tabela `supabase_migrations.schema_migrations` **não existe** → o CLI não tem histórico (**process deviation**; funciona, mas não rastreia drift).
 
@@ -32,14 +32,14 @@ Não era bug. O "não deu certo" foi a soma de: **(1)** procurar na HOME (o hero
 ## 7. HERO — arquivos alterados
 - **`src/pages/HeroExperiencePage.tsx`** — reescrito (ver §8).
 - **NOVOS:** `public/experiencia/hero-4-saporino.mp4` (H.264 yuv420p `+faststart`, 1280×720, 24fps, **7,2s**, sem áudio, **0,9 MB** — `v2_pacing`) · `public/experiencia/hero-4-poster.jpg` (último frame).
-- **NÃO tocados:** `App.tsx` (sem diff), HOME, checkout, auth, RepCo, banco, migrations.
+- **NÃO tocados (até o fechamento; depois `App.tsx` e a HOME mudaram — ver §15):** checkout, auth, RepCo, banco, migrations.
 
 ## 8. O que foi corrigido / adicionado
 - **HERO 4 = vídeo `v2_pacing`** (abre **direto na mulher** → gole → sorriso; 7,2s, 0,9 MB). **Correção após teste visual:** o `seedance` (que abre nos frutos) foi testado primeiro, mas seu **dissolve interno** (cereja → mulher) se sobrepunha ao crossfade de scroll e gerava **dupla exposição embaçada**. Com o `v2`, o scroll faz **um único dissolve limpo** cereja → xícara. Troca feita só no asset (mesmo nome de arquivo, sem mudança de código).
 - Seção **450vh → 580vh**; timeline: 1→2 `0.16–0.30` · 2→3 `0.42–0.56` · 3→vídeo `0.66–0.80` · vídeo dominante `0.80–1.00`.
 - Vídeo **não é scrubbado**: `play()` uma vez quando a opacity passa de 0,12 (já rodando ao dominar); **volta = pausa mantendo `currentTime`**; reentra = retoma; **topo (p=0) = reset**; sem loop = **congela no último frame** (= poster).
 - **Removidos** o wordmark "Café Saporino" (topo-esq.) e o "ROLE PARA EXPLORAR".
-- **Copy aprovada, redistribuída** (nenhuma frase nova): cena 3 = "Da origem / à xícara." + "Uma marca feita para quem valoriza café, origem e sabor." (frase aprovada dela); cena 4 (sobre o vídeo) = só o slogan aprovado **"O verdadeiro / sabor de Minas®."** + 1 botão branco "CONHEÇA A SAPORINO" (→ home). Entra em `0.86–0.94` (vídeo assentando). **Eyebrows:** removidos das cenas 2, 3 e 4 a pedido; só a cena 1 mantém o carimbo de lugar "CERRADO MINEIRO · MINAS GERAIS". **®** discreto (sobrescrito, ~0,20× do título, 70% de opacidade, folga zero) grudado no canto superior do último "s" — "Minas®." (antes do ponto) — nas cenas 1 e 4 — slogan registrado junto com a marca.
+- **Copy aprovada, redistribuída** (nenhuma frase nova): cena 3 = "Da origem / à xícara." + "Uma marca feita para quem valoriza café, origem e sabor." (frase aprovada dela); cena 4 (sobre o vídeo) = só o slogan aprovado **"O verdadeiro / sabor de Minas®."** + 1 botão branco "CONHEÇA A SAPORINO" (→ home) — **superado: na promoção a cena 4 virou "Seu momento / Saporino." (ver §15)**. Entra em `0.86–0.94` (vídeo assentando). **Eyebrows:** removidos das cenas 2, 3 e 4 a pedido; só a cena 1 mantém o carimbo de lugar "CERRADO MINEIRO · MINAS GERAIS". **®** discreto (sobrescrito, ~0,20× do título, 70% de opacidade, folga zero) grudado no canto superior do último "s" — "Minas®." (antes do ponto) — nas cenas 1 e 4 — slogan registrado junto com a marca.
 - **Reduced-motion:** estático — HERO 1 + cena 4 (CTA); vídeo não toca (poster de fallback).
 
 ## 9. Testes
