@@ -114,4 +114,13 @@ Capturadas na sessão: desktop **início / meio (0.50) / transição 1→2 (0.30
 - **Trade-off assumido (avisado):** para o Google, `/` passa a ser a abertura (H1 do slogan + botão); a vitrine fica atrás do clique.
 - **Testes (verdes):** typecheck 0 · build 0 · **desktop 1440:** `/` só HERO (sem header/produtos; `docH == heroH`, 5220), scroll máximo = fim do HERO (4320) com cena 4 + vídeo tocando, clique → home (header 1, 9 produtos, `scrollY 0`, flag `1`), `/` de novo → home direto, `/experiencia` ok, console limpo · **mobile 375×812:** só HERO (sem header/produtos, `docH == heroH`, overflow-x 0, h1 46px), vídeo toca a partir de p 0,8 (t 0,75 → 2,26), scroll máximo = fim do HERO, CTA inteiro no viewport (544–596), clique → home (header, produtos, `scrollY 0`, overflow 0).
 
+---
+
+## 18. CORREÇÃO — topo original da home page RESTAURADO (03/09)
+**Erro meu:** no §15 removi o `Hero` original da home page (mão com grãos de cereja + logo grande + "O Verdadeiro Sabor de Minas" + "Conheça Nossos Cafés") — **sem pedido**. Com a abertura (§17), a home page passou a cair direto no carrossel. O Vlademir apontou: *"eu não pedi para remover nada da home page"*.
+- **Vocabulário acordado:** **HERO** = a **abertura nova** (gate em `/`); **home page** = o site de sempre, **inteiro e intacto**. São duas coisas diferentes: a abertura é a porta; a home page é a casa.
+- **Restaurado** o `Hero` e o `heroImage` exatamente como eram, no mesmo lugar (antes do `PromoCarousel`). Supera as frases "Hero antigo removido" dos §15/§16/§17.
+- **Ressalva (não alterada, só registrada):** a subline original *"Torra artesanal em pequenos lotes, direto do Cerrado Mineiro"* contraria a regra de marca do projeto (Saporino não é torrefação). Ficou **como era** por decisão de manter a home page intacta; mudar é decisão do Vlademir.
+- **Validado:** typecheck 0 · build 0 · clicar no HERO → home page com o topo original (`hero-colheita.webp`, h1, botão), header, carrossel depois, `scrollY 0` · sessão com flag → home page direto com o topo original · console limpo.
+
 **PARADO AQUI.** Nenhuma task nova iniciada.
