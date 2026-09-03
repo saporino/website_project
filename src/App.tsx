@@ -44,7 +44,7 @@ const RepCoIntelligence = lazy(() => import('./pages/RepCoIntelligence'));
 const RepCoCoverageMap = lazy(() => import('./pages/RepCoCoverageMap'));
 const CoficoBrasilPage = lazy(() => import('./pages/coficobrasil/CoficoBrasilPage'));
 const HeroExperiencePage = lazy(() => import('./pages/HeroExperiencePage'));
-import HeroExperience from './components/HeroExperience'; // hero da HOME (import direto: é o LCP, não pode esperar code-split)
+import HeroGate from './components/HeroGate'; // ABERTURA (HERO) antes da HOME — import direto: é o LCP, não pode esperar code-split
 import ProductDetail from './components/ProductDetail';
 import PromoPopup from './components/PromoPopup';
 import { trackVisit } from './lib/trackVisit';
@@ -100,6 +100,15 @@ function App() {
 
 function AppRouter() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
+  // ABERTURA: "/" começa no HERO; só "CONHEÇA A SAPORINO" entra na home. 1ª entrada da sessão (ver HeroGate).
+  const [heroGate, setHeroGate] = useState<boolean>(() => {
+    try { return !sessionStorage.getItem('saporino-hero-seen'); } catch { return true; }
+  });
+  const enterHome = () => {
+    try { sessionStorage.setItem('saporino-hero-seen', '1'); } catch { /* sem storage: abertura aparece de novo */ }
+    window.scrollTo(0, 0);
+    setHeroGate(false);
+  };
 
   useEffect(() => {
     const handlePopState = () => {
@@ -202,6 +211,7 @@ function AppRouter() {
     // No domínio coficobrasil.com.br, a HOME é a página da COFICO (não a loja Saporino).
     const host = window.location.hostname.toLowerCase();
     if (host === 'coficobrasil.com.br' || host.endsWith('.coficobrasil.com.br')) return <CoficoBrasilPage />;
+    if (heroGate) return <HeroGate onEnter={enterHome} />; // abertura: só o HERO; o clique no CTA entra na home
     return <AppContent />;
   }
   return <NotFound />;
@@ -210,7 +220,6 @@ function AppRouter() {
 function AppContent() {
   const { storeCompanyId } = useCompany();
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [heroActive, setHeroActive] = useState(true); // HERO de abertura na tela → header escondido
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const [authLoginContext, setAuthLoginContext] = useState<'client' | 'admin'>('client');
@@ -267,14 +276,12 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-white">
       <Header
-        hidden={heroActive && !selectedProduct}
         isMobileMenuOpen={isMobileMenuOpen}
         setIsMobileMenuOpen={setIsMobileMenuOpen}
         scrollToSection={scrollToSection}
         onCartOpen={() => setIsCartOpen(true)}
         onAuthOpen={openAuth}
       />
-      {!selectedProduct && <HeroExperience onCta={() => scrollToSection('products')} fadeToWhite onHeroActive={setHeroActive} />}
       {!selectedProduct && <PromoCarousel onAuthOpen={openAuth} />}
       <Products
         products={products}
