@@ -39,7 +39,7 @@ Não era bug. O "não deu certo" foi a soma de: **(1)** procurar na HOME (o hero
 - Seção **450vh → 580vh**; timeline: 1→2 `0.16–0.30` · 2→3 `0.42–0.56` · 3→vídeo `0.66–0.80` · vídeo dominante `0.80–1.00`.
 - Vídeo **não é scrubbado**: `play()` uma vez quando a opacity passa de 0,12 (já rodando ao dominar); **volta = pausa mantendo `currentTime`**; reentra = retoma; **topo (p=0) = reset**; sem loop = **congela no último frame** (= poster).
 - **Removidos** o wordmark "Café Saporino" (topo-esq.) e o "ROLE PARA EXPLORAR".
-- **Copy aprovada, redistribuída** (nenhuma frase nova): cena 3 vira transição só com "Da origem / à xícara."; cena 4 (sobre o vídeo) = eyebrow "CAFÉ SAPORINO" + slogan aprovado **"O verdadeiro / sabor de Minas."** + "Uma marca feita para quem valoriza café, origem e sabor." + CTAs. Entra em `0.86–0.94` (vídeo assentando).
+- **Copy aprovada, redistribuída** (nenhuma frase nova): cena 3 vira transição só com "Da origem / à xícara."; cena 4 (sobre o vídeo) = **sem eyebrow** (removido a pedido) + slogan aprovado **"O verdadeiro / sabor de Minas."** + "Uma marca feita para quem valoriza café, origem e sabor." + CTAs. Entra em `0.86–0.94` (vídeo assentando).
 - **Reduced-motion:** estático — HERO 1 + cena 4 (CTA); vídeo não toca (poster de fallback).
 
 ## 9. Testes

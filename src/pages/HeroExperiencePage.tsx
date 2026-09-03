@@ -19,7 +19,7 @@ const SCENES = [
   { eyebrow: 'CERRADO MINEIRO · MINAS GERAIS', head: ['O verdadeiro', 'sabor de Minas.'], text: 'Cafés ligados ao Cerrado Mineiro, principalmente à região de Patrocínio, feitos para transformar o café do dia em um momento especial.', cta: false },
   { eyebrow: 'ORIGEM QUE SE RECONHECE', head: ['Do Cerrado', 'para perto.'], text: 'A origem faz parte de cada café Saporino.', cta: false },
   { eyebrow: 'CAFÉ EM PRIMEIRO PLANO', head: ['Da origem', 'à xícara.'], text: '', cta: false },
-  { eyebrow: 'CAFÉ SAPORINO', head: ['O verdadeiro', 'sabor de Minas.'], text: 'Uma marca feita para quem valoriza café, origem e sabor.', cta: true },
+  { eyebrow: '', head: ['O verdadeiro', 'sabor de Minas.'], text: 'Uma marca feita para quem valoriza café, origem e sabor.', cta: true },
 ];
 
 const SRC = ['/experiencia/hero-1-saporino.jpg', '/experiencia/hero-2-saporino.jpg', '/experiencia/hero-3-saporino.jpg'];
@@ -146,7 +146,7 @@ export default function HeroExperiencePage() {
             <div className="relative w-full px-[6vw] md:px-[7vw]">
               {SCENES.map((s, i) => (
                 <div key={i} ref={scene[i]} className="absolute left-[6vw] md:left-[7vw] right-[6vw] max-w-[750px]" style={{ opacity: i === 0 ? 1 : 0, transform: 'translate3d(0,0,0)' }}>
-                  <p className="text-[11px] md:text-xs font-semibold tracking-[0.22em] text-white/80">{s.eyebrow}</p>
+                  {s.eyebrow && <p className="text-[11px] md:text-xs font-semibold tracking-[0.22em] text-white/80">{s.eyebrow}</p>}
                   <h1 className="mt-4 font-black leading-[0.98] tracking-tight text-[clamp(46px,6vw,105px)]" style={{ textShadow: '0 2px 30px rgba(0,0,0,.35)' }}>
                     {s.head[0]}<br />{s.head[1]}
                   </h1>
