@@ -148,8 +148,10 @@ export default function HeroExperiencePage() {
                 <div key={i} ref={scene[i]} className="absolute left-[6vw] md:left-[7vw] right-[6vw] max-w-[750px]" style={{ opacity: i === 0 ? 1 : 0, transform: 'translate3d(0,0,0)' }}>
                   {s.eyebrow && <p className="text-[11px] md:text-xs font-semibold tracking-[0.22em] text-white/80">{s.eyebrow}</p>}
                   <h1 className="mt-4 font-black leading-[0.98] tracking-tight text-[clamp(46px,6vw,105px)]" style={{ textShadow: '0 2px 30px rgba(0,0,0,.35)' }}>
-                    {s.head[0]}<br />{s.head[1]}
-                    {s.reg && <sup className="ml-[0.12em] align-top text-[0.28em] font-semibold text-white/70 leading-none" aria-label="marca registrada">®</sup>}
+                    {s.head[0]}<br />
+                    {s.reg && s.head[1].endsWith('.') ? s.head[1].slice(0, -1) : s.head[1]}
+                    {s.reg && <sup className="relative align-baseline -top-[1.55em] ml-[0.06em] text-[0.28em] font-semibold text-white/70" aria-label="marca registrada">®</sup>}
+                    {s.reg && s.head[1].endsWith('.') ? '.' : null}
                   </h1>
                   {s.text && <p className="mt-5 text-white/85 text-[clamp(16px,1.4vw,24px)] leading-relaxed max-w-[560px]">{s.text}</p>}
                   {s.cta && (
