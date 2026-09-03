@@ -31,7 +31,7 @@ Não era bug. O "não deu certo" foi a soma de: **(1)** procurar na HOME (o hero
 
 ## 7. HERO — arquivos alterados
 - **`src/pages/HeroExperiencePage.tsx`** — reescrito (ver §8).
-- **NOVOS:** `public/experiencia/hero-4-saporino.mp4` (H.264 yuv420p `+faststart`, 1280×720, 24fps, **8,0s**, sem áudio, **1,4 MB**) · `public/experiencia/hero-4-poster.jpg` (último frame).
+- **NOVOS:** `public/experiencia/hero-4-saporino.mp4` (H.264 yuv420p `+faststart`, 1280×720, 24fps, **7,2s**, sem áudio, **0,9 MB** — `v2_pacing`) · `public/experiencia/hero-4-poster.jpg` (último frame).
 - **NÃO tocados:** `App.tsx` (sem diff), HOME, checkout, auth, RepCo, banco, migrations.
 
 ## 8. O que foi corrigido / adicionado
