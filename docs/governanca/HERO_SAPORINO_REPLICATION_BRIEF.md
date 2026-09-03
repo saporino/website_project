@@ -21,10 +21,10 @@ Narrativa: **AMPLO → MÉDIO → DETALHE → XÍCARA/EXPERIÊNCIA**.
 ## 2. Assets (nomes em kebab-case, sem espaço/maiúscula)
 | Arquivo | Spec |
 |---|---|
-| `hero-1-saporino.jpg` | 2048×1152 (16:9), JPG, ~560 KB |
-| `hero-2-saporino.jpg` | 2048×1152, JPG, ~600 KB |
-| `hero-3-saporino.jpg` | 2048×1152, JPG, ~440 KB |
-| `hero-4-saporino.mp4` | **H.264 (yuv420p) + faststart**, 1280×720 (ideal 1920×1080), 24 fps, **7,2 s**, **SEM áudio**, ~0,9 MB, **sem loop**. Abre **direto na mulher** (ver §10) |
+| `hero-1-saporino.jpg` | 2048×1152 (16:9), JPG, ~660 KB — **aérea ao nascer do sol, céu azul** (versão de 03/09, substituiu a anterior mais escura) |
+| `hero-2-saporino.jpg` | 2048×1152, JPG, ~700 KB — **corredor entre fileiras, terra vermelha, céu azul** |
+| `hero-3-saporino.jpg` | 2048×1152, JPG, ~460 KB — **frutos em primeiro plano, céu azul ao fundo** |
+| `hero-4-saporino.mp4` | **H.264 (yuv420p) + faststart**, 1280×720 (ideal 1920×1080), 23,976 fps, **10,9 s**, **SEM áudio e sem trilha de dados** (`-an -dn`), ~1,3 MB, **sem loop**. Cena **clara** (cozinha), começa com ela olhando para baixo (fusão calma) e **termina segurando a xícara, olhando para a câmera e sorrindo** — esse último frame é o poster e a cama do CTA (ver §10) |
 | `hero-4-poster.jpg` | **último frame** do vídeo (JPG) — é o fallback e o que fica congelado no fim |
 
 Encode de referência (ffmpeg): `ffmpeg -i in.mp4 -an -c:v libx264 -preset slow -crf 22 -pix_fmt yuv420p -movflags +faststart hero-4-saporino.mp4` · poster: `ffmpeg -sseof -0.1 -i hero-4-saporino.mp4 -frames:v 1 -q:v 2 hero-4-poster.jpg`.
@@ -46,7 +46,7 @@ Encode de referência (ffmpeg): `ffmpeg -i in.mp4 -an -c:v libx264 -preset slow 
   </div>
 </section>
 ```
-- **Header do site** (fixo, gradiente escuro→transparente, texto branco, logo no canto) fica **por cima** do palco e não precisa mudar — por isso o hero **não** tem wordmark próprio.
+- **Header do site fica ESCONDIDO enquanto o hero ocupa a tela** — o hero é uma abertura, não uma página com menu. Mecanismo: o hero emite `onHeroActive(active)` **só quando muda** (`active = p < 0.999`, guardado em ref — sem re-render por frame); a página aplica no header `opacity 0; transform translateY(-4px); pointer-events none; aria-hidden` com `transition 500ms`. Ele **aparece quando o site "abre"** (p ≥ 1, ou ao clicar no CTA, que rola até a loja) e some de novo se o usuário voltar ao hero. Com `prefers-reduced-motion` o header fica sempre visível. Por isso o hero **não** tem wordmark próprio: o logo do header assume quando o site abre.
 - Cada camada: `position:absolute; inset:0`. Imagem/vídeo: `width/height:100%; object-fit:cover`.
 - Fundo da página atrás do hero: preto. Texto branco.
 - **Crossfade por empilhamento:** a camada de cima **só surge** (fade-in) por cima da de baixo. Nunca é preciso fazer fade-out — quando a de cima chega a opacity 1, cobre a de baixo. Isso evita "buracos" no meio da transição.
@@ -79,16 +79,16 @@ update(); // estado inicial
 |---|---|
 | HERO 1 → 2 | `smooth(0.16, 0.30, p)` |
 | HERO 2 → 3 | `smooth(0.42, 0.56, p)` |
-| HERO 3 → VÍDEO | `smooth(0.66, 0.80, p)` |
-| Vídeo dominante | 0.80 → 1.00 |
+| HERO 3 → VÍDEO | `smooth(0.64, 0.82, p)` — janela **mais larga** que as outras (18% do progresso) para a mudança de cena (lavoura → cozinha) ser suave |
+| Vídeo dominante | 0.82 → 1.00 |
 
 **Movimento (scale) — independente da opacidade:**
 | Camada | Scale | Janela |
 |---|---|---|
 | HERO 1 | `1.00 → 1.07` (push-in) | `smooth(0.00, 0.30, p)` |
 | HERO 2 | `1.08 → 1.00` (dolly, "entrando") | `smooth(0.16, 0.56, p)` |
-| HERO 3 | `1.06 → 1.02` (quase parado) | `smooth(0.42, 0.80, p)` |
-| Vídeo | sem scale | — |
+| HERO 3 | `1.06 → 1.02` (quase parado) | `smooth(0.42, 0.82, p)` |
+| Vídeo | `1.04 → 1.00` (entra "aproximando" — continuidade de movimento com a HERO 3, não um corte) | `smooth(0.64, 1.00, p)` |
 
 Ex.: `img1.style.transform = \`translate3d(0,0,0) scale(${1.00 + 0.07*smooth(0,0.30,p)})\``.
 
@@ -97,7 +97,7 @@ Ex.: `img1.style.transform = \`translate3d(0,0,0) scale(${1.00 + 0.07*smooth(0,0
 |---|---|
 | 1 | `1 − smooth(0.12, 0.20, p)` |
 | 2 | `smooth(0.24, 0.32, p) × (1 − smooth(0.44, 0.52, p))` |
-| 3 | `smooth(0.50, 0.58, p) × (1 − smooth(0.68, 0.76, p))` |
+| 3 | `smooth(0.50, 0.58, p) × (1 − smooth(0.66, 0.74, p))` (sai junto com o início da fusão para o vídeo) |
 | 4 | `smooth(0.86, 0.94, p)` (entra quando o vídeo já assentou) |
 Cada cena: `opacity = op`; `transform = translate3d(0, (1−op)*18px, 0)` (sobe 18px ao aparecer); `pointer-events = op > 0.5 ? auto : none`.
 
@@ -156,7 +156,7 @@ Regras de marca: sem preço/SKU/torra/altitude/certificação; **não** dizer "n
 - **`preload="metadata"`** no carregamento (protege o LCP da home — só a HERO 1 pesa no início); quando **p > 0,40** troque para `video.preload = 'auto'` (uma vez) — o vídeo baixa enquanto o usuário ainda está nas fotos.
 - **NÃO scrubbar** o vídeo pelo scroll (mexer em `currentTime` treme e pesa). O scroll controla **só a opacidade** do crossfade; o vídeo toca **no tempo real dele**.
 - **Retry:** se `play()` for rejeitado (dados ainda não carregados no instante, ou política de autoplay), **retentar uma vez no evento `canplay`**; se ainda falhar, fica o poster.
-- **Começa a tocar** UMA vez, quando a opacity do vídeo passa de **0,12** (início do crossfade) → quando ele domina, já está rodando (sem "corte seco"). Guardar uma flag `started`.
+- **Começa a tocar** UMA vez, quando a opacity do vídeo passa de **0,06** (bem no início do crossfade) → quando ele fica visível já está em movimento (sem "corte seco"), e entra com **scale 1,04 → 1,00** (§5). Guardar uma flag `started`.
 - **Voltar o scroll:** se a opacity cair abaixo de **0,10** → `pause()` **mantendo `currentTime`**; ao reentrar → `play()` de onde parou (se não terminou).
 - **Topo (p ≈ 0):** `pause(); currentTime = 0; started = false` → nova descida replica do início.
 - **Sem loop** → ao terminar **congela no último frame** (que é igual ao poster). A cena 4 (slogan + CTA) entra sobre esse frame calmo (p 0,86–0,94).
@@ -174,7 +174,7 @@ Regras de marca: sem preço/SKU/torra/altitude/certificação; **não** dizer "n
 - HERO 1 = LCP: `loading="eager"` (prioridade). **HERO 2 e 3 também `eager`** + `decoding="async"` — com `lazy` elas não estão prontas na hora do crossfade (bug real que tivemos).
 - Handler de scroll com `requestAnimationFrame` (1 update por frame), `passive: true`.
 - Só `opacity`/`transform` (compositor). `will-change: opacity` nas camadas, `will-change: transform` nas imagens.
-- **Realce sutil só nas fotos:** `filter: saturate(1.06) contrast(1.02)` (estático, não anima). **Não** aplicar no vídeo (fica artificial).
+- **Sem filtros de cor.** As fotos já nascem vibrantes (céu azul, verde vivo). `saturate`/`contrast` foram testados e **descartados**: filtro não substitui foto boa e cansa o olho.
 - **Na HOME:** uma camada extra no rodapé do palco, `h-36/44`, gradiente para **branco** (`from-white via-white/70 to-transparent`), com opacity `smooth(0.90, 1.00, p)` — só aparece no finalzinho, para a próxima seção clara "abrir" suave. Na rota de teste (nada depois) fica em 0.
 - Sem canvas, sem libs.
 
@@ -198,7 +198,8 @@ const layers = [...section.querySelectorAll('.layer')];      // 4: img1, img2, i
 const imgs   = [...section.querySelectorAll('.layer img')];   // 3
 const video  = section.querySelector('video');
 const scenes = [...section.querySelectorAll('.scene')];       // 4
-let started = false, primed = false, raf = 0;
+let started = false, primed = false, lastActive = null, raf = 0;
+const onHeroActive = active => document.querySelector('header')?.classList.toggle('is-hidden', active); // header some no hero
 const safePlay = () => video.play().catch(() => { video.addEventListener('canplay', () => video.play().catch(()=>{}), { once: true }); });
 const clamp01 = x => Math.min(1, Math.max(0, x));
 const smooth = (a,b,x) => { const t = clamp01((x-a)/(b-a)); return t*t*(3-2*t); };
@@ -209,18 +210,20 @@ function update() {
   const p = clamp01(-section.getBoundingClientRect().top / Math.max(1, total));
   layers[1].style.opacity = smooth(.16,.30,p);
   layers[2].style.opacity = smooth(.42,.56,p);
-  const vop = smooth(.66,.80,p); layers[3].style.opacity = vop;
+  const vop = smooth(.64,.82,p); layers[3].style.opacity = vop;
+  video.style.transform = `translate3d(0,0,0) scale(${1.04 - .04*smooth(.64,1,p)})`;
   imgs[0].style.transform = `translate3d(0,0,0) scale(${1.00 + .07*smooth(0,.30,p)})`;
   imgs[1].style.transform = `translate3d(0,0,0) scale(${1.08 - .08*smooth(.16,.56,p)})`;
   imgs[2].style.transform = `translate3d(0,0,0) scale(${1.06 - .04*smooth(.42,.80,p)})`;
   if (!primed && p > .40) { primed = true; video.preload = 'auto'; }
   if (p <= .001 && started) { video.pause(); video.currentTime = 0; started = false; }
-  else if (!started && vop > .12) { started = true; safePlay(); }
+  else if (!started && vop > .06) { started = true; safePlay(); }
   else if (started) { if (vop < .10 && !video.paused) video.pause(); else if (vop >= .10 && video.paused && !video.ended) safePlay(); }
   setScene(0, 1 - smooth(.12,.20,p));
   setScene(1, smooth(.24,.32,p) * (1 - smooth(.44,.52,p)));
   setScene(2, smooth(.50,.58,p) * (1 - smooth(.68,.76,p)));
   setScene(3, smooth(.86,.94,p));
+  const active = p < .999; if (active !== lastActive) { lastActive = active; onHeroActive(active); }
 }
 const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
 if (matchMedia('(prefers-reduced-motion: reduce)').matches) { layers.slice(1).forEach(l => l.style.opacity = 0); [0,1,2].forEach(i => setScene(i,0)); setScene(3,1); }

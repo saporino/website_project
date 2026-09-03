@@ -93,4 +93,14 @@ Capturadas na sessão: desktop **início / meio (0.50) / transição 1→2 (0.30
 3. **Popup de desconto e cookie banner** da home aparecem **sobre o hero** no primeiro acesso (pré-existentes). Vale decidir se o popup deve esperar o usuário sair do hero.
 4. Erro `Error loading products` na home — confirmar em produção (task própria).
 
+---
+
+## 16. Ajustes pós-promoção (pedidos do Vlademir, 03/09 — commit `9a061ae`)
+- **Header escondido na abertura.** "Nada a ver colocar as abas de navegação no HERO." O hero emite `onHeroActive(active)` só na troca (ref, sem re-render por frame); o `Header` recebe `hidden` → `opacity 0`, `translateY(-4px)`, `pointer-events none`, `aria-hidden`, transição 500 ms. Aparece quando p ≥ 1 (o site "abre") ou ao clicar em **CONHEÇA A SAPORINO** (rola até a loja); some de novo ao voltar ao hero. Reduced-motion: header sempre visível. Na página de produto (`selectedProduct`) o hero não monta e o header fica normal.
+- **Fotos substituídas** pelas 3 novas de **céu azul / verde vivo** (`Hero 1/2/3.png` → JPG 2048×1152, mesmos nomes, 660/700/460 KB). O `saturate/contrast` foi **removido** — "filtro não substitui foto boa".
+- **Vídeo substituído** (`Hero 4.mp4`): cozinha clara, **termina olhando para a câmera e sorrindo com a xícara**; H.264 faststart, `-an -dn` (sem áudio e sem trilha de dados), 720p, 10,9 s, 1,3 MB; poster = último frame.
+- **Fusão HERO 3 → vídeo mais suave:** janela `0,64–0,82` (era 0,66–0,80), vídeo começa a tocar a partir de opacity **0,06** (era 0,12) e entra com **scale 1,04 → 1,00** (continuidade com a HERO 3); texto da cena 3 sai em `0,66–0,74`.
+- **Testes (todos verdes):** typecheck 0 · build 0 · **desktop 1440:** header opacity 0 / pointer-events none / aria-hidden no topo e em todo o hero; fotos 2048×1152 (200); fusões p0,64 `[1,1,1,0]` → 0,73 `[1,1,1,.5]` (vídeo t 0,75, scale 1,034) → 0,82 `[1,1,1,1]` (t 1,55); header **1** ao passar do hero e após o CTA (produtos no topo), **0** ao voltar; console limpo · **mobile 375:** overflow 0, 580vh=4710, header 0 durante todo o hero e 1 depois, vídeo toca de 0,75 (t 2,95 no fim), CTA no viewport · `/experiencia` ok.
+- **Ressalvas:** vídeo ainda **720p** (pedir 1080p na versão com logo na xícara); popup de desconto/cookies da home segue aparecendo sobre o hero no 1º acesso (decisão de timing pendente); título de `/experiencia` sobrescrito pelo mapa global de títulos (cosmético).
+
 **PARADO AQUI.** Nenhuma task nova iniciada.
