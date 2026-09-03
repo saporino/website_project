@@ -35,7 +35,7 @@ Não era bug. O "não deu certo" foi a soma de: **(1)** procurar na HOME (o hero
 - **NÃO tocados:** `App.tsx` (sem diff), HOME, checkout, auth, RepCo, banco, migrations.
 
 ## 8. O que foi corrigido / adicionado
-- **HERO 4 = vídeo** (`seedance`, take contínuo que **abre nos frutos** → dissolve para a mulher → gole → sorriso). Escolhido sobre o `v2_pacing` porque o handoff HERO 3 (cereja) → vídeo (cereja) fica **invisível** — "entrando", não "slideshow". Troca para `v2` = 1 linha.
+- **HERO 4 = vídeo `v2_pacing`** (abre **direto na mulher** → gole → sorriso; 7,2s, 0,9 MB). **Correção após teste visual:** o `seedance` (que abre nos frutos) foi testado primeiro, mas seu **dissolve interno** (cereja → mulher) se sobrepunha ao crossfade de scroll e gerava **dupla exposição embaçada**. Com o `v2`, o scroll faz **um único dissolve limpo** cereja → xícara. Troca feita só no asset (mesmo nome de arquivo, sem mudança de código).
 - Seção **450vh → 580vh**; timeline: 1→2 `0.16–0.30` · 2→3 `0.42–0.56` · 3→vídeo `0.66–0.80` · vídeo dominante `0.80–1.00`.
 - Vídeo **não é scrubbado**: `play()` uma vez quando a opacity passa de 0,12 (já rodando ao dominar); **volta = pausa mantendo `currentTime`**; reentra = retoma; **topo (p=0) = reset**; sem loop = **congela no último frame** (= poster).
 - **Removidos** o wordmark "Café Saporino" (topo-esq.) e o "ROLE PARA EXPLORAR".
@@ -57,7 +57,7 @@ Capturadas na sessão: desktop **início / meio (0.50) / transição 1→2 (0.30
 **HOME NÃO FOI ALTERADA.** `App.tsx` sem diff; `/` carrega sem imagem nem copy do hero. Nenhuma mudança anterior na HOME encontrada.
 
 ## 12. Pendências humanas (só o que depende de você)
-1. **Aprovar** o vídeo escolhido (`seedance`) e a **copy da cena 4** (slogan reaproveitado) — ou pedir ajuste.
+1. **Aprovar** o vídeo escolhido (`v2_pacing`) e a **copy da cena 4** (slogan reaproveitado) — ou pedir ajuste.
 2. **Logo na xícara** + versão **olhando pra câmera** (produção no gerador de vídeo; 1080p se possível). Trocar o arquivo = 1 linha.
 3. **Decidir** a promoção para a HOME (não feita).
 4. Confirmar se o erro `Error loading products` da HOME acontece em **produção** (para abrir uma task própria — não tratada aqui).
