@@ -17,7 +17,7 @@ function nav(path: string) {
 // mensagem final + CTA fecham sobre o vídeo (último frame calmo). Slogan aprovado no fechamento.
 const SCENES = [
   { eyebrow: 'CERRADO MINEIRO · MINAS GERAIS', head: ['O verdadeiro', 'sabor de Minas.'], text: 'Cafés ligados ao Cerrado Mineiro, principalmente à região de Patrocínio, feitos para transformar o café do dia em um momento especial.', cta: false },
-  { eyebrow: 'ORIGEM QUE SE RECONHECE', head: ['Do Cerrado', 'para perto.'], text: 'A origem faz parte de cada café Saporino.', cta: false },
+  { eyebrow: '', head: ['Do Cerrado', 'para perto.'], text: 'A origem faz parte de cada café Saporino.', cta: false },
   { eyebrow: '', head: ['Da origem', 'à xícara.'], text: '', cta: false },
   { eyebrow: '', head: ['O verdadeiro', 'sabor de Minas.'], text: 'Uma marca feita para quem valoriza café, origem e sabor.', cta: true },
 ];
