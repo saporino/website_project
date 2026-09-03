@@ -101,12 +101,11 @@ function App() {
 
 function AppRouter() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
-  // ABERTURA: "/" começa no HERO; só "CONHEÇA A SAPORINO" entra na home. 1ª entrada da sessão (ver HeroGate).
-  const [heroGate, setHeroGate] = useState<boolean>(() => {
-    try { return !sessionStorage.getItem('saporino-hero-seen'); } catch { return true; }
-  });
+  // ABERTURA (HERO): TODA entrada no site (carregar "/") começa no HERO; só "CONHEÇA A SAPORINO" entra na
+  // home page. Navegar DENTRO do site de volta para "/" (logo/menu) não repete a abertura — o estado vive
+  // enquanto a página não for recarregada. Decisão do Vlademir (03/09): sem "lembrar" por sessão.
+  const [heroGate, setHeroGate] = useState<boolean>(true);
   const enterHome = () => {
-    try { sessionStorage.setItem('saporino-hero-seen', '1'); } catch { /* sem storage: abertura aparece de novo */ }
     window.scrollTo(0, 0);
     setHeroGate(false);
   };
