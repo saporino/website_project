@@ -46,7 +46,7 @@ Encode de referência (ffmpeg): `ffmpeg -i in.mp4 -an -c:v libx264 -preset slow 
   </div>
 </section>
 ```
-- **Header do site fica ESCONDIDO enquanto o hero ocupa a tela** — o hero é uma abertura, não uma página com menu. Mecanismo: o hero emite `onHeroActive(active)` **só quando muda** (`active = p < 0.999`, guardado em ref — sem re-render por frame); a página aplica no header `opacity 0; transform translateY(-4px); pointer-events none; aria-hidden` com `transition 500ms`. Ele **aparece quando o site "abre"** (p ≥ 1, ou ao clicar no CTA, que rola até a loja) e some de novo se o usuário voltar ao hero. Com `prefers-reduced-motion` o header fica sempre visível. Por isso o hero **não** tem wordmark próprio: o logo do header assume quando o site abre.
+- **O hero é uma ABERTURA (gate), não o topo de uma página.** Em `/` renderiza-se **só o hero** — sem header, sem nada abaixo — então o documento termina no fim do hero e **o scroll pára ali**. **Só o clique em "CONHEÇA A SAPORINO" sai da abertura** e mostra a home (com header e loja), rolando para o topo. Implementação: um estado `heroGate` no roteador; o CTA grava `sessionStorage['saporino-hero-seen']` e desliga o gate — na mesma sessão, voltar a `/` vai direto para a home (rever a abertura a cada clique no logo irrita); para mostrar sempre, ignore a flag. A URL continua `/`. Por isso o hero **não** tem wordmark nem menu: o header só existe na home. (Aviso: para crawlers, `/` é a abertura — H1 do slogan + botão; a vitrine fica atrás do clique.)
 - Cada camada: `position:absolute; inset:0`. Imagem/vídeo: `width/height:100%; object-fit:cover`.
 - Fundo da página atrás do hero: preto. Texto branco.
 - **Crossfade por empilhamento:** a camada de cima **só surge** (fade-in) por cima da de baixo. Nunca é preciso fazer fade-out — quando a de cima chega a opacity 1, cobre a de baixo. Isso evita "buracos" no meio da transição.
@@ -143,7 +143,7 @@ O slogan **"O verdadeiro sabor de Minas."** é registrado → leva **®** nas ce
 | 1 | CERRADO MINEIRO · MINAS GERAIS | O verdadeiro / sabor de Minas®. | Cafés ligados ao Cerrado Mineiro, principalmente à região de Patrocínio, feitos para transformar o café do dia em um momento especial. | — |
 | 2 | — | Do Cerrado / para perto. | A origem faz parte de cada café Saporino. | — |
 | 3 | — | Da origem / à xícara. | Uma marca feita para quem valoriza café, origem e sabor. | — |
-| 4 (vídeo) | — | Seu momento / Saporino. *(sem ®; não repete o slogan que já abre o hero)* | — | **CONHEÇA A SAPORINO** (branco) — na HOME rola até a loja; na rota de teste vai para a home |
+| 4 (vídeo) | — | Seu momento / Saporino. *(sem ®; não repete o slogan que já abre o hero)* | — | **CONHEÇA A SAPORINO** (branco) — **sai da abertura e entra na home** (na rota de teste `/experiencia`, vai para `/`) |
 Regras de marca: sem preço/SKU/torra/altitude/certificação; **não** dizer "nossa torrefação/fábrica" (Saporino é distribuidora da própria marca); slogan e origem (Cerrado Mineiro / Patrocínio-MG) como acima.
 
 ---
@@ -175,7 +175,7 @@ Regras de marca: sem preço/SKU/torra/altitude/certificação; **não** dizer "n
 - Handler de scroll com `requestAnimationFrame` (1 update por frame), `passive: true`.
 - Só `opacity`/`transform` (compositor). `will-change: opacity` nas camadas, `will-change: transform` nas imagens.
 - **Sem filtros de cor.** As fotos já nascem vibrantes (céu azul, verde vivo). `saturate`/`contrast` foram testados e **descartados**: filtro não substitui foto boa e cansa o olho.
-- **Na HOME:** uma camada extra no rodapé do palco, `h-36/44`, gradiente para **branco** (`from-white via-white/70 to-transparent`), com opacity `smooth(0.90, 1.00, p)` — só aparece no finalzinho, para a próxima seção clara "abrir" suave. Na rota de teste (nada depois) fica em 0.
+- **Fade para branco (`fadeToWhite`):** o componente suporta uma camada no rodapé do palco (gradiente para branco, opacity `smooth(0.90, 1.00, p)`) para quando houver uma seção clara logo abaixo. **Na abertura (gate) fica desligada** — não há nada abaixo do hero.
 - Sem canvas, sem libs.
 
 ---
@@ -198,8 +198,9 @@ const layers = [...section.querySelectorAll('.layer')];      // 4: img1, img2, i
 const imgs   = [...section.querySelectorAll('.layer img')];   // 3
 const video  = section.querySelector('video');
 const scenes = [...section.querySelectorAll('.scene')];       // 4
-let started = false, primed = false, lastActive = null, raf = 0;
-const onHeroActive = active => document.querySelector('header')?.classList.toggle('is-hidden', active); // header some no hero
+let started = false, primed = false, raf = 0;
+// GATE: o hero é a única coisa na página; o botão "CONHEÇA A SAPORINO" chama enterHome() → mostra a home.
+const enterHome = () => { try { sessionStorage.setItem('saporino-hero-seen', '1'); } catch {} scrollTo(0,0); /* render da home aqui */ };
 const safePlay = () => video.play().catch(() => { video.addEventListener('canplay', () => video.play().catch(()=>{}), { once: true }); });
 const clamp01 = x => Math.min(1, Math.max(0, x));
 const smooth = (a,b,x) => { const t = clamp01((x-a)/(b-a)); return t*t*(3-2*t); };
@@ -223,7 +224,6 @@ function update() {
   setScene(1, smooth(.24,.32,p) * (1 - smooth(.44,.52,p)));
   setScene(2, smooth(.50,.58,p) * (1 - smooth(.68,.76,p)));
   setScene(3, smooth(.86,.94,p));
-  const active = p < .999; if (active !== lastActive) { lastActive = active; onHeroActive(active); }
 }
 const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
 if (matchMedia('(prefers-reduced-motion: reduce)').matches) { layers.slice(1).forEach(l => l.style.opacity = 0); [0,1,2].forEach(i => setScene(i,0)); setScene(3,1); }

@@ -103,4 +103,15 @@ Capturadas na sessão: desktop **início / meio (0.50) / transição 1→2 (0.30
 - **Testes (todos verdes):** typecheck 0 · build 0 · **desktop 1440:** header opacity 0 / pointer-events none / aria-hidden no topo e em todo o hero; fotos 2048×1152 (200); fusões p0,64 `[1,1,1,0]` → 0,73 `[1,1,1,.5]` (vídeo t 0,75, scale 1,034) → 0,82 `[1,1,1,1]` (t 1,55); header **1** ao passar do hero e após o CTA (produtos no topo), **0** ao voltar; console limpo · **mobile 375:** overflow 0, 580vh=4710, header 0 durante todo o hero e 1 depois, vídeo toca de 0,75 (t 2,95 no fim), CTA no viewport · `/experiencia` ok.
 - **Ressalvas:** vídeo ainda **720p** (pedir 1080p na versão com logo na xícara); popup de desconto/cookies da home segue aparecendo sobre o hero no 1º acesso (decisão de timing pendente); título de `/experiencia` sobrescrito pelo mapa global de títulos (cosmético).
 
+---
+
+## 17. HERO como ABERTURA (gate) — decisão do Vlademir, 03/09
+"Não quero que dê para fazer scroll para a página: pára no fim do HERO e só o clique em CONHEÇA A SAPORINO entra na home."
+- **Implementação:** `AppRouter` ganhou o estado `heroGate` (inicial = `!sessionStorage['saporino-hero-seen']`). Em `/`: se `heroGate` → renderiza **`HeroGate`** (novo, `src/components/HeroGate.tsx`: só o `HeroExperience`, sem fade, sem header, **nada abaixo** → o documento termina no fim do HERO e o scroll pára ali). O CTA chama `enterHome()` → grava a flag, `scrollTo(0,0)`, `heroGate=false` → renderiza `AppContent` (a home de sempre, com header e loja). **A URL continua `/`** — nenhum link do site quebrou.
+- **Abertura na 1ª entrada da sessão:** depois do clique, `/` vai direto para a home (rever a abertura a cada clique no logo irritaria). Para mostrar **sempre**, é só o `AppRouter` ignorar o `sessionStorage` (1 linha).
+- **Substitui o §16 "header escondido":** o mecanismo `onHeroActive`/`hidden` foi **removido do AppContent** (o header volta a ser sempre visível na home). A prop `onHeroActive` do componente ficou disponível mas não é usada.
+- **Efeito colateral bom:** popup de desconto e cookie banner vivem na home → **não aparecem mais sobre o HERO**.
+- **Trade-off assumido (avisado):** para o Google, `/` passa a ser a abertura (H1 do slogan + botão); a vitrine fica atrás do clique.
+- **Testes (verdes):** typecheck 0 · build 0 · **desktop 1440:** `/` só HERO (sem header/produtos; `docH == heroH`, 5220), scroll máximo = fim do HERO (4320) com cena 4 + vídeo tocando, clique → home (header 1, 9 produtos, `scrollY 0`, flag `1`), `/` de novo → home direto, `/experiencia` ok, console limpo · **mobile 375×812:** só HERO (sem header/produtos, `docH == heroH`, overflow-x 0, h1 46px), vídeo toca a partir de p 0,8 (t 0,75 → 2,26), scroll máximo = fim do HERO, CTA inteiro no viewport (544–596), clique → home (header, produtos, `scrollY 0`, overflow 0).
+
 **PARADO AQUI.** Nenhuma task nova iniciada.
