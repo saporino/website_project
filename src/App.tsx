@@ -45,6 +45,7 @@ const RepCoCoverageMap = lazy(() => import('./pages/RepCoCoverageMap'));
 const CoficoBrasilPage = lazy(() => import('./pages/coficobrasil/CoficoBrasilPage'));
 const HeroExperiencePage = lazy(() => import('./pages/HeroExperiencePage'));
 import HeroGate from './components/HeroGate'; // ABERTURA (HERO) antes da HOME — import direto: é o LCP, não pode esperar code-split
+const heroImage = '/hero-colheita.webp';
 import ProductDetail from './components/ProductDetail';
 import PromoPopup from './components/PromoPopup';
 import { trackVisit } from './lib/trackVisit';
@@ -282,6 +283,7 @@ function AppContent() {
         onCartOpen={() => setIsCartOpen(true)}
         onAuthOpen={openAuth}
       />
+      {!selectedProduct && <Hero scrollToSection={scrollToSection} />}
       {!selectedProduct && <PromoCarousel onAuthOpen={openAuth} />}
       <Products
         products={products}
@@ -622,8 +624,52 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
   );
 };
 
-// Hero antigo (logo central + "Torra artesanal…") removido: a HOME usa <HeroExperience /> (src/components).
-// Rollback = git revert deste commit.
+// Hero ORIGINAL da home (mão com grãos de cereja + logo + slogan). Restaurado a pedido do Vlademir:
+// a ABERTURA (HeroGate) vem antes, e ao clicar "CONHEÇA A SAPORINO" a home abre do jeito que sempre foi.
+const Hero = ({ scrollToSection }: any) => (
+  <section id="hero" className="relative h-screen flex items-center justify-center overflow-hidden">
+    <div
+      className="absolute inset-0 bg-cover bg-center"
+      style={{ backgroundImage: `url(${heroImage})` }}
+    >
+      {/* foto fica VIVIDA — fade suave so no terco inferior (atras do texto + transicao) */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60" />
+    </div>
+
+    <div className="relative z-10 text-center text-white px-6 max-w-5xl mx-auto">
+      <div className="relative inline-block mb-12">
+        {/* halo radial sutil atras do badge — destaca o logo sem escurecer a foto */}
+        <div
+          aria-hidden
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[140%] h-[140%] pointer-events-none"
+          style={{ background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.28) 40%, rgba(0,0,0,0) 70%)' }}
+        />
+        <img
+          src={logoImage}
+          alt="Café Saporino"
+          className="h-52 md:h-[340px] w-auto mx-auto drop-shadow-2xl animate-fade-in relative"
+        />
+      </div>
+
+      <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight animate-fade-in-up whitespace-nowrap [text-shadow:_0_2px_12px_rgb(0_0_0_/_70%)]">
+        O Verdadeiro Sabor de Minas
+      </h1>
+
+      <p className="text-lg md:text-xl mb-12 max-w-4xl mx-auto font-light leading-relaxed animate-fade-in-up animation-delay-200 [text-shadow:_0_1px_8px_rgb(0_0_0_/_70%)]">
+        Torra artesanal em pequenos lotes, direto do Cerrado Mineiro.
+      </p>
+
+      <button
+        onClick={() => scrollToSection('products')}
+        className="bg-[#8B2214] hover:bg-[#8a1f0c] text-white px-10 py-4 rounded-full text-lg font-semibold transition-all duration-300 transform hover:scale-105 shadow-2xl animate-fade-in-up animation-delay-400"
+      >
+        Conheça Nossos Cafés
+      </button>
+    </div>
+
+    <div className="absolute bottom-0 left-0 right-0 h-36 md:h-44 bg-gradient-to-t from-white via-white/70 to-transparent" />
+  </section>
+);
 
 // Carrossel de banners (estilo Melitta): auto-rotacao em loop, setas, bolinhas,
 // pausa no hover e swipe no celular. Cada slide e uma imagem full-width.
