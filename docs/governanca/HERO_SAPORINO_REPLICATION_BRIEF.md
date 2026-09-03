@@ -39,12 +39,14 @@ Encode de referência (ffmpeg): `ffmpeg -i in.mp4 -an -c:v libx264 -preset slow 
     [camada 1] <img HERO2>   opacity 0 → 1
     [camada 2] <img HERO3>   opacity 0 → 1
     [camada 3] <video HERO4> opacity 0 → 1
-    [overlay horizontal]  (sempre)
+    [overlay horizontal]  (sempre — só na faixa esquerda do texto)
     [overlay vertical]    (só mobile)
     [4 cenas de texto, empilhadas em position:absolute, uma visível por vez]
+    [fade para branco no rodapé] (só na HOME; opacity 0 → 1 em p 0,90–1,00)
   </div>
 </section>
 ```
+- **Header do site** (fixo, gradiente escuro→transparente, texto branco, logo no canto) fica **por cima** do palco e não precisa mudar — por isso o hero **não** tem wordmark próprio.
 - Cada camada: `position:absolute; inset:0`. Imagem/vídeo: `width/height:100%; object-fit:cover`.
 - Fundo da página atrás do hero: preto. Texto branco.
 - **Crossfade por empilhamento:** a camada de cima **só surge** (fade-in) por cima da de baixo. Nunca é preciso fazer fade-out — quando a de cima chega a opacity 1, cobre a de baixo. Isso evita "buracos" no meio da transição.
@@ -113,7 +115,7 @@ Regra: preservar o objeto principal (corredor central na 2, frutos na 3, a mulhe
 ---
 
 ## 7. Overlays (legibilidade sem matar a foto)
-- **Horizontal (sempre):** `linear-gradient(90deg, rgba(10,5,3,.72) 0%, rgba(10,5,3,.34) 50%, rgba(10,5,3,.10) 100%)` — forte atrás do texto (esquerda), leve à direita.
+- **Horizontal (sempre) — só na faixa do texto:** `linear-gradient(90deg, rgba(10,5,3,.55) 0%, rgba(10,5,3,.22) 38%, rgba(10,5,3,0) 62%)`. Escurece **apenas** a esquerda (onde está o texto) e chega a **zero antes do meio** — céu e metade direita ficam limpos e vibrantes. ⚠️ A versão anterior (`.72 → .34 → .10` na tela toda) "apagava" céu e verde — foi a causa do hero parecer escuro.
 - **Vertical (só mobile):** `linear-gradient(180deg, rgba(10,5,3,.10) 0%, rgba(10,5,3,.35) 55%, rgba(10,5,3,.72) 100%)` — reforça a base onde o texto cai no celular.
 
 ---
@@ -121,8 +123,8 @@ Regra: preservar o objeto principal (corredor central na 2, frutos na 3, a mulhe
 ## 8. Tipografia e layout do texto
 - Bloco de texto **à esquerda**, verticalmente **centralizado**; `left: 6vw` (mobile) / `7vw` (desktop); `max-width: 750px`.
 - **Eyebrow** (só na cena 1): 11–12px, peso 600, `letter-spacing: 0.22em`, branco 80%.
-- **Headline (h1):** `font-size: clamp(46px, 6vw, 105px)`, peso 900, `line-height: 0.98`, `letter-spacing` levemente negativo, `text-shadow: 0 2px 30px rgba(0,0,0,.35)`. Quebra em **2 linhas** fixas (`<br>`).
-- **Texto:** `clamp(16px, 1.4vw, 24px)`, branco 85%, `line-height` relaxado, `max-width: 560px`, margem-topo 20px.
+- **Headline:** `font-size: clamp(46px, 6vw, 105px)`, peso 900, `line-height: 0.98`, `letter-spacing` levemente negativo, `text-shadow: 0 1px 2px rgba(0,0,0,.35), 0 2px 30px rgba(0,0,0,.45)` (curta + difusa — com o overlay mais leve, a sombra garante a leitura). Quebra em **2 linhas** fixas (`<br>`). **Só a cena 1 é `<h1>`** (H1 único da página); as cenas 2–4 usam `<p>` com o mesmo visual.
+- **Texto:** `clamp(16px, 1.4vw, 24px)`, branco 85%, `line-height` relaxado, `max-width: 560px`, margem-topo 20px, `text-shadow: 0 1px 2px rgba(0,0,0,.40)`.
 - **CTA:** 1 botão **branco**, texto escuro, caixa alta, peso 700, `padding 16px 28px`, cantos retos.
 - **Aria:** imagens/vídeo `aria-hidden` (decorativos); o conteúdo é o texto HTML real (nunca queimado na imagem).
 
@@ -141,7 +143,7 @@ O slogan **"O verdadeiro sabor de Minas."** é registrado → leva **®** nas ce
 | 1 | CERRADO MINEIRO · MINAS GERAIS | O verdadeiro / sabor de Minas®. | Cafés ligados ao Cerrado Mineiro, principalmente à região de Patrocínio, feitos para transformar o café do dia em um momento especial. | — |
 | 2 | — | Do Cerrado / para perto. | A origem faz parte de cada café Saporino. | — |
 | 3 | — | Da origem / à xícara. | Uma marca feita para quem valoriza café, origem e sabor. | — |
-| 4 (vídeo) | — | O verdadeiro / sabor de Minas®. | — | **CONHEÇA A SAPORINO** (branco) |
+| 4 (vídeo) | — | Seu momento / Saporino. *(sem ®; não repete o slogan que já abre o hero)* | — | **CONHEÇA A SAPORINO** (branco) — na HOME rola até a loja; na rota de teste vai para a home |
 Regras de marca: sem preço/SKU/torra/altitude/certificação; **não** dizer "nossa torrefação/fábrica" (Saporino é distribuidora da própria marca); slogan e origem (Cerrado Mineiro / Patrocínio-MG) como acima.
 
 ---
@@ -149,9 +151,11 @@ Regras de marca: sem preço/SKU/torra/altitude/certificação; **não** dizer "n
 ## 10. Vídeo (HERO 4) — comportamento exato
 ```html
 <video src="hero-4-saporino.mp4" poster="hero-4-poster.jpg"
-       muted playsinline preload="auto" disablepictureinpicture aria-hidden="true">
+       muted playsinline preload="metadata" disablepictureinpicture aria-hidden="true">
 ```
+- **`preload="metadata"`** no carregamento (protege o LCP da home — só a HERO 1 pesa no início); quando **p > 0,40** troque para `video.preload = 'auto'` (uma vez) — o vídeo baixa enquanto o usuário ainda está nas fotos.
 - **NÃO scrubbar** o vídeo pelo scroll (mexer em `currentTime` treme e pesa). O scroll controla **só a opacidade** do crossfade; o vídeo toca **no tempo real dele**.
+- **Retry:** se `play()` for rejeitado (dados ainda não carregados no instante, ou política de autoplay), **retentar uma vez no evento `canplay`**; se ainda falhar, fica o poster.
 - **Começa a tocar** UMA vez, quando a opacity do vídeo passa de **0,12** (início do crossfade) → quando ele domina, já está rodando (sem "corte seco"). Guardar uma flag `started`.
 - **Voltar o scroll:** se a opacity cair abaixo de **0,10** → `pause()` **mantendo `currentTime`**; ao reentrar → `play()` de onde parou (se não terminou).
 - **Topo (p ≈ 0):** `pause(); currentTime = 0; started = false` → nova descida replica do início.
@@ -170,6 +174,8 @@ Regras de marca: sem preço/SKU/torra/altitude/certificação; **não** dizer "n
 - HERO 1 = LCP: `loading="eager"` (prioridade). **HERO 2 e 3 também `eager`** + `decoding="async"` — com `lazy` elas não estão prontas na hora do crossfade (bug real que tivemos).
 - Handler de scroll com `requestAnimationFrame` (1 update por frame), `passive: true`.
 - Só `opacity`/`transform` (compositor). `will-change: opacity` nas camadas, `will-change: transform` nas imagens.
+- **Realce sutil só nas fotos:** `filter: saturate(1.06) contrast(1.02)` (estático, não anima). **Não** aplicar no vídeo (fica artificial).
+- **Na HOME:** uma camada extra no rodapé do palco, `h-36/44`, gradiente para **branco** (`from-white via-white/70 to-transparent`), com opacity `smooth(0.90, 1.00, p)` — só aparece no finalzinho, para a próxima seção clara "abrir" suave. Na rota de teste (nada depois) fica em 0.
 - Sem canvas, sem libs.
 
 ---
@@ -192,7 +198,8 @@ const layers = [...section.querySelectorAll('.layer')];      // 4: img1, img2, i
 const imgs   = [...section.querySelectorAll('.layer img')];   // 3
 const video  = section.querySelector('video');
 const scenes = [...section.querySelectorAll('.scene')];       // 4
-let started = false, raf = 0;
+let started = false, primed = false, raf = 0;
+const safePlay = () => video.play().catch(() => { video.addEventListener('canplay', () => video.play().catch(()=>{}), { once: true }); });
 const clamp01 = x => Math.min(1, Math.max(0, x));
 const smooth = (a,b,x) => { const t = clamp01((x-a)/(b-a)); return t*t*(3-2*t); };
 const setScene = (i, op) => { const s = scenes[i]; s.style.opacity = op; s.style.transform = `translate3d(0,${(1-op)*18}px,0)`; s.style.pointerEvents = op > .5 ? 'auto' : 'none'; };
@@ -206,9 +213,10 @@ function update() {
   imgs[0].style.transform = `translate3d(0,0,0) scale(${1.00 + .07*smooth(0,.30,p)})`;
   imgs[1].style.transform = `translate3d(0,0,0) scale(${1.08 - .08*smooth(.16,.56,p)})`;
   imgs[2].style.transform = `translate3d(0,0,0) scale(${1.06 - .04*smooth(.42,.80,p)})`;
+  if (!primed && p > .40) { primed = true; video.preload = 'auto'; }
   if (p <= .001 && started) { video.pause(); video.currentTime = 0; started = false; }
-  else if (!started && vop > .12) { started = true; video.play().catch(()=>{}); }
-  else if (started) { if (vop < .10 && !video.paused) video.pause(); else if (vop >= .10 && video.paused && !video.ended) video.play().catch(()=>{}); }
+  else if (!started && vop > .12) { started = true; safePlay(); }
+  else if (started) { if (vop < .10 && !video.paused) video.pause(); else if (vop >= .10 && video.paused && !video.ended) safePlay(); }
   setScene(0, 1 - smooth(.12,.20,p));
   setScene(1, smooth(.24,.32,p) * (1 - smooth(.44,.52,p)));
   setScene(2, smooth(.50,.58,p) * (1 - smooth(.68,.76,p)));
