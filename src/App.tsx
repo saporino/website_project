@@ -210,6 +210,7 @@ function AppRouter() {
 function AppContent() {
   const { storeCompanyId } = useCompany();
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [heroActive, setHeroActive] = useState(true); // HERO de abertura na tela → header escondido
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const [authLoginContext, setAuthLoginContext] = useState<'client' | 'admin'>('client');
@@ -266,13 +267,14 @@ function AppContent() {
   return (
     <div className="min-h-screen bg-white">
       <Header
+        hidden={heroActive && !selectedProduct}
         isMobileMenuOpen={isMobileMenuOpen}
         setIsMobileMenuOpen={setIsMobileMenuOpen}
         scrollToSection={scrollToSection}
         onCartOpen={() => setIsCartOpen(true)}
         onAuthOpen={openAuth}
       />
-      {!selectedProduct && <HeroExperience onCta={() => scrollToSection('products')} fadeToWhite />}
+      {!selectedProduct && <HeroExperience onCta={() => scrollToSection('products')} fadeToWhite onHeroActive={setHeroActive} />}
       {!selectedProduct && <PromoCarousel onAuthOpen={openAuth} />}
       <Products
         products={products}
@@ -301,7 +303,7 @@ function AppContent() {
   );
 }
 
-const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCartOpen, onAuthOpen }: any) => {
+const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCartOpen, onAuthOpen, hidden = false }: any) => {
   const { getCartCount } = useCart();
   const { user, profile, signOut } = useAuth();
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
@@ -323,7 +325,9 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/50 to-transparent">
+      {/* `hidden`: na HOME o header some enquanto o HERO de abertura ocupa a tela e aparece quando o site "abre". */}
+      <header aria-hidden={hidden ? true : undefined}
+        className={`fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/50 to-transparent transition-all duration-500 ${hidden ? 'opacity-0 -translate-y-4 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="relative flex justify-center items-center py-6">
             <button

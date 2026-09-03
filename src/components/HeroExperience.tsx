@@ -29,8 +29,8 @@ const OBJ = [
 // Timeline (p = 0→1 sobre 580vh)
 const X12 = [0.16, 0.30] as const;   // HERO 1 → 2
 const X23 = [0.42, 0.56] as const;   // HERO 2 → 3
-const X3V = [0.66, 0.80] as const;   // HERO 3 → VÍDEO
-const PLAY_AT = 0.12;                // opacity do vídeo em que ele começa a tocar
+const X3V = [0.64, 0.82] as const;   // HERO 3 → VÍDEO (janela mais larga = fusão mais suave)
+const PLAY_AT = 0.06;                // opacity do vídeo em que ele começa a tocar (já em movimento ao aparecer)
 const PAUSE_BELOW = 0.10;            // ao voltar, pausa mantendo currentTime
 const PRIME_AT = 0.40;               // p em que o vídeo passa a baixar de verdade (protege o LCP da home)
 
@@ -39,9 +39,11 @@ interface Props {
   onCta: () => void;
   /** Home: fade para branco no fim do hero, para o site "abrir" suave sobre a próxima seção clara. */
   fadeToWhite?: boolean;
+  /** Avisa quando o hero está (ou deixa de estar) ocupando a tela — a HOME usa para esconder o header. Dispara só na troca. */
+  onHeroActive?: (active: boolean) => void;
 }
 
-export default function HeroExperience({ onCta, fadeToWhite = false }: Props) {
+export default function HeroExperience({ onCta, fadeToWhite = false, onHeroActive }: Props) {
   const section = useRef<HTMLDivElement>(null);
   const layer = [useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null)];
   const img = [useRef<HTMLImageElement>(null), useRef<HTMLImageElement>(null), useRef<HTMLImageElement>(null)];
@@ -50,6 +52,8 @@ export default function HeroExperience({ onCta, fadeToWhite = false }: Props) {
   const scene = [useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null)];
   const started = useRef(false);
   const primed = useRef(false);
+  const lastActive = useRef<boolean | null>(null);
+  const onActiveRef = useRef(onHeroActive); onActiveRef.current = onHeroActive; // ref: não re-assina o scroll a cada render
 
   useEffect(() => {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -67,6 +71,7 @@ export default function HeroExperience({ onCta, fadeToWhite = false }: Props) {
       setOp(1, 0); setOp(2, 0); setOp(3, 0);
       setScene(0, 0); setScene(1, 0); setScene(2, 0); setScene(3, 1);
       if (fade.current) fade.current.style.opacity = fadeToWhite ? '1' : '0';
+      onActiveRef.current?.(false); // reduced-motion: header sempre visível (acessibilidade)
       return;
     }
 
@@ -97,6 +102,8 @@ export default function HeroExperience({ onCta, fadeToWhite = false }: Props) {
       if (img[0].current) img[0].current.style.transform = `translate3d(0,0,0) scale(${(1.00 + 0.07 * smooth(0.00, X12[1], p)).toFixed(4)})`;
       if (img[1].current) img[1].current.style.transform = `translate3d(0,0,0) scale(${(1.08 - 0.08 * smooth(X12[0], X23[1], p)).toFixed(4)})`;
       if (img[2].current) img[2].current.style.transform = `translate3d(0,0,0) scale(${(1.06 - 0.04 * smooth(X23[0], X3V[1], p)).toFixed(4)})`;
+      // Vídeo entra levemente "aproximando" (1.04 → 1.00): continuidade de movimento com a HERO 3, não um corte.
+      if (v) v.style.transform = `translate3d(0,0,0) scale(${(1.04 - 0.04 * smooth(X3V[0], 1.00, p)).toFixed(4)})`;
 
       // Vídeo: só começa a baixar de verdade quando o usuário se aproxima (LCP da home = HERO 1);
       // toca no início do crossfade (uma vez); ao voltar pausa mantendo o tempo; retoma ao reentrar;
@@ -114,11 +121,15 @@ export default function HeroExperience({ onCta, fadeToWhite = false }: Props) {
       // Cenas de texto (uma por vez). A 4ª entra quando o vídeo assenta.
       setScene(0, 1 - smooth(0.12, 0.20, p));
       setScene(1, smooth(0.24, 0.32, p) * (1 - smooth(0.44, 0.52, p)));
-      setScene(2, smooth(0.50, 0.58, p) * (1 - smooth(0.68, 0.76, p)));
+      setScene(2, smooth(0.50, 0.58, p) * (1 - smooth(0.66, 0.74, p)));
       setScene(3, smooth(0.86, 0.94, p));
 
       // Fade para branco só no finalzinho (home), para "abrir" o site sobre a próxima seção.
       if (fade.current) fade.current.style.opacity = fadeToWhite ? String(smooth(0.90, 1.00, p)) : '0';
+
+      // Hero "ativo" enquanto o palco sticky ocupa a tela (p < 1). Avisa só quando muda (sem re-render por frame).
+      const active = p < 0.999;
+      if (active !== lastActive.current) { lastActive.current = active; onActiveRef.current?.(active); }
     };
     const onScroll = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(update); };
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -143,8 +154,7 @@ export default function HeroExperience({ onCta, fadeToWhite = false }: Props) {
               ref={img[i]} src={src} alt="" aria-hidden="true"
               loading="eager" decoding="async"
               className={`w-full h-full object-cover will-change-transform ${OBJ[i]}`}
-              // realce sutil só nas fotos (céu/verde mais vivos); o vídeo fica natural
-              style={{ transform: 'translate3d(0,0,0)', filter: 'saturate(1.06) contrast(1.02)' }}
+              style={{ transform: 'translate3d(0,0,0)' }}
             />
           </div>
         ))}
