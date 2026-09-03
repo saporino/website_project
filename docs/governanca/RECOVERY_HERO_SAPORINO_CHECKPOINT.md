@@ -54,18 +54,43 @@ Não era bug. O "não deu certo" foi a soma de: **(1)** procurar na HOME (o hero
 Capturadas na sessão: desktop **início / meio (0.50) / transição 1→2 (0.30) / 2→3 (0.66) / 3→vídeo (0.73) / final (0.95)**; mobile **início / final**. Frames do vídeo (início/meio/fim) inspecionados via ffmpeg (instalado nesta sessão: `Gyan.FFmpeg 9.0.1`).
 
 ## 11. HOME
-**HOME NÃO FOI ALTERADA.** `App.tsx` sem diff; `/` carrega sem imagem nem copy do hero. Nenhuma mudança anterior na HOME encontrada.
+**Até 03/09 (fechamento deste checkpoint): HOME NÃO FOI ALTERADA.** Depois, com aprovação explícita ("vamos aplicar o HERO"), a HOME **foi alterada** — ver **§15 (Promoção para a HOME)** abaixo.
 
 ## 12. Pendências humanas (só o que depende de você)
 1. **Aprovar** o vídeo escolhido (`v2_pacing`) e a **copy da cena 4** (slogan reaproveitado) — ou pedir ajuste.
 2. **Logo na xícara** + versão **olhando pra câmera** (produção no gerador de vídeo; 1080p se possível). Trocar o arquivo = 1 linha.
-3. **Decidir** a promoção para a HOME (não feita).
+3. ~~Decidir a promoção para a HOME~~ **FEITA** (ver §15) — agora: aprovar o visual final em produção (`cafesaporino.com.br` + Ctrl+Shift+R).
 4. Confirmar se o erro `Error loading products` da HOME acontece em **produção** (para abrir uma task própria — não tratada aqui).
 
 ## 13. Próximo passo recomendado
-**Abrir `cafesaporino.com.br/experiencia` (Ctrl+Shift+R após o deploy), rolar até o fim e aprovar/ajustar o fechamento (vídeo + copy da cena 4).** Só depois decidir a HOME.
+**Abrir `cafesaporino.com.br` (a HOME, Ctrl+Shift+R após o deploy), rolar o hero até a loja e aprovar o resultado em produção.** Depois: vídeo final em 1080p com logo na xícara (troca de 1 arquivo) e decidir o timing do popup de desconto sobre o hero.
 
 ## 14. ARCHITECTURE CHALLENGE
 **Nada bloqueante no caminho do HERO.** Dois alertas de processo (não do hero): **(a)** migrations aplicadas por RPC sem histórico do CLI — recomendo passar a registrar pelo `supabase migration` para rastrear drift; **(b)** vídeos saem em **720p** num hero de 1440px+ (leve suavidade) — aceitável no protótipo; pedir **1080p** no render final.
+
+---
+
+## 15. PROMOÇÃO PARA A HOME (aprovada: "vamos aplicar o HERO")
+**O que mudou**
+- **NOVO `src/components/HeroExperience.tsx`** — o hero (3 fotos + vídeo) virou componente **compartilhado**: HOME e `/experiencia` usam o mesmo (props: `onCta`, `fadeToWhite`). `HeroExperiencePage.tsx` virou wrapper fino.
+- **`App.tsx`:** a linha do `<Hero/>` antigo passou a `<HeroExperience onCta={() => scrollToSection('products')} fadeToWhite />`; **`Hero` antigo (logo central + "Torra artesanal…", off-brand) e `heroImage` removidos**. Import direto (é o LCP). **Rollback = `git revert` do commit da promoção.**
+- Header (`fixed`, z-50, gradiente escuro→transparente) **não precisou mudar** — já era desenhado para ficar sobre foto escura; o logo do header assume a marca (por isso o wordmark do protótipo foi removido).
+- **H1 único** (cena 1: "O verdadeiro sabor de Minas®."); as outras cenas usam `<p>` com o mesmo visual. `document.title` **saiu** do componente (não sobrescreve o título da home).
+- **Vídeo:** `preload="metadata"` e vira `auto` em p>0,40 (protege o LCP); `play()` com **retry em `canplay`**; **fade para branco** em p 0,90–1,00 só na home (o site "abre" sobre o carrossel).
+- **Vibrância (pedido do Vlademir: céu/verde apagados):** a causa era o overlay cobrindo a tela toda (34% de preto no centro). Agora o overlay fica **só na faixa do texto** (`.55 → .22 @38% → 0 @62%`), sombra do texto mais firme (curta + difusa), **`saturate(1.06) contrast(1.02)` só nas fotos** (vídeo natural).
+- **Cena 4 = "Seu momento / Saporino."** (aprovada; o slogan já abre o hero, repetir no fim era redundante) + **1 botão** branco "CONHEÇA A SAPORINO" (home: rola até a loja `#products`; `/experiencia`: vai para a home).
+
+**Testes (todos verdes)**
+- `typecheck` **0** · `build` **0**.
+- **Desktop 1440×900:** hero 580vh (5220px), hero antigo ausente, header `fixed` z-50 por cima, **1 `<h1>`**, 3 fotos carregadas, `preload` metadata→auto, título da home preservado; crossfades p0,30 `[1,1,0,0]` · 0,50 `[1,1,.61,0]` · 0,73 `[1,1,1,.5]` vídeo tocando (t 2,48→3,38); fade-branco 1 em p=1; **CTA rolou até `#products` (top 0)**; carrossel + 9 produtos renderizam depois.
+- **Mobile 375×812:** overflow-x **0**, 580vh=4710, h1 46px cabe (direita 353), header não sobrepõe o texto; **scroll progressivo:** prime em 0,40, vídeo começa em 0,75, t 3,3 no fim, CTA inteiro no viewport (544–596).
+- **`/experiencia`:** intacto (sem fade, sem header).
+- **Console:** só o erro **pré-existente** `Error loading products: invalid input syntax for type uuid: "null"` (§4) — zero erros do hero.
+
+**Ressalvas conhecidas (não bloqueiam)**
+1. Título da aba em `/experiencia` é sobrescrito pelo **mapa global de títulos** do `App.tsx` (L128–131) — cosmético na rota de teste.
+2. Vídeo em **720p** — pedir **1080p** na versão final (com logo na xícara / olhar pra câmera).
+3. **Popup de desconto e cookie banner** da home aparecem **sobre o hero** no primeiro acesso (pré-existentes). Vale decidir se o popup deve esperar o usuário sair do hero.
+4. Erro `Error loading products` na home — confirmar em produção (task própria).
 
 **PARADO AQUI.** Nenhuma task nova iniciada.
