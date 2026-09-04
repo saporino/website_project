@@ -1,4 +1,8 @@
-export const MERCADO_PAGO_PUBLIC_KEY = import.meta.env.VITE_MERCADO_PAGO_PUBLIC_KEY;
+import { mercadoPagoPublicKey } from './sellerCompany';
+
+// Chave publica do dominio atual. Ver sellerCompany.ts: no fluxo de redirecionamento
+// ela NAO define o recebedor; quem define e a preferencia criada pelo create-payment.
+export const MERCADO_PAGO_PUBLIC_KEY = mercadoPagoPublicKey();
 
 export interface MercadoPagoPreferenceItem {
   title: string;

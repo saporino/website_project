@@ -3,7 +3,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { priceCheckout, round2, type ProductInfo, type CartLineInput } from '../_shared/pricing.ts';
 import { checkRateLimit, clientKey } from '../_shared/rateLimit.ts';
 import { logEdge, newRequestId } from '../_shared/log.ts';
-import { mpAccessToken, accountForCompanyPrefix } from '../_shared/mpCredentials.ts';
+import { mpAccessToken } from '../_shared/mpCredentials.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -39,7 +39,7 @@ Deno.serve(async (req: Request) => {
     // 1) Ler o pedido real (o browser NÃO dita preço).
     const { data: order, error: orderErr } = await supabase
       .from('orders')
-      .select('id, status, order_type, shipping_cost, mercadopago_preference_id, order_public_token_hash')
+      .select('id, status, order_type, shipping_cost, mercadopago_preference_id, order_public_token_hash, seller_company_id')
       .eq('id', externalReference)
       .maybeSingle();
     if (orderErr) throw orderErr;
@@ -116,17 +116,40 @@ Deno.serve(async (req: Request) => {
 
     if (shippingCost > 0) mpItems.push({ title: 'Frete', quantity: 1, unit_price: shippingCost, currency_id: 'BRL' });
 
-    // 3) Access token da CONTA responsável pela venda.
-    // A loja B2C é da Café Saporino, então a conta padrão é a dela; a COFICO entra
-    // quando o pedido for de uma operação da COFICO (prefixo CO).
-    // A leitura de admin_settings.mercado_pago_access_token foi REMOVIDA: credencial de
-    // produção não pode viver numa tabela editável pela interface, sobrepondo o secret
-    // sem ninguém perceber.
-    const conta = accountForCompanyPrefix(body?.company_prefix ?? null);
-    const credencial = mpAccessToken(conta);
-    if (!credencial) return json({ error: `Mercado Pago nao configurado para a conta ${conta}` }, 503);
+    // 3) Conta que recebe: vem da EMPRESA FATURADORA gravada no pedido.
+    //
+    // Não se decide pela marca do produto nem pelo domínio da requisição. O mesmo
+    // Café Saporino fatura pela Saporino em cafesaporino.com.br e pela COFICO na
+    // Casa Cofico. Quem manda é `orders.seller_company_id`, definido na criação.
+    //
+    // FAIL CLOSED, nos dois casos: pedido sem empresa, ou empresa sem credencial,
+    // não gera preferência. Não existe conta padrão. Cair em Saporino ou em COFICO
+    // "para não travar" é como dinheiro chega no CNPJ errado sem erro nenhum.
+    if (!order.seller_company_id) {
+      await logEdge(supabase, { function_name: FN, request_id: rid, level: 'error', status: 422, error_text: 'pedido sem empresa faturadora', meta: { order: order.id } });
+      return json({ error: 'Pedido sem empresa faturadora definida.', code: 'NO_SELLER_COMPANY' }, 422);
+    }
+
+    const { data: empresa, error: empresaErr } = await supabase
+      .from('companies')
+      .select('id, name, order_prefix, payment_account')
+      .eq('id', order.seller_company_id)
+      .maybeSingle();
+    if (empresaErr) throw empresaErr;
+    if (!empresa) {
+      return json({ error: 'Empresa faturadora do pedido nao encontrada.', code: 'SELLER_COMPANY_NOT_FOUND' }, 422);
+    }
+
+    const credencial = mpAccessToken(empresa.payment_account);
+    if (!credencial) {
+      await logEdge(supabase, { function_name: FN, request_id: rid, level: 'error', status: 503, error_text: `sem credencial para ${empresa.name}`, meta: { order: order.id, company: empresa.id } });
+      return json({
+        error: `A empresa ${empresa.name} nao tem meio de recebimento configurado. O pagamento nao foi roteado para outra empresa.`,
+        code: 'SELLER_WITHOUT_CREDENTIAL',
+      }, 503);
+    }
     const accessToken = credencial.token;
-    console.log(`create-payment usando credencial ${credencial.source} (conta ${conta}, ${credencial.environment})`);
+    console.log(`create-payment: empresa ${empresa.name} (${empresa.order_prefix}) -> credencial ${credencial.source} (${credencial.environment})`);
 
     // 4) Criar a preferência com os VALORES DO SERVIDOR.
     const preferenceData = {
@@ -149,10 +172,17 @@ Deno.serve(async (req: Request) => {
     }
     const data = await response.json();
 
-    // Guardar a preferência no pedido (idempotência em retries).
-    if (data?.id) await supabase.from('orders').update({ mercadopago_preference_id: data.id }).eq('id', order.id);
+    // Guardar a preferência e PARA ONDE o dinheiro foi roteado. O collector_id é a
+    // prova, vinda do próprio Mercado Pago, de qual conta recebe este pedido.
+    if (data?.id) {
+      await supabase.from('orders').update({
+        mercadopago_preference_id: data.id,
+        mp_account_key: credencial.accountKey,
+        mp_collector_id: data.collector_id ? String(data.collector_id) : null,
+      }).eq('id', order.id);
+    }
 
-    await logEdge(supabase, { function_name: FN, request_id: rid, level: 'info', status: 200, meta: { order: order.id, items: mpItems.length } });
+    await logEdge(supabase, { function_name: FN, request_id: rid, level: 'info', status: 200, meta: { order: order.id, items: mpItems.length, empresa: empresa.order_prefix, conta: credencial.accountKey, collector: data?.collector_id } });
     return json(data);
   } catch (error) {
     await logEdge(supabase, { function_name: FN, request_id: rid, level: 'error', status: 500, error_text: (error as Error).message });

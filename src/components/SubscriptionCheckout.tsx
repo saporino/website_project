@@ -3,6 +3,7 @@ import { X, Package, Check, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { createPreference } from '../lib/mercadopago';
+import { fetchSellerCompanyId } from '../lib/sellerCompany';
 import { Wallet } from '@mercadopago/sdk-react';
 
 interface SubscriptionCheckoutProps {
@@ -339,10 +340,21 @@ export const SubscriptionCheckout = ({
       });
       if (subErr) console.error('Erro ao registrar assinatura:', subErr);
 
+      // Empresa faturadora do pedido: definida pelo domínio da loja onde a compra
+      // acontece, não pela marca do produto. Sem empresa identificada o pedido não
+      // nasce, e o create-payment também recusaria em vez de cair na conta de outra
+      // empresa.
+      const sellerCompanyId = await fetchSellerCompanyId();
+      if (!sellerCompanyId) {
+        alert('Não foi possível identificar a loja responsável por esta venda.\n\nRecarregue a página e tente de novo. Se continuar, fale com o suporte.');
+        return;
+      }
+
       const { data: orderData, error: orderError } = await supabase
         .from('orders')
         .insert({
           user_id: userId,
+          seller_company_id: sellerCompanyId,
           customer_name: formData.customer_name,
           customer_email: formData.customer_email,
           customer_phone: formData.customer_phone,

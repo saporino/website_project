@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { priceCheckout, round2, type ProductInfo, type CartLineInput } from '../_shared/pricing.ts';
 import { checkRateLimit, clientKey } from '../_shared/rateLimit.ts';
+import { empresaPorDominio } from '../_shared/mpCredentials.ts';
 import { logEdge, newRequestId } from '../_shared/log.ts';
 
 const corsHeaders = {
@@ -86,8 +87,32 @@ Deno.serve(async (req: Request) => {
     const total = round2(priced.itemsTotal + shippingCost);
 
     // Cria o pedido (SERVICE ROLE — o browser não insere direto).
+    // Empresa faturadora: decidida AQUI, na criação, a partir do domínio de onde a
+    // compra veio. Depois de gravada, é ela que manda — nenhum passo posterior
+    // volta a olhar o domínio.
+    //
+    // O domínio vem do header Origin, posto pelo navegador, e não do corpo da
+    // requisição, que o cliente controla. Sem domínio reconhecido, o pedido não
+    // nasce: melhor recusar do que gravar a empresa errada e faturar no CNPJ errado.
+    const prefixoEmpresa = empresaPorDominio(req.headers.get('origin') ?? req.headers.get('referer'));
+    if (!prefixoEmpresa) {
+      return json({ error: 'Origem da compra nao reconhecida.', code: 'UNKNOWN_SALES_CHANNEL' }, 400);
+    }
+    const { data: empresa } = await supabase
+      .from('companies').select('id, name, payment_account').eq('order_prefix', prefixoEmpresa).maybeSingle();
+    if (!empresa) {
+      return json({ error: 'Empresa vendedora nao cadastrada.', code: 'SELLER_COMPANY_NOT_FOUND' }, 400);
+    }
+    if (!empresa.payment_account) {
+      return json({ error: `A empresa ${empresa.name} nao tem meio de recebimento configurado.`, code: 'SELLER_WITHOUT_CREDENTIAL' }, 503);
+    }
+
     const { data: order, error: orderErr } = await supabase.from('orders').insert({
       user_id: null,
+      seller_company_id: empresa.id,
+      // Canal da venda, para leitura humana e conciliacao. A autoridade sobre o
+      // recebedor e seller_company_id, nao este campo.
+      channel: prefixoEmpresa === 'CO' ? 'casa-cofico' : 'site-saporino',
       customer_name: name,
       customer_email: email,
       customer_phone: phone,
