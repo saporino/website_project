@@ -39,11 +39,11 @@ export function RepCoProfile({ rep, onUpdate }: Props) {
     const path = `${user!.id}/${docType}/${file.name}`;
     const { error } = await supabase.storage.from('representative-docs').upload(path, file, { upsert: true });
     if (error) { toast.error('Erro no upload'); setUploading(null); return; }
-    const { data } = supabase.storage.from('representative-docs').getPublicUrl(path);
+    // representative-docs e bucket PRIVADO: grava-se o CAMINHO, nao URL publica.
     await supabase.from('representative_documents').insert({
       representative_id: rep.id,
       doc_type: docType,
-      file_url: data.publicUrl,
+      file_url: path,
       file_name: file.name,
       file_size: file.size,
     });

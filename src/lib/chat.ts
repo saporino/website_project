@@ -65,8 +65,11 @@ export async function markRead(conversationId: string): Promise<void> {
   await supabase.rpc('chat_mark_read', { conv: conversationId });
 }
 
-// upload de anexo via Edge Function (contorna RLS do storage). Retorna URL pública.
-export async function uploadAttachment(file: Blob, filename: string): Promise<string> {
+// Upload de anexo via Edge Function (contorna a RLS do storage com service role).
+// Retorna o CAMINHO do objeto em chat-media, no formato <conversation_id>/<user_id>/<arquivo>.
+// A conversa vai no caminho porque é ela que a policy de storage usa para liberar a
+// leitura só a quem participa. Exibição sempre por signed URL.
+export async function uploadAttachment(file: Blob, filename: string, conversationId: string): Promise<string> {
   const b64: string = await new Promise((res, rej) => {
     const r = new FileReader();
     r.onload = () => res(String(r.result).split(',')[1] || '');
@@ -76,7 +79,7 @@ export async function uploadAttachment(file: Blob, filename: string): Promise<st
   const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat-upload`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-    body: JSON.stringify({ file_base64: b64, filename, content_type: file.type || 'application/octet-stream' }),
+    body: JSON.stringify({ file_base64: b64, filename, conversation_id: conversationId, content_type: file.type || 'application/octet-stream' }),
   });
   const j = await resp.json();
   if (!resp.ok || !j.url) throw new Error(j.error || 'falha no upload');

@@ -63,9 +63,9 @@ export default function RepCoCommissionsManager({ representativeId, refreshKey =
     const path = `commissions/${commissionId}/proof-${Date.now()}.${file.name.split('.').pop()}`;
     const { data, error } = await supabase.storage.from('invoices').upload(path, file, { upsert: true });
     if (!error && data) {
-      const { data: url } = supabase.storage.from('invoices').getPublicUrl(path);
+      // invoices é bucket PRIVADO: grava-se o CAMINHO, não URL pública (que não abre).
       await supabase.from('representative_commissions').update({
-        proof_url: url.publicUrl, status: 'paid', paid_at: new Date().toISOString(),
+        proof_url: path, status: 'paid', paid_at: new Date().toISOString(),
       }).eq('id', commissionId);
       fetchCommissions();
       window.dispatchEvent(new CustomEvent('admin:repco-updated'));

@@ -72,9 +72,9 @@ export default function RepCoPayoutBlocks({ representativeId, refreshKey = 0 }: 
       const path = 'commissions/blocks/' + safe + '-' + Date.now() + '.' + ext;
       const { error: upErr } = await supabase.storage.from('invoices').upload(path, file, { upsert: true });
       if (upErr) { setPaying(null); pendingKey.current = null; return; }
-      const { data: url } = supabase.storage.from('invoices').getPublicUrl(path);
+      // invoices e bucket PRIVADO: grava-se o CAMINHO, nao URL publica (que nao abre).
       let upd = supabase.from('representative_commission_payouts')
-        .update({ status: 'paid', paid_at: new Date().toISOString(), proof_url: url.publicUrl, proof_filename: file.name })
+        .update({ status: 'paid', paid_at: new Date().toISOString(), proof_url: path, proof_filename: file.name })
         .eq('representative_id', g.representative_id)
         .eq('payment_method', g.payment_method)
         .eq('status', 'scheduled');

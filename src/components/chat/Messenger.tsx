@@ -7,7 +7,7 @@ import {
   startDirect, createGroup, markRead, uploadAttachment, subscribeToMessages, subscribeToAllMessages,
 } from '../../lib/chat';
 import { useCompany } from '../../contexts/CompanyContext';
-import { signedUrl } from '../../lib/storageUrl';
+import { signedUrl, bucketFromValue } from '../../lib/storageUrl';
 
 const BRAND = '#8B2214';
 const initials = (n: string) => (n || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
@@ -99,7 +99,7 @@ export default function Messenger({ currentUserId, initialConversationId }: { cu
     if (!activeId) return;
     setUploading(true);
     try {
-      const url = await uploadAttachment(file, file.name);
+      const url = await uploadAttachment(file, file.name, activeId);
       await sendMessage(activeId, currentUserId, '', { url, type: fileKind(file.type), name: file.name, size: file.size });
     } catch (e) { alert('Falha ao enviar anexo: ' + (e instanceof Error ? e.message : e)); }
     setUploading(false);
@@ -225,7 +225,8 @@ function Attachment({ m, mine }: { m: ChatMessage; mine: boolean }) {
   useEffect(() => {
     let alive = true;
     if (!m.attachment_url) { setUrl(null); return; }
-    signedUrl('chat-media', m.attachment_url).then(u => { if (alive) setUrl(u); });
+    // O anexo pode ter vindo de outro bucket (ex.: foto de visita compartilhada no chat).
+    signedUrl(bucketFromValue(m.attachment_url, 'chat-media'), m.attachment_url).then(u => { if (alive) setUrl(u); });
     return () => { alive = false; };
   }, [m.attachment_url]);
 

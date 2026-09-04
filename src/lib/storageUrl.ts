@@ -23,6 +23,17 @@ export function storagePathFrom(bucket: string, value: string): string {
   return value;
 }
 
+/**
+ * Descobre o bucket a partir de uma URL antiga do Storage.
+ * Serve para valores legados gravados no banco que apontam para outro bucket —
+ * por exemplo, uma foto de visita compartilhada dentro do chat.
+ */
+export function bucketFromValue(value: string | null | undefined, fallback: string): string {
+  if (!value) return fallback;
+  const m = value.match(/\/storage\/v1\/object\/(?:public|sign)\/([^/]+)\//);
+  return m ? m[1] : fallback;
+}
+
 /** Gera uma signed URL para um arquivo de bucket privado. Devolve null se não for possível. */
 export async function signedUrl(
   bucket: string,
