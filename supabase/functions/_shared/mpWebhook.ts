@@ -32,3 +32,20 @@ export function decideOrderUpdate(current: CurrentOrder, incoming: OrderStatus):
 export function buildManifest(dataId: string, requestId: string, ts: string): string {
   return `id:${dataId};request-id:${requestId};ts:${ts}`;
 }
+
+/**
+ * Variantes aceitas do manifest.
+ *
+ * A documentação do Mercado Pago mostra o template TERMINANDO em ponto e vírgula
+ * (`id:%s;request-id:%s;ts:%s;`), e esta implementação montava sem ele. Uma
+ * divergência de um caractere faz o HMAC bater diferente e a notificação legítima
+ * ser recusada com 401 — falha que só apareceria no primeiro pagamento real.
+ *
+ * Como não há como confirmar o formato sem uma notificação verdadeira, a verificação
+ * passa a aceitar as DUAS formas. Continua fail closed: assinatura que não bate em
+ * nenhuma das variantes é rejeitada.
+ */
+export function manifestVariants(dataId: string, requestId: string, ts: string): string[] {
+  const base = buildManifest(dataId, requestId, ts);
+  return [base, `${base};`];
+}

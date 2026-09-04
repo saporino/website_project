@@ -3,6 +3,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { priceCheckout, round2, type ProductInfo, type CartLineInput } from '../_shared/pricing.ts';
 import { checkRateLimit, clientKey } from '../_shared/rateLimit.ts';
 import { logEdge, newRequestId } from '../_shared/log.ts';
+import { mpAccessToken, accountForCompanyPrefix } from '../_shared/mpCredentials.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -115,14 +116,17 @@ Deno.serve(async (req: Request) => {
 
     if (shippingCost > 0) mpItems.push({ title: 'Frete', quantity: 1, unit_price: shippingCost, currency_id: 'BRL' });
 
-    // 3) Access token — resiliente (env é a fonte; admin_settings NÃO guarda secret).
-    let dbAccessToken: string | null = null;
-    const { data: settings, error: settingsError } = await supabase
-      .from('admin_settings').select('mercado_pago_access_token').maybeSingle();
-    if (settingsError) console.error('admin_settings indisponível, usando env secret:', settingsError.message);
-    else dbAccessToken = settings?.mercado_pago_access_token ?? null;
-    const accessToken = dbAccessToken || Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN');
-    if (!accessToken) return json({ error: 'Mercado Pago não configurado' }, 503);
+    // 3) Access token da CONTA responsável pela venda.
+    // A loja B2C é da Café Saporino, então a conta padrão é a dela; a COFICO entra
+    // quando o pedido for de uma operação da COFICO (prefixo CO).
+    // A leitura de admin_settings.mercado_pago_access_token foi REMOVIDA: credencial de
+    // produção não pode viver numa tabela editável pela interface, sobrepondo o secret
+    // sem ninguém perceber.
+    const conta = accountForCompanyPrefix(body?.company_prefix ?? null);
+    const credencial = mpAccessToken(conta);
+    if (!credencial) return json({ error: `Mercado Pago nao configurado para a conta ${conta}` }, 503);
+    const accessToken = credencial.token;
+    console.log(`create-payment usando credencial ${credencial.source} (conta ${conta}, ${credencial.environment})`);
 
     // 4) Criar a preferência com os VALORES DO SERVIDOR.
     const preferenceData = {

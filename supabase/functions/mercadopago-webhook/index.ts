@@ -1,7 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { mapMpStatus, decideOrderUpdate, buildManifest } from '../_shared/mpWebhook.ts';
+import { mapMpStatus, decideOrderUpdate, manifestVariants } from '../_shared/mpWebhook.ts';
 import { logEdge, newRequestId } from '../_shared/log.ts';
+import { mpAccessToken, mpWebhookSecrets } from '../_shared/mpCredentials.ts';
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -74,19 +75,18 @@ async function verifyMPSignature(
             // ignore
         }
 
-        const manifest = buildManifest(dataId, xRequestId || '', ts);
-
-        // Compute HMAC-SHA256
+        // Aceita as duas grafias do manifest (com e sem ponto e virgula final).
         const encoder = new TextEncoder();
-        const keyData = encoder.encode(secret);
         const cryptoKey = await crypto.subtle.importKey(
-            'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+            'raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
         );
-        const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(manifest));
-        const hashHex = Array.from(new Uint8Array(signature))
-            .map(b => b.toString(16).padStart(2, '0')).join('');
-
-        return hashHex === v1;
+        for (const manifest of manifestVariants(dataId, xRequestId || '', ts)) {
+            const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(manifest));
+            const hashHex = Array.from(new Uint8Array(signature))
+                .map(b => b.toString(16).padStart(2, '0')).join('');
+            if (hashHex === v1) return true;
+        }
+        return false;
     } catch (error) {
         console.error('Signature verification error:', error);
         return false;
@@ -107,24 +107,38 @@ Deno.serve(async (req: Request) => {
         // Read body as text for signature verification
         const bodyText = await req.text();
 
-        // The webhook secret is REQUIRED. If it is not configured we fail closed
-        // (do not process unverified notifications). (Fase 0 / P0 fix.)
-        const webhookSecret = Deno.env.get('MERCADO_PAGO_WEBHOOK_SECRET');
-        if (!webhookSecret) {
-            console.error('MERCADO_PAGO_WEBHOOK_SECRET not configured — rejecting webhook');
+        // Um endpoint, várias contas. Cada empresa do ecossistema tem a própria conta
+        // no Mercado Pago, e o mesmo endpoint recebe notificação de todas. Por isso a
+        // assinatura é conferida contra CADA segredo configurado, e a conta que assinou
+        // é a que manda no resto do processamento.
+        // Continua fail closed: nenhum segredo configurado, ou nenhuma assinatura
+        // batendo, é rejeição — nunca processamento sem verificação.
+        const segredos = mpWebhookSecrets();
+        if (segredos.length === 0) {
+            console.error('Nenhum segredo de webhook configurado — rejeitando');
             return new Response(
                 JSON.stringify({ error: 'Webhook not configured' }),
                 { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
         }
-        const isValid = await verifyMPSignature(req, bodyText, webhookSecret);
-        if (!isValid) {
-            console.error('Invalid webhook signature — request rejected');
+
+        let contaAssinante: string | null = null;
+        let origemSegredo: string | null = null;
+        for (const s of segredos) {
+            if (await verifyMPSignature(req, bodyText, s.secret)) {
+                contaAssinante = s.account;
+                origemSegredo = s.source;   // nome do secret, nunca o valor
+                break;
+            }
+        }
+        if (!contaAssinante) {
+            console.error('Assinatura invalida em todas as contas configuradas — rejeitado');
             return new Response(
                 JSON.stringify({ error: 'Invalid signature' }),
                 { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
         }
+        console.log(`Webhook autenticado pela conta "${contaAssinante}" (secret ${origemSegredo})`);
 
         // Parse webhook data
         const webhookData: MercadoPagoWebhookData = JSON.parse(bodyText);
@@ -140,25 +154,19 @@ Deno.serve(async (req: Request) => {
 
         const paymentId = webhookData.data.id;
 
-        // Get Mercado Pago Access Token — degrade gracefully to the env secret
-        // if admin_settings is missing/errors (same P0 fix as create-payment).
-        let dbAccessToken: string | null = null;
-        const { data: settings, error: settingsError } = await supabase
-            .from('admin_settings')
-            .select('mercado_pago_access_token')
-            .maybeSingle();
-
-        if (settingsError) {
-            console.error('Could not read admin_settings, falling back to env secret:', settingsError.message);
-        } else {
-            dbAccessToken = settings?.mercado_pago_access_token ?? null;
+        // O token usado para consultar o pagamento é o da MESMA conta que assinou a
+        // notificação. Consultar com o token de outra conta simplesmente não encontra
+        // o pagamento, e misturar contas é como dinheiro vai parar no lugar errado.
+        //
+        // A leitura de admin_settings.mercado_pago_access_token foi REMOVIDA: uma
+        // credencial de produção não pode viver numa tabela editável pela interface,
+        // podendo sobrepor o secret sem ninguém perceber.
+        const credencial = mpAccessToken(contaAssinante as 'cofico' | 'saporino');
+        if (!credencial) {
+            throw new Error(`Access token nao configurado para a conta ${contaAssinante}`);
         }
-
-        const accessToken = dbAccessToken || Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN');
-
-        if (!accessToken) {
-            throw new Error('Mercado Pago Access Token not configured');
-        }
+        const accessToken = credencial.token;
+        console.log(`Consultando pagamento com a credencial ${credencial.source} (${credencial.environment})`);
 
         // Get payment details from Mercado Pago API
         const paymentResponse = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {

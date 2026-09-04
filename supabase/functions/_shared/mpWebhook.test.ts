@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mapMpStatus, decideOrderUpdate, buildManifest } from './mpWebhook.ts';
+import { mapMpStatus, decideOrderUpdate, buildManifest, manifestVariants } from './mpWebhook.ts';
 
 describe('mapMpStatus', () => {
   it('mapeia os status do Mercado Pago', () => {
@@ -45,5 +45,15 @@ describe('buildManifest', () => {
   it('monta o manifest no formato do MP', () => {
     expect(buildManifest('123', 'req-9', '1700000000'))
       .toBe('id:123;request-id:req-9;ts:1700000000');
+  });
+});
+
+describe('manifestVariants', () => {
+  it('aceita as duas grafias do manifest do Mercado Pago', () => {
+    const v = manifestVariants('123', 'req-9', '1700000000');
+    expect(v).toEqual([
+      'id:123;request-id:req-9;ts:1700000000',
+      'id:123;request-id:req-9;ts:1700000000;',
+    ]);
   });
 });
