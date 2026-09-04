@@ -7,11 +7,11 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import {
   Coffee, Search, ShoppingCart, Users, Check, X, RefreshCw,
-  Clock, AlertTriangle, Building2, Loader2, Plus, Image as ImageIcon, Upload,
+  Clock, AlertTriangle, Building2, Loader2, Plus, Image as ImageIcon, Upload, ClipboardList,
 } from 'lucide-react';
 import { signedUrl } from '../../lib/storageUrl';
 
-type SubTab = 'ofertas' | 'solicitacoes' | 'matches' | 'participantes';
+type SubTab = 'ofertas' | 'solicitacoes' | 'matches' | 'participantes' | 'casos';
 
 interface Offer {
   id: string; entity_id: string; species: string; harvest_year: number | null;
@@ -52,6 +52,24 @@ interface Company { id: string; name: string; order_prefix: string | null; is_op
 interface Photo {
   id: string; offer_id: string; storage_path: string;
   moderation_status: string; moderation_note: string | null;
+}
+
+interface PilotCase {
+  id: string; codigo: string | null; data_inicio: string;
+  match_score: number | null; matches_gerados: number | null;
+  minutos_ate_oferta_ativa: number | null; minutos_ate_primeiro_match: number | null;
+  tempo_cofico_minutos: number | null; amostra_solicitada: boolean | null;
+  proposta_feita: boolean | null; fechou: boolean | null; resultado: string | null;
+  motivo_perda: string | null; volume_sacas: number | null; valor_potencial_brl: number | null;
+  campos_que_faltaram: string | null; aprendizado: string | null;
+  autoriza_divulgacao: boolean; observacoes_internas: string | null;
+}
+interface PilotMetrics {
+  casos: number; fechados: number; perdidos: number; em_andamento: number;
+  com_amostra: number; com_proposta: number;
+  media_min_ate_oferta_ativa: number | null; media_min_ate_primeiro_match: number | null;
+  media_score: number | null; media_min_equipe_cofico: number | null;
+  sacas_envolvidas: number | null; valor_fechado_brl: number | null;
 }
 
 const ROLE_OPTIONS = [
@@ -127,10 +145,13 @@ export default function CoffeeNetworkAdmin() {
   const [novaOferta, setNovaOferta] = useState(false);
   const [novaSolicitacao, setNovaSolicitacao] = useState(false);
   const [expandida, setExpandida] = useState<string | null>(null);
+  const [casos, setCasos] = useState<PilotCase[]>([]);
+  const [metricas, setMetricas] = useState<PilotMetrics | null>(null);
+  const [novoCaso, setNovoCaso] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [o, r, m, e, c, p] = await Promise.all([
+    const [o, r, m, e, c, p, pc, pm] = await Promise.all([
       supabase.from('coffee_offers')
         .select('*, network_entities(legal_name, display_name)')
         .order('created_at', { ascending: false }),
@@ -143,6 +164,8 @@ export default function CoffeeNetworkAdmin() {
         .order('created_at', { ascending: false }),
       supabase.from('companies').select('id, name, order_prefix, is_operator').order('name'),
       supabase.from('coffee_offer_photos').select('*').order('created_at'),
+      supabase.from('coffee_pilot_cases').select('*').order('created_at', { ascending: false }),
+      supabase.from('vw_coffee_pilot_metrics').select('*').maybeSingle(),
     ]);
     if (o.error) toast.error('Falha ao carregar ofertas: ' + o.error.message);
     setOffers((o.data as Offer[]) ?? []);
@@ -151,6 +174,8 @@ export default function CoffeeNetworkAdmin() {
     setEntities((e.data as Entity[]) ?? []);
     setCompanies((c.data as Company[]) ?? []);
     setPhotos((p.data as Photo[]) ?? []);
+    setCasos((pc.data as PilotCase[]) ?? []);
+    setMetricas((pm.data as PilotMetrics) ?? null);
     setLoading(false);
   }, []);
 
@@ -271,6 +296,7 @@ export default function CoffeeNetworkAdmin() {
     { id: 'solicitacoes', label: 'Solicitações', icon: ShoppingCart, count: requests.length },
     { id: 'matches', label: 'Matches', icon: Search, count: matches.length },
     { id: 'participantes', label: 'Participantes', icon: Users, count: entities.length },
+    { id: 'casos', label: 'Casos piloto', icon: ClipboardList, count: casos.length },
   ];
 
   return (
@@ -294,6 +320,12 @@ export default function CoffeeNetworkAdmin() {
             <button onClick={() => setNovaSolicitacao(true)}
               className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg bg-[#8B2214] text-white hover:bg-[#6d1a10]">
               <Plus className="w-4 h-4" /> Nova solicitação
+            </button>
+          )}
+          {sub === 'casos' && (
+            <button onClick={() => setNovoCaso(true)}
+              className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg bg-[#8B2214] text-white hover:bg-[#6d1a10]">
+              <Plus className="w-4 h-4" /> Novo caso
             </button>
           )}
           {sub === 'participantes' && (
@@ -533,6 +565,60 @@ export default function CoffeeNetworkAdmin() {
               ))}
             </div>
           )}
+
+          {sub === 'casos' && (
+            <div className="space-y-4">
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <p className="text-sm font-semibold text-gray-900 mb-3">Métricas do piloto</p>
+                {!metricas || metricas.casos === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    Nenhum caso registrado ainda. Registre o primeiro produtor e o primeiro
+                    comprador reais para começar a gerar histórico.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[
+                      ['Casos', metricas.casos],
+                      ['Fechados', metricas.fechados],
+                      ['Em andamento', metricas.em_andamento],
+                      ['Perdidos', metricas.perdidos],
+                      ['Score médio', metricas.media_score ?? '—'],
+                      ['Min. até oferta ativa', metricas.media_min_ate_oferta_ativa ?? '—'],
+                      ['Min. até 1º match', metricas.media_min_ate_primeiro_match ?? '—'],
+                      ['Min. da equipe COFICO', metricas.media_min_equipe_cofico ?? '—'],
+                    ].map(([rotulo, valor]) => (
+                      <div key={String(rotulo)} className="bg-white border border-gray-200 rounded-xl p-3">
+                        <p className="text-xs text-gray-500">{rotulo}</p>
+                        <p className="text-xl font-bold text-gray-900">{String(valor)}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {casos.map(c => (
+                <div key={c.id} className="bg-white border border-gray-200 rounded-xl p-4">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="font-semibold text-gray-900">{c.codigo || 'sem código'}</span>
+                    {c.resultado && <Badge status={c.resultado === 'em_andamento' ? 'active' : c.resultado === 'fechado' ? 'sold' : 'rejected'} />}
+                    {c.match_score != null && <span className="text-xs text-[#8B2214] font-medium">{Math.round(c.match_score)}% compatível</span>}
+                    {c.autoriza_divulgacao && <span className="text-xs px-2 py-0.5 rounded-lg bg-green-50 text-green-800 border border-green-200">autoriza divulgação</span>}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    início {new Date(c.data_inicio).toLocaleDateString('pt-BR')}
+                    {c.volume_sacas ? ' · ' + c.volume_sacas + ' sacas' : ''}
+                    {c.valor_potencial_brl ? ' · potencial ' + brl(c.valor_potencial_brl) : ''}
+                    {c.minutos_ate_primeiro_match != null ? ' · 1º match em ' + c.minutos_ate_primeiro_match + ' min' : ''}
+                    {c.tempo_cofico_minutos != null ? ' · equipe ' + c.tempo_cofico_minutos + ' min' : ''}
+                  </p>
+                  {c.campos_que_faltaram && <p className="text-xs text-gray-600 mt-1">Faltou: {c.campos_que_faltaram}</p>}
+                  {c.motivo_perda && <p className="text-xs text-gray-600 mt-1">Motivo da perda: {c.motivo_perda}</p>}
+                  {c.aprendizado && <p className="text-sm text-gray-700 mt-2 italic">{c.aprendizado}</p>}
+                </div>
+              ))}
+              {casos.length === 0 && <p className="text-sm text-gray-500">Nenhum caso piloto registrado.</p>}
+            </div>
+          )}
         </>
       )}
 
@@ -546,6 +632,10 @@ export default function CoffeeNetworkAdmin() {
       {novaOferta && (
         <NovaOfertaModal entities={entities} onClose={() => setNovaOferta(false)}
           onSaved={() => { setNovaOferta(false); load(); }} />
+      )}
+      {novoCaso && (
+        <NovoCasoModal entities={entities} offers={offers} requests={requests} matches={matches}
+          onClose={() => setNovoCaso(false)} onSaved={() => { setNovoCaso(false); load(); }} />
       )}
       {novaSolicitacao && (
         <NovaSolicitacaoModal entities={entities} onClose={() => setNovaSolicitacao(false)}
@@ -993,5 +1083,149 @@ function ConvertModal({ entity, companies, busy, onClose, onConfirm }: {
         </div>
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Registro de caso do piloto real. Preenchido à mão pela equipe COFICO enquanto
+// conduz o caso — é daqui que sai o aprendizado que corrige o produto.
+// ---------------------------------------------------------------------------
+function NovoCasoModal({ entities, offers, requests, matches, onClose, onSaved }: {
+  entities: Entity[]; offers: Offer[]; requests: Request[]; matches: Match[];
+  onClose: () => void; onSaved: () => void;
+}) {
+  const [f, setF] = useState({
+    codigo: '', produtor_entity_id: '', comprador_entity_id: '', offer_id: '', request_id: '',
+    minutos_ate_oferta_ativa: '', minutos_ate_primeiro_match: '', tempo_cofico_minutos: '',
+    volume_sacas: '', valor_potencial_brl: '', resultado: 'em_andamento',
+    amostra_solicitada: 'nao', proposta_feita: 'nao', houve_negociacao: 'nao', fechou: 'nao',
+    motivo_perda: '', campos_que_faltaram: '', campos_que_sobraram: '',
+    feedback_produtor: '', feedback_comprador: '', aprendizado: '',
+    autoriza_divulgacao: 'nao', observacoes_internas: '',
+  });
+  const [busy, setBusy] = useState(false);
+  const set = (k: string, v: string) => setF(p => ({ ...p, [k]: v }));
+  const num = (v: string) => (v.trim() === '' ? null : Number(v));
+  const sim = (v: string) => v === 'sim';
+
+  async function salvar() {
+    setBusy(true);
+    const match = matches.find(m => m.offer_id === f.offer_id && m.request_id === f.request_id);
+    const { error } = await supabase.from('coffee_pilot_cases').insert({
+      codigo: f.codigo || null,
+      produtor_entity_id: f.produtor_entity_id || null,
+      comprador_entity_id: f.comprador_entity_id || null,
+      offer_id: f.offer_id || null,
+      request_id: f.request_id || null,
+      match_id: match?.id ?? null,
+      match_score: match?.score ?? null,
+      matches_gerados: matches.filter(m => m.request_id === f.request_id).length || null,
+      minutos_ate_oferta_ativa: num(f.minutos_ate_oferta_ativa),
+      minutos_ate_primeiro_match: num(f.minutos_ate_primeiro_match),
+      tempo_cofico_minutos: num(f.tempo_cofico_minutos),
+      volume_sacas: num(f.volume_sacas),
+      valor_potencial_brl: num(f.valor_potencial_brl),
+      resultado: f.resultado,
+      amostra_solicitada: sim(f.amostra_solicitada),
+      proposta_feita: sim(f.proposta_feita),
+      houve_negociacao: sim(f.houve_negociacao),
+      fechou: sim(f.fechou),
+      motivo_perda: f.motivo_perda || null,
+      campos_que_faltaram: f.campos_que_faltaram || null,
+      campos_que_sobraram: f.campos_que_sobraram || null,
+      feedback_produtor: f.feedback_produtor || null,
+      feedback_comprador: f.feedback_comprador || null,
+      aprendizado: f.aprendizado || null,
+      autoriza_divulgacao: sim(f.autoriza_divulgacao),
+      observacoes_internas: f.observacoes_internas || null,
+    });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success('Caso registrado.');
+    onSaved();
+  }
+
+  const simNao = (k: string, rotulo: string) => (
+    <div>
+      <label className={labelCls}>{rotulo}</label>
+      <select className={inputCls} value={(f as Record<string, string>)[k]} onChange={e => set(k, e.target.value)}>
+        <option value="nao">Não</option><option value="sim">Sim</option>
+      </select>
+    </div>
+  );
+
+  return (
+    <Modal title="Novo caso do piloto" busy={busy} onClose={onClose} onSave={salvar} saveLabel="Registrar caso"
+      subtitle="Registro manual do caso real. É o que transforma o piloto em prova e histórico.">
+      <div><label className={labelCls}>Código do caso</label>
+        <input className={inputCls} placeholder="PILOTO-001" value={f.codigo} onChange={e => set('codigo', e.target.value)} /></div>
+      <div>
+        <label className={labelCls}>Resultado</label>
+        <select className={inputCls} value={f.resultado} onChange={e => set('resultado', e.target.value)}>
+          <option value="em_andamento">Em andamento</option>
+          <option value="fechado">Fechado</option>
+          <option value="perdido">Perdido</option>
+          <option value="desistiu">Desistiu</option>
+          <option value="sem_match">Sem match</option>
+        </select>
+      </div>
+      <div>
+        <label className={labelCls}>Produtor</label>
+        <select className={inputCls} value={f.produtor_entity_id} onChange={e => set('produtor_entity_id', e.target.value)}>
+          <option value="">—</option>
+          {entities.map(e => <option key={e.id} value={e.id}>{e.legal_name}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className={labelCls}>Comprador</label>
+        <select className={inputCls} value={f.comprador_entity_id} onChange={e => set('comprador_entity_id', e.target.value)}>
+          <option value="">—</option>
+          {entities.map(e => <option key={e.id} value={e.id}>{e.legal_name}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className={labelCls}>Oferta</label>
+        <select className={inputCls} value={f.offer_id} onChange={e => set('offer_id', e.target.value)}>
+          <option value="">—</option>
+          {offers.map(o => <option key={o.id} value={o.id}>{o.quantity_bags} sacas · {o.origin_municipio}/{o.origin_uf}</option>)}
+        </select>
+      </div>
+      <div>
+        <label className={labelCls}>Solicitação</label>
+        <select className={inputCls} value={f.request_id} onChange={e => set('request_id', e.target.value)}>
+          <option value="">—</option>
+          {requests.map(r => <option key={r.id} value={r.id}>{r.quantity_bags} sacas · destino {r.destination_uf ?? '—'}</option>)}
+        </select>
+      </div>
+      <div><label className={labelCls}>Minutos até a oferta ficar ativa</label>
+        <input className={inputCls} value={f.minutos_ate_oferta_ativa} onChange={e => set('minutos_ate_oferta_ativa', e.target.value)} /></div>
+      <div><label className={labelCls}>Minutos até o primeiro match</label>
+        <input className={inputCls} value={f.minutos_ate_primeiro_match} onChange={e => set('minutos_ate_primeiro_match', e.target.value)} /></div>
+      <div><label className={labelCls}>Minutos gastos pela equipe COFICO</label>
+        <input className={inputCls} value={f.tempo_cofico_minutos} onChange={e => set('tempo_cofico_minutos', e.target.value)} /></div>
+      <div><label className={labelCls}>Volume (sacas)</label>
+        <input className={inputCls} value={f.volume_sacas} onChange={e => set('volume_sacas', e.target.value)} /></div>
+      <div><label className={labelCls}>Valor potencial (R$)</label>
+        <input className={inputCls} value={f.valor_potencial_brl} onChange={e => set('valor_potencial_brl', e.target.value)} /></div>
+      {simNao('amostra_solicitada', 'Pediram amostra?')}
+      {simNao('proposta_feita', 'Houve proposta?')}
+      {simNao('houve_negociacao', 'Houve negociação?')}
+      {simNao('fechou', 'Fechou negócio?')}
+      {simNao('autoriza_divulgacao', 'Autoriza divulgar o caso?')}
+      <div className="md:col-span-2"><label className={labelCls}>Motivo da perda</label>
+        <input className={inputCls} value={f.motivo_perda} onChange={e => set('motivo_perda', e.target.value)} /></div>
+      <div><label className={labelCls}>Campos que faltaram</label>
+        <input className={inputCls} value={f.campos_que_faltaram} onChange={e => set('campos_que_faltaram', e.target.value)} /></div>
+      <div><label className={labelCls}>Campos que sobraram</label>
+        <input className={inputCls} value={f.campos_que_sobraram} onChange={e => set('campos_que_sobraram', e.target.value)} /></div>
+      <div><label className={labelCls}>Feedback do produtor</label>
+        <textarea className={inputCls} rows={2} value={f.feedback_produtor} onChange={e => set('feedback_produtor', e.target.value)} /></div>
+      <div><label className={labelCls}>Feedback do comprador</label>
+        <textarea className={inputCls} rows={2} value={f.feedback_comprador} onChange={e => set('feedback_comprador', e.target.value)} /></div>
+      <div className="md:col-span-2"><label className={labelCls}>Aprendizado</label>
+        <textarea className={inputCls} rows={2} value={f.aprendizado} onChange={e => set('aprendizado', e.target.value)} /></div>
+      <div className="md:col-span-2"><label className={labelCls}>Observações internas</label>
+        <textarea className={inputCls} rows={2} value={f.observacoes_internas} onChange={e => set('observacoes_internas', e.target.value)} /></div>
+    </Modal>
   );
 }
