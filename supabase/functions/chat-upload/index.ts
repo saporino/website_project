@@ -40,8 +40,11 @@ Deno.serve(async (req) => {
     });
     if (error) return json({ error: error.message }, 500);
 
-    const { data: pub } = db.storage.from("chat-media").getPublicUrl(path);
-    return json({ url: pub.publicUrl });
+    // chat-media é bucket PRIVADO desde a Fase D (04/09/2026). Devolvemos o CAMINHO
+    // do objeto, não uma URL pública: quem exibe gera uma signed URL de curta duração
+    // (src/lib/storageUrl.ts). O campo continua se chamando "url" por compatibilidade
+    // com o cliente já publicado, que grava o valor em chat_messages.attachment_url.
+    return json({ url: path });
   } catch (e) {
     return json({ error: String(e instanceof Error ? e.message : e) }, 500);
   }

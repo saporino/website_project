@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase';
 import { guide } from '../../lib/guide';
 import { useCompany } from '../../contexts/CompanyContext';
 import { SEGMENT_LABEL } from '../../constants/segments';
+import PrivateImage from '../PrivateImage';
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -106,10 +107,10 @@ export default function RepCoRoutes({ representativeId, currentLat, currentLng, 
     const path = `visits/${representativeId}/${stopId}/${Date.now()}.jpg`;
     const { error } = await supabase.storage.from('visit-photos').upload(path, file, { upsert: true });
     if (!error) {
-      const { data: urlData } = supabase.storage.from('visit-photos').getPublicUrl(path);
+      // visit-photos é bucket PRIVADO desde a Fase D: grava-se o CAMINHO, não a URL pública.
       const now = new Date().toISOString();
-      await supabase.from('route_stops').update({ proof_photo_url: urlData.publicUrl, proof_photo_lat: currentLat, proof_photo_lng: currentLng, proof_photo_at: now }).eq('id', stopId);
-      setStops(prev => prev.map(s => s.id === stopId ? { ...s, proof_photo_url: urlData.publicUrl, proof_photo_at: now } : s));
+      await supabase.from('route_stops').update({ proof_photo_url: path, proof_photo_lat: currentLat, proof_photo_lng: currentLng, proof_photo_at: now }).eq('id', stopId);
+      setStops(prev => prev.map(s => s.id === stopId ? { ...s, proof_photo_url: path, proof_photo_at: now } : s));
     }
     setUploading(null);
   }
@@ -281,7 +282,7 @@ export default function RepCoRoutes({ representativeId, currentLat, currentLng, 
                         {stop.proof_photo_url ? (
                           <div className="space-y-2">
                             <p className="text-xs text-green-600 font-medium">✅ Comprovante de entrega</p>
-                            <img src={stop.proof_photo_url} alt="Comprovante" className="w-full rounded-lg border border-gray-200 max-h-32 object-cover" />
+                            <PrivateImage bucket="visit-photos" value={stop.proof_photo_url} alt="Comprovante" className="w-full rounded-lg border border-gray-200 max-h-32 object-cover" />
                             {stop.proof_photo_at && <p className="text-xs text-gray-400">📍 {new Date(stop.proof_photo_at).toLocaleString('pt-BR')}</p>}
                           </div>
                         ) : (

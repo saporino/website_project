@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
 import { toast } from 'sonner';
+import { signedUrls } from '../../lib/storageUrl';
 import { BarChart3, ChevronDown, ChevronUp, Camera, AlertTriangle, MessageCircle, Clock, Check } from 'lucide-react';
 
 // Bloco 6 — Painel do supervisor/admin: lê das views vw_promoter_* (não recalcula no front).
@@ -95,7 +96,10 @@ export default function PromoterSupervisorPanel() {
   async function verFotos(visitId: string) {
     setFotoVisita(visitId);
     const { data } = await supabase.from('promoter_visit_photos').select('kind,photo_url').eq('visit_id', visitId).order('taken_at');
-    setFotos((data as any[]) || []);
+    // visit-photos é bucket privado (Fase D): troca o caminho guardado por signed URL.
+    const rows = (data as any[]) || [];
+    const urls = await signedUrls('visit-photos', rows.map(r => r.photo_url));
+    setFotos(rows.map((r, i) => ({ ...r, photo_url: urls[i] || '' })));
   }
 
   const totCov = cov.reduce((a, r) => ({ prog: a.prog + Number(r.programadas || 0), real: a.real + Number(r.realizadas || 0), nao: a.nao + Number(r.nao_realizadas || 0) }), { prog: 0, real: 0, nao: 0 });

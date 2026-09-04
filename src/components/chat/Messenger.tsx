@@ -7,6 +7,7 @@ import {
   startDirect, createGroup, markRead, uploadAttachment, subscribeToMessages, subscribeToAllMessages,
 } from '../../lib/chat';
 import { useCompany } from '../../contexts/CompanyContext';
+import { signedUrl } from '../../lib/storageUrl';
 
 const BRAND = '#8B2214';
 const initials = (n: string) => (n || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
@@ -219,13 +220,24 @@ function Avatar({ name, group, online }: { name: string; group?: boolean; online
 }
 
 function Attachment({ m, mine }: { m: ChatMessage; mine: boolean }) {
+  // chat-media é bucket PRIVADO desde a Fase D: o anexo precisa de signed URL.
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    if (!m.attachment_url) { setUrl(null); return; }
+    signedUrl('chat-media', m.attachment_url).then(u => { if (alive) setUrl(u); });
+    return () => { alive = false; };
+  }, [m.attachment_url]);
+
   if (!m.attachment_url) return null;
+  if (!url)
+    return <div className="text-xs opacity-60 mb-1">carregando anexo…</div>;
   if (m.attachment_type === 'image')
-    return <a href={m.attachment_url} target="_blank" rel="noreferrer"><img src={m.attachment_url} className="rounded-lg max-w-full max-h-64 mb-1" loading="lazy" /></a>;
+    return <a href={url} target="_blank" rel="noreferrer"><img src={url} className="rounded-lg max-w-full max-h-64 mb-1" loading="lazy" /></a>;
   if (m.attachment_type === 'audio')
-    return <audio controls src={m.attachment_url} className="w-full max-w-[240px] mb-1" style={{ minWidth: 0 }} />;
+    return <audio controls src={url} className="w-full max-w-[240px] mb-1" style={{ minWidth: 0 }} />;
   return (
-    <a href={m.attachment_url} target="_blank" rel="noreferrer" className={`flex items-center gap-2 mb-1 underline ${mine ? 'text-white' : 'text-gray-700'}`}>
+    <a href={url} target="_blank" rel="noreferrer" className={`flex items-center gap-2 mb-1 underline ${mine ? 'text-white' : 'text-gray-700'}`}>
       <FileText className="w-4 h-4" /> <span className="text-xs truncate">{m.attachment_name || 'Documento'}</span>
     </a>
   );

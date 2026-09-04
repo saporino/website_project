@@ -58,8 +58,9 @@ export async function uploadVisitPhoto(promoterId: string, visitId: string, kind
   const path = `promoter/${promoterId}/${visitId}/${kind}-${Date.now()}.jpg`;
   const { data, error } = await supabase.storage.from('visit-photos').upload(path, blob, { upsert: true, contentType: 'image/jpeg' });
   if (error || !data) throw new Error(error?.message || 'falha no upload');
-  const { data: pub } = supabase.storage.from('visit-photos').getPublicUrl(data.path || path);
-  return pub.publicUrl;
+  // visit-photos é bucket PRIVADO desde a Fase D: guardamos o CAMINHO do objeto.
+  // A exibição gera signed URL via src/lib/storageUrl.ts.
+  return data.path || path;
 }
 
 export async function auditLog(entity: string, entityId: string, action: string, payload?: Record<string, unknown>) {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
+import { signedUrls } from '../../lib/storageUrl';
 import {
   distMeters, getPosition, capturePhoto, compressImage, uploadVisitPhoto,
   auditLog, broadcastVisitState, updateVisitSafe, getPending, retryPending,
@@ -230,8 +231,15 @@ function VisitFlow({ visit, store, storeName, promoterId, promoterName, onExit }
   const saveDraft = useCallback((s: number) => localStorage.setItem(draftKey, JSON.stringify({ step: s, ts: Date.now() })), [draftKey]);
 
   useEffect(() => {
+    // visit-photos é bucket privado (Fase D): resolve signed URL para exibir.
+    let alive = true;
     supabase.from('promoter_visit_photos').select('kind,photo_url').eq('visit_id', visit.id)
-      .then(({ data }) => setPhotos((data || []).map((p: any) => ({ kind: p.kind, url: p.photo_url }))));
+      .then(async ({ data }) => {
+        const rows = (data || []) as any[];
+        const urls = await signedUrls('visit-photos', rows.map(p => p.photo_url));
+        if (alive) setPhotos(rows.map((p, i) => ({ kind: p.kind, url: urls[i] || '' })));
+      });
+    return () => { alive = false; };
   }, [visit.id]);
 
   const radius = Number(store?.geofence_radius_m) || 500;
