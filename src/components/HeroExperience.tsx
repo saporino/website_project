@@ -53,6 +53,7 @@ export default function HeroExperience({ onCta, fadeToWhite = false, onHeroActiv
   const started = useRef(false);
   const primed = useRef(false);
   const lastActive = useRef<boolean | null>(null);
+  const leftScene = useRef(false); // usuário saiu da cena do vídeo (opacity < PAUSE_BELOW) desde a última vez que ela esteve visível
   const onActiveRef = useRef(onHeroActive); onActiveRef.current = onHeroActive; // ref: não re-assina o scroll a cada render
 
   useEffect(() => {
@@ -113,8 +114,18 @@ export default function HeroExperience({ onCta, fadeToWhite = false, onHeroActiv
         if (p <= 0.001 && started.current) { v.pause(); v.currentTime = 0; started.current = false; }
         else if (!started.current && vop > PLAY_AT) { started.current = true; safePlay(); }
         else if (started.current) {
-          if (vop < PAUSE_BELOW && !v.paused) v.pause();
-          else if (vop >= PAUSE_BELOW && v.paused && !v.ended) safePlay();
+          if (vop < PAUSE_BELOW) {
+            // Saiu da cena: pausa mantendo o tempo (retoma de onde parou ao voltar).
+            if (!v.paused) v.pause();
+            leftScene.current = true;
+          } else {
+            if (v.paused) {
+              if (!v.ended) safePlay();                                   // pausou no meio → retoma
+              else if (leftScene.current) { v.currentTime = 0; safePlay(); } // terminou, saiu e voltou → replay
+              // terminou e NÃO saiu → fica congelado no último frame (sem loop)
+            }
+            leftScene.current = false;
+          }
         }
       }
 

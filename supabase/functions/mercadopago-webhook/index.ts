@@ -1,11 +1,17 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { mapMpStatus, decideOrderUpdate, buildManifest } from '../_shared/mpWebhook.ts';
+import { logEdge, newRequestId } from '../_shared/log.ts';
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, x-signature, x-request-id",
 };
+
+const FN = 'mercadopago-webhook';
+const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
 interface MercadoPagoWebhookData {
     id: string;
@@ -30,9 +36,11 @@ async function verifyMPSignature(
         const xSignature = req.headers.get('x-signature');
         const xRequestId = req.headers.get('x-request-id');
 
+        // A missing signature must be REJECTED, not allowed. (Fase 0 / P0 fix:
+        // this previously returned true "for testing", leaving the webhook open.)
         if (!xSignature) {
-            console.warn('No x-signature header found — skipping verification');
-            return true; // Allow through if no signature (for testing)
+            console.error('Missing x-signature header — rejecting webhook');
+            return false;
         }
 
         // Parse the signature header: ts=TIMESTAMP,v1=HASH
@@ -47,6 +55,16 @@ async function verifyMPSignature(
 
         if (!ts || !v1) return false;
 
+        // Timestamp: defesa ADICIONAL contra replay, mas NUNCA descarta um
+        // pagamento legítimo por atraso/retry. A autenticidade vem da assinatura
+        // e a duplicidade é tratada por idempotência/no-regression. Fora da janela
+        // → apenas aviso (não rejeita). (Prioridade: não perder pagamento.)
+        const tsMs = Number(ts) * 1000;
+        if (!Number.isFinite(tsMs)) return false;
+        if (Math.abs(Date.now() - tsMs) > 10 * 60 * 1000) {
+            console.warn('Webhook timestamp outside 10min window (allowed; dedup via idempotency)');
+        }
+
         // Parse the data.id from body
         let dataId = '';
         try {
@@ -56,9 +74,7 @@ async function verifyMPSignature(
             // ignore
         }
 
-        // Construct the manifest string as per MP docs
-        // Format: id:<data.id>;request-id:<x-request-id>;ts:<ts>
-        const manifest = `id:${dataId};request-id:${xRequestId || ''};ts:${ts}`;
+        const manifest = buildManifest(dataId, xRequestId || '', ts);
 
         // Compute HMAC-SHA256
         const encoder = new TextEncoder();
@@ -82,26 +98,32 @@ Deno.serve(async (req: Request) => {
         return new Response(null, { status: 200, headers: corsHeaders });
     }
 
-    try {
-        // Initialize Supabase client with Service Role Key to bypass RLS
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const rid = newRequestId(req);
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    try {
         // Read body as text for signature verification
         const bodyText = await req.text();
 
-        // Verify signature if secret is configured
+        // The webhook secret is REQUIRED. If it is not configured we fail closed
+        // (do not process unverified notifications). (Fase 0 / P0 fix.)
         const webhookSecret = Deno.env.get('MERCADO_PAGO_WEBHOOK_SECRET');
-        if (webhookSecret) {
-            const isValid = await verifyMPSignature(req, bodyText, webhookSecret);
-            if (!isValid) {
-                console.error('Invalid webhook signature — request rejected');
-                return new Response(
-                    JSON.stringify({ error: 'Invalid signature' }),
-                    { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-                );
-            }
+        if (!webhookSecret) {
+            console.error('MERCADO_PAGO_WEBHOOK_SECRET not configured — rejecting webhook');
+            return new Response(
+                JSON.stringify({ error: 'Webhook not configured' }),
+                { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+        }
+        const isValid = await verifyMPSignature(req, bodyText, webhookSecret);
+        if (!isValid) {
+            console.error('Invalid webhook signature — request rejected');
+            return new Response(
+                JSON.stringify({ error: 'Invalid signature' }),
+                { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
         }
 
         // Parse webhook data
@@ -118,18 +140,21 @@ Deno.serve(async (req: Request) => {
 
         const paymentId = webhookData.data.id;
 
-        // Get Mercado Pago Access Token
+        // Get Mercado Pago Access Token — degrade gracefully to the env secret
+        // if admin_settings is missing/errors (same P0 fix as create-payment).
+        let dbAccessToken: string | null = null;
         const { data: settings, error: settingsError } = await supabase
             .from('admin_settings')
             .select('mercado_pago_access_token')
             .maybeSingle();
 
         if (settingsError) {
-            console.error('Error fetching settings:', settingsError);
-            throw new Error('Failed to fetch store settings');
+            console.error('Could not read admin_settings, falling back to env secret:', settingsError.message);
+        } else {
+            dbAccessToken = settings?.mercado_pago_access_token ?? null;
         }
 
-        const accessToken = settings?.mercado_pago_access_token || Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN');
+        const accessToken = dbAccessToken || Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN');
 
         if (!accessToken) {
             throw new Error('Mercado Pago Access Token not configured');
@@ -154,45 +179,50 @@ Deno.serve(async (req: Request) => {
         const status = paymentData.status;
         const paymentMethodId = paymentData.payment_method_id;
 
-        // Map MP status to our order status
-        let orderStatus = 'pending';
-        if (status === 'approved') orderStatus = 'approved';
-        else if (status === 'rejected' || status === 'cancelled') orderStatus = 'rejected';
-        else if (status === 'in_process' || status === 'in_mediation') orderStatus = 'in_process';
-        else if (status === 'refunded' || status === 'charged_back') orderStatus = 'refunded';
+        const orderStatus = mapMpStatus(status);
 
-        // Update order in database
-        const { data: orderData, error: orderError } = await supabase
+        // Ler o pedido atual e decidir a atualização (idempotência / no-regression).
+        const { data: currentOrder, error: currentErr } = await supabase
             .from('orders')
-            .update({
-                status: orderStatus,
-                mercadopago_payment_id: paymentId,
-                mercadopago_collection_id: paymentData.collection_id,
-                mercadopago_collection_status: status,
-                payment_method: paymentMethodId,
-                paid_at: status === 'approved' ? new Date().toISOString() : null,
-            })
+            .select('status, paid_at')
+            .eq('id', externalReference)
+            .maybeSingle();
+
+        if (currentErr) throw currentErr;
+        if (!currentOrder) {
+            await logEdge(supabase, { function_name: FN, request_id: rid, level: 'warn', status: 200, error_text: 'order not found', meta: { ext: externalReference } });
+            return json({ message: 'Order not found, ignoring', orderId: externalReference }, 200);
+        }
+
+        const decision = decideOrderUpdate(currentOrder, orderStatus);
+        if (!decision.apply) {
+            await logEdge(supabase, { function_name: FN, request_id: rid, level: 'info', status: 200, meta: { ext: externalReference, skipped: decision.reason } });
+            return json({ message: 'Ignored (no-regression)', orderId: externalReference, status: currentOrder.status }, 200);
+        }
+
+        const updatePayload: Record<string, unknown> = {
+            status: orderStatus,
+            mercadopago_payment_id: paymentId,
+            mercadopago_collection_id: paymentData.collection_id,
+            mercadopago_collection_status: status,
+            payment_method: paymentMethodId,
+        };
+        if (decision.setPaidAt) updatePayload.paid_at = new Date().toISOString();
+
+        const { error: orderError } = await supabase
+            .from('orders')
+            .update(updatePayload)
             .eq('id', externalReference)
             .select()
             .single();
 
-        if (orderError) {
-            console.error('Error updating order:', orderError);
-            throw orderError;
-        }
+        if (orderError) throw orderError;
 
-        console.log('Order updated successfully:', orderData);
-
-        return new Response(
-            JSON.stringify({ message: 'Webhook processed successfully', orderId: externalReference, status: orderStatus }),
-            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        await logEdge(supabase, { function_name: FN, request_id: rid, level: 'info', status: 200, meta: { ext: externalReference, status: orderStatus } });
+        return json({ message: 'Webhook processed successfully', orderId: externalReference, status: orderStatus }, 200);
 
     } catch (error) {
-        console.error('Webhook error:', error);
-        return new Response(
-            JSON.stringify({ error: error.message }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        await logEdge(supabase, { function_name: FN, request_id: rid, level: 'error', status: 500, error_text: (error as Error).message });
+        return json({ error: 'Erro interno no webhook' }, 500);
     }
 });
