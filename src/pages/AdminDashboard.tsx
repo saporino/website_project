@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { LogOut, Package } from 'lucide-react';
 import { OrdersManagement } from '../components/admin/OrdersManagement';
+import CoffeeNetworkAdmin from '../components/admin/CoffeeNetworkAdmin';
 import { ProductsManagement } from '../components/admin/ProductsManagement';
 import { ShippingManagement } from '../components/admin/ShippingManagement';
 import { StoreSettings } from '../components/admin/StoreSettings';
@@ -22,7 +23,7 @@ import CoficoEntregas from '../components/admin/CoficoEntregas';
 import B2BLeadsManagement from '../components/admin/B2BLeadsManagement';
 import RepApplicationsManagement from '../components/admin/RepApplicationsManagement';
 
-type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 'settings' | 'repco' | 'inventory' | 'messages' | 'ajuda' | 'promotores' | 'comissoes' | 'studio' | 'cofico' | 'leads_b2b' | 'candidaturas';
+type TabType = 'dashboard' | 'orders' | 'products' | 'customers' | 'shipping' | 'settings' | 'repco' | 'inventory' | 'messages' | 'ajuda' | 'promotores' | 'comissoes' | 'studio' | 'cofico' | 'leads_b2b' | 'candidaturas' | 'coffee_network';
 
 // RBAC — "um console, abas por papel". O admin vê tudo; cada papel de console vê só o seu.
 // A trava REAL dos dados é a RLS no banco (esconder aba é só a fachada).
@@ -31,7 +32,7 @@ const ROLE_TABS: Record<string, TabType[]> = {
   gerente_comercial: ['repco', 'messages'],
   contabilidade: ['comissoes', 'messages'],
 };
-const ALL_ADMIN_TABS: TabType[] = ['dashboard', 'orders', 'products', 'customers', 'leads_b2b', 'candidaturas', 'shipping', 'cofico', 'repco', 'studio', 'messages', 'inventory', 'settings', 'ajuda'];
+const ALL_ADMIN_TABS: TabType[] = ['dashboard', 'orders', 'products', 'customers', 'leads_b2b', 'candidaturas', 'shipping', 'cofico', 'repco', 'studio', 'messages', 'inventory', 'settings', 'ajuda', 'coffee_network'];
 const ROLE_LABEL: Record<string, string> = { supervisor: 'Supervisor', gerente_comercial: 'Gerente Comercial', contabilidade: 'Contabilidade' };
 const TAB_DEFS: { id: TabType; label: string }[] = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -42,6 +43,7 @@ const TAB_DEFS: { id: TabType; label: string }[] = [
   { id: 'candidaturas', label: 'Candidaturas' },
   { id: 'shipping', label: 'Transportadoras' },
   { id: 'cofico', label: 'COFICO Entregas' },
+  { id: 'coffee_network', label: 'Coffee Network' },
   { id: 'repco', label: 'RepCo' },
   { id: 'studio', label: 'Studio' },
   { id: 'promotores', label: 'Promotores' },
@@ -79,6 +81,7 @@ export function AdminDashboard() {
     cofico: 0,
     leads_b2b: 0,
     candidaturas: 0,
+    coffee_network: 0,
   });
 
   // Se a aba ativa não é permitida pro papel, cai na primeira aba permitida
@@ -209,6 +212,7 @@ export function AdminDashboard() {
             {activeTab === 'customers' && <CustomersManagement refreshKey={refreshVersion.customers} />}
             {activeTab === 'shipping' && <ShippingManagement />}
             {activeTab === 'cofico' && <CoficoEntregas />}
+            {activeTab === 'coffee_network' && <CoffeeNetworkAdmin />}
             {activeTab === 'leads_b2b' && <B2BLeadsManagement />}
             {activeTab === 'candidaturas' && <RepApplicationsManagement />}
             {activeTab === 'repco' && <RepCoManagement refreshKey={refreshVersion.repco} />}
