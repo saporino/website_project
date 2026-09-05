@@ -3,11 +3,22 @@
 // Estilo dos cards = loja Saporino (produto "flutuante" com halo, pill de categoria,
 // descrição, botão redondo), mas com o VERMELHO da COFICO (1 vermelho por marca).
 // SEM preço para o visitante: preço é liberado para cliente cadastrado (camada Casa Cofico).
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowRight, FileText, Lock, ShoppingBag } from 'lucide-react';
 import CoficoHeader from './CoficoHeader';
 import CoficoFooter from './CoficoFooter';
 import { COFICO } from './config';
+import { fetchCoficoVitrine, type CoficoProduto } from './coficoClient';
+
+// Fichas técnicas: o catálogo do banco ainda não tem campo de PDF, então o arquivo
+// continua mapeado pelo nome do produto. Quando o painel ganhar upload de ficha,
+// este mapa sai.
+const FICHAS: Record<string, string> = {
+  'Fazendinha Tradicional': '/cofico/ficha-fazendinha-tradicional.pdf',
+  'Fazendinha Extra Forte': '/cofico/ficha-fazendinha-extra-forte.pdf',
+  'Horizon Coffee': '/cofico/ficha-horizon-coffee.pdf',
+  'Café São Felipe': '/cofico/ficha-sao-felipe.pdf',
+};
 
 type CatalogoProduto = { nome: string; cat: string; desc?: string; peso: string; img: string; fallback: string; pdf?: string };
 const CATALOGO: { marca: string; produtos: CatalogoProduto[] }[] = [
@@ -34,7 +45,55 @@ const CATALOGO: { marca: string; produtos: CatalogoProduto[] }[] = [
 const CADASTRO_WA = `https://wa.me/55${COFICO.phone.replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Vim pelo site da COFICO e quero comprar no atacado / receber a tabela de preços. Tenho CNPJ ativo.')}`;
 
 export default function CoficoProdutosPage() {
+  // Catálogo vindo do painel. A lista fixa acima vira apenas rede de segurança:
+  // se a consulta falhar, a página mostra o portfólio antigo em vez de ficar vazia.
+  const [doBanco, setDoBanco] = useState<CoficoProduto[] | null>(null);
+
   useEffect(() => { document.title = 'Produtos — COFICO Brasil'; window.scrollTo(0, 0); }, []);
+  useEffect(() => { fetchCoficoVitrine().then(setDoBanco).catch(() => setDoBanco([])); }, []);
+
+  // Catálogo = portfólio da página + o que o painel administra, mesclados.
+  //
+  // O painel MANDA no que ele conhece: se o produto existe lá, valem a foto, o nome,
+  // a descrição e o peso de lá. Os itens que ainda só existem como arte nesta página
+  // continuam aparecendo — tirá-los seria apagar portfólio do site só porque ainda
+  // não foram cadastrados. Para controlá-los pelo painel, basta cadastrá-los na
+  // empresa dona da marca com o canal "cofico" marcado.
+  const chave = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+  const porNome = new Map((doBanco ?? []).map(p => [chave(p.name), p]));
+  const usados = new Set<string>();
+
+  const doBancoComoCard = (p: CoficoProduto): CatalogoProduto => ({
+    nome: p.name,
+    cat: p.category ?? 'Café',
+    desc: p.description ?? undefined,
+    peso: p.weight_grams ? `${p.weight_grams}g` : '',
+    img: p.image_url || '/saporino-logo.png',
+    fallback: '/cofico/fazendinha.png',
+    pdf: FICHAS[p.name],
+  });
+
+  const catalogo: { marca: string; produtos: CatalogoProduto[] }[] = CATALOGO.map(({ marca, produtos }) => ({
+    marca,
+    produtos: produtos.map((estatico) => {
+      const doBancoItem = porNome.get(chave(estatico.nome));
+      if (!doBancoItem) return estatico;
+      usados.add(chave(estatico.nome));
+      return { ...doBancoComoCard(doBancoItem), pdf: doBancoItem && FICHAS[doBancoItem.name] ? FICHAS[doBancoItem.name] : estatico.pdf };
+    }),
+  }));
+
+  // Produtos que o painel tem e a página não previa: entram agrupados pela marca.
+  // A vitrine agrupa por MARCA, não por razão social: "Café Saporino Ltda" e
+  // "Café Saporino" são o mesmo grupo para quem está olhando o site.
+  const semSufixoLegal = (s: string) => s.replace(/\s+(ltda|s\.?a\.?|me|eireli)\.?$/i, '').trim();
+  const novos = (doBanco ?? []).filter(p => !usados.has(chave(p.name)));
+  for (const p of novos) {
+    const marca = semSufixoLegal(p.marca_empresa ?? 'Outras marcas');
+    const grupo = catalogo.find(g => chave(g.marca) === chave(marca));
+    if (grupo) grupo.produtos.push(doBancoComoCard(p));
+    else catalogo.push({ marca, produtos: [doBancoComoCard(p)] });
+  }
 
   return (
     <div id="topo" className="min-h-screen bg-white text-neutral-900 antialiased selection:bg-cofico-ink selection:text-white">
@@ -63,7 +122,7 @@ export default function CoficoProdutosPage() {
         </div>
 
         {/* Catálogo por marca — cards estilo loja Saporino (flutuante) */}
-        {CATALOGO.map(({ marca, produtos }) => (
+        {catalogo.map(({ marca, produtos }) => (
           <div key={marca} className="mt-14">
             <h2 className="text-sm font-bold uppercase tracking-wide text-neutral-900">{marca}</h2>
             <div className="mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
