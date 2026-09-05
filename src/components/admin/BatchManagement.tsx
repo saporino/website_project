@@ -10,7 +10,7 @@ import DocumentUploadButton from "./DocumentUploadButton";
 interface RoastingCompany { id:string; name:string; cnpj:string; city:string; state:string; cep:string; company_code:number; active:boolean; notes:string; director_name:string; email:string; whatsapp:string; inscricao_estadual:string; }
 interface Contact { id:string; company_id:string; name:string; role:string; email:string; phone:string; whatsapp:string; extension:string; active:boolean; }
 interface Batch { id:string; batch_number:string; product_id:string; product_name?:string; roasting_company_id:string; company_name?:string; status:string; quantity_packages:number; production_date:string; expiry_date:string; variety:string; altitude_m:number; farm_name:string; green_weight_kg:number; green_cost_per_kg:number; sca_score:number; sensory_notes:string; cost_per_250g:number; cost_per_500g:number; cost_per_1kg:number; notes:string; total_paid_brl?:number|null; ap_percentage?:number|null; price_per_point?:number|null; logistics_cost_brl?:number|null; green_input_to_roast_kg?:number|null; service_price_per_kg?:number|null; roasted_output_kg?:number|null; roast_date?:string|null; packaged_kg?:number|null; packaging_cost_per_kg?:number|null; packaging_date?:string|null; }
-interface Product { id:string; name:string; stock:number; weight_grams:number; }
+interface Product { id:string; name:string; stock:number; weight_grams:number; sales_channels?:string[]; }
 
 const ALLOWED_BATCH_FIELDS = ['batch_number','product_id','product_name','status','supplier_name','supplier_city','supplier_state','variety','altitude_meters','green_weight_kg','roast_date','roasted_by','roasted_weight_kg','roast_cost','roast_profile','roast_temperature','roast_duration_minutes','pkg_cost_250g','pkg_cost_500g','pkg_cost_1kg','pkg_cost_fardo5kg','label_cost_per_unit','plastic_wrap_cost_per_unit','fuel_cost','toll_cost','hotel_cost','food_cost','other_costs','samples_given_units','samples_unit_size_g','bonus_given_units','bonus_unit_size_g','total_variable_cost','total_bonus_cost','cost_per_100g','cost_per_250g','cost_per_500g','cost_per_1kg','cost_per_fardo5kg','units_produced_250g','units_produced_500g','units_produced_1kg','units_produced_fardo5kg','production_date','expiry_date','nf_purchase_url','supplier_certificate_url','quality_report_url','sensory_notes','sca_score','created_by','roasting_company_id','farm_name','farm_city','farm_state','altitude_m','quantity_packages','nf_url','notes','ap_percentage','price_per_point','total_paid_brl','logistics_cost_brl','logistics_breakdown','green_input_to_roast_kg','service_price_per_kg','roasted_output_kg','packaged_kg','packaging_cost_per_kg','roast_date','packaging_date'] as const;
 
@@ -140,7 +140,7 @@ export default function BatchManagement({ refreshKey = 0 }: { refreshKey?: numbe
     const [{ data: b }, { data: c }, { data: p }, { data: ct }] = await Promise.all([
       supabase.from("green_coffee_lots").select("*, products(name), roasting_companies(name)").eq("company_id", activeCompanyId).order("created_at", { ascending: false }),
       supabase.from("roasting_companies").select("*").eq("company_id", activeCompanyId).order("company_code"),
-      supabase.from("products").select("id,name,stock,weight_grams").eq("company_id", activeCompanyId).order("name"),
+      supabase.from("products").select("id,name,stock,weight_grams,sales_channels").eq("company_id", activeCompanyId).order("name"),
       supabase.from("roasting_company_contacts").select("*").eq("active", true).eq("company_id", activeCompanyId)
     ]);
     setBatches((b||[]).map((x:any)=>({...x})));
@@ -305,6 +305,24 @@ export default function BatchManagement({ refreshKey = 0 }: { refreshKey?: numbe
     await supabase.from("roasting_company_contacts").update({active:false}).eq("id",id);
     showToast("Contato removido."); loadAll();
   }
+
+  // Canais de venda do produto escolhido no lote. Ficam no PRODUTO, não no lote:
+  // o lote alimenta o estoque, e quem pode vender aquele café é atributo do produto.
+  const canaisDoProduto: string[] =
+    products.find(p => p.id === batchForm.product_id)?.sales_channels ?? [];
+
+  const alternarCanal = async (canal: string) => {
+    const produto = products.find(p => p.id === batchForm.product_id);
+    if (!produto) return;
+    const atuais = produto.sales_channels ?? [];
+    const novos = atuais.includes(canal) ? atuais.filter(c => c !== canal) : [...atuais, canal];
+    setProducts(ps => ps.map(p => p.id === produto.id ? { ...p, sales_channels: novos } : p));  // otimista
+    const { error } = await supabase.from('products').update({ sales_channels: novos }).eq('id', produto.id);
+    if (error) {
+      setProducts(ps => ps.map(p => p.id === produto.id ? { ...p, sales_channels: atuais } : p));  // desfaz
+      alert('Não foi possível salvar os canais de venda: ' + error.message);
+    }
+  };
 
   const filtered=batches.filter(b=>(!filterProduct||b.product_id===filterProduct)&&(!filterStatus||b.status===filterStatus));
   return (
@@ -488,6 +506,35 @@ export default function BatchManagement({ refreshKey = 0 }: { refreshKey?: numbe
                 <select value={batchForm.status} onChange={e=>setBatchForm({...batchForm,status:e.target.value})} className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded">
                   {Object.entries(STATUS_LABELS).map(([k,v])=><option key={k} value={k}>{v}</option>)}
                 </select></div>
+
+              {/* Para onde vai este café. O lote alimenta o estoque do produto, e é o
+                  produto que carrega os canais — por isso a escolha aqui grava no
+                  produto selecionado e vale para todo o estoque dele. */}
+              {batchForm.product_id && (
+                <div className="col-span-2">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Onde este café pode ser vendido</label>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {([
+                      ['saporino','Loja Saporino'],
+                      ['repco','Representantes'],
+                      ['cofico','COFICO / Casa Cofico'],
+                      ['marketplaces','Marketplaces'],
+                    ] as const).map(([canal,titulo])=>{
+                      const marcado = canaisDoProduto.includes(canal);
+                      return (
+                        <button key={canal} type="button" role="switch" aria-checked={marcado}
+                          onClick={()=>alternarCanal(canal)}
+                          className={`text-left px-3 py-2 rounded border-2 text-xs transition-all ${marcado?'border-[#8B2214] bg-[#8B2214]/5 text-gray-900 font-medium':'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                          {marcado ? '✓ ' : ''}{titulo}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    Vale para o produto inteiro, não só para este lote.
+                  </p>
+                </div>
+              )}
               {[["quantity_packages","Qtd Pacotes","number"],["production_date","Data de Producao","date"],["expiry_date","Validade","date"],["farm_name","Fazenda","text"],["variety","Variedade","text"],["altitude_m","Altitude (m)","number"],["sca_score","Score SCA","number"]].map(([k,l,t])=>{
                 const isInt = k==="quantity_packages" || k==="altitude_m"; // pacotes/altitude = inteiros (sem virgula)
                 return (

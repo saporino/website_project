@@ -28,8 +28,16 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   async function load() {
-    // Operadoras (COFICO) NÃO entram no switcher de marca — quem vende é só Saporino/Fazendinha.
-    const { data } = await supabase.from('companies').select('*').eq('is_active', true).eq('is_operator', false).order('sort_order');
+    // Toda empresa ativa entra no seletor, inclusive a operadora.
+    //
+    // Antes a COFICO ficava de fora, porque só operava logística. Isso mudou: ela
+    // vende pela Casa Cofico e cuida do e-commerce, então precisa aparecer aqui —
+    // é neste seletor que se cadastra o inventário e se diz quem vende. O mesmo
+    // vale para qualquer marca de terceiro que peça para vendermos o café dela.
+    //
+    // A loja B2C não é afetada: `storeCompanyId` continua resolvendo pela empresa
+    // marcada como is_b2c, que é a Saporino.
+    const { data } = await supabase.from('companies').select('*').eq('is_active', true).order('sort_order');
     const list = (data as Company[]) || [];
     setCompanies(list);
     setActive(prev => {

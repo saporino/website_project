@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Edit, Trash2, Save, X, Image as ImageIcon, ChevronUp, ChevronDown, Eye, EyeOff } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Image as ImageIcon, ChevronUp, ChevronDown, Eye, EyeOff, Check } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
 import { useCompany } from '../../contexts/CompanyContext';
 
@@ -29,6 +29,7 @@ interface Product {
   display_order: number;
   barcode?: string | null;
   pj_only?: boolean;
+  sales_channels?: string[];
 }
 
 function BarcodeDisplay({ value }: { value: string }) {
@@ -78,6 +79,7 @@ export function ProductsManagement() {
     display_order: 0,
     barcode: '',
     pj_only: false,
+    sales_channels: ['saporino', 'repco', 'cofico', 'marketplaces'] as string[],
   });
   const [imageMode, setImageMode] = useState<'upload' | 'url'>('url');
   const [uploading, setUploading] = useState(false);
@@ -173,6 +175,9 @@ export function ProductsManagement() {
       roast_type: '',
       flavor_notes: '',
       barcode: '',
+      // Produto novo nasce vendável em todos os canais. Sem isto ele nasceria com
+      // a lista vazia e não apareceria em lugar nenhum, sem dizer o porquê.
+      sales_channels: ['saporino', 'repco', 'cofico', 'marketplaces'],
     });
   };
 
@@ -204,6 +209,7 @@ export function ProductsManagement() {
         display_order: Number.isNaN(Number(formData.display_order)) ? 0 : Number(formData.display_order),
         barcode: (formData as any).barcode || null,
         pj_only: !!formData.pj_only,
+        sales_channels: formData.sales_channels ?? [],
       };
 
       if (isAdding) {
@@ -740,6 +746,52 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
               <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${formData.pj_only ? 'translate-x-6' : ''}`} />
             </button>
           </div>
+        </div>
+
+        {/* Onde este café pode ser vendido.
+            É o que separa "de quem é a marca" (a empresa do produto) de "quem vende".
+            Um café da Fazendinha pode ser vendido pelos representantes e pela COFICO
+            sem nunca aparecer na loja da Saporino. */}
+        <div className="col-span-2">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Onde pode ser vendido</label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {([
+              ['saporino', 'Loja Saporino', 'cafesaporino.com.br'],
+              ['repco', 'Representantes', 'portal RepCo'],
+              ['cofico', 'COFICO / Casa Cofico', 'coficobrasil.com.br'],
+              ['marketplaces', 'Marketplaces', 'ML, Shopee, TikTok'],
+            ] as const).map(([canal, titulo, onde]) => {
+              const marcado = (formData.sales_channels ?? []).includes(canal);
+              return (
+                <button key={canal} type="button" role="switch" aria-checked={marcado}
+                  onClick={() => {
+                    const atual = formData.sales_channels ?? [];
+                    setFormData({
+                      ...formData,
+                      sales_channels: marcado ? atual.filter((c: string) => c !== canal) : [...atual, canal],
+                    });
+                  }}
+                  className={`text-left p-3 rounded-xl border-2 transition-all ${
+                    marcado ? 'border-[#8B2214] bg-[#8B2214]/5' : 'border-gray-200 hover:border-gray-300'
+                  }`}>
+                  <span className="flex items-center gap-2">
+                    <span className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center ${
+                      marcado ? 'border-[#8B2214] bg-[#8B2214]' : 'border-gray-300'
+                    }`}>
+                      {marcado && <Check className="w-3 h-3 text-white" />}
+                    </span>
+                    <span className="text-sm font-medium text-gray-800">{titulo}</span>
+                  </span>
+                  <span className="block text-[11px] text-gray-500 mt-1 pl-6">{onde}</span>
+                </button>
+              );
+            })}
+          </div>
+          {(formData.sales_channels ?? []).length === 0 && (
+            <p className="mt-2 text-xs text-amber-700">
+              Sem nenhum canal marcado este produto não aparece em lugar nenhum.
+            </p>
+          )}
         </div>
 
         <div className="col-span-2">
