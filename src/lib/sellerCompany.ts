@@ -54,10 +54,10 @@ export async function fetchSellerCompanyId(): Promise<string | null> {
 export function mercadoPagoPublicKey(hostname?: string): string | undefined {
   const env = import.meta.env as Record<string, string | undefined>;
   const prefix = sellerPrefixForHost(hostname);
-  const porEmpresa = prefix === 'CO'
-    ? env.VITE_MERCADO_PAGO_PUBLIC_KEY_COFICO
-    : env.VITE_MERCADO_PAGO_PUBLIC_KEY_SAPORINO;
-  // Enquanto as variáveis por empresa não existirem, vale a antiga. É transitório
-  // e declarado: com uma variável só, os dois domínios carregam a mesma chave.
-  return porEmpresa || env.VITE_MERCADO_PAGO_PUBLIC_KEY;
+  const porEmpresa = prefix === 'CO' ? env.VITE_MERCADO_PAGO_PUBLIC_KEY_COFICO
+    : prefix === 'CS' ? env.VITE_MERCADO_PAGO_PUBLIC_KEY_SAPORINO
+    : undefined;
+  // Sem valor de transição: cada domínio usa a chave da própria empresa. Domínio
+  // desconhecido fica sem chave, e o checkout não deve nem chegar até aqui.
+  return porEmpresa;
 }

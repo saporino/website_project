@@ -126,7 +126,7 @@ Deno.serve(async (req: Request) => {
         let origemSegredo: string | null = null;
         for (const s of segredos) {
             if (await verifyMPSignature(req, bodyText, s.secret)) {
-                contaAssinante = s.account;
+                contaAssinante = s.accountKey;
                 origemSegredo = s.source;   // nome do secret, nunca o valor
                 break;
             }

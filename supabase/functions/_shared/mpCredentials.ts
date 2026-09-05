@@ -13,10 +13,12 @@
 //             MERCADO_PAGO_COFICO_TEST_*            (opcional)
 //   saporino  MERCADO_PAGO_SAPORINO_PROD_ACCESS_TOKEN / _WEBHOOK_SECRET / _PUBLIC_KEY
 //
-// Compatibilidade declarada: enquanto os secrets nomeados da Saporino não
-// existirem, o par legado MERCADO_PAGO_ACCESS_TOKEN / MERCADO_PAGO_WEBHOOK_SECRET
-// é aceito COMO credencial da Saporino. O campo `source` diz de qual secret veio
-// e vai para o log. Some assim que os nomeados forem criados.
+// Os nomes genéricos MERCADO_PAGO_ACCESS_TOKEN e MERCADO_PAGO_WEBHOOK_SECRET foram
+// aposentados em 05/09/2026. Ficou provado que eram da Saporino: apontavam para a
+// mesma conta (2920329655, CNPJ terminado em 94) dos secrets nomeados, e o segredo
+// de webhook tinha o mesmo valor. Cada empresa passa a usar só o próprio par, com
+// dono explícito no nome. O campo `source` registra de qual secret a credencial
+// veio e vai para o log.
 //
 // NÃO existe conta padrão. Empresa sem `payment_account`, ou conjunto sem
 // credencial configurada, faz o pagamento ser recusado. Nunca cai em outra conta.
@@ -36,13 +38,13 @@ const ambienteDe = (t: string): MpCredential["environment"] =>
 /** Nomes de secret do access token, por conjunto de credenciais. */
 const TOKEN_NAMES: Record<string, string[]> = {
   cofico: ["MERCADO_PAGO_COFICO_PROD_ACCESS_TOKEN", "MERCADO_PAGO_COFICO_TEST_ACCESS_TOKEN"],
-  saporino: ["MERCADO_PAGO_SAPORINO_PROD_ACCESS_TOKEN", "MERCADO_PAGO_ACCESS_TOKEN"],
+  saporino: ["MERCADO_PAGO_SAPORINO_PROD_ACCESS_TOKEN"],
 };
 
 /** Nomes de secret do segredo de webhook, por conjunto de credenciais. */
 const WEBHOOK_NAMES: Record<string, string[]> = {
   cofico: ["MERCADO_PAGO_COFICO_PROD_WEBHOOK_SECRET", "MERCADO_PAGO_COFICO_TEST_WEBHOOK_SECRET"],
-  saporino: ["MERCADO_PAGO_SAPORINO_PROD_WEBHOOK_SECRET", "MERCADO_PAGO_WEBHOOK_SECRET"],
+  saporino: ["MERCADO_PAGO_SAPORINO_PROD_WEBHOOK_SECRET"],
 };
 
 export const contasConhecidas = () => Object.keys(TOKEN_NAMES);
