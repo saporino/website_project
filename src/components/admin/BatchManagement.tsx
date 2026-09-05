@@ -10,6 +10,8 @@ import DocumentUploadButton from "./DocumentUploadButton";
 interface RoastingCompany { id:string; name:string; cnpj:string; city:string; state:string; cep:string; company_code:number; active:boolean; notes:string; director_name:string; email:string; whatsapp:string; inscricao_estadual:string; }
 interface Contact { id:string; company_id:string; name:string; role:string; email:string; phone:string; whatsapp:string; extension:string; active:boolean; }
 interface Batch { id:string; batch_number:string; product_id:string; product_name?:string; roasting_company_id:string; company_name?:string; status:string; quantity_packages:number; production_date:string; expiry_date:string; variety:string; altitude_m:number; farm_name:string; green_weight_kg:number; green_cost_per_kg:number; sca_score:number; sensory_notes:string; cost_per_250g:number; cost_per_500g:number; cost_per_1kg:number; notes:string; total_paid_brl?:number|null; ap_percentage?:number|null; price_per_point?:number|null; logistics_cost_brl?:number|null; green_input_to_roast_kg?:number|null; service_price_per_kg?:number|null; roasted_output_kg?:number|null; roast_date?:string|null; packaged_kg?:number|null; packaging_cost_per_kg?:number|null; packaging_date?:string|null; }
+interface Alerta { product_id:string; produto:string; alerta:string; pacotes_disponiveis:number; vendidos_30d:number; dias_de_estoque:number|null; dias_ate_vencer:number|null; }
+interface Destino { batch_number:string|null; canal:string|null; saiu:number; }
 interface Product { id:string; name:string; stock:number; weight_grams:number; sales_channels?:string[]; }
 
 const ALLOWED_BATCH_FIELDS = ['batch_number','product_id','product_name','status','supplier_name','supplier_city','supplier_state','variety','altitude_meters','green_weight_kg','roast_date','roasted_by','roasted_weight_kg','roast_cost','roast_profile','roast_temperature','roast_duration_minutes','pkg_cost_250g','pkg_cost_500g','pkg_cost_1kg','pkg_cost_fardo5kg','label_cost_per_unit','plastic_wrap_cost_per_unit','fuel_cost','toll_cost','hotel_cost','food_cost','other_costs','samples_given_units','samples_unit_size_g','bonus_given_units','bonus_unit_size_g','total_variable_cost','total_bonus_cost','cost_per_100g','cost_per_250g','cost_per_500g','cost_per_1kg','cost_per_fardo5kg','units_produced_250g','units_produced_500g','units_produced_1kg','units_produced_fardo5kg','production_date','expiry_date','nf_purchase_url','supplier_certificate_url','quality_report_url','sensory_notes','sca_score','created_by','roasting_company_id','farm_name','farm_city','farm_state','altitude_m','quantity_packages','nf_url','notes','ap_percentage','price_per_point','total_paid_brl','logistics_cost_brl','logistics_breakdown','green_input_to_roast_kg','service_price_per_kg','roasted_output_kg','packaged_kg','packaging_cost_per_kg','roast_date','packaging_date'] as const;
@@ -38,6 +40,8 @@ export default function BatchManagement({ refreshKey = 0 }: { refreshKey?: numbe
   const [companies, setCompanies] = useState<RoastingCompany[]>([]);
   const [contacts, setContacts] = useState<Record<string,Contact[]>>({});
   const [products, setProducts] = useState<Product[]>([]);
+  const [alertas, setAlertas] = useState<Alerta[]>([]);
+  const [destinos, setDestinos] = useState<Destino[]>([]);
   const [loading, setLoading] = useState(true);
   const [showBatchForm, setShowBatchForm] = useState(false);
   const [showCompanyForm, setShowCompanyForm] = useState(false);
@@ -137,15 +141,19 @@ export default function BatchManagement({ refreshKey = 0 }: { refreshKey?: numbe
 
   async function loadAll() {
     setLoading(true);
-    const [{ data: b }, { data: c }, { data: p }, { data: ct }] = await Promise.all([
+    const [{ data: b }, { data: c }, { data: p }, { data: al }, { data: dst }, { data: ct }] = await Promise.all([
       supabase.from("green_coffee_lots").select("*, products(name), roasting_companies(name)").eq("company_id", activeCompanyId).order("created_at", { ascending: false }),
       supabase.from("roasting_companies").select("*").eq("company_id", activeCompanyId).order("company_code"),
       supabase.from("products").select("id,name,stock,weight_grams,sales_channels").eq("company_id", activeCompanyId).order("name"),
+      supabase.from("vw_estoque_alertas").select("*"),
+      supabase.from("vw_lote_destino").select("batch_number,canal,saiu"),
       supabase.from("roasting_company_contacts").select("*").eq("active", true).eq("company_id", activeCompanyId)
     ]);
     setBatches((b||[]).map((x:any)=>({...x})));
     setCompanies(c||[]);
     setProducts(p||[]);
+    setAlertas((al||[]) as Alerta[]);
+    setDestinos((dst||[]) as Destino[]);
     const ctMap:Record<string,Contact[]> = {};
     (ct||[]).forEach((x:Contact)=>{ if(!ctMap[x.company_id]) ctMap[x.company_id]=[]; ctMap[x.company_id].push(x); });
     setContacts(ctMap);
@@ -344,6 +352,49 @@ export default function BatchManagement({ refreshKey = 0 }: { refreshKey?: numbe
 
       {tab==="batches" && (
         <div className="space-y-3">
+          {/* Alertas de estoque: sem estoque, validade chegando e velocidade de
+              venda. A validade avisa com 60 dias para dar tempo de girar o lote
+              com desconto, em vez de descobrir vencido. */}
+          {alertas.filter(a=>a.alerta!=='OK').length > 0 && (
+            <div className="border border-amber-200 bg-amber-50 rounded-xl p-3">
+              <p className="text-sm font-semibold text-amber-900 mb-2">Atenção no estoque</p>
+              <div className="space-y-1.5">
+                {alertas.filter(a=>a.alerta!=='OK').map(a=>(
+                  <div key={a.product_id} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm">
+                    <span className="font-medium text-gray-900">{a.produto}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                      a.alerta.startsWith('SEM ESTOQUE') ? 'bg-red-100 text-red-800'
+                      : a.alerta.startsWith('VALIDADE') ? 'bg-orange-100 text-orange-800'
+                      : a.alerta.startsWith('ACABANDO') ? 'bg-amber-100 text-amber-900'
+                      : 'bg-yellow-100 text-yellow-900'}`}>{a.alerta}</span>
+                    <span className="text-xs text-gray-600">
+                      {a.pacotes_disponiveis} pacotes
+                      {a.dias_de_estoque != null && ` · dura ~${a.dias_de_estoque} dias no ritmo atual`}
+                      {a.dias_ate_vencer != null && ` · vence em ${a.dias_ate_vencer} dias`}
+                      {a.vendidos_30d > 0 && ` · ${a.vendidos_30d} vendidos em 30 dias`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Para onde foi cada lote, por canal. */}
+          {destinos.length > 0 && (
+            <div className="border border-gray-200 rounded-xl p-3">
+              <p className="text-sm font-semibold text-gray-900 mb-2">Saídas por lote</p>
+              <div className="flex flex-wrap gap-2">
+                {destinos.map((d,i)=>(
+                  <span key={i} className="text-xs bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1">
+                    <span className="font-semibold text-gray-800">{d.batch_number || 'sem lote'}</span>
+                    <span className="text-gray-500"> · {d.canal ?? '—'} · </span>
+                    <span className="font-semibold text-[#8B2214]">{d.saiu} pacotes</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-3">
             <select value={filterProduct} onChange={e=>setFilterProduct(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm flex-1">
               <option value="">Todos os produtos</option>
