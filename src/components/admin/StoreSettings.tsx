@@ -166,7 +166,7 @@ export function StoreSettings() {
                 type="tel"
                 value={settings.store_phone || ''}
                 onChange={(e) => setSettings({ ...settings, store_phone: e.target.value })}
-                placeholder="+55 (11) 91771-9798"
+                placeholder="(11) 00000-0000"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#a4240e] focus:border-transparent"
               />
             </div>

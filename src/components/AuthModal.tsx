@@ -382,7 +382,7 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login', loginContext
                     value={registerData.phone}
                     onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
                     className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#a4240e] focus:border-transparent transition-all"
-                    placeholder="+55 (11) 91771-9798"
+                    placeholder="(11) 00000-0000"
                   />
                 </div>
               </div>

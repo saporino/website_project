@@ -27,6 +27,22 @@ function str(v: unknown, max: number): string {
   return typeof v === 'string' ? v.trim().slice(0, max) : '';
 }
 
+/**
+ * Normaliza o telefone brasileiro para o formato internacional.
+ * O cliente digita só DDD e número; o +55 é fixo na tela.
+ * Celular tem 9 dígitos e começa com 9; fixo tem 8. Essa diferença importa:
+ * campanha por WhatsApp em telefone fixo não chega a lugar nenhum.
+ */
+function normalizarTelefone(bruto: string): { e164: string | null; ddd: string | null; numero: string | null; celular: boolean } {
+  const so = (bruto || '').replace(/\D/g, '');
+  const sem55 = so.startsWith('55') && so.length > 11 ? so.slice(2) : so;
+  if (sem55.length !== 10 && sem55.length !== 11) return { e164: null, ddd: null, numero: null, celular: false };
+  const ddd = sem55.slice(0, 2);
+  const numero = sem55.slice(2);
+  const celular = numero.length === 9 && numero.startsWith('9');
+  return { e164: `+55${ddd}${numero}`, ddd, numero, celular };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 200, headers: corsHeaders });
 
@@ -51,6 +67,10 @@ Deno.serve(async (req: Request) => {
     if (!name || name.length < 2) return json({ error: 'Nome obrigatório' }, 400);
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: 'E-mail inválido' }, 400);
 
+    const telefone = normalizarTelefone(phone);
+    if (!telefone.e164) return json({ error: 'Telefone inválido. Informe DDD e número.', code: 'BAD_PHONE' }, 400);
+    const aceitaPromo = (c.accepts_whatsapp_promos === true || body?.accepts_whatsapp_promos === true) && telefone.celular;
+
     // Preço/produtos: autoridade do servidor.
     const ids = [...new Set(items.map((i) => i.product_id).filter(Boolean))];
     if (ids.length === 0) return json({ error: 'Pedido vazio' }, 400);
@@ -67,10 +87,16 @@ Deno.serve(async (req: Request) => {
     }
 
     // Frete: preço oficial da transportadora (nunca do browser).
+    // Retirada no local é o caso especial: sem transportadora e sem frete.
     let shippingCost = 0;
     let carrierName: string | null = null;
-    const carrierId = str(c.shipping_carrier_id || body?.shipping_carrier_id, 64);
-    if (carrierId) {
+    let carrierId = str(c.shipping_carrier_id || body?.shipping_carrier_id, 64);
+    const isPickup = carrierId === 'pickup' || body?.is_pickup === true;
+    if (isPickup) {
+      carrierId = '';
+      carrierName = 'Retirada no local';
+      shippingCost = 0;
+    } else if (carrierId) {
       const { data: carrier } = await supabase.from('shipping_carriers').select('name, price').eq('id', carrierId).maybeSingle();
       if (carrier) { shippingCost = round2(Number(carrier.price) || 0); carrierName = carrier.name; }
     }
@@ -122,12 +148,38 @@ Deno.serve(async (req: Request) => {
       shipping_carrier_id: carrierId || null,
       shipping_carrier_name: carrierName,
       shipping_cost: shippingCost,
+      is_pickup: isPickup,
       total_amount: total,
       status: 'pending',
       order_type: 'single',
       order_public_token_hash: hash,
+      phone_e164: telefone.e164,
+      phone_is_mobile: telefone.celular,
+      // Opt-in: só é verdadeiro se a pessoa marcou E o número é celular.
+      // Promoção por WhatsApp em telefone fixo não chega a lugar nenhum.
+      accepts_whatsapp_promos: aceitaPromo,
     }).select('id, order_number, total_amount').single();
     if (orderErr) throw orderErr;
+
+    // Lista de campanha: entra quem autorizou, com data e origem registradas.
+    // Sem consentimento, nada é gravado aqui.
+    if (aceitaPromo && telefone.e164) {
+      const { error: mcErr } = await supabase.from('marketing_contacts').upsert({
+        phone_e164: telefone.e164,
+        ddd: telefone.ddd,
+        numero: telefone.numero,
+        is_mobile: telefone.celular,
+        name, email,
+        segment: 'b2c',
+        company_id: empresa.id,
+        source: 'checkout-b2c',
+        consent: true,
+        consent_at: new Date().toISOString(),
+        opted_out_at: null,
+        last_order_at: new Date().toISOString(),
+      }, { onConflict: 'phone_e164,segment,company_id' });
+      if (mcErr) console.error('Falha ao registrar consentimento de campanha:', mcErr.message);
+    }
 
     // Itens (SERVICE ROLE) com preços oficiais.
     const itemRows = priced.lines.map((l) => ({

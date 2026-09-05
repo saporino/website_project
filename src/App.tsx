@@ -15,6 +15,7 @@ const UserProfile = lazy(() => import('./pages/UserProfile').then(m => ({ defaul
 import { supabase } from './lib/supabase';
 import { Product, CartItem } from './types';
 import { createPreference, MERCADO_PAGO_PUBLIC_KEY } from './lib/mercadopago';
+import { formatarTelefone, somenteDigitos, analisarTelefone } from './lib/phoneBR';
 import { getCarrierQuotes, lookupCEP, formatCEP, calculateCartWeight, CarrierQuote } from './lib/shipping';
 import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
 import CookieConsent from './components/CookieConsent';
@@ -945,6 +946,9 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
   // Carriers
   const [carriers, setCarriers] = useState<CarrierQuote[]>([]);
   const [selectedCarrierId, setSelectedCarrierId] = useState<string | null>(null);
+  const [acceptsWhatsapp, setAcceptsWhatsapp] = useState(false);
+  const telefone = analisarTelefone(formData.phone);
+  const isPickup = selectedCarrierId === 'pickup';
   const [carriersLoading, setCarriersLoading] = useState(false);
 
   const fetchCarriers = useCallback(async () => {
@@ -974,8 +978,8 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
     }
   };
 
-  const getFullAddress = () =>
-    `${street}, ${number}${complement ? `, ${complement}` : ''} — ${neighborhood}, ${city}/${state} — CEP ${cep}`;
+  // O endereço completo passou a ser montado no servidor, dentro do
+  // create-checkout-order, junto com o cálculo do preço. Os campos vão soltos.
 
   const handleCheckout = () => {
     if (!user) {
@@ -993,48 +997,39 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
     setIsSubmitting(true);
 
     try {
-      const selectedCarrier = carriers.find(c => c.id === selectedCarrierId);
-      const shippingAddress = getFullAddress();
-      const shippingCost = selectedCarrier?.price || 0;
-      const shippingRecipient = isGift ? recipientName : formData.name;
+      // O pedido é criado NO SERVIDOR, pela edge function create-checkout-order.
+      //
+      // Não dá para inserir em `orders` daqui: a tabela só tem política de leitura,
+      // e é assim de propósito. Quem cria o pedido é o servidor, que recalcula o
+      // preço a partir do catálogo (o navegador não dita valor), define a empresa
+      // faturadora pelo domínio e emite o token público do pedido.
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-order`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          items: cart.map((item: CartItem) => ({ product_id: item.id, quantity: item.quantity })),
+          is_pickup: isPickup,
+          shipping_carrier_id: isPickup ? 'pickup' : selectedCarrierId,
+          customer: {
+            name: formData.name,
+            email: formData.email,
+            phone: telefone.e164 ?? formData.phone,
+            street, number, complement, neighborhood, city, state, cep,
+            recipient_name: isGift ? recipientName : formData.name,
+            is_gift: isGift,
+            accepts_whatsapp_promos: acceptsWhatsapp && telefone.celular,
+          },
+        }),
+      });
+      const orderData = await resp.json().catch(() => ({}));
+      if (!resp.ok || !orderData?.order_id) {
+        throw new Error(orderData?.error || 'Falha ao criar o pedido');
+      }
 
-      // Create order in database
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          user_id: user.id,
-          customer_name: formData.name,
-          customer_email: formData.email,
-          customer_phone: formData.phone,
-          shipping_address: shippingAddress,
-          shipping_recipient: shippingRecipient,
-          is_gift: isGift,
-          shipping_carrier_id: selectedCarrierId,
-          shipping_carrier_name: selectedCarrier?.name || null,
-          shipping_cost: shippingCost,
-          total_amount: getCartTotal() + shippingCost,
-          status: 'pending',
-          order_type: 'single',
-        })
-        .select()
-        .single();
-
-      if (orderError) throw orderError;
-
-      if (orderData) {
-        // Create order items with product names
-        const orderItems = cart.map((item: CartItem) => ({
-          order_id: orderData.id,
-          product_id: item.id,
-          product_name: item.name,
-          quantity: item.quantity,
-          unit_price: item.price,
-          subtotal: item.price * item.quantity,
-        }));
-
-        const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
-        if (itemsError) throw itemsError;
-
+      {
         // Create Mercado Pago preference
         const preferenceResponse = await createPreference({
           items: cart.map((item: CartItem) => ({
@@ -1056,22 +1051,17 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
               number: formData.phone,
             },
           },
-          external_reference: orderData.id,
+          external_reference: orderData.order_id,
         });
 
-        if (preferenceResponse.id) {
-          // Update order with preference ID
-          await supabase
-            .from('orders')
-            .update({ mercadopago_preference_id: preferenceResponse.id })
-            .eq('id', orderData.id);
-
-          setPreferenceId(preferenceResponse.id);
-        }
+        // O create-payment já grava a preferência, a conta usada e o collector no
+        // pedido. Aqui só guardamos o id para montar o botão de pagamento.
+        if (preferenceResponse.id) setPreferenceId(preferenceResponse.id);
       }
     } catch (error) {
       console.error('Error submitting order:', error);
-      toast.error('Erro ao processar pedido. Por favor, tente novamente.');
+      const detalhe = error instanceof Error ? error.message : '';
+      toast.error(detalhe ? `Não foi possível finalizar: ${detalhe}` : 'Erro ao processar pedido. Por favor, tente novamente.');
       setIsSubmitting(false);
     }
   };
@@ -1129,14 +1119,43 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Telefone/WhatsApp *</label>
-                <input
-                  type="tel"
-                  required
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  placeholder="+55 (11) 91771-9798"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#8B2214] focus:border-transparent transition-all"
-                />
+                {/* O +55 é fixo: o cliente digita só DDD e número, celular ou fixo. */}
+                <div className="flex items-stretch">
+                  <span className="px-3 flex items-center rounded-l-xl border border-r-0 border-gray-300 bg-gray-50 text-gray-600 font-medium select-none">
+                    +55
+                  </span>
+                  <input
+                    type="tel"
+                    required
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    value={formatarTelefone(formData.phone)}
+                    onChange={(e) => setFormData({ ...formData, phone: somenteDigitos(e.target.value) })}
+                    placeholder="(11) 00000-0000"
+                    className="flex-1 min-w-0 px-4 py-3 border border-gray-300 rounded-r-xl focus:ring-2 focus:ring-[#8B2214] focus:border-transparent transition-all"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  {telefone.valido
+                    ? (telefone.celular ? 'Celular identificado.' : 'Telefone fixo identificado.')
+                    : 'Informe o DDD e o número. Celular tem 9 dígitos, fixo tem 8.'}
+                </p>
+
+                {/* Opt-in de campanha. Só aparece para celular, porque promoção por
+                    WhatsApp em telefone fixo não chega a lugar nenhum. */}
+                {telefone.celular && (
+                  <label className="mt-3 flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={acceptsWhatsapp}
+                      onChange={(e) => setAcceptsWhatsapp(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-[#8B2214] flex-shrink-0"
+                    />
+                    <span className="text-sm text-gray-600">
+                      Quero receber ofertas e lançamentos de café no WhatsApp. Dá para sair quando quiser.
+                    </span>
+                  </label>
+                )}
               </div>
 
               {/* Para mim / Presente */}
@@ -1257,6 +1276,26 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                           }`} />
                         </button>
                       ))}
+
+                      {/* Retirada no local: sem transportadora e sem frete. */}
+                      <button type="button" onClick={() => setSelectedCarrierId('pickup')}
+                        className={`w-full flex items-center space-x-3 p-4 rounded-xl border-2 transition-all text-left ${
+                          isPickup ? 'border-[#8B2214] bg-[#8B2214]/5' : 'border-gray-200 hover:border-gray-300'
+                        }`}>
+                        <div className="w-12 h-12 rounded-lg bg-white border border-gray-100 flex items-center justify-center flex-shrink-0 text-xl">
+                          🏪
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-900">Retirar no local</p>
+                          <p className="text-xs text-gray-500">Combinamos endereço e horário após a confirmação</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-green-700">Grátis</p>
+                        </div>
+                        <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
+                          isPickup ? 'border-[#8B2214] bg-[#8B2214]' : 'border-gray-300'
+                        }`} />
+                      </button>
                     </div>
                   )}
                 </div>
@@ -1278,7 +1317,12 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                     <span className="font-semibold">R$ {(item.price * item.quantity).toFixed(2)}</span>
                   </div>
                 ))}
-                {selectedCarrierId && carriers.find(c => c.id === selectedCarrierId)?.price ? (
+                {isPickup ? (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Retirada no local</span>
+                    <span className="font-semibold text-green-700">Grátis</span>
+                  </div>
+                ) : selectedCarrierId && carriers.find(c => c.id === selectedCarrierId)?.price ? (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Frete ({carriers.find(c => c.id === selectedCarrierId)?.name})</span>
                     <span className="font-semibold">R$ {(carriers.find(c => c.id === selectedCarrierId)?.price || 0).toFixed(2)}</span>
@@ -1286,7 +1330,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                 ) : null}
                 <div className="border-t border-gray-200 pt-3 mt-3 flex justify-between font-bold text-xl">
                   <span>Total</span>
-                  <span className="text-[#8B2214]">R$ {(getCartTotal() + (selectedCarrierId ? (carriers.find(c => c.id === selectedCarrierId)?.price || 0) : 0)).toFixed(2)}</span>
+                  <span className="text-[#8B2214]">R$ {(getCartTotal() + (isPickup ? 0 : selectedCarrierId ? (carriers.find(c => c.id === selectedCarrierId)?.price || 0) : 0)).toFixed(2)}</span>
                 </div>
               </div>
             </div>

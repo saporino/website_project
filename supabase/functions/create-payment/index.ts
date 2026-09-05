@@ -152,10 +152,20 @@ Deno.serve(async (req: Request) => {
     console.log(`create-payment: empresa ${empresa.name} (${empresa.order_prefix}) -> credencial ${credencial.source} (${credencial.environment})`);
 
     // 4) Criar a preferência com os VALORES DO SERVIDOR.
+    // O Mercado Pago só aceita `auto_return` quando a URL de sucesso é pública e
+    // https. Em desenvolvimento ela é localhost, e o pedido inteiro era recusado
+    // com "auto_return invalid". Um pagamento não pode falhar por causa da URL de
+    // retorno: aqui o auto_return é descartado e a cobrança segue.
+    const backUrls = body?.back_urls ?? {};
+    const sucessoPublico = typeof backUrls.success === 'string' && backUrls.success.startsWith('https://');
+    if (body?.auto_return && !sucessoPublico) {
+      console.warn('auto_return ignorado: back_urls.success nao e uma URL https publica');
+    }
+
     const preferenceData = {
       items: mpItems,
-      back_urls: body?.back_urls,
-      auto_return: body?.auto_return,
+      back_urls: sucessoPublico ? backUrls : undefined,
+      auto_return: sucessoPublico ? body?.auto_return : undefined,
       payer: body?.payer,
       external_reference: order.id,
     };
