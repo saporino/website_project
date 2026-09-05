@@ -70,6 +70,40 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
 
+    // Sondagem SOMENTE LEITURA da conta Saporino, para tentar provar a origem do
+    // segredo de webhook. Usa exclusivamente MERCADO_PAGO_ACCESS_TOKEN; nenhuma
+    // credencial da COFICO é tocada aqui. Nada é alterado no Mercado Pago.
+    if (body?.action === "saporino_probe") {
+      const token = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
+      if (!token) return json({ error: "MERCADO_PAGO_ACCESS_TOKEN nao configurado" }, 400);
+      const clientId = String(body.client_id ?? "");
+
+      const ler = async (url: string) => {
+        try {
+          const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+          const txt = await r.text();
+          return { url, http: r.status, corpo: txt.slice(0, 900) };
+        } catch (e) {
+          return { url, http: 0, corpo: String(e instanceof Error ? e.message : e) };
+        }
+      };
+
+      const alvos = [
+        "https://api.mercadopago.com/users/me",
+        "https://api.mercadopago.com/v1/webhooks",
+        "https://api.mercadopago.com/webhooks",
+        "https://api.mercadopago.com/notifications/settings",
+      ];
+      if (clientId) {
+        alvos.push(`https://api.mercadopago.com/applications/${clientId}`);
+        alvos.push(`https://api.mercadopago.com/applications/${clientId}/webhooks`);
+      }
+
+      const respostas = [];
+      for (const a of alvos) respostas.push(await ler(a));
+      return json({ conta: "saporino", respostas });
+    }
+
     // Autoteste do webhook: assina uma notificação COM O SEGREDO REAL e a envia ao
     // endpoint, para provar que assinatura válida é aceita — sem mover dinheiro.
     // Usa type "test" de propósito: o webhook autentica e devolve 200 dizendo que
