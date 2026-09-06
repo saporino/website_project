@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mapMpStatus, decideOrderUpdate, buildManifest, manifestVariants, mapPaymentMethod } from './mpWebhook.ts';
+import { mapMpStatus, decideOrderUpdate, buildManifest, manifestVariants, mapPaymentMethod, mapOrderStage } from './mpWebhook.ts';
 
 describe('mapMpStatus', () => {
   it('mapeia os status do Mercado Pago', () => {
@@ -68,5 +68,15 @@ describe('mapPaymentMethod', () => {
     expect(mapPaymentMethod('bank_transfer', 'pix')).toBe('pix');
     expect(mapPaymentMethod('account_money', 'account_money')).toBe('other');
     expect(mapPaymentMethod(null, null)).toBe('other');
+  });
+});
+
+describe('mapOrderStage', () => {
+  it('leva o pedido pago para a etapa que o painel mostra como Pago', () => {
+    expect(mapOrderStage('approved')).toBe('payment_approved');
+    expect(mapOrderStage('refunded')).toBe('cancelled');
+    expect(mapOrderStage('pending')).toBe('payment_pending');
+    expect(mapOrderStage('rejected')).toBe('payment_pending');
+    expect(mapOrderStage('in_process')).toBe('payment_pending');
   });
 });

@@ -34,6 +34,21 @@ export function buildManifest(dataId: string, requestId: string, ts: string): st
 }
 
 /**
+ * Etapa operacional do pedido, derivada do status do pagamento.
+ *
+ * O pedido tem DOIS campos de estado: `status` (o pagamento) e `order_status`
+ * (a etapa da operação, que é o selo mostrado no painel). O webhook só mexia no
+ * primeiro. Resultado visto na tela: um pedido pago aparecendo como "Criado",
+ * porque o selo lê o segundo campo. Quem opera não tinha como saber que aquele
+ * pedido já estava pago e pronto para separar.
+ */
+export function mapOrderStage(orderStatus: OrderStatus): string {
+  if (orderStatus === 'approved') return 'payment_approved';
+  if (orderStatus === 'refunded') return 'cancelled';
+  return 'payment_pending';   // pending, in_process e rejected seguem aguardando
+}
+
+/**
  * Traduz o meio de pagamento do Mercado Pago para o vocabulário do nosso banco.
  *
  * O MP manda DUAS coisas diferentes: `payment_type_id` é a família (credit_card,

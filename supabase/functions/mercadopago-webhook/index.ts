@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { mapMpStatus, decideOrderUpdate, manifestVariants, mapPaymentMethod } from '../_shared/mpWebhook.ts';
+import { mapMpStatus, decideOrderUpdate, manifestVariants, mapPaymentMethod, mapOrderStage } from '../_shared/mpWebhook.ts';
 import { logEdge, newRequestId } from '../_shared/log.ts';
 import { mpAccessToken, mpWebhookSecrets } from '../_shared/mpCredentials.ts';
 
@@ -215,6 +215,9 @@ Deno.serve(async (req: Request) => {
             mercadopago_collection_id: paymentData.collection_id,
             mercadopago_collection_status: status,
             payment_method: paymentMethod,
+            // Etapa operacional, que e o selo do painel. Sem isto o pedido pago
+            // continuava aparecendo como "Criado" para quem opera.
+            order_status: mapOrderStage(orderStatus),
         };
         if (decision.setPaidAt) updatePayload.paid_at = new Date().toISOString();
 

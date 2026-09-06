@@ -12,7 +12,7 @@
 // Exige administrador. Não cria nem altera nada no Mercado Pago — só lê.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { mapMpStatus, decideOrderUpdate, mapPaymentMethod } from '../_shared/mpWebhook.ts';
+import { mapMpStatus, decideOrderUpdate, mapPaymentMethod, mapOrderStage } from '../_shared/mpWebhook.ts';
 import { mpAccessToken } from '../_shared/mpCredentials.ts';
 
 const cors = {
@@ -94,6 +94,7 @@ Deno.serve(async (req) => {
         mercadopago_payment_id: String(pago.id),
         mercadopago_collection_status: pago.status,
         payment_method: item.meio,
+        order_status: mapOrderStage(novoStatus),
       };
       if (decisao.setPaidAt) payload.paid_at = new Date().toISOString();
 
