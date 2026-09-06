@@ -34,6 +34,29 @@ export function buildManifest(dataId: string, requestId: string, ts: string): st
 }
 
 /**
+ * Traduz o meio de pagamento do Mercado Pago para o vocabulário do nosso banco.
+ *
+ * O MP manda DUAS coisas diferentes: `payment_type_id` é a família (credit_card,
+ * ticket, bank_transfer...) e `payment_method_id` é a bandeira (master, visa,
+ * bolbradesco, pix). O webhook gravava a BANDEIRA numa coluna que só aceita a
+ * família, e o banco recusava com "violates check constraint".
+ *
+ * O efeito era grave e silencioso para quem compra: o dinheiro saía do cartão do
+ * cliente e o pedido continuava "pendente" para sempre, porque a notificação
+ * inteira falhava na hora de gravar. Encontrado no primeiro pagamento real.
+ */
+export function mapPaymentMethod(paymentTypeId?: string | null, paymentMethodId?: string | null): string {
+  const tipo = (paymentTypeId ?? '').toLowerCase();
+  const metodo = (paymentMethodId ?? '').toLowerCase();
+
+  if (tipo === 'credit_card') return 'credit_card';
+  if (tipo === 'debit_card' || tipo === 'prepaid_card') return 'debit_card';
+  if (tipo === 'ticket') return 'boleto';
+  if (metodo === 'pix' || tipo === 'bank_transfer') return 'pix';
+  return 'other';   // account_money, carteira digital e o que vier de novo
+}
+
+/**
  * Variantes aceitas do manifest.
  *
  * A documentação do Mercado Pago mostra o template TERMINANDO em ponto e vírgula

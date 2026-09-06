@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mapMpStatus, decideOrderUpdate, buildManifest, manifestVariants } from './mpWebhook.ts';
+import { mapMpStatus, decideOrderUpdate, buildManifest, manifestVariants, mapPaymentMethod } from './mpWebhook.ts';
 
 describe('mapMpStatus', () => {
   it('mapeia os status do Mercado Pago', () => {
@@ -55,5 +55,18 @@ describe('manifestVariants', () => {
       'id:123;request-id:req-9;ts:1700000000',
       'id:123;request-id:req-9;ts:1700000000;',
     ]);
+  });
+});
+
+describe('mapPaymentMethod', () => {
+  it('traduz a familia do Mercado Pago para o vocabulario do banco', () => {
+    expect(mapPaymentMethod('credit_card', 'master')).toBe('credit_card');
+    expect(mapPaymentMethod('credit_card', 'visa')).toBe('credit_card');
+    expect(mapPaymentMethod('debit_card', 'debelo')).toBe('debit_card');
+    expect(mapPaymentMethod('prepaid_card', 'elo')).toBe('debit_card');
+    expect(mapPaymentMethod('ticket', 'bolbradesco')).toBe('boleto');
+    expect(mapPaymentMethod('bank_transfer', 'pix')).toBe('pix');
+    expect(mapPaymentMethod('account_money', 'account_money')).toBe('other');
+    expect(mapPaymentMethod(null, null)).toBe('other');
   });
 });

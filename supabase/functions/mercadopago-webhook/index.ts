@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { mapMpStatus, decideOrderUpdate, manifestVariants } from '../_shared/mpWebhook.ts';
+import { mapMpStatus, decideOrderUpdate, manifestVariants, mapPaymentMethod } from '../_shared/mpWebhook.ts';
 import { logEdge, newRequestId } from '../_shared/log.ts';
 import { mpAccessToken, mpWebhookSecrets } from '../_shared/mpCredentials.ts';
 
@@ -185,7 +185,8 @@ Deno.serve(async (req: Request) => {
 
         const externalReference = paymentData.external_reference;
         const status = paymentData.status;
-        const paymentMethodId = paymentData.payment_method_id;
+        // Familia do meio de pagamento (o banco so aceita a familia, nao a bandeira).
+        const paymentMethod = mapPaymentMethod(paymentData.payment_type_id, paymentData.payment_method_id);
 
         const orderStatus = mapMpStatus(status);
 
@@ -213,7 +214,7 @@ Deno.serve(async (req: Request) => {
             mercadopago_payment_id: paymentId,
             mercadopago_collection_id: paymentData.collection_id,
             mercadopago_collection_status: status,
-            payment_method: paymentMethodId,
+            payment_method: paymentMethod,
         };
         if (decision.setPaidAt) updatePayload.paid_at = new Date().toISOString();
 
