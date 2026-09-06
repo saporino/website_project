@@ -949,6 +949,42 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
   const [acceptsWhatsapp, setAcceptsWhatsapp] = useState(false);
   const telefone = analisarTelefone(formData.phone);
   const isPickup = selectedCarrierId === 'pickup';
+
+  // Preenche o checkout com o que já se sabe de quem está logado.
+  //
+  // Antes o formulário nascia vazio e ninguém lia perfil nem endereço salvo: a
+  // pessoa redigitava nome, telefone, CEP, rua, número, complemento e bairro a
+  // cada tentativa de compra, mesmo logada. Numa tela de celular isso derruba
+  // a venda.
+  useEffect(() => {
+    if (!user || !isCheckout) return;
+    let vivo = true;
+    (async () => {
+      const [{ data: perfil }, { data: end }] = await Promise.all([
+        supabase.from('user_profiles').select('full_name, phone').eq('id', user.id).maybeSingle(),
+        supabase.from('user_addresses').select('*').eq('user_id', user.id).eq('is_default', true).maybeSingle(),
+      ]);
+      if (!vivo) return;
+
+      setFormData(prev => ({
+        ...prev,
+        name: prev.name || perfil?.full_name || '',
+        email: prev.email || user.email || '',
+        phone: prev.phone || somenteDigitos(end?.phone || perfil?.phone || ''),
+      }));
+
+      if (end) {
+        setCep(c => c || (end.postal_code ?? ''));
+        setStreet(v => v || (end.street ?? ''));
+        setNumber(v => v || (end.number ?? ''));
+        setComplement(v => v || (end.complement ?? ''));
+        setNeighborhood(v => v || (end.neighborhood ?? ''));
+        setCity(v => v || (end.city ?? ''));
+        setState(v => v || (end.state ?? ''));
+      }
+    })();
+    return () => { vivo = false; };
+  }, [user, isCheckout]);
   const [carriersLoading, setCarriersLoading] = useState(false);
 
   const fetchCarriers = useCallback(async () => {
@@ -1003,11 +1039,15 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
       // e é assim de propósito. Quem cria o pedido é o servidor, que recalcula o
       // preço a partir do catálogo (o navegador não dita valor), define a empresa
       // faturadora pelo domínio e emite o token público do pedido.
+      // Manda o token de quem está logado, e não a chave pública: é assim que o
+      // servidor sabe de quem é o pedido. Visitante sem conta cai na chave pública
+      // e o pedido nasce sem dono, acessível pelo token público do pedido.
+      const { data: { session } } = await supabase.auth.getSession();
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout-order`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          Authorization: `Bearer ${session?.access_token ?? import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify({
           items: cart.map((item: CartItem) => ({ product_id: item.id, quantity: item.quantity })),
@@ -1057,6 +1097,25 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
         // O create-payment já grava a preferência, a conta usada e o collector no
         // pedido. Aqui só guardamos o id para montar o botão de pagamento.
         if (preferenceResponse.id) setPreferenceId(preferenceResponse.id);
+
+        // Guarda o endereço para a próxima compra não começar do zero.
+        // Falhar aqui não pode atrapalhar o pagamento: o pedido já existe.
+        if (user) {
+          try {
+            await supabase.from('user_addresses').upsert({
+              user_id: user.id,
+              street, number, complement: complement || null, neighborhood,
+              city, state, postal_code: cep,
+              recipient_name: isGift ? recipientName : formData.name,
+              phone: telefone.e164 ?? formData.phone,
+              address_line1: `${street}, ${number}`,
+              address_line2: [complement, neighborhood].filter(Boolean).join(' — ') || null,
+              country: 'BR',
+              is_default: true,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: 'user_id', ignoreDuplicates: false });
+          } catch (e) { console.error('Nao foi possivel salvar o endereco:', e); }
+        }
       }
     } catch (error) {
       console.error('Error submitting order:', error);

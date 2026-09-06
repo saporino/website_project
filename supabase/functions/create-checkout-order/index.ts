@@ -133,8 +133,27 @@ Deno.serve(async (req: Request) => {
       return json({ error: `A empresa ${empresa.name} nao tem meio de recebimento configurado.`, code: 'SELLER_WITHOUT_CREDENTIAL' }, 503);
     }
 
+    // Dono do pedido: quem estava logado na hora da compra.
+    //
+    // Antes gravava sempre nulo, mesmo com o cliente logado. Resultado: o pedido
+    // não aparecia para ninguém — nem para o comprador na conta dele, nem para o
+    // administrador, que só enxergava "os próprios pedidos". Compra sem dono é
+    // compra invisível.
+    // Visitante sem conta continua podendo comprar: aí o dono fica nulo mesmo, e o
+    // acesso ao pedido é pelo token público.
+    let compradorId: string | null = null;
+    const auth = req.headers.get('Authorization') ?? '';
+    if (auth) {
+      const asUser = createClient(
+        Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: auth } } },
+      );
+      const { data: { user } } = await asUser.auth.getUser();
+      compradorId = user?.id ?? null;
+    }
+
     const { data: order, error: orderErr } = await supabase.from('orders').insert({
-      user_id: null,
+      user_id: compradorId,
       seller_company_id: empresa.id,
       // Canal da venda, para leitura humana e conciliacao. A autoridade sobre o
       // recebedor e seller_company_id, nao este campo.
