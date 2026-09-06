@@ -162,6 +162,16 @@ Deno.serve(async (req: Request) => {
       customer_email: email,
       customer_phone: phone,
       shipping_address: address,
+      // Campos separados além do endereço em texto. O painel mostra estes; gravar
+      // só o texto composto fazia o endereço aparecer em branco para quem opera,
+      // mesmo com o cliente tendo preenchido tudo.
+      shipping_street: str(c.street, 120) || null,
+      shipping_number: str(c.number, 20) || null,
+      shipping_complement: str(c.complement, 60) || null,
+      shipping_neighborhood: str(c.neighborhood, 80) || null,
+      shipping_city: str(c.city, 80) || null,
+      shipping_state: str(c.state, 20) || null,
+      shipping_postal_code: str(c.cep, 20) || null,
       shipping_recipient: str(c.recipient_name, 120) || name,
       is_gift: !!c.is_gift,
       shipping_carrier_id: carrierId || null,

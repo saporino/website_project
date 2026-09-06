@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { getTrackingUrl } from '../../lib/tracking';
 import { Printer, Tag, Package, Search,
   ChevronDown, ChevronUp, FileText, Truck, CheckCircle,
-  AlertCircle, Upload, ExternalLink, Save, Building2, UserCircle } from 'lucide-react';
+  AlertCircle, Upload, ExternalLink, Save, Building2, UserCircle, Undo2 } from 'lucide-react';
 
 interface Invoice {
   id: string;
@@ -34,6 +34,15 @@ interface Order {
   customer_phone: string;
   cpf?: string;
   cep?: string;
+  shipping_street?: string;
+  shipping_number?: string;
+  shipping_complement?: string;
+  shipping_neighborhood?: string;
+  shipping_city?: string;
+  shipping_state?: string;
+  shipping_postal_code?: string;
+  is_pickup?: boolean;
+  mercadopago_payment_id?: string;
   address_street?: string;
   address_number?: string;
   address_complement?: string;
@@ -315,6 +324,48 @@ function OrderCard({ order, expanded, section, onToggle, onSetSection, onRefresh
 }
 
 function OverviewSection({ order, onRefresh }: any) {
+  // Estorno em duas etapas: primeiro pergunta ao servidor o que seria devolvido,
+  // mostra na tela para conferência, e só devolve o dinheiro depois do "sim".
+  const [estornando, setEstornando] = useState(false);
+  const estornar = async () => {
+    setEstornando(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const chamar = (corpo: Record<string, unknown>) =>
+        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mp-refund`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ order_id: order.id, ...corpo }),
+        }).then(r => r.json());
+
+      const previa = await chamar({});
+      if (previa.error) { alert(previa.error); return; }
+
+      const ok = window.confirm(
+        `Estornar o pedido ${previa.pedido}?\n\n` +
+        `Cliente: ${previa.cliente}\n` +
+        `Empresa que recebeu: ${previa.empresa}\n` +
+        `Valor a devolver: R$ ${Number(previa.valor_a_estornar).toFixed(2)}\n\n` +
+        `O dinheiro volta para o cliente. Não dá para desfazer.`,
+      );
+      if (!ok) return;
+
+      const res = await chamar({ confirmar: true });
+      if (res.error) { alert(`${res.error}\n\n${JSON.stringify(res.detalhe ?? '')}`.slice(0, 400)); return; }
+
+      alert(
+        `Estorno enviado.\n\nPedido ${res.pedido}\nValor R$ ${Number(res.valor_estornado).toFixed(2)}\n\n` +
+        `O Mercado Pago confirma em seguida. O pedido vira estornado e o estoque volta ao lote sozinho.`,
+      );
+      // A lista se recarrega sozinha ao ouvir este evento.
+      window.dispatchEvent(new CustomEvent('admin:orders-updated'));
+    } catch (e) {
+      alert('Falha ao estornar: ' + (e instanceof Error ? e.message : e));
+    } finally {
+      setEstornando(false);
+    }
+  };
+
   const updateStatus = async (status: string) => {
     await supabase.from('orders').update({ order_status: status, status }).eq('id', order.id);
     onRefresh();
@@ -353,11 +404,24 @@ function OverviewSection({ order, onRefresh }: any) {
           <p className="text-sm text-gray-600">{order.customer_email}</p>
           <p className="text-sm text-gray-600">{order.customer_phone}</p>
         </div>
+        {/* Endereço: a tela lia address_street, address_city, cep — nomes que NUNCA
+            existiram na tabela `orders`. Por isso aparecia sempre em branco, mesmo
+            com o cliente tendo preenchido tudo. Os campos reais são shipping_*, e
+            shipping_address guarda o endereço completo em texto. */}
         <div><p className="text-xs font-semibold text-gray-500 uppercase mb-1">Endereço</p>
-          <p className="text-sm">{order.address_street}, {order.address_number}</p>
-          <p className="text-sm">{order.address_neighborhood}</p>
-          <p className="text-sm">{order.address_city} - {order.address_state}</p>
-          <p className="text-sm font-mono">CEP: {order.cep}</p>
+          {order.is_pickup ? (
+            <p className="text-sm font-medium text-[#8B2214]">Retirada no local</p>
+          ) : order.shipping_street || order.shipping_city ? (
+            <>
+              <p className="text-sm">{[order.shipping_street, order.shipping_number].filter(Boolean).join(', ')}</p>
+              {order.shipping_complement && <p className="text-sm">{order.shipping_complement}</p>}
+              <p className="text-sm">{order.shipping_neighborhood}</p>
+              <p className="text-sm">{[order.shipping_city, order.shipping_state].filter(Boolean).join(' - ')}</p>
+              <p className="text-sm font-mono">CEP: {order.shipping_postal_code}</p>
+            </>
+          ) : (
+            <p className="text-sm whitespace-pre-line">{order.shipping_address || '—'}</p>
+          )}
         </div>
         <div><p className="text-xs font-semibold text-gray-500 uppercase mb-1">Produtos</p>
           {order.order_items?.map((item: any, i: number) => (
@@ -376,6 +440,16 @@ function OverviewSection({ order, onRefresh }: any) {
           className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium transition-colors">
           <Printer className="w-4 h-4" /><span>Imprimir Pedido</span>
         </button>
+
+        {/* Estorno: só aparece em pedido efetivamente pago. Devolve dinheiro de
+            verdade, então pede confirmação com o valor na frente antes de fazer. */}
+        {order.status === 'approved' && order.mercadopago_payment_id && (
+          <button onClick={estornar} disabled={estornando}
+            className="flex items-center gap-2 px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 text-sm font-medium transition-colors disabled:opacity-50">
+            <Undo2 className="w-4 h-4" />
+            <span>{estornando ? 'Estornando…' : 'Estornar'}</span>
+          </button>
+        )}
       </div>
     </div>
   );
