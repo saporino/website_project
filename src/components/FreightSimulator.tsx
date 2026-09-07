@@ -210,9 +210,21 @@ export default function FreightSimulator({
                   )}
                 </p>
                 <p className="mt-0.5 text-[11px] leading-relaxed text-gray-500">
-                  café {brl(cafe)} + frete {brl(l.cotacao!.preco)}
-                  {l.cotacao!.desconto > 0 && (
-                    <span className="text-green-700"> (já com {brl(l.cotacao!.desconto)} de desconto)</span>
+                  {/* Frete coberto por inteiro é notícia boa: mostra o valor que
+                      ele deixou de pagar, riscado, em vez de esconder um zero. */}
+                  {l.cotacao!.preco <= 0 && l.cotacao!.desconto > 0 ? (
+                    <>
+                      café {brl(cafe)} + frete{' '}
+                      <span className="line-through">{brl(l.cotacao!.transporte)}</span>{' '}
+                      <span className="font-bold text-green-700">GRÁTIS</span>
+                    </>
+                  ) : (
+                    <>
+                      café {brl(cafe)} + frete {brl(l.cotacao!.preco)}
+                      {l.cotacao!.desconto > 0 && (
+                        <span className="text-green-700"> (já com {brl(l.cotacao!.desconto)} de desconto)</span>
+                      )}
+                    </>
                   )}
                   <span className="block sm:inline sm:before:content-['_·_']">
                     frete {brl(porKg)}/kg

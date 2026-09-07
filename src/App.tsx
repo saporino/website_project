@@ -1021,7 +1021,10 @@ const Cart = ({ isOpen, onClose }: any) => {
     // aparecia. É ela que atende acima de 20 kg, onde o agregador não vai.
     const pesoBruto = await pesoBrutoKg(pacotes);
     const cofico = await cotarFrete(cep, pesoBruto, valor, pacotes);
-    const daCasa: CarrierQuote[] = cofico?.atendido && cofico.preco > 0
+    // Sem `preco > 0` no filtro: frete zerado pelo desconto é frete grátis, não
+    // é opção inválida. Com a condição antiga a COFICO sumia justamente na
+    // compra grande, que é onde ela é a única que atende.
+    const daCasa: CarrierQuote[] = cofico?.atendido
       ? [{
           id: 'cofico',
           name: 'COFICO',
@@ -1470,6 +1473,15 @@ const Cart = ({ isOpen, onClose }: any) => {
                                     −R$ {carrier.desconto!.toFixed(2)} de desconto
                                   </p>
                                 )}
+                              </>
+                            ) : (carrier.desconto ?? 0) > 0 ? (
+                              // Frete coberto por inteiro. O valor riscado fica: sem ele
+                              // o cliente não tem como saber quanto ganhou.
+                              <>
+                                <p className="text-xs text-gray-400 line-through">
+                                  R$ {(carrier.price + (carrier.desconto ?? 0)).toFixed(2)}
+                                </p>
+                                <p className="font-bold text-green-700">GRÁTIS</p>
                               </>
                             ) : (
                               <p className="text-xs text-blue-600 font-semibold">Verificar<br/>no checkout</p>
