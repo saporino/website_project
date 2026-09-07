@@ -4,6 +4,7 @@ import { mapMpStatus, decideOrderUpdate, manifestVariants, mapPaymentMethod, map
 import { logEdge, newRequestId } from '../_shared/log.ts';
 import { mpAccessToken, mpWebhookSecrets } from '../_shared/mpCredentials.ts';
 import { notificarPedido } from '../_shared/notifyOrder.ts';
+import { avisarEquipe } from '../_shared/telegram.ts';
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -244,9 +245,26 @@ Deno.serve(async (req: Request) => {
         if (orderStatus === 'approved' && decision.setPaidAt) {
             const cliente = await notificarPedido(supabase, externalReference, 'pedido_confirmado');
             const interno = await notificarPedido(supabase, externalReference, 'aviso_admin');
+
+            // O mesmo aviso no bolso de quem separa. E-mail interno se perde na
+            // caixa de entrada; aqui chega na hora.
+            const { data: ped } = await supabase.from('orders')
+                .select('order_number, customer_name, total_amount, is_pickup, shipping_carrier_name, shipping_city, seller_company_id')
+                .eq('id', externalReference).maybeSingle();
+            let telegram = 0;
+            if (ped) {
+                const valor = Number(ped.total_amount || 0)
+                    .toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                const entrega = ped.is_pickup
+                    ? '🏠 RETIRADA no CD'
+                    : `🚚 ${ped.shipping_carrier_name ?? 'transportadora'}${ped.shipping_city ? ` — ${ped.shipping_city}` : ''}`;
+                telegram = await avisarEquipe(supabase, ped.seller_company_id,
+                    `💰 <b>Pedido pago</b>\n<b>${ped.order_number}</b> — ${ped.customer_name}\n${valor}\n${entrega}`);
+            }
+
             await logEdge(supabase, {
                 function_name: FN, request_id: rid, level: 'info', status: 200,
-                meta: { ext: externalReference, email_cliente: cliente, email_interno: interno },
+                meta: { ext: externalReference, email_cliente: cliente, email_interno: interno, telegram },
             });
         }
 
