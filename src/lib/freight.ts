@@ -88,20 +88,22 @@ export type RegraDesconto = {
   /** 'kg' multiplica pelo peso bruto; 'pacote' pela quantidade de pacotes. */
   unidade: 'kg' | 'pacote';
   minPacotes: number;
+  /** Teto em reais. 0 = sem teto. */
+  teto: number;
 };
 
 let regraEmCache: RegraDesconto | undefined;
 
 export async function regraDeDesconto(): Promise<RegraDesconto> {
   if (regraEmCache) return regraEmCache;
-  const vazia: RegraDesconto = { ativo: false, valor: 0, unidade: 'kg', minPacotes: 1 };
+  const vazia: RegraDesconto = { ativo: false, valor: 0, unidade: 'kg', minPacotes: 1, teto: 0 };
   const { sellerPrefixForHost } = await import('./sellerCompany');
   const prefixo = sellerPrefixForHost();
   if (!prefixo) { regraEmCache = vazia; return vazia; }
 
   const { data } = await supabase
     .from('companies')
-    .select('shipping_subsidy_per_kg, shipping_discount_active, shipping_discount_unit, shipping_discount_min_packs')
+    .select('shipping_subsidy_per_kg, shipping_discount_active, shipping_discount_unit, shipping_discount_min_packs, shipping_discount_max')
     .eq('order_prefix', prefixo)
     .maybeSingle();
 
@@ -110,6 +112,7 @@ export async function regraDeDesconto(): Promise<RegraDesconto> {
     valor: Number(data?.shipping_subsidy_per_kg ?? 0),
     unidade: data?.shipping_discount_unit === 'pacote' ? 'pacote' : 'kg',
     minPacotes: Number(data?.shipping_discount_min_packs ?? 1),
+    teto: Number(data?.shipping_discount_max ?? 0),
   };
   return regraEmCache;
 }
@@ -124,7 +127,8 @@ export async function descontoDeEnvio(pacotes: number): Promise<number> {
   if (!r.ativo || pacotes < r.minPacotes) return 0;
   // Por quilo conta o peso do café (500 g por pacote), não o do pacote fechado:
   // a loja banca frete de café, não de embalagem.
-  return r.valor * (r.unidade === 'pacote' ? pacotes : pacotes * 0.5);
+  const bruto = r.valor * (r.unidade === 'pacote' ? pacotes : pacotes * 0.5);
+  return r.teto > 0 ? Math.min(bruto, r.teto) : bruto;
 }
 
 /** Nossas lojas em marketplace, oferecidas quando o CEP não é atendido. */

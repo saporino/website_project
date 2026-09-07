@@ -17,8 +17,8 @@ import { Product, CartItem } from './types';
 import { createPreference, MERCADO_PAGO_PUBLIC_KEY } from './lib/mercadopago';
 import { formatarTelefone, somenteDigitos, analisarTelefone } from './lib/phoneBR';
 import { formatarCPF, cpfValido } from './lib/cpf';
-import { getCarrierQuotes, lookupCEP, formatCEP, calculateCartWeight, CarrierQuote } from './lib/shipping';
-import { cotarSuperFrete } from './lib/freight';
+import { lookupCEP, formatCEP, CarrierQuote } from './lib/shipping';
+import { cotarSuperFrete, cotarFrete, pesoBrutoKg } from './lib/freight';
 import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
 import CookieConsent from './components/CookieConsent';
 import FreightSimulator from './components/FreightSimulator';
@@ -995,7 +995,6 @@ const Cart = ({ isOpen, onClose }: any) => {
   const fetchCarriers = useCallback(async () => {
     if (cart.length === 0) return;
     setCarriersLoading(true);
-    const weight = calculateCartWeight(cart);
 
     // Cotação ao vivo primeiro: Correios, Loggi, Jadlog e J&T com preço e prazo
     // reais. A ordem entre elas muda com o peso — no pacote de 500 g a Loggi
@@ -1017,11 +1016,26 @@ const Cart = ({ isOpen, onClose }: any) => {
       desconto: o.desconto,
     }));
 
-    // A tabela própria continua na lista. Para pacote pequeno ela perde feio,
-    // mas é ela que atende fardo pesado e o B2B — e o cliente pode preferir.
-    const daCasa = await getCarrierQuotes(cep, weight);
+    // A COFICO entra com o preço da tabela por CEP, não da lista de
+    // transportadoras — lá ela está cadastrada com preço zero e por isso nunca
+    // aparecia. É ela que atende acima de 20 kg, onde o agregador não vai.
+    const pesoBruto = await pesoBrutoKg(pacotes);
+    const cofico = await cotarFrete(cep, pesoBruto, valor, pacotes);
+    const daCasa: CarrierQuote[] = cofico?.atendido && cofico.preco > 0
+      ? [{
+          id: 'cofico',
+          name: 'COFICO',
+          code: 'cofico',
+          logo_url: null,
+          price: cofico.preco,
+          delivery_time_days: cofico.dias ?? 7,
+          api_type: 'manual',
+          is_api_configured: false,
+          desconto: cofico.desconto,
+        }]
+      : [];
 
-    const quotes = [...doAgregador, ...daCasa.filter((c) => c.price > 0)];
+    const quotes = [...doAgregador, ...daCasa];
     setCarriers(quotes);
 
     // Quantidade mudou, transportadora escolhida pode ter sumido da lista —

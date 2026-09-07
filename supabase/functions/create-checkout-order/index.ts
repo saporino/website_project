@@ -108,6 +108,29 @@ Deno.serve(async (req: Request) => {
       return json({ error: priced.error, code: priced.code }, 400);
     }
 
+    // Empresa faturadora: decidida AQUI, antes de qualquer cálculo, a partir do
+    // domínio de onde a compra veio. Depois de gravada, é ela que manda —
+    // nenhum passo posterior volta a olhar o domínio.
+    //
+    // O domínio vem do header Origin, posto pelo navegador, e não do corpo da
+    // requisição, que o cliente controla. Sem domínio reconhecido, o pedido não
+    // nasce: melhor recusar do que gravar a empresa errada e faturar no CNPJ errado.
+    //
+    // Fica antes do frete porque a cotação precisa saber de que empresa é a
+    // regra de desconto e a tabela de origem.
+    const prefixoEmpresa = empresaPorDominio(req.headers.get('origin') ?? req.headers.get('referer'));
+    if (!prefixoEmpresa) {
+      return json({ error: 'Origem da compra nao reconhecida.', code: 'UNKNOWN_SALES_CHANNEL' }, 400);
+    }
+    const { data: empresa } = await supabase
+      .from('companies').select('id, name, payment_account').eq('order_prefix', prefixoEmpresa).maybeSingle();
+    if (!empresa) {
+      return json({ error: 'Empresa vendedora nao cadastrada.', code: 'SELLER_COMPANY_NOT_FOUND' }, 400);
+    }
+    if (!empresa.payment_account) {
+      return json({ error: `A empresa ${empresa.name} nao tem meio de recebimento configurado.`, code: 'SELLER_WITHOUT_CREDENTIAL' }, 503);
+    }
+
     // Frete: preço oficial da transportadora (nunca do browser).
     // Retirada no local é o caso especial: sem transportadora e sem frete.
     let shippingCost = 0;
@@ -143,9 +166,45 @@ Deno.serve(async (req: Request) => {
         }, 409);
       }
       shippingCost = round2(Number(escolhido.preco) || 0);
-      carrierName = String(escolhido.empresa ? `${escolhido.empresa} ${escolhido.nome}` : escolhido.nome).trim();
+      // `nome` já vem com a transportadora dentro; concatenar de novo dava
+      // "Correios Correios SEDEX".
+      carrierName = String(escolhido.nome ?? '').trim();
       servicoFrete = { id: servicoId, nome: carrierName };
       carrierId = '';   // não é uma transportadora da nossa tabela
+
+    } else if (carrierId === 'cofico') {
+      // Transportadora própria: preço vem da tabela por faixa de CEP, cotada
+      // aqui de novo. É ela que atende acima de 20 kg, onde o agregador recusa.
+      const pacotes = priced.lines.reduce((s, l) => s + l.quantity, 0);
+      const { data: tabela } = await supabase.from('shipping_rate_tables')
+        .select('id').eq('is_active', true).limit(1).maybeSingle();
+      const { data: pesoBruto } = await supabase.rpc('peso_bruto_kg', { p_unidades: pacotes });
+      const { data: emp } = await supabase.from('companies')
+        .select('shipping_subsidy_per_kg, shipping_discount_active, shipping_discount_unit, shipping_discount_min_packs, shipping_discount_max')
+        .eq('id', empresa.id).maybeSingle();
+
+      const vale = emp?.shipping_discount_active !== false
+        && pacotes >= Number(emp?.shipping_discount_min_packs ?? 1);
+      let base = Number(emp?.shipping_subsidy_per_kg ?? 0)
+        * (emp?.shipping_discount_unit === 'pacote' ? pacotes : pacotes * 0.5);
+      const teto = Number(emp?.shipping_discount_max ?? 0);
+      if (teto > 0) base = Math.min(base, teto);
+      const peso = Number(pesoBruto ?? 0);
+
+      const { data: cot } = await supabase.rpc('cotar_frete', {
+        p_table_id: tabela?.id,
+        p_cep: str(c.cep, 20),
+        p_peso_kg: peso,
+        p_valor: priced.itemsTotal,
+        p_subsidio_kg: vale && peso > 0 ? base / peso : 0,
+      });
+      const q = cot?.[0];
+      if (!q?.atendido) {
+        return json({ error: 'Nao atendemos esse CEP com entrega propria.', code: 'COFICO_SEM_COBERTURA' }, 409);
+      }
+      shippingCost = round2(Number(q.preco) || 0);
+      carrierName = 'COFICO';
+      carrierId = '';
 
     } else if (carrierId) {
       // A tabela guarda `fixed_price` e `price_per_kg` — não existe coluna `price`.
@@ -213,25 +272,6 @@ Deno.serve(async (req: Request) => {
     const total = round2(Math.max(priced.itemsTotal - descontoNosProdutos + shippingCost, 0));
 
     // Cria o pedido (SERVICE ROLE — o browser não insere direto).
-    // Empresa faturadora: decidida AQUI, na criação, a partir do domínio de onde a
-    // compra veio. Depois de gravada, é ela que manda — nenhum passo posterior
-    // volta a olhar o domínio.
-    //
-    // O domínio vem do header Origin, posto pelo navegador, e não do corpo da
-    // requisição, que o cliente controla. Sem domínio reconhecido, o pedido não
-    // nasce: melhor recusar do que gravar a empresa errada e faturar no CNPJ errado.
-    const prefixoEmpresa = empresaPorDominio(req.headers.get('origin') ?? req.headers.get('referer'));
-    if (!prefixoEmpresa) {
-      return json({ error: 'Origem da compra nao reconhecida.', code: 'UNKNOWN_SALES_CHANNEL' }, 400);
-    }
-    const { data: empresa } = await supabase
-      .from('companies').select('id, name, payment_account').eq('order_prefix', prefixoEmpresa).maybeSingle();
-    if (!empresa) {
-      return json({ error: 'Empresa vendedora nao cadastrada.', code: 'SELLER_COMPANY_NOT_FOUND' }, 400);
-    }
-    if (!empresa.payment_account) {
-      return json({ error: `A empresa ${empresa.name} nao tem meio de recebimento configurado.`, code: 'SELLER_WITHOUT_CREDENTIAL' }, 503);
-    }
 
     // Dono do pedido: quem estava logado na hora da compra.
     //

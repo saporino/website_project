@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
 
     // Configuração da empresa vendedora: origem, serviços e margem.
     const { data: empresa } = await db.from("companies")
-      .select("id, shipping_subsidy_per_kg, shipping_discount_active, shipping_discount_unit, shipping_discount_min_packs")
+      .select("id, shipping_subsidy_per_kg, shipping_discount_active, shipping_discount_unit, shipping_discount_min_packs, shipping_discount_max")
       .eq("order_prefix", prefixo).maybeSingle();
     if (!empresa) return json({ error: "Empresa nao encontrada", code: "NO_COMPANY" }, 400);
 
@@ -152,7 +152,12 @@ Deno.serve(async (req) => {
     const quantidade = empresa.shipping_discount_unit === "pacote"
       ? pacotes
       : pacotes * 0.5;
-    const subsidio = valeDesconto ? Number(empresa.shipping_subsidy_per_kg ?? 0) * quantidade : 0;
+    let subsidio = valeDesconto ? Number(empresa.shipping_subsidy_per_kg ?? 0) * quantidade : 0;
+
+    // Teto: sem ele, a regra por quilo zera o frete de carga grande e a loja
+    // banca o transporte inteiro.
+    const teto = Number(empresa.shipping_discount_max ?? 0);
+    if (teto > 0) subsidio = Math.min(subsidio, teto);
     const opcoes = lista
       .filter((o) => !o.erro && o.preco > 0)
       .map((o) => {

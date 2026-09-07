@@ -8,7 +8,7 @@
 // Aqui ele vê a escada inteira e decide sozinho.
 import { useEffect, useState } from 'react';
 import { Truck, Loader2 } from 'lucide-react';
-import { cotarSuperFrete, pesoBrutoKg, brl, type Cotacao } from '../lib/freight';
+import { cotarSuperFrete, cotarFrete, pesoBrutoKg, brl, type Cotacao } from '../lib/freight';
 
 type Degrau = {
   rotulo: string;
@@ -31,6 +31,11 @@ const DEGRAUS: Degrau[] = [
   { rotulo: '1 fardo (5 kg)', pacotes: 10, destaque: true },
   { rotulo: '2 fardos (10 kg)', pacotes: 20 },
   { rotulo: '4 fardos (20 kg)', pacotes: 40 },
+  // Acima de 20 kg o agregador recusa e a entrega é da COFICO, com a tabela
+  // por faixa de CEP. Continua sendo venda ao consumidor, só que na nossa
+  // própria logística.
+  { rotulo: '10 fardos (50 kg)', pacotes: 100 },
+  { rotulo: '20 fardos (100 kg)', pacotes: 200 },
 ];
 
 type Linha = Degrau & { peso: number; cotacao: Cotacao | null; transportadora?: string | null };
@@ -78,9 +83,10 @@ export default function FreightSimulator({
         const sf = await cotarSuperFrete(cep, d.pacotes, valor);
         const melhorOpcao = sf?.opcoes?.[0];
 
-        // Sem opção do agregador o degrau simplesmente não aparece. Antes caía
-        // na tabela própria, que não tem limite de peso — e mostrava preço para
-        // 50 e 100 kg, que transportadora nenhuma aceita.
+        // Acima de ~20 kg o agregador recusa tudo; aí quem entrega é a COFICO,
+        // com a tabela por faixa de CEP. Abaixo disso o agregador sempre ganha.
+        const daCasa = melhorOpcao ? null : await cotarFrete(cep, peso, valor, d.pacotes);
+
         const cotacao: Cotacao | null = melhorOpcao
           ? {
               atendido: true, zona: null, uf: null, cidade: null,
@@ -90,10 +96,12 @@ export default function FreightSimulator({
               desconto: melhorOpcao.desconto,
               preco: melhorOpcao.preco,
             }
-          : null;
+          : (daCasa?.atendido ? daCasa : null);
 
-        resultado.push({ ...d, peso, cotacao, transportadora: melhorOpcao
-          ? `${melhorOpcao.empresa} ${melhorOpcao.nome}`.trim() : null });
+        resultado.push({
+          ...d, peso, cotacao,
+          transportadora: melhorOpcao ? melhorOpcao.nome : (daCasa?.atendido ? 'COFICO' : null),
+        });
       }
       if (cancelado) return;
       setSemCobertura(resultado.every((l) => !l.cotacao?.atendido));
@@ -128,6 +136,41 @@ export default function FreightSimulator({
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+      {/* Empurrão com fato, não com apelo: mostra em reais o que o cliente ganha
+          subindo um degrau. Só aparece quando ele está num degrau que não é o
+          melhor negócio — quem já levou o fardo não precisa ouvir isso. */}
+      {(() => {
+        if (!aoEscolher || !pacotesNoCarrinho) return null;
+        const atual = atendidas.find((l) => l.pacotes === pacotesNoCarrinho);
+        const proximo = atendidas.find((l) => l.pacotes > pacotesNoCarrinho);
+        if (!atual || !proximo) return null;
+
+        const porKgAtual = atual.cotacao!.preco / atual.peso;
+        const porKgProximo = proximo.cotacao!.preco / proximo.peso;
+        if (porKgProximo >= porKgAtual) return null;
+
+        const cafeAMais = (proximo.pacotes - atual.pacotes) * precoPorPacote;
+        const freteAMais = proximo.cotacao!.preco - atual.cotacao!.preco;
+
+        return (
+          <div className="border-b border-[#8B2214]/20 bg-[#8B2214]/5 px-4 py-3">
+            <p className="text-sm font-semibold text-[#8B2214]">
+              Levando {proximo.rotulo.toLowerCase()}, o frete quase não muda
+            </p>
+            <p className="mt-0.5 text-xs leading-relaxed text-gray-700">
+              Mais {brl(cafeAMais)} de café e {freteAMais <= 0
+                ? <>o frete ainda <b>diminui {brl(-freteAMais)}</b></>
+                : <>só {brl(freteAMais)} a mais de frete</>}.
+              O frete por quilo cai de {brl(porKgAtual)} para <b>{brl(porKgProximo)}</b>.
+            </p>
+            <button type="button" onClick={() => aoEscolher(proximo.pacotes)}
+              className="mt-2 rounded-full bg-[#8B2214] px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-[#6d1a10]">
+              Quero {proximo.rotulo.toLowerCase()}
+            </button>
+          </div>
+        );
+      })()}
+
       <div className="flex items-start gap-3 border-b border-gray-200 bg-[#f5f0ef] px-4 py-3">
         <Truck className="mt-0.5 h-5 w-5 shrink-0 text-[#8B2214]" />
         <div>
