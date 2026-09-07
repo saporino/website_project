@@ -4,6 +4,7 @@ import { Save, Store, MapPin, CreditCard, Eye, EyeOff } from 'lucide-react';
 import { BannerManager } from './BannerManager';
 import { SubscriptionSettings } from './SubscriptionSettings';
 import PackagingSettings from './PackagingSettings';
+import SuperFreteSettings from './SuperFreteSettings';
 import { PopupSettings } from './PopupSettings';
 import { VisitorInsights } from './VisitorInsights';
 import { PointsOfSaleManager } from './PointsOfSaleManager';
@@ -121,6 +122,8 @@ export function StoreSettings() {
         <SubscriptionSettings />
 
         <PackagingSettings />
+
+        <SuperFreteSettings />
 
         <div className="bg-white border border-gray-200 rounded-xl p-6">
           <div className="flex items-center space-x-3 mb-6">
