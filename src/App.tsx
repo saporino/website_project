@@ -1000,7 +1000,9 @@ const Cart = ({ isOpen, onClose }: any) => {
     // reais. A ordem entre elas muda com o peso — no pacote de 500 g a Loggi
     // ganha fácil, no fardo de 5 kg o SEDEX assume —, então mostramos todas e
     // o cliente escolhe entre barato e rápido.
-    const pacotes = cart.reduce((s: number, i: CartItem) => s + i.quantity, 0);
+    // Pacotes de 500 g, não itens: um fardo no carrinho é 1 item e 10 pacotes.
+    // Contar itens fazia o site cotar frete de 0,5 kg para uma caixa de 5 kg.
+    const pacotes = cart.reduce((s: number, i: CartItem) => s + i.quantity * (i.kit_quantity || 1), 0);
     const valor = cart.reduce((s: number, i: CartItem) => s + i.price * i.quantity, 0);
     const sf = await cotarSuperFrete(cep, pacotes, valor);
 
@@ -1014,6 +1016,8 @@ const Cart = ({ isOpen, onClose }: any) => {
       api_type: 'superfrete',
       is_api_configured: true,
       desconto: o.desconto,
+      // Guardado para a cobrança usar o MESMO preço que o cliente viu.
+      cotacaoId: o.cotacao_id,
     }));
 
     // A COFICO entra com o preço da tabela por CEP, não da lista de
@@ -1154,6 +1158,9 @@ const Cart = ({ isOpen, onClose }: any) => {
           items: cart.map((item: CartItem) => ({ product_id: item.id, quantity: item.quantity })),
           is_pickup: isPickup,
           shipping_carrier_id: isPickup ? 'pickup' : selectedCarrierId,
+          // O preço que ele viu vale por 15 minutos. Sem isto o servidor
+          // recotaria e ele pagaria diferente do que escolheu.
+          shipping_quote_id: carriers.find((c) => c.id === selectedCarrierId)?.cotacaoId ?? null,
           customer: {
             name: formData.name,
             email: formData.email,
@@ -1522,7 +1529,7 @@ const Cart = ({ isOpen, onClose }: any) => {
                   que dividido por dez vezes mais café. Sem ver a escada, o cliente
                   não percebe isso olhando só o total do próprio carrinho. */}
               {!isPickup && (() => {
-                const pacotes = cart.reduce((s: number, i: CartItem) => s + i.quantity, 0);
+                const pacotes = cart.reduce((s: number, i: CartItem) => s + i.quantity * (i.kit_quantity || 1), 0);
                 const valor = cart.reduce((s: number, i: CartItem) => s + i.price * i.quantity, 0);
                 // Trocar a quantidade direto da tabela só faz sentido com um café
                 // na sacola: com dois, não dá para saber de qual ele quer o fardo.

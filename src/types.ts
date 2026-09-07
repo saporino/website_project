@@ -1,4 +1,7 @@
 ﻿export interface Product {
+  /** Kit: quantos pacotes vão dentro. Nulo no avulso. Manda no peso do frete. */
+  kit_quantity?: number | null;
+  kit_of_product_id?: string | null;
   id: string;
   name: string;
   description: string;
@@ -22,6 +25,7 @@
   display_order?: number;
 }
 
+/** Quantos pacotes de 500 g vão dentro. Nulo no produto avulso. */
 export interface CartItem extends Product {
   quantity: number;
   is_subscription?: boolean;

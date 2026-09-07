@@ -97,10 +97,18 @@ Deno.serve(async (req: Request) => {
     const ids = [...new Set(items.map((i) => i.product_id).filter(Boolean))];
     if (ids.length === 0) return json({ error: 'Pedido vazio' }, 400);
     const { data: prods, error: prodErr } = await supabase
-      .from('products').select('id, name, price, is_active').in('id', ids);
+      .from('products').select('id, name, price, is_active, kit_quantity').in('id', ids);
     if (prodErr) throw prodErr;
     const byId = new Map<string, ProductInfo>();
-    for (const p of prods || []) byId.set(p.id, { id: p.id, name: p.name, price: Number(p.price), is_active: !!p.is_active });
+    // Quantos pacotes de 500 g cada linha representa. Um fardo é 1 item e
+    // 10 pacotes — contar itens faria o frete ser cotado para 0,5 kg.
+    const pacotesPorProduto = new Map<string, number>();
+    for (const p of prods || []) {
+      byId.set(p.id, { id: p.id, name: p.name, price: Number(p.price), is_active: !!p.is_active });
+      pacotesPorProduto.set(p.id, Number(p.kit_quantity) || 1);
+    }
+    const contarPacotes = () =>
+      priced.ok ? priced.lines.reduce((s, l) => s + l.quantity * (pacotesPorProduto.get(l.product_id) ?? 1), 0) : 0;
 
     const priced = priceCheckout(items, byId);
     if (!priced.ok) {
@@ -149,8 +157,34 @@ Deno.serve(async (req: Request) => {
       // navegador: quem cobra é o servidor, e um preço vindo do cliente é um
       // preço que o cliente pode escolher.
       const servicoId = Number(carrierId.slice(3));
-      const pacotes = priced.lines.reduce((s, l) => s + l.quantity, 0);
-      const cotacao = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/superfrete-quote`, {
+      const pacotes = contarPacotes();
+
+      // Primeiro a cotação congelada: é o valor que o cliente viu na tela.
+      // Recotar aqui faria ele pagar diferente do que escolheu, porque o
+      // agregador muda o preço entre chamadas.
+      const idCongelado = str(body?.shipping_quote_id, 64);
+      if (idCongelado) {
+        const { data: q } = await supabase.from('shipping_quotes')
+          .select('*').eq('id', idCongelado).maybeSingle();
+
+        const serve = q
+          && q.company_id === empresa.id
+          && q.service_id === servicoId
+          && q.packages === pacotes
+          && q.dest_cep === str(c.cep, 20).replace(/\D/g, '')
+          && new Date(q.expires_at).getTime() > Date.now();
+
+        if (serve) {
+          shippingCost = round2(Number(q.price) || 0);
+          carrierName = String(q.service_name ?? '').trim();
+          servicoFrete = { id: servicoId, nome: carrierName };
+          carrierId = '';
+        }
+      }
+
+      // Sem cotação congelada válida — expirou, ou o cliente mexeu na sacola
+      // depois — cota de novo. Melhor um preço novo que nenhum preço.
+      const cotacao = servicoFrete ? null : await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/superfrete-quote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: Deno.env.get('SUPABASE_ANON_KEY')! },
         body: JSON.stringify({
@@ -158,24 +192,28 @@ Deno.serve(async (req: Request) => {
         }),
       }).then((r) => r.ok ? r.json() : null).catch(() => null);
 
-      const escolhido = (cotacao?.opcoes ?? []).find((o: { id: number }) => o.id === servicoId);
-      if (!escolhido) {
+      const escolhido = servicoFrete
+        ? null
+        : (cotacao?.opcoes ?? []).find((o: { id: number }) => o.id === servicoId);
+      if (!servicoFrete && !escolhido) {
         return json({
           error: 'A opcao de frete escolhida nao esta mais disponivel. Escolha outra.',
           code: 'FRETE_INDISPONIVEL',
         }, 409);
       }
-      shippingCost = round2(Number(escolhido.preco) || 0);
-      // `nome` já vem com a transportadora dentro; concatenar de novo dava
-      // "Correios Correios SEDEX".
-      carrierName = String(escolhido.nome ?? '').trim();
-      servicoFrete = { id: servicoId, nome: carrierName };
+      if (escolhido) {
+        shippingCost = round2(Number(escolhido.preco) || 0);
+        // `nome` já vem com a transportadora dentro; concatenar de novo dava
+        // "Correios Correios SEDEX".
+        carrierName = String(escolhido.nome ?? '').trim();
+        servicoFrete = { id: servicoId, nome: carrierName };
+      }
       carrierId = '';   // não é uma transportadora da nossa tabela
 
     } else if (carrierId === 'cofico') {
       // Transportadora própria: preço vem da tabela por faixa de CEP, cotada
       // aqui de novo. É ela que atende acima de 20 kg, onde o agregador recusa.
-      const pacotes = priced.lines.reduce((s, l) => s + l.quantity, 0);
+      const pacotes = contarPacotes();
       const { data: tabela } = await supabase.from('shipping_rate_tables')
         .select('id').eq('is_active', true).limit(1).maybeSingle();
       const { data: pesoBruto } = await supabase.rpc('peso_bruto_kg', { p_unidades: pacotes });

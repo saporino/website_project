@@ -11,6 +11,8 @@ export interface CarrierQuote {
   is_api_configured: boolean;
   /** Quanto a loja está bancando do frete. Só vem na cotação ao vivo. */
   desconto?: number;
+  /** Cotação congelada, para a cobrança usar o mesmo preço mostrado. */
+  cotacaoId?: string | null;
 }
 
 export interface ShippingAddress {

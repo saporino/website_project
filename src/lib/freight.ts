@@ -158,6 +158,8 @@ export type OpcaoFrete = {
   /** O que o cliente paga. */
   preco: number;
   prazo_dias: number | null;
+  /** Identificador da cotação congelada, válido por 15 minutos. */
+  cotacao_id: string | null;
 };
 
 export type CotacaoSuperFrete = {

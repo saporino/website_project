@@ -176,8 +176,33 @@ Deno.serve(async (req) => {
       .update({ last_ok_at: new Date().toISOString(), last_error: null, updated_at: new Date().toISOString() })
       .eq("id", cfg.id);
 
+    // Congela o que foi mostrado. O agregador muda o preco entre chamadas — se
+    // a cobranca recotasse, o cliente veria um valor e pagaria outro, e a
+    // diferenca para cima sairia do bolso da loja em toda venda.
+    const congeladas = opcoes.length
+      ? (await db.from("shipping_quotes").insert(opcoes.map((o) => ({
+          company_id: empresa.id,
+          dest_cep: cepDestino,
+          packages: pacotes,
+          goods_value: valorNota,
+          weight_kg: Number(pesoBruto ?? 0),
+          service_id: o.id,
+          service_name: o.nome,
+          carrier_logo: o.logo,
+          delivery_days: o.prazo_dias,
+          base_price: o.preco_base,
+          discount: o.desconto,
+          price: o.preco,
+        }))).select("id, service_id")).data ?? []
+      : [];
+
+    const comId = opcoes.map((o) => ({
+      ...o,
+      cotacao_id: congeladas.find((c) => c.service_id === o.id)?.id ?? null,
+    }));
+
     return json({
-      opcoes,
+      opcoes: comId,
       peso_kg: Number(pesoBruto ?? 0),
       pacote: pedido.package,
       // Serviços que voltaram com erro entram aqui para o painel entender por
