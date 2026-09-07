@@ -1365,15 +1365,23 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                   peso, então o frete quase não muda de 1 pacote a um fardo — só
                   que dividido por dez vezes mais café. Sem ver a escada, o cliente
                   não percebe isso olhando só o total do próprio carrinho. */}
-              {!isPickup && (
-                <FreightSimulator
-                  cep={cep}
-                  precoPorPacote={cart.length > 0
-                    ? cart.reduce((s: number, i: CartItem) => s + i.price * i.quantity, 0) /
-                      Math.max(cart.reduce((s: number, i: CartItem) => s + i.quantity, 0), 1)
-                    : 0}
-                />
-              )}
+              {!isPickup && (() => {
+                const pacotes = cart.reduce((s: number, i: CartItem) => s + i.quantity, 0);
+                const valor = cart.reduce((s: number, i: CartItem) => s + i.price * i.quantity, 0);
+                // Trocar a quantidade direto da tabela só faz sentido com um café
+                // na sacola: com dois, não dá para saber de qual ele quer o fardo.
+                const umProdutoSo = cart.length === 1;
+                return (
+                  <FreightSimulator
+                    cep={cep}
+                    precoPorPacote={pacotes > 0 ? valor / pacotes : 0}
+                    pacotesNoCarrinho={pacotes}
+                    aoEscolher={umProdutoSo
+                      ? (novaQtd) => updateQuantity(cart[0].id, novaQtd)
+                      : undefined}
+                  />
+                );
+              })()}
 
               {/* Manual load button if CEP was skipped */}
               {carriers.length === 0 && !carriersLoading && cep.replace(/\D/g, '').length === 8 && (

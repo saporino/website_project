@@ -35,10 +35,22 @@ type Linha = Degrau & { peso: number; cotacao: Cotacao | null };
 export default function FreightSimulator({
   cep,
   precoPorPacote,
+  pacotesNoCarrinho,
+  aoEscolher,
 }: {
   cep: string;
-  /** Usado só para calcular seguro e o custo por quilo. */
+  /** Usado para calcular seguro, o custo por quilo e o total de cada degrau. */
   precoPorPacote: number;
+  /** Quantos pacotes já estão na sacola, para marcar a linha atual. */
+  pacotesNoCarrinho?: number;
+  /**
+   * Trocar a quantidade direto da tabela. Sem isto o cliente vê a vantagem do
+   * fardo e precisa voltar à sacola somando pacote por pacote — mostrar o
+   * benefício sem dar o caminho é só frustrar.
+   * Ausente quando a sacola tem produtos diferentes: aí não dá para saber de
+   * qual café ele quer o fardo.
+   */
+  aoEscolher?: (pacotes: number) => void;
 }) {
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [carregando, setCarregando] = useState(false);
@@ -107,17 +119,26 @@ export default function FreightSimulator({
           <thead>
             <tr className="text-xs uppercase tracking-wide text-gray-500">
               <th className="px-4 py-2 text-left font-medium">Quantidade</th>
-              <th className="px-4 py-2 text-right font-medium">Peso</th>
+              <th className="px-4 py-2 text-right font-medium">Café</th>
               <th className="px-4 py-2 text-right font-medium">Frete</th>
+              <th className="px-4 py-2 text-right font-medium">Total</th>
               <th className="px-4 py-2 text-right font-medium">Frete por kg</th>
+              {aoEscolher && <th className="px-4 py-2" />}
             </tr>
           </thead>
           <tbody>
             {atendidas.map((l) => {
               const porKg = l.cotacao!.preco / l.peso;
+              const cafe = l.pacotes * precoPorPacote;
               const ehMelhor = l.rotulo === melhor.rotulo;
+              const ehAtual = pacotesNoCarrinho === l.pacotes;
               return (
-                <tr key={l.rotulo} className={`border-t border-gray-100 ${l.destaque ? 'bg-[#faf8f7]' : ''}`}>
+                <tr
+                  key={l.rotulo}
+                  className={`border-t border-gray-100 ${l.destaque ? 'bg-[#faf8f7]' : ''} ${
+                    ehAtual ? 'bg-[#8B2214]/5' : ''
+                  }`}
+                >
                   <td className="px-4 py-2.5 text-gray-900">
                     {l.rotulo}
                     {ehMelhor && (
@@ -125,14 +146,33 @@ export default function FreightSimulator({
                         melhor frete
                       </span>
                     )}
+                    <span className="block text-[11px] text-gray-500">
+                      {l.peso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg
+                    </span>
                   </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-600">
-                    {l.peso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg
+                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-600">{brl(cafe)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-600">{brl(l.cotacao!.preco)}</td>
+                  <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-gray-900">
+                    {brl(cafe + l.cotacao!.preco)}
                   </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-900">{brl(l.cotacao!.preco)}</td>
                   <td className={`px-4 py-2.5 text-right tabular-nums font-semibold ${ehMelhor ? 'text-[#8B2214]' : 'text-gray-700'}`}>
                     {brl(porKg)}
                   </td>
+                  {aoEscolher && (
+                    <td className="px-4 py-2.5 text-right">
+                      {ehAtual ? (
+                        <span className="text-xs font-semibold text-[#8B2214]">na sacola</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => aoEscolher(l.pacotes)}
+                          className="rounded-full border border-[#8B2214] px-3 py-1 text-xs font-semibold text-[#8B2214] transition-colors hover:bg-[#8B2214] hover:text-white"
+                        >
+                          Quero esta
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               );
             })}
