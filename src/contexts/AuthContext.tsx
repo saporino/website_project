@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { sellerPrefixForHost } from '../lib/sellerCompany';
 import { UserProfile } from '../types';
 
 interface AuthContextType {
@@ -97,13 +98,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signUp = async (email: string, password: string, fullName: string, phone: string) => {
+    // De qual loja veio o cadastro. Duas lojas dividem o mesmo sistema de contas, e
+    // o e-mail de confirmação precisa sair com a marca certa — quem se cadastra na
+    // COFICO e recebe um e-mail "Café Saporino" acha que é golpe e não confirma.
+    // `emailRedirectTo` é o que o hook de e-mail lê; `brand` fica gravado no
+    // cadastro para os casos em que o retorno não vier preenchido.
+    const marca = sellerPrefixForHost() ?? 'CS';
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
+        emailRedirectTo: window.location.origin,
         data: {
           full_name: fullName,
           phone: phone,
+          brand: marca,
         },
       },
     });
@@ -140,19 +149,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const resetPassword = async (email: string) => {
-    // Envia via nossa Edge Function (Resend), não pelo e-mail padrão do Supabase.
-    try {
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-password-reset`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, redirectTo: `${window.location.origin}/reset-password` }),
-      });
-      const r = await res.json().catch(() => ({}));
-      if (!res.ok || r.error) return { error: new Error(r.error || 'Não foi possível enviar o e-mail agora.') };
-      return { error: null };
-    } catch (e) {
-      return { error: e instanceof Error ? e : new Error('Falha de conexão.') };
-    }
+    // Caminho único para todo e-mail de autenticação: o Supabase entrega ao hook
+    // `auth-email`, que escolhe marca e remetente pela loja de onde veio o pedido.
+    //
+    // Antes isto chamava a função `send-password-reset`, que tinha o remetente da
+    // Saporino fixo no código e só aceitava endereços de retorno
+    // `cafesaporino.com.br`. Na COFICO isso mandaria um e-mail com a marca errada,
+    // ou nenhum. Marca errada em e-mail de senha parece golpe.
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    return { error };
   };
 
   return (
