@@ -19,6 +19,7 @@ import { formatarTelefone, somenteDigitos, analisarTelefone } from './lib/phoneB
 import { getCarrierQuotes, lookupCEP, formatCEP, calculateCartWeight, CarrierQuote } from './lib/shipping';
 import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
 import CookieConsent from './components/CookieConsent';
+import FreightSimulator from './components/FreightSimulator';
 import B2BLeadForm from './components/B2BLeadForm';
 const P = () => import('./pages/PolicyPages');
 const PrivacyPolicy = lazy(() => P().then(m => ({ default: m.PrivacyPolicy })));
@@ -1358,6 +1359,20 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                     </div>
                   )}
                 </div>
+              )}
+
+              {/* Por que vale a pena levar mais: a transportadora cobra por FAIXA de
+                  peso, então o frete quase não muda de 1 pacote a um fardo — só
+                  que dividido por dez vezes mais café. Sem ver a escada, o cliente
+                  não percebe isso olhando só o total do próprio carrinho. */}
+              {!isPickup && (
+                <FreightSimulator
+                  cep={cep}
+                  precoPorPacote={cart.length > 0
+                    ? cart.reduce((s: number, i: CartItem) => s + i.price * i.quantity, 0) /
+                      Math.max(cart.reduce((s: number, i: CartItem) => s + i.quantity, 0), 1)
+                    : 0}
+                />
               )}
 
               {/* Manual load button if CEP was skipped */}
