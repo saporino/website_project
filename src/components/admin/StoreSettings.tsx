@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { Save, Store, MapPin, CreditCard, Eye, EyeOff } from 'lucide-react';
 import { BannerManager } from './BannerManager';
 import { SubscriptionSettings } from './SubscriptionSettings';
+import PackagingSettings from './PackagingSettings';
 import { PopupSettings } from './PopupSettings';
 import { VisitorInsights } from './VisitorInsights';
 import { PointsOfSaleManager } from './PointsOfSaleManager';
@@ -118,6 +119,8 @@ export function StoreSettings() {
         <DeleteLockToggle />
 
         <SubscriptionSettings />
+
+        <PackagingSettings />
 
         <div className="bg-white border border-gray-200 rounded-xl p-6">
           <div className="flex items-center space-x-3 mb-6">
