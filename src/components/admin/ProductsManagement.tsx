@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { Plus, Edit, Trash2, Save, X, Image as ImageIcon, ChevronUp, ChevronDown, Eye, EyeOff, Check } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
 import { useCompany } from '../../contexts/CompanyContext';
+import KitBuilder from './KitBuilder';
 
 interface Product {
   id: string;
@@ -391,6 +392,7 @@ export function ProductsManagement() {
                 uploading={uploading}
                 handleImageUpload={handleImageUpload}
                 hasLots={hasLots}
+                editingId={editingId}
               />
             ) : (
               <>
@@ -521,7 +523,7 @@ export function ProductsManagement() {
   );
 }
 
-function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setImageMode, uploading, handleImageUpload, hasLots = false }: any) {
+function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setImageMode, uploading, handleImageUpload, hasLots = false, editingId = null }: any) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
@@ -799,6 +801,19 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             </p>
           )}
         </div>
+
+        {/* Kits: só depois de o produto existir e ter preço, porque o preço do
+            avulso é o teto de R$/kg de todos os degraus. */}
+        {editingId && !formData.kit_of_product_id && Number(formData.price) > 0 && (
+          <div className="col-span-2">
+            <KitBuilder
+              produtoId={editingId}
+              produtoNome={formData.name}
+              precoBase={Number(formData.price)}
+              gramas={Number(formData.weight_grams) || 500}
+            />
+          </div>
+        )}
 
         <div className="col-span-2">
           <div className="border-2 border-gray-200 rounded-xl p-4">

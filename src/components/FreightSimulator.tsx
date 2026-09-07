@@ -8,7 +8,7 @@
 // Aqui ele vê a escada inteira e decide sozinho.
 import { useEffect, useState } from 'react';
 import { Truck, Loader2 } from 'lucide-react';
-import { cotarFrete, cotarSuperFrete, pesoBrutoKg, brl, type Cotacao } from '../lib/freight';
+import { cotarSuperFrete, pesoBrutoKg, brl, type Cotacao } from '../lib/freight';
 
 type Degrau = {
   rotulo: string;
@@ -18,6 +18,11 @@ type Degrau = {
 };
 
 // Até 4 pacotes a venda é avulsa; de 5 kg em diante o cliente compra em fardos.
+//
+// A escada para em 4 fardos porque é onde as transportadoras param: medido no
+// dia 08/09/2026, 20 kg ainda é cotado por Jadlog, Loggi, SEDEX e PAC, e a
+// 50 kg nenhuma delas aceita. Mostrar 50 ou 100 kg dava um preço que não
+// existe — vinha da tabela própria, que não tem limite de peso.
 const DEGRAUS: Degrau[] = [
   { rotulo: '1 pacote', pacotes: 1 },
   { rotulo: '2 pacotes', pacotes: 2 },
@@ -26,8 +31,6 @@ const DEGRAUS: Degrau[] = [
   { rotulo: '1 fardo (5 kg)', pacotes: 10, destaque: true },
   { rotulo: '2 fardos (10 kg)', pacotes: 20 },
   { rotulo: '4 fardos (20 kg)', pacotes: 40 },
-  { rotulo: '10 fardos (50 kg)', pacotes: 100 },
-  { rotulo: '20 fardos (100 kg)', pacotes: 200 },
 ];
 
 type Linha = Degrau & { peso: number; cotacao: Cotacao | null; transportadora?: string | null };
@@ -75,6 +78,9 @@ export default function FreightSimulator({
         const sf = await cotarSuperFrete(cep, d.pacotes, valor);
         const melhorOpcao = sf?.opcoes?.[0];
 
+        // Sem opção do agregador o degrau simplesmente não aparece. Antes caía
+        // na tabela própria, que não tem limite de peso — e mostrava preço para
+        // 50 e 100 kg, que transportadora nenhuma aceita.
         const cotacao: Cotacao | null = melhorOpcao
           ? {
               atendido: true, zona: null, uf: null, cidade: null,
@@ -84,7 +90,7 @@ export default function FreightSimulator({
               desconto: melhorOpcao.desconto,
               preco: melhorOpcao.preco,
             }
-          : await cotarFrete(cep, peso, valor, d.pacotes);
+          : null;
 
         resultado.push({ ...d, peso, cotacao, transportadora: melhorOpcao
           ? `${melhorOpcao.empresa} ${melhorOpcao.nome}`.trim() : null });

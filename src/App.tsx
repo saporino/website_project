@@ -1023,9 +1023,27 @@ const Cart = ({ isOpen, onClose }: any) => {
 
     const quotes = [...doAgregador, ...daCasa.filter((c) => c.price > 0)];
     setCarriers(quotes);
-    if (quotes.length > 0 && !selectedCarrierId) setSelectedCarrierId(quotes[0].id);
+
+    // Quantidade mudou, transportadora escolhida pode ter sumido da lista —
+    // por peso ou porque o serviço não atende mais. Deixar a escolha antiga de
+    // pé faria o servidor recusar o pedido na hora de pagar.
+    setSelectedCarrierId((atual) => {
+      if (atual === 'pickup') return atual;
+      return atual && quotes.some((q) => q.id === atual) ? atual : (quotes[0]?.id ?? null);
+    });
     setCarriersLoading(false);
   }, [cart, cep]);
+
+  // Recotar sempre que a sacola mudar, e não só quando o CEP é digitado.
+  //
+  // Sem isto o cliente trocava de 1 pacote para o fardo e o frete continuava o
+  // do pacote — número errado na tela até ele mexer no CEP de novo. O atraso
+  // evita uma consulta a cada clique no "+".
+  useEffect(() => {
+    if (cep.replace(/\D/g, '').length !== 8 || cart.length === 0) return;
+    const t = setTimeout(() => { fetchCarriers(); }, 500);
+    return () => clearTimeout(t);
+  }, [cart, cep, fetchCarriers]);
 
   const handleCepChange = async (value: string) => {
     const formatted = formatCEP(value);
