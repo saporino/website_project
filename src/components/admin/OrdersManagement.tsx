@@ -3,7 +3,8 @@ import { supabase } from '../../lib/supabase';
 import { getTrackingUrl } from '../../lib/tracking';
 import { Printer, Tag, Package, Search,
   ChevronDown, ChevronUp, FileText, Truck, CheckCircle,
-  AlertCircle, Upload, ExternalLink, Save, Building2, UserCircle, Undo2 } from 'lucide-react';
+  AlertCircle, Upload, ExternalLink, Save, Building2, UserCircle, Undo2,
+  ShoppingCart, Trash2 } from 'lucide-react';
 
 interface Invoice {
   id: string;
@@ -115,6 +116,8 @@ export function OrdersManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<Record<string, string>>({});
+  const [mostrarAbandonados, setMostrarAbandonados] = useState(false);
+  const [limpando, setLimpando] = useState(false);
 
   useEffect(() => { loadOrders(); }, [refreshKey]);
 
@@ -178,7 +181,54 @@ export function OrdersManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     setActiveSection(prev => ({ ...prev, [orderId]: section }));
   };
 
+  // Carrinho abandonado é pedido criado que nunca foi pago. Todo checkout
+  // iniciado cria um, porque o preço é calculado no servidor antes de cobrar —
+  // quem desiste na tela do cartão deixa um para trás.
+  //
+  // Some da lista por padrão: quem opera precisa ver o pedido que tem café para
+  // separar, não a fila de quem desistiu. Continua acessível pelo interruptor.
+  // Conta antes de apagar e pede confirmação com o número na frente. O banco
+  // recusa mexer em pedido com pagamento registrado, então o pedido pago da
+  // Rosineide não corre risco nem se alguém clicar sem ler.
+  const limparAbandonados = async () => {
+    setLimpando(true);
+    try {
+      const { data: previa, error: e1 } = await supabase
+        .rpc('limpar_carrinhos_abandonados', { p_horas: 24, p_aplicar: false });
+      if (e1) throw e1;
+      const p = previa?.[0];
+      if (!p || p.pedidos === 0) {
+        alert('Nenhum carrinho abandonado com mais de 24 horas.');
+        return;
+      }
+      const desde = p.mais_antigo ? new Date(p.mais_antigo).toLocaleDateString('pt-BR') : '';
+      const ok = confirm(
+        `Apagar ${p.pedidos} ${p.pedidos === 1 ? 'carrinho abandonado' : 'carrinhos abandonados'}` +
+        `${desde ? ` (o mais antigo é de ${desde})` : ''} e ${p.itens} ${p.itens === 1 ? 'item' : 'itens'}?\n\n` +
+        `Só entram pedidos sem pagamento e com mais de 24 horas. Pedido pago não é tocado.\n\n` +
+        `Isso não tem como desfazer.`,
+      );
+      if (!ok) return;
+
+      const { data: feito, error: e2 } = await supabase
+        .rpc('limpar_carrinhos_abandonados', { p_horas: 24, p_aplicar: true });
+      if (e2) throw e2;
+      alert(`Pronto: ${feito?.[0]?.pedidos ?? 0} apagados.`);
+      loadOrders();
+    } catch (err: any) {
+      alert(`Não deu para limpar: ${err?.message ?? err}`);
+    } finally {
+      setLimpando(false);
+    }
+  };
+
+  const ehAbandonado = (o: any) =>
+    o.status === 'pending' && !o.mercadopago_payment_id && !o.paid_at;
+
+  const abandonados = orders.filter(ehAbandonado).length;
+
   const filteredOrders = orders.filter(order => {
+    if (!mostrarAbandonados && ehAbandonado(order)) return false;
     const status = getOrderStatus(order);
     const matchesFilter = filter === 'all' || status === filter;
     const matchesCustomer = customerFilter === 'all' || (order.account_type || 'PF') === customerFilter;
@@ -228,6 +278,36 @@ export function OrdersManagement({ refreshKey = 0 }: { refreshKey?: number }) {
             {ORDER_STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
           </select>
         </div>
+
+        {/* Carrinhos abandonados: escondidos por padrão, e limpáveis.
+            Sem isto a lista fica 90% de gente que desistiu no cartão. */}
+        {abandonados > 0 && (
+          <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-2.5">
+              <ShoppingCart className="mt-0.5 h-4 w-4 flex-shrink-0 text-gray-400" />
+              <div>
+                <p className="text-sm font-semibold text-gray-900">
+                  {abandonados} {abandonados === 1 ? 'carrinho abandonado' : 'carrinhos abandonados'}
+                </p>
+                <p className="text-xs leading-relaxed text-gray-500">
+                  Chegaram ao checkout e não pagaram. Ficam fora da lista para não atrapalhar
+                  quem separa pedido.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-shrink-0 items-center gap-2">
+              <button onClick={() => setMostrarAbandonados(v => !v)}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50">
+                {mostrarAbandonados ? 'Ocultar' : 'Mostrar'}
+              </button>
+              <button onClick={limparAbandonados} disabled={limpando}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50">
+                <Trash2 className="h-3.5 w-3.5" />
+                {limpando ? 'Limpando…' : 'Limpar antigos'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {filteredOrders.length === 0 ? (

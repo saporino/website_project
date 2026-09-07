@@ -15,6 +15,15 @@ export function temToken(): boolean {
   return !!Deno.env.get('TELEGRAM_BOT_TOKEN');
 }
 
+/** Nome do bot, para dizer à pessoa exatamente qual procurar no Telegram. */
+export async function quemEhOBot(): Promise<{ nome: string; usuario: string } | null> {
+  const r = await fetch(API('getMe'));
+  if (!r.ok) return null;
+  const j = await r.json();
+  if (!j?.ok) return null;
+  return { nome: String(j.result?.first_name ?? ''), usuario: String(j.result?.username ?? '') };
+}
+
 /** Conversas que já falaram com o bot. É daqui que sai o chat_id. */
 export async function conversasConhecidas(): Promise<Array<{ chat_id: string; label: string }>> {
   const r = await fetch(API('getUpdates'));

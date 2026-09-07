@@ -7,7 +7,7 @@
 // Só administrador. A chave do bot fica nos secrets e nunca sai daqui.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { conversasConhecidas, enviarTelegram, temToken } from '../_shared/telegram.ts';
+import { conversasConhecidas, enviarTelegram, temToken, quemEhOBot } from '../_shared/telegram.ts';
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -42,9 +42,11 @@ Deno.serve(async (req) => {
     const acao = String(body.acao ?? "listar");
 
     if (acao === "listar") {
+      const bot = await quemEhOBot();
       const conversas = await conversasConhecidas();
       const { data: jaCadastrados } = await db.from("telegram_recipients").select("chat_id, label, is_active");
       return json({
+        bot,
         conversas,
         ja_cadastrados: jaCadastrados ?? [],
         aviso: conversas.length === 0
