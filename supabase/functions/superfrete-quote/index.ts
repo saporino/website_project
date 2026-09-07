@@ -135,9 +135,13 @@ Deno.serve(async (req) => {
     // R$ 1,50 × 10 pacotes = R$ 15,00, contra R$ 7,64 se fosse por quilo.
     const valeDesconto = empresa.shipping_discount_active !== false
       && pacotes >= Number(empresa.shipping_discount_min_packs ?? 1);
+
+    // Por quilo, conta o peso do CAFÉ (500 g por pacote), não o do pacote
+    // fechado. O frete é cobrado pelo bruto porque a transportadora pesa o
+    // envelope junto, mas a loja não banca frete de embalagem.
     const quantidade = empresa.shipping_discount_unit === "pacote"
       ? pacotes
-      : Number(pesoBruto ?? 0);
+      : pacotes * 0.5;
     const subsidio = valeDesconto ? Number(empresa.shipping_subsidy_per_kg ?? 0) * quantidade : 0;
     const opcoes = lista
       .filter((o) => !o.erro && o.preco > 0)

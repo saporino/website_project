@@ -59,7 +59,7 @@ export async function cotarFrete(
   // A função do banco multiplica pelo peso, então convertemos o desconto para
   // o equivalente por quilo. Assim a mesma regra vale nos dois caminhos de
   // cotação, e o cliente vê o mesmo desconto venha de onde vier.
-  const desconto = await descontoDeEnvio(pacotes, pesoKg);
+  const desconto = await descontoDeEnvio(pacotes);
   const porKg = pesoKg > 0 ? desconto / pesoKg : 0;
 
   const { data, error } = await supabase.rpc('cotar_frete', {
@@ -119,10 +119,12 @@ export async function regraDeDesconto(): Promise<RegraDesconto> {
  * A unidade muda muito o valor: um fardo de 5 kg com R$ 1,50 dá R$ 7,64 por
  * quilo e R$ 15,00 por pacote.
  */
-export async function descontoDeEnvio(pacotes: number, pesoKg: number): Promise<number> {
+export async function descontoDeEnvio(pacotes: number): Promise<number> {
   const r = await regraDeDesconto();
   if (!r.ativo || pacotes < r.minPacotes) return 0;
-  return r.valor * (r.unidade === 'pacote' ? pacotes : pesoKg);
+  // Por quilo conta o peso do café (500 g por pacote), não o do pacote fechado:
+  // a loja banca frete de café, não de embalagem.
+  return r.valor * (r.unidade === 'pacote' ? pacotes : pacotes * 0.5);
 }
 
 /** Nossas lojas em marketplace, oferecidas quando o CEP não é atendido. */
