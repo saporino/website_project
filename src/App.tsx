@@ -1021,6 +1021,38 @@ const Cart = ({ isOpen, onClose }: any) => {
   // O endereço completo passou a ser montado no servidor, dentro do
   // create-checkout-order, junto com o cálculo do preço. Os campos vão soltos.
 
+  // Busca os dados da última compra daquele CPF e preenche o que estiver vazio.
+  //
+  // Só preenche campo em branco: se a pessoa já digitou algo, o que ela
+  // escreveu vale mais que o histórico — pode ser mudança de endereço.
+  const [prefillAviso, setPrefillAviso] = useState('');
+  const preencherPeloCPF = async (cpf: string) => {
+    try {
+      const r = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/checkout-prefill`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: import.meta.env.VITE_SUPABASE_ANON_KEY },
+        body: JSON.stringify({ cpf }),
+      });
+      const j = await r.json();
+      if (!j?.encontrado) return;
+      const c = j.cliente;
+      setFormData((f) => ({
+        ...f,
+        name: f.name || (c.nome ?? ''),
+        email: f.email || (c.email ?? ''),
+        phone: f.phone || formatarTelefone(somenteDigitos(c.telefone ?? '').replace(/^55/, '')),
+      }));
+      setStreet((v) => v || (c.rua ?? ''));
+      setNumber((v) => v || (c.numero ?? ''));
+      setComplement((v) => v || (c.complemento ?? ''));
+      setNeighborhood((v) => v || (c.bairro ?? ''));
+      setCity((v) => v || (c.cidade ?? ''));
+      setState((v) => v || (c.uf ?? ''));
+      setCep((v) => v || (c.cep ?? ''));
+      setPrefillAviso('Que bom te ver de novo! Preenchemos com os dados da sua última compra — confira antes de continuar.');
+    } catch { /* sem histórico o cliente digita normalmente */ }
+  };
+
   // Compra sem cadastro é permitida de propósito.
   //
   // Antes daqui a sacola oferecia "Fazer Login para Comprar" e mandava quem não
@@ -1184,7 +1216,13 @@ const Cart = ({ isOpen, onClose }: any) => {
                   required
                   inputMode="numeric"
                   value={formData.cpf}
-                  onChange={(e) => setFormData({ ...formData, cpf: formatarCPF(e.target.value) })}
+                  onChange={(e) => {
+                    const novo = formatarCPF(e.target.value);
+                    setFormData({ ...formData, cpf: novo });
+                    // Cliente que volta não digita tudo de novo: com o CPF
+                    // completo e válido, buscamos os dados da última compra.
+                    if (novo.length === 14 && cpfValido(novo)) preencherPeloCPF(novo);
+                  }}
                   placeholder="000.000.000-00"
                   className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-[#8B2214] focus:border-transparent transition-all ${
                     formData.cpf.length === 14 && !cpfValido(formData.cpf)
@@ -1198,6 +1236,11 @@ const Cart = ({ isOpen, onClose }: any) => {
                   </p>
                 )}
                 <p className="mt-1.5 text-xs text-gray-500">Necessário para emitir a nota fiscal.</p>
+                {prefillAviso && (
+                  <p className="mt-2 rounded-lg bg-green-50 border border-green-200 px-3 py-2 text-xs text-green-800">
+                    {prefillAviso}
+                  </p>
+                )}
               </div>
 
               <div>
