@@ -114,71 +114,69 @@ export default function FreightSimulator({
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-xs uppercase tracking-wide text-gray-500">
-              <th className="px-4 py-2 text-left font-medium">Quantidade</th>
-              <th className="px-4 py-2 text-right font-medium">Café</th>
-              <th className="px-4 py-2 text-right font-medium">Frete</th>
-              <th className="px-4 py-2 text-right font-medium">Total</th>
-              <th className="px-4 py-2 text-right font-medium">Frete por kg</th>
-              {aoEscolher && <th className="px-4 py-2" />}
-            </tr>
-          </thead>
-          <tbody>
-            {atendidas.map((l) => {
-              const porKg = l.cotacao!.preco / l.peso;
-              const cafe = l.pacotes * precoPorPacote;
-              const ehMelhor = l.rotulo === melhor.rotulo;
-              const ehAtual = pacotesNoCarrinho === l.pacotes;
-              return (
-                <tr
-                  key={l.rotulo}
-                  className={`border-t border-gray-100 ${l.destaque ? 'bg-[#faf8f7]' : ''} ${
-                    ehAtual ? 'bg-[#8B2214]/5' : ''
-                  }`}
-                >
-                  <td className="px-4 py-2.5 text-gray-900">
-                    {l.rotulo}
-                    {ehMelhor && (
-                      <span className="ml-2 rounded-full bg-[#8B2214] px-2 py-0.5 text-[10px] font-semibold text-white">
-                        melhor frete
-                      </span>
-                    )}
-                    <span className="block text-[11px] text-gray-500">
-                      {l.peso.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg
+      {/* Linhas em vez de tabela: seis colunas não cabem na largura de um
+          celular, e barra de rolagem lateral esconde justamente a coluna do
+          total. Aqui cada degrau é uma linha inteira clicável, que encolhe
+          junto com a tela. */}
+      <ul className="divide-y divide-gray-100">
+        {atendidas.map((l) => {
+          const porKg = l.cotacao!.preco / l.peso;
+          const cafe = l.pacotes * precoPorPacote;
+          const ehMelhor = l.rotulo === melhor.rotulo;
+          const ehAtual = pacotesNoCarrinho === l.pacotes;
+
+          const conteudo = (
+            <div className="flex w-full items-center gap-3 px-4 py-3 text-left">
+              <div className="min-w-0 flex-1">
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-medium text-gray-900">
+                  <span>{l.rotulo}</span>
+                  {ehMelhor && (
+                    <span className="rounded-full bg-[#8B2214] px-2 py-0.5 text-[10px] font-semibold text-white">
+                      melhor frete
                     </span>
-                  </td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-600">{brl(cafe)}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums text-gray-600">{brl(l.cotacao!.preco)}</td>
-                  <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-gray-900">
-                    {brl(cafe + l.cotacao!.preco)}
-                  </td>
-                  <td className={`px-4 py-2.5 text-right tabular-nums font-semibold ${ehMelhor ? 'text-[#8B2214]' : 'text-gray-700'}`}>
-                    {brl(porKg)}
-                  </td>
-                  {aoEscolher && (
-                    <td className="px-4 py-2.5 text-right">
-                      {ehAtual ? (
-                        <span className="text-xs font-semibold text-[#8B2214]">na sacola</span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => aoEscolher(l.pacotes)}
-                          className="rounded-full border border-[#8B2214] px-3 py-1 text-xs font-semibold text-[#8B2214] transition-colors hover:bg-[#8B2214] hover:text-white"
-                        >
-                          Quero esta
-                        </button>
-                      )}
-                    </td>
                   )}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                  {ehAtual && (
+                    <span className="rounded-full border border-[#8B2214] px-2 py-0.5 text-[10px] font-semibold text-[#8B2214]">
+                      na sacola
+                    </span>
+                  )}
+                </p>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-gray-500">
+                  café {brl(cafe)} + frete {brl(l.cotacao!.preco)}
+                  <span className="block sm:inline sm:before:content-['_·_']">
+                    frete {brl(porKg)}/kg
+                  </span>
+                </p>
+              </div>
+
+              <div className="shrink-0 text-right">
+                <p className="text-sm font-bold tabular-nums text-gray-900">{brl(cafe + l.cotacao!.preco)}</p>
+                {aoEscolher && !ehAtual && (
+                  <span className="mt-0.5 inline-block text-[11px] font-semibold text-[#8B2214]">
+                    Quero esta →
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+
+          return (
+            <li key={l.rotulo} className={l.destaque ? 'bg-[#faf8f7]' : ''}>
+              {aoEscolher && !ehAtual ? (
+                <button
+                  type="button"
+                  onClick={() => aoEscolher(l.pacotes)}
+                  className="w-full transition-colors hover:bg-[#8B2214]/5"
+                >
+                  {conteudo}
+                </button>
+              ) : (
+                <div className={ehAtual ? 'bg-[#8B2214]/5' : ''}>{conteudo}</div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
 
       <p className="border-t border-gray-100 px-4 py-2.5 text-xs text-gray-500">
         Entrega para {primeira.cotacao!.cidade}/{primeira.cotacao!.uf}
