@@ -28,6 +28,23 @@ function str(v: unknown, max: number): string {
 }
 
 /**
+ * Confere os dígitos verificadores do CPF.
+ * O navegador já valida, mas quem cobra é o servidor: CPF errado só aparece
+ * quando a nota fiscal é recusada, e aí o pedido já foi pago.
+ */
+function cpfValido(bruto: string): boolean {
+  const d = (bruto || '').replace(/\D/g, '');
+  if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+  const digito = (ate: number) => {
+    let soma = 0;
+    for (let i = 0; i < ate; i++) soma += Number(d[i]) * (ate + 1 - i);
+    const resto = (soma * 10) % 11;
+    return resto === 10 ? 0 : resto;
+  };
+  return digito(9) === Number(d[9]) && digito(10) === Number(d[10]);
+}
+
+/**
  * Normaliza o telefone brasileiro para o formato internacional.
  * O cliente digita só DDD e número; o +55 é fixo na tela.
  * Celular tem 9 dígitos e começa com 9; fixo tem 8. Essa diferença importa:
@@ -66,6 +83,11 @@ Deno.serve(async (req: Request) => {
     const phone = str(c.phone, 30);
     if (!name || name.length < 2) return json({ error: 'Nome obrigatório' }, 400);
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json({ error: 'E-mail inválido' }, 400);
+
+    // CPF: a nota fiscal de pessoa física não sai sem ele, e a compra agora é
+    // liberada sem cadastro — não há perfil de onde puxar depois.
+    const cpf = str(c.cpf, 20).replace(/\D/g, '');
+    if (!cpfValido(cpf)) return json({ error: 'CPF inválido. Confira os números.', code: 'BAD_CPF' }, 400);
 
     const telefone = normalizarTelefone(phone);
     if (!telefone.e164) return json({ error: 'Telefone inválido. Informe DDD e número.', code: 'BAD_PHONE' }, 400);
@@ -178,6 +200,7 @@ Deno.serve(async (req: Request) => {
       channel: prefixoEmpresa === 'CO' ? 'casa-cofico' : 'site-saporino',
       customer_name: name,
       customer_email: email,
+      customer_cpf: cpf,
       customer_phone: phone,
       shipping_address: address,
       // Campos separados além do endereço em texto. O painel mostra estes; gravar

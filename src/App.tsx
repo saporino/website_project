@@ -16,6 +16,7 @@ import { supabase } from './lib/supabase';
 import { Product, CartItem } from './types';
 import { createPreference, MERCADO_PAGO_PUBLIC_KEY } from './lib/mercadopago';
 import { formatarTelefone, somenteDigitos, analisarTelefone } from './lib/phoneBR';
+import { formatarCPF, cpfValido } from './lib/cpf';
 import { getCarrierQuotes, lookupCEP, formatCEP, calculateCartWeight, CarrierQuote } from './lib/shipping';
 import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
 import CookieConsent from './components/CookieConsent';
@@ -923,14 +924,16 @@ const Products = ({ products, loading, addedProducts, setAddedProducts, selected
   );
 };
 
-const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
+// onAuthOpen deixou de ser usado quando a compra passou a ser liberada sem
+// cadastro; fica na assinatura porque quem monta o Cart ainda passa a prop.
+const Cart = ({ isOpen, onClose }: any) => {
   const { cart, removeFromCart, updateQuantity, clearCart, getCartTotal } = useCart();
   const { user } = useAuth();
   const [isCheckout, setIsCheckout] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSuccess] = useState(false);
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: '', email: '', phone: '', address: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', phone: '', address: '', cpf: '' });
 
   // Shipping address state
   const [isGift, setIsGift] = useState(false);
@@ -1018,19 +1021,23 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
   // O endereço completo passou a ser montado no servidor, dentro do
   // create-checkout-order, junto com o cálculo do preço. Os campos vão soltos.
 
+  // Compra sem cadastro é permitida de propósito.
+  //
+  // Antes daqui a sacola oferecia "Fazer Login para Comprar" e mandava quem não
+  // tinha conta para a tela de cadastro. Em loja de café isso derruba a venda:
+  // quem só quer experimentar um pacote desiste na hora de criar senha.
+  //
+  // O pedido de visitante nasce sem dono e é acessado pelo link com token; os
+  // dados que a nota exige (nome, CPF, e-mail, telefone e endereço) vêm no
+  // próprio formulário. Se a pessoa criar conta depois, o pedido continua lá.
   const handleCheckout = () => {
-    if (!user) {
-      onAuthOpen('login');
-      onClose();
-      return;
-    }
     setIsCheckout(true);
   };
 
   const handleSubmitOrder = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user) return;
-
+    // Sem trava de login: visitante compra. O servidor grava o dono quando há
+    // sessão, e deixa nulo quando não há — o acesso ao pedido é pelo token.
     setIsSubmitting(true);
 
     try {
@@ -1057,6 +1064,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
           customer: {
             name: formData.name,
             email: formData.email,
+            cpf: formData.cpf,
             phone: telefone.e164 ?? formData.phone,
             street, number, complement, neighborhood, city, state, cep,
             recipient_name: isGift ? recipientName : formData.name,
@@ -1164,6 +1172,32 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#8B2214] focus:border-transparent transition-all"
                 />
+              </div>
+
+              <div>
+                {/* CPF é exigência da nota fiscal de pessoa física. Como a compra
+                    agora é liberada sem cadastro, ele precisa vir aqui: não há
+                    perfil de onde puxar. */}
+                <label className="block text-sm font-semibold text-gray-700 mb-2">CPF *</label>
+                <input
+                  type="text"
+                  required
+                  inputMode="numeric"
+                  value={formData.cpf}
+                  onChange={(e) => setFormData({ ...formData, cpf: formatarCPF(e.target.value) })}
+                  placeholder="000.000.000-00"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-[#8B2214] focus:border-transparent transition-all ${
+                    formData.cpf.length === 14 && !cpfValido(formData.cpf)
+                      ? 'border-red-400'
+                      : 'border-gray-300'
+                  }`}
+                />
+                {formData.cpf.length === 14 && !cpfValido(formData.cpf) && (
+                  <p className="mt-1.5 text-xs text-red-600">
+                    Esse CPF não confere. Confira os números.
+                  </p>
+                )}
+                <p className="mt-1.5 text-xs text-gray-500">Necessário para emitir a nota fiscal.</p>
               </div>
 
               <div>
@@ -1430,7 +1464,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                     onClick={() => {
                       setIsCheckout(false);
                       setPreferenceId(null);
-                      setFormData({ name: '', email: '', phone: '', address: '' });
+                      setFormData({ name: '', email: '', phone: '', address: '', cpf: '' });
                     }}
                     className="w-full border-2 border-gray-300 text-gray-700 py-4 rounded-full font-semibold hover:bg-gray-50 transition-all"
                   >
@@ -1520,7 +1554,7 @@ const Cart = ({ isOpen, onClose, onAuthOpen }: any) => {
                 onClick={handleCheckout}
                 className="w-full bg-[#8B2214] text-white py-4 rounded-full font-semibold hover:bg-[#8a1f0c] transition-all shadow-lg mb-3"
               >
-                {user ? 'Finalizar Pedido' : 'Fazer Login para Comprar'}
+                Finalizar Pedido
               </button>
               <button
                 onClick={clearCart}
