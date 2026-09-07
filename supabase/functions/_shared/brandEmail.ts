@@ -58,15 +58,30 @@ export function identidade(marca: Marca): Identidade {
   return IDENTIDADES[marca];
 }
 
-const p = (t: string) => `<p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#3f3a38">${t}</p>`;
-const nota = (t: string) => `<p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#8a8078">${t}</p>`;
+/**
+ * Marca a partir do prefixo da empresa faturadora (`companies.order_prefix`).
+ * É o caminho usado depois que o pedido existe: aí a empresa já está gravada
+ * nele, e não se olha mais o domínio de onde a compra veio.
+ */
+export function marcaPorPrefixo(prefixo: string | null | undefined): Marca {
+  return prefixo === "CO" ? "CO" : "CS";
+}
+
+export const p = (t: string) => `<p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:#3f3a38">${t}</p>`;
+export const nota = (t: string) => `<p style="margin:16px 0 0;font-size:13px;line-height:1.6;color:#8a8078">${t}</p>`;
+
+/** Escapa texto que veio do cliente antes de entrar no HTML do e-mail. */
+export function esc(v: unknown): string {
+  return String(v ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+}
 
 /**
  * Moldura comum. HTML simples com estilo embutido, que é o que sobrevive em
  * cliente de e-mail. Sem o endereço técnico no rodapé de propósito: URL crua com
  * domínio de infraestrutura tem cara de golpe.
  */
-function moldura(id: Identidade, titulo: string, corpo: string, botao: { texto: string; link: string } | null): string {
+export function moldura(id: Identidade, titulo: string, corpo: string, botao: { texto: string; link: string } | null): string {
   return `
 <div style="margin:0;padding:24px 12px;background:#f8f7f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif">
   <div style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #eee7e5;border-radius:14px;overflow:hidden">

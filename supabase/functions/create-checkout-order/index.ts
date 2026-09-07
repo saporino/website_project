@@ -97,8 +97,26 @@ Deno.serve(async (req: Request) => {
       carrierName = 'Retirada no local';
       shippingCost = 0;
     } else if (carrierId) {
-      const { data: carrier } = await supabase.from('shipping_carriers').select('name, price').eq('id', carrierId).maybeSingle();
-      if (carrier) { shippingCost = round2(Number(carrier.price) || 0); carrierName = carrier.name; }
+      // A tabela guarda `fixed_price` e `price_per_kg` — não existe coluna `price`.
+      // Enquanto o nome errado esteve aqui, a consulta falhava, o erro era engolido
+      // e TODO frete saía zerado: quem escolhia transportadora não pagava nada, e o
+      // nome dela nem era gravado no pedido.
+      const { data: carrier, error: carrierErr } = await supabase.from('shipping_carriers')
+        .select('name, fixed_price, price_per_kg').eq('id', carrierId).maybeSingle();
+
+      // Transportadora escolhida que não pode ser precificada não vira frete grátis
+      // por acidente: o pedido não nasce.
+      if (carrierErr || !carrier) {
+        return json({ error: 'Nao foi possivel calcular o frete. Tente novamente.', code: 'CARRIER_LOOKUP_FAILED' }, 400);
+      }
+
+      // 1 pacote = 500 g (regra do produto, ver CLAUDE.md §7). O peso só entra na
+      // conta quando a transportadora cobra por quilo.
+      const fixo = Number(carrier.fixed_price) || 0;
+      const porKg = Number(carrier.price_per_kg) || 0;
+      const pesoKg = porKg > 0 ? priced.lines.reduce((s, l) => s + l.quantity * 0.5, 0) : 0;
+      shippingCost = round2(fixo + porKg * pesoKg);
+      carrierName = carrier.name;
     }
 
     // Endereço (composto, com limites).

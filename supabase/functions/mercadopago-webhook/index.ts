@@ -3,6 +3,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { mapMpStatus, decideOrderUpdate, manifestVariants, mapPaymentMethod, mapOrderStage } from '../_shared/mpWebhook.ts';
 import { logEdge, newRequestId } from '../_shared/log.ts';
 import { mpAccessToken, mpWebhookSecrets } from '../_shared/mpCredentials.ts';
+import { notificarPedido } from '../_shared/notifyOrder.ts';
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -229,6 +230,25 @@ Deno.serve(async (req: Request) => {
             .single();
 
         if (orderError) throw orderError;
+
+        // Pagamento aprovado: avisa o cliente e quem separa.
+        //
+        // Antes disto, quem comprava não recebia nada nosso — só o comprovante do
+        // Mercado Pago, que fala de pagamento e não sabe o que foi comprado nem
+        // quando chega. Do lado de dentro, ninguém era avisado de que havia café
+        // para separar.
+        //
+        // Só dispara quando o pedido ACABOU de ser pago (decision.setPaidAt), e
+        // nunca derruba o webhook: o pagamento já está registrado, e o Mercado
+        // Pago reenvia a notificação se algo falhar aqui.
+        if (orderStatus === 'approved' && decision.setPaidAt) {
+            const cliente = await notificarPedido(supabase, externalReference, 'pedido_confirmado');
+            const interno = await notificarPedido(supabase, externalReference, 'aviso_admin');
+            await logEdge(supabase, {
+                function_name: FN, request_id: rid, level: 'info', status: 200,
+                meta: { ext: externalReference, email_cliente: cliente, email_interno: interno },
+            });
+        }
 
         await logEdge(supabase, { function_name: FN, request_id: rid, level: 'info', status: 200, meta: { ext: externalReference, status: orderStatus } });
         return json({ message: 'Webhook processed successfully', orderId: externalReference, status: orderStatus }, 200);
