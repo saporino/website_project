@@ -1007,9 +1007,9 @@ const Cart = ({ isOpen, onClose }: any) => {
 
     const doAgregador: CarrierQuote[] = (sf?.opcoes ?? []).map((o) => ({
       id: `sf:${o.id}`,
-      name: `${o.empresa} ${o.nome}`.trim(),
+      name: o.nome,
       code: `sf-${o.id}`,
-      logo_url: null,
+      logo_url: o.logo,
       price: o.preco,
       delivery_time_days: o.prazo_dias ?? 5,
       api_type: 'superfrete',
@@ -1429,7 +1429,16 @@ const Cart = ({ isOpen, onClose }: any) => {
                           </div>
                           <div className="text-right">
                             {carrier.price > 0 ? (
-                              <p className="font-bold text-gray-900">R$ {carrier.price.toFixed(2)}</p>
+                              <>
+                                <p className="font-bold text-gray-900">R$ {carrier.price.toFixed(2)}</p>
+                                {/* O desconto que a loja banca aparece aqui, ao lado do
+                                    preço. Escondido, ele não convence ninguém. */}
+                                {(carrier.desconto ?? 0) > 0 && (
+                                  <p className="text-[11px] font-semibold text-green-700">
+                                    −R$ {carrier.desconto!.toFixed(2)} de desconto
+                                  </p>
+                                )}
+                              </>
                             ) : (
                               <p className="text-xs text-blue-600 font-semibold">Verificar<br/>no checkout</p>
                             )}

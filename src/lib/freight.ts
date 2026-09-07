@@ -145,6 +145,8 @@ export type OpcaoFrete = {
   id: number;
   nome: string;
   empresa: string;
+  /** Logo oficial da transportadora, entregue pelo próprio agregador. */
+  logo: string | null;
   /** O que a transportadora cobra, já com a margem da loja. */
   preco_base: number;
   /** O que a loja banca, mostrado ao cliente como desconto de envio. */

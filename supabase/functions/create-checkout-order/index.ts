@@ -178,8 +178,39 @@ Deno.serve(async (req: Request) => {
       str(c.cep, 20) ? `CEP ${str(c.cep, 20)}` : null,
     ].filter(Boolean).join(' — ');
 
+    // Cupom: validado AQUI de novo, mesmo que a tela já tenha validado. A tela
+    // mostra; o servidor decide. Cupom vindo do navegador é cupom que o cliente
+    // pode inventar.
+    let descontoCupom = 0;      // quanto o cupom tirou, para a nota e o relatório
+    let descontoNosProdutos = 0; // parte que sai do subtotal, não do frete
+    let cupomAplicado: string | null = null;
+    const codigoCupom = str(body?.cupom ?? c.cupom, 40);
+    if (codigoCupom) {
+      const { data: v } = await supabase.rpc('validar_cupom', {
+        p_codigo: codigoCupom,
+        p_cpf: cpf,
+        p_subtotal: priced.itemsTotal,
+        p_frete: shippingCost,
+        p_empresa: prefixoEmpresa,
+      });
+      const r = v?.[0];
+      if (!r?.valido) {
+        return json({ error: r?.motivo ?? 'Cupom inválido.', code: 'CUPOM_INVALIDO' }, 400);
+      }
+      cupomAplicado = codigoCupom.toUpperCase();
+      descontoCupom = round2(Number(r.desconto) || 0);
+
+      if (r.zera_frete) {
+        // Frete grátis: o desconto É o frete, e some do total zerando o frete.
+        shippingCost = 0;
+      } else {
+        // Percentual ou valor fixo: sai dos produtos, nunca abaixo de zero.
+        descontoNosProdutos = Math.min(descontoCupom, priced.itemsTotal);
+      }
+    }
+
     const { token, hash } = await makeToken();
-    const total = round2(priced.itemsTotal + shippingCost);
+    const total = round2(Math.max(priced.itemsTotal - descontoNosProdutos + shippingCost, 0));
 
     // Cria o pedido (SERVICE ROLE — o browser não insere direto).
     // Empresa faturadora: decidida AQUI, na criação, a partir do domínio de onde a
@@ -249,6 +280,8 @@ Deno.serve(async (req: Request) => {
       shipping_service_id: servicoFrete?.id ?? null,
       shipping_service_name: servicoFrete?.nome ?? null,
       shipping_cost: shippingCost,
+      coupon_code: cupomAplicado,
+      discount_amount: descontoCupom,
       is_pickup: isPickup,
       total_amount: total,
       status: 'pending',
@@ -289,6 +322,19 @@ Deno.serve(async (req: Request) => {
     }));
     const { error: itemsErr } = await supabase.from('order_items').insert(itemRows);
     if (itemsErr) throw itemsErr;
+
+    // Registra o uso do cupom e incrementa o contador. Sem isto o limite de
+    // usos nunca chegaria ao fim, e não haveria como auditar quem usou o quê.
+    if (cupomAplicado) {
+      const { data: cup } = await supabase.from('coupons')
+        .select('id, uses').eq('code', cupomAplicado).eq('company_id', empresa.id).maybeSingle();
+      if (cup) {
+        await supabase.from('coupon_redemptions').insert({
+          coupon_id: cup.id, order_id: order.id, cpf, amount: descontoCupom,
+        });
+        await supabase.from('coupons').update({ uses: (cup.uses ?? 0) + 1 }).eq('id', cup.id);
+      }
+    }
 
     await logEdge(supabase, { function_name: FN, request_id: rid, level: 'info', status: 200, meta: { order: order.id, items: itemRows.length } });
     return json({ order_id: order.id, public_token: token, order_number: order.order_number, total_amount: order.total_amount });

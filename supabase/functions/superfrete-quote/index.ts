@@ -31,7 +31,7 @@ const UA = "Cafe Saporino (sac@cafesaporino.com.br)";
 const so = (v: unknown) => String(v ?? "").replace(/\D/g, "");
 
 type Opcao = {
-  id: number; nome: string; empresa: string;
+  id: number; nome: string; empresa: string; logo: string | null;
   preco: number; prazo_dias: number | null; erro: string | null;
 };
 
@@ -116,17 +116,27 @@ Deno.serve(async (req) => {
     }
 
     const bruto = JSON.parse(texto);
-    const lista: Opcao[] = (Array.isArray(bruto) ? bruto : []).map((o: Record<string, unknown>) => ({
+    const lista: Opcao[] = (Array.isArray(bruto) ? bruto : []).map((o: Record<string, unknown>) => {
+      const co = (o.company ?? {}) as Record<string, unknown>;
+      const empresa = String(co.name ?? "");
+      const nome = String(o.name ?? "");
+      return {
       id: Number(o.id),
-      nome: String(o.name ?? ""),
-      empresa: String((o.company as Record<string, unknown>)?.name ?? ""),
+      // "jadlog" + "JADLOG Econômico" vira "JADLOG Econômico": repetir o nome da
+      // transportadora no rótulo fica feio na tela do cliente.
+      nome: nome.toLowerCase().includes(empresa.toLowerCase()) && empresa ? nome : `${empresa} ${nome}`.trim(),
+      empresa,
+      // Logo oficial que o próprio agregador entrega. Marca reconhecida ao lado
+      // do preço passa mais confiança que o nome escrito.
+      logo: co.picture ? String(co.picture) : null,
       // Serviço indisponível para aquele CEP ou pacote fora das medidas vem
       // marcado com has_error e sem preço. Mini Envios, por exemplo, recusa
       // qualquer coisa acima de 300 g — o nosso pacote nunca cabe.
       preco: Number(o.price ?? 0),
       prazo_dias: o.delivery_time != null ? Number(o.delivery_time) : null,
       erro: o.has_error ? String(o.has_error) : (o.error ? String(o.error) : null),
-    }));
+      };
+    });
 
     // Margem e desconto, nesta ordem: primeiro a loja soma o que quer ganhar,
     // depois abate o que ela banca. O cliente vê o resultado e o desconto.
