@@ -18,6 +18,7 @@ import { createPreference, MERCADO_PAGO_PUBLIC_KEY } from './lib/mercadopago';
 import { formatarTelefone, somenteDigitos, analisarTelefone } from './lib/phoneBR';
 import { formatarCPF, cpfValido } from './lib/cpf';
 import { getCarrierQuotes, lookupCEP, formatCEP, calculateCartWeight, CarrierQuote } from './lib/shipping';
+import { cotarSuperFrete } from './lib/freight';
 import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
 import CookieConsent from './components/CookieConsent';
 import FreightSimulator from './components/FreightSimulator';
@@ -995,7 +996,32 @@ const Cart = ({ isOpen, onClose }: any) => {
     if (cart.length === 0) return;
     setCarriersLoading(true);
     const weight = calculateCartWeight(cart);
-    const quotes = await getCarrierQuotes(cep, weight);
+
+    // Cotação ao vivo primeiro: Correios, Loggi, Jadlog e J&T com preço e prazo
+    // reais. A ordem entre elas muda com o peso — no pacote de 500 g a Loggi
+    // ganha fácil, no fardo de 5 kg o SEDEX assume —, então mostramos todas e
+    // o cliente escolhe entre barato e rápido.
+    const pacotes = cart.reduce((s: number, i: CartItem) => s + i.quantity, 0);
+    const valor = cart.reduce((s: number, i: CartItem) => s + i.price * i.quantity, 0);
+    const sf = await cotarSuperFrete(cep, pacotes, valor);
+
+    const doAgregador: CarrierQuote[] = (sf?.opcoes ?? []).map((o) => ({
+      id: `sf:${o.id}`,
+      name: `${o.empresa} ${o.nome}`.trim(),
+      code: `sf-${o.id}`,
+      logo_url: null,
+      price: o.preco,
+      delivery_time_days: o.prazo_dias ?? 5,
+      api_type: 'superfrete',
+      is_api_configured: true,
+      desconto: o.desconto,
+    }));
+
+    // A tabela própria continua na lista. Para pacote pequeno ela perde feio,
+    // mas é ela que atende fardo pesado e o B2B — e o cliente pode preferir.
+    const daCasa = await getCarrierQuotes(cep, weight);
+
+    const quotes = [...doAgregador, ...daCasa.filter((c) => c.price > 0)];
     setCarriers(quotes);
     if (quotes.length > 0 && !selectedCarrierId) setSelectedCarrierId(quotes[0].id);
     setCarriersLoading(false);

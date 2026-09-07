@@ -21,7 +21,13 @@ type Cfg = {
   last_error: string | null;
 };
 
-type Empresa = { id: string; name: string; order_prefix: string | null };
+type Empresa = {
+  id: string; name: string; order_prefix: string | null;
+  shipping_subsidy_per_kg: number;
+  shipping_discount_active: boolean;
+  shipping_discount_unit: 'kg' | 'pacote';
+  shipping_discount_min_packs: number;
+};
 
 type Opcao = { nome: string; empresa: string; preco: number; preco_base: number; desconto: number; prazo_dias: number | null };
 
@@ -39,7 +45,9 @@ export default function SuperFreteSettings() {
     setCarregando(true);
     const [{ data: c }, { data: e }] = await Promise.all([
       supabase.from('superfrete_settings').select('*'),
-      supabase.from('companies').select('id, name, order_prefix').in('order_prefix', ['CS', 'CO']),
+      supabase.from('companies')
+        .select('id, name, order_prefix, shipping_subsidy_per_kg, shipping_discount_active, shipping_discount_unit, shipping_discount_min_packs')
+        .in('order_prefix', ['CS', 'CO']),
     ]);
     setCfgs((c ?? []) as Cfg[]);
     setEmpresas((e ?? []) as Empresa[]);
@@ -49,8 +57,20 @@ export default function SuperFreteSettings() {
   const alterar = (id: string, campo: keyof Cfg, valor: unknown) =>
     setCfgs((atual) => atual.map((c) => (c.id === id ? { ...c, [campo]: valor } : c)));
 
+  const alterarEmpresa = (id: string, campo: keyof Empresa, valor: unknown) =>
+    setEmpresas((atual) => atual.map((e) => (e.id === id ? { ...e, [campo]: valor } : e)));
+
   const salvar = async (c: Cfg) => {
     setSalvando(c.id);
+    const emp = empresas.find((e) => e.id === c.company_id);
+    if (emp) {
+      await supabase.from('companies').update({
+        shipping_subsidy_per_kg: emp.shipping_subsidy_per_kg,
+        shipping_discount_active: emp.shipping_discount_active,
+        shipping_discount_unit: emp.shipping_discount_unit,
+        shipping_discount_min_packs: emp.shipping_discount_min_packs,
+      }).eq('id', emp.id);
+    }
     await supabase.from('superfrete_settings').update({
       is_active: c.is_active,
       origin_cep: (c.origin_cep || '').replace(/\D/g, ''),
@@ -173,6 +193,62 @@ export default function SuperFreteSettings() {
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
                 </div>
               </div>
+
+              {/* Desconto de envio: vale para QUALQUER cotação, aqui e na tabela
+                  própria. É o que faz o cliente ver "frete R$ 10,84" num fardo
+                  cujo frete real é R$ 25,84. */}
+              {empresa && (
+                <div className="mt-5 rounded-lg border border-gray-200 bg-[#faf8f7] p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">Desconto de envio</p>
+                      <p className="text-xs text-gray-500">
+                        Quanto a loja banca do frete. O cliente vê só como desconto.
+                      </p>
+                    </div>
+                    <label className="flex flex-shrink-0 items-center gap-2 text-sm font-medium text-gray-700">
+                      <input type="checkbox" checked={empresa.shipping_discount_active}
+                        onChange={(e) => alterarEmpresa(empresa.id, 'shipping_discount_active', e.target.checked)}
+                        className="h-4 w-4 accent-[#8B2214]" />
+                      Ligado
+                    </label>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-gray-600">Valor (R$)</label>
+                      <input type="number" step="0.10" value={empresa.shipping_subsidy_per_kg}
+                        onChange={(e) => alterarEmpresa(empresa.id, 'shipping_subsidy_per_kg', Number(e.target.value))}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-gray-600">Por</label>
+                      <select value={empresa.shipping_discount_unit}
+                        onChange={(e) => alterarEmpresa(empresa.id, 'shipping_discount_unit', e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                        <option value="pacote">pacote</option>
+                        <option value="kg">quilo</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-semibold text-gray-600">A partir de (pacotes)</label>
+                      <input type="number" min="1" value={empresa.shipping_discount_min_packs}
+                        onChange={(e) => alterarEmpresa(empresa.id, 'shipping_discount_min_packs', Number(e.target.value))}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+                    </div>
+                  </div>
+
+                  <p className="mt-3 text-xs leading-relaxed text-gray-600">
+                    {empresa.shipping_discount_active ? (
+                      <>Hoje: <b>{brl(empresa.shipping_subsidy_per_kg)} por {empresa.shipping_discount_unit === 'pacote' ? 'pacote' : 'quilo'}</b>,
+                      a partir de <b>{empresa.shipping_discount_min_packs} {empresa.shipping_discount_min_packs === 1 ? 'pacote' : 'pacotes'}</b>.
+                      {empresa.shipping_discount_unit === 'pacote' && empresa.shipping_discount_min_packs >= 10
+                        ? ' Um fardo ganha ' + brl(empresa.shipping_subsidy_per_kg * 10) + ' de desconto.'
+                        : ''}</>
+                    ) : 'Desligado — o cliente paga o frete cheio.'}
+                  </p>
+                </div>
+              )}
 
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <button onClick={() => salvar(c)} disabled={salvando === c.id}

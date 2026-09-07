@@ -62,7 +62,8 @@ Deno.serve(async (req) => {
 
     // Configuração da empresa vendedora: origem, serviços e margem.
     const { data: empresa } = await db.from("companies")
-      .select("id, shipping_subsidy_per_kg").eq("order_prefix", prefixo).maybeSingle();
+      .select("id, shipping_subsidy_per_kg, shipping_discount_active, shipping_discount_unit, shipping_discount_min_packs")
+      .eq("order_prefix", prefixo).maybeSingle();
     if (!empresa) return json({ error: "Empresa nao encontrada", code: "NO_COMPANY" }, 400);
 
     const { data: cfg } = await db.from("superfrete_settings")
@@ -127,9 +128,17 @@ Deno.serve(async (req) => {
       erro: o.has_error ? String(o.has_error) : (o.error ? String(o.error) : null),
     }));
 
-    // Margem e subsídio, nesta ordem: primeiro a loja soma o que quer ganhar,
-    // depois desconta o que ela banca. O cliente vê só o resultado e o desconto.
-    const subsidio = Number(empresa.shipping_subsidy_per_kg ?? 0) * Number(pesoBruto ?? 0);
+    // Margem e desconto, nesta ordem: primeiro a loja soma o que quer ganhar,
+    // depois abate o que ela banca. O cliente vê o resultado e o desconto.
+    //
+    // A unidade muda muito o valor, e é decisão comercial: no fardo,
+    // R$ 1,50 × 10 pacotes = R$ 15,00, contra R$ 7,64 se fosse por quilo.
+    const valeDesconto = empresa.shipping_discount_active !== false
+      && pacotes >= Number(empresa.shipping_discount_min_packs ?? 1);
+    const quantidade = empresa.shipping_discount_unit === "pacote"
+      ? pacotes
+      : Number(pesoBruto ?? 0);
+    const subsidio = valeDesconto ? Number(empresa.shipping_subsidy_per_kg ?? 0) * quantidade : 0;
     const opcoes = lista
       .filter((o) => !o.erro && o.preco > 0)
       .map((o) => {

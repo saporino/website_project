@@ -4,11 +4,13 @@ export interface CarrierQuote {
   id: string;
   name: string;
   code: string;
-  logo_url?: string;
+  logo_url?: string | null;
   price: number;
   delivery_time_days: number;
   api_type: string;
   is_api_configured: boolean;
+  /** Quanto a loja está bancando do frete. Só vem na cotação ao vivo. */
+  desconto?: number;
 }
 
 export interface ShippingAddress {

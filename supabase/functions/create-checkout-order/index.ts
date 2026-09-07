@@ -112,12 +112,41 @@ Deno.serve(async (req: Request) => {
     // Retirada no local é o caso especial: sem transportadora e sem frete.
     let shippingCost = 0;
     let carrierName: string | null = null;
+    // Qual serviço do agregador o cliente escolheu. Sem isto não há como emitir
+    // a etiqueta certa depois — o pedido saberia o preço, mas não a transportadora.
+    let servicoFrete: { id: number; nome: string } | null = null;
     let carrierId = str(c.shipping_carrier_id || body?.shipping_carrier_id, 64);
     const isPickup = carrierId === 'pickup' || body?.is_pickup === true;
     if (isPickup) {
       carrierId = '';
       carrierName = 'Retirada no local';
       shippingCost = 0;
+    } else if (carrierId.startsWith('sf:')) {
+      // Frete do agregador. O preço é cotado AQUI de novo, nunca aceito do
+      // navegador: quem cobra é o servidor, e um preço vindo do cliente é um
+      // preço que o cliente pode escolher.
+      const servicoId = Number(carrierId.slice(3));
+      const pacotes = priced.lines.reduce((s, l) => s + l.quantity, 0);
+      const cotacao = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/superfrete-quote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: Deno.env.get('SUPABASE_ANON_KEY')! },
+        body: JSON.stringify({
+          cep: str(c.cep, 20), pacotes, valor: priced.itemsTotal, empresa: prefixoEmpresa,
+        }),
+      }).then((r) => r.ok ? r.json() : null).catch(() => null);
+
+      const escolhido = (cotacao?.opcoes ?? []).find((o: { id: number }) => o.id === servicoId);
+      if (!escolhido) {
+        return json({
+          error: 'A opcao de frete escolhida nao esta mais disponivel. Escolha outra.',
+          code: 'FRETE_INDISPONIVEL',
+        }, 409);
+      }
+      shippingCost = round2(Number(escolhido.preco) || 0);
+      carrierName = String(escolhido.empresa ? `${escolhido.empresa} ${escolhido.nome}` : escolhido.nome).trim();
+      servicoFrete = { id: servicoId, nome: carrierName };
+      carrierId = '';   // não é uma transportadora da nossa tabela
+
     } else if (carrierId) {
       // A tabela guarda `fixed_price` e `price_per_kg` — não existe coluna `price`.
       // Enquanto o nome errado esteve aqui, a consulta falhava, o erro era engolido
@@ -217,6 +246,8 @@ Deno.serve(async (req: Request) => {
       is_gift: !!c.is_gift,
       shipping_carrier_id: carrierId || null,
       shipping_carrier_name: carrierName,
+      shipping_service_id: servicoFrete?.id ?? null,
+      shipping_service_name: servicoFrete?.nome ?? null,
       shipping_cost: shippingCost,
       is_pickup: isPickup,
       total_amount: total,

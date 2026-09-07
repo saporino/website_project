@@ -8,7 +8,7 @@
 // Aqui ele vê a escada inteira e decide sozinho.
 import { useEffect, useState } from 'react';
 import { Truck, Loader2 } from 'lucide-react';
-import { cotarFrete, pesoBrutoKg, brl, type Cotacao } from '../lib/freight';
+import { cotarFrete, cotarSuperFrete, pesoBrutoKg, brl, type Cotacao } from '../lib/freight';
 
 type Degrau = {
   rotulo: string;
@@ -30,7 +30,7 @@ const DEGRAUS: Degrau[] = [
   { rotulo: '20 fardos (100 kg)', pacotes: 200 },
 ];
 
-type Linha = Degrau & { peso: number; cotacao: Cotacao | null };
+type Linha = Degrau & { peso: number; cotacao: Cotacao | null; transportadora?: string | null };
 
 export default function FreightSimulator({
   cep,
@@ -67,8 +67,27 @@ export default function FreightSimulator({
       const resultado: Linha[] = [];
       for (const d of DEGRAUS) {
         const peso = await pesoBrutoKg(d.pacotes);
-        const cotacao = await cotarFrete(cep, peso, d.pacotes * precoPorPacote);
-        resultado.push({ ...d, peso, cotacao });
+        const valor = d.pacotes * precoPorPacote;
+
+        // Preço real do agregador primeiro: é o que o cliente vai pagar de
+        // verdade no checkout. A tabela própria fica de reserva para quando o
+        // agregador não responder ou não atender aquele CEP.
+        const sf = await cotarSuperFrete(cep, d.pacotes, valor);
+        const melhorOpcao = sf?.opcoes?.[0];
+
+        const cotacao: Cotacao | null = melhorOpcao
+          ? {
+              atendido: true, zona: null, uf: null, cidade: null,
+              dias: melhorOpcao.prazo_dias,
+              transporte: melhorOpcao.preco_base,
+              seguro: 0,
+              desconto: melhorOpcao.desconto,
+              preco: melhorOpcao.preco,
+            }
+          : await cotarFrete(cep, peso, valor, d.pacotes);
+
+        resultado.push({ ...d, peso, cotacao, transportadora: melhorOpcao
+          ? `${melhorOpcao.empresa} ${melhorOpcao.nome}`.trim() : null });
       }
       if (cancelado) return;
       setSemCobertura(resultado.every((l) => !l.cotacao?.atendido));
@@ -143,9 +162,18 @@ export default function FreightSimulator({
                 </p>
                 <p className="mt-0.5 text-[11px] leading-relaxed text-gray-500">
                   café {brl(cafe)} + frete {brl(l.cotacao!.preco)}
+                  {l.cotacao!.desconto > 0 && (
+                    <span className="text-green-700"> (já com {brl(l.cotacao!.desconto)} de desconto)</span>
+                  )}
                   <span className="block sm:inline sm:before:content-['_·_']">
                     frete {brl(porKg)}/kg
                   </span>
+                  {l.transportadora && (
+                    <span className="block">
+                      {l.transportadora}
+                      {l.cotacao!.dias ? ` · ${l.cotacao!.dias} dias` : ''}
+                    </span>
+                  )}
                 </p>
               </div>
 
@@ -179,9 +207,11 @@ export default function FreightSimulator({
       </ul>
 
       <p className="border-t border-gray-100 px-4 py-2.5 text-xs text-gray-500">
-        Entrega para {primeira.cotacao!.cidade}/{primeira.cotacao!.uf}
-        {primeira.cotacao!.dias ? ` em até ${primeira.cotacao!.dias} dias úteis` : ''}.
-        Valores já com o desconto de envio da loja.
+        {primeira.cotacao!.cidade
+          ? `Entrega para ${primeira.cotacao!.cidade}/${primeira.cotacao!.uf}. `
+          : 'Frete cotado ao vivo com as transportadoras. '}
+        Mostramos o mais barato de cada quantidade — no checkout você escolhe entre
+        elas, comparando preço e prazo.
       </p>
     </div>
   );

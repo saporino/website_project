@@ -47,18 +47,27 @@ export async function pesoBrutoKg(pacotes: number): Promise<number> {
   return Number(data ?? pacotes * 0.5);
 }
 
-export async function cotarFrete(cep: string, pesoKg: number, valorMercadoria: number): Promise<Cotacao | null> {
+export async function cotarFrete(
+  cep: string,
+  pesoKg: number,
+  valorMercadoria: number,
+  pacotes = 0,
+): Promise<Cotacao | null> {
   const tableId = await tabelaDeFreteAtiva();
   if (!tableId) return null;
+
+  // A função do banco multiplica pelo peso, então convertemos o desconto para
+  // o equivalente por quilo. Assim a mesma regra vale nos dois caminhos de
+  // cotação, e o cliente vê o mesmo desconto venha de onde vier.
+  const desconto = await descontoDeEnvio(pacotes, pesoKg);
+  const porKg = pesoKg > 0 ? desconto / pesoKg : 0;
 
   const { data, error } = await supabase.rpc('cotar_frete', {
     p_table_id: tableId,
     p_cep: cep,
     p_peso_kg: pesoKg,
     p_valor: valorMercadoria,
-    // O subsídio por quilo vem da empresa vendedora; a loja passa o que estiver
-    // configurado. Zero = sem desconto, e o cliente paga o frete cheio.
-    p_subsidio_kg: await subsidioPorKg(),
+    p_subsidio_kg: porKg,
   });
   if (error || !data?.length) return null;
 
@@ -73,20 +82,47 @@ export async function cotarFrete(cep: string, pesoKg: number, valorMercadoria: n
   };
 }
 
-let subsidioEmCache: number | undefined;
+export type RegraDesconto = {
+  ativo: boolean;
+  valor: number;
+  /** 'kg' multiplica pelo peso bruto; 'pacote' pela quantidade de pacotes. */
+  unidade: 'kg' | 'pacote';
+  minPacotes: number;
+};
 
-async function subsidioPorKg(): Promise<number> {
-  if (subsidioEmCache !== undefined) return subsidioEmCache;
+let regraEmCache: RegraDesconto | undefined;
+
+export async function regraDeDesconto(): Promise<RegraDesconto> {
+  if (regraEmCache) return regraEmCache;
+  const vazia: RegraDesconto = { ativo: false, valor: 0, unidade: 'kg', minPacotes: 1 };
   const { sellerPrefixForHost } = await import('./sellerCompany');
   const prefixo = sellerPrefixForHost();
-  if (!prefixo) { subsidioEmCache = 0; return 0; }
+  if (!prefixo) { regraEmCache = vazia; return vazia; }
+
   const { data } = await supabase
     .from('companies')
-    .select('shipping_subsidy_per_kg')
+    .select('shipping_subsidy_per_kg, shipping_discount_active, shipping_discount_unit, shipping_discount_min_packs')
     .eq('order_prefix', prefixo)
     .maybeSingle();
-  subsidioEmCache = Number(data?.shipping_subsidy_per_kg ?? 0);
-  return subsidioEmCache;
+
+  regraEmCache = {
+    ativo: data?.shipping_discount_active !== false,
+    valor: Number(data?.shipping_subsidy_per_kg ?? 0),
+    unidade: data?.shipping_discount_unit === 'pacote' ? 'pacote' : 'kg',
+    minPacotes: Number(data?.shipping_discount_min_packs ?? 1),
+  };
+  return regraEmCache;
+}
+
+/**
+ * Quanto a loja banca deste envio, em reais.
+ * A unidade muda muito o valor: um fardo de 5 kg com R$ 1,50 dá R$ 7,64 por
+ * quilo e R$ 15,00 por pacote.
+ */
+export async function descontoDeEnvio(pacotes: number, pesoKg: number): Promise<number> {
+  const r = await regraDeDesconto();
+  if (!r.ativo || pacotes < r.minPacotes) return 0;
+  return r.valor * (r.unidade === 'pacote' ? pacotes : pesoKg);
 }
 
 /** Nossas lojas em marketplace, oferecidas quando o CEP não é atendido. */
@@ -101,3 +137,60 @@ export async function lojasDeMarketplace(): Promise<Array<{ name: string; url: s
 
 export const brl = (v: number) =>
   Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+/** Uma opção real de envio, vinda do agregador. */
+export type OpcaoFrete = {
+  id: number;
+  nome: string;
+  empresa: string;
+  /** O que a transportadora cobra, já com a margem da loja. */
+  preco_base: number;
+  /** O que a loja banca, mostrado ao cliente como desconto de envio. */
+  desconto: number;
+  /** O que o cliente paga. */
+  preco: number;
+  prazo_dias: number | null;
+};
+
+export type CotacaoSuperFrete = {
+  opcoes: OpcaoFrete[];
+  peso_kg: number;
+  /** Serviços que não atendem aquele CEP ou não comportam o pacote. */
+  indisponiveis: Array<{ nome: string; motivo: string }>;
+};
+
+/**
+ * Cotação ao vivo pelo agregador: Correios, Loggi, Jadlog e J&T de uma vez.
+ *
+ * A ordem muda com o peso — no pacote de 500 g a Loggi ganha fácil, no fardo
+ * de 5 kg ela vira a mais cara e o SEDEX assume. Por isso devolvemos todas e
+ * deixamos o cliente escolher entre barato e rápido.
+ */
+export async function cotarSuperFrete(
+  cep: string,
+  pacotes: number,
+  valorMercadoria: number,
+): Promise<CotacaoSuperFrete | null> {
+  const { sellerPrefixForHost } = await import('./sellerCompany');
+  try {
+    const r = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/superfrete-quote`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: import.meta.env.VITE_SUPABASE_ANON_KEY },
+      body: JSON.stringify({
+        cep, pacotes, valor: valorMercadoria,
+        empresa: sellerPrefixForHost() ?? 'CS',
+      }),
+    });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return {
+      opcoes: (j.opcoes ?? []) as OpcaoFrete[],
+      peso_kg: Number(j.peso_kg ?? 0),
+      indisponiveis: j.indisponiveis ?? [],
+    };
+  } catch {
+    // Agregador fora do ar não pode travar a compra: quem chama decide o que
+    // fazer, e o checkout cai na tabela própria.
+    return null;
+  }
+}
