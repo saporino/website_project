@@ -83,7 +83,8 @@ Deno.serve(async (req) => {
     const pedido = {
       from: { postal_code: so(cfg.origin_cep) },
       to: { postal_code: cepDestino },
-      services: String(cfg.services || "1,2,17"),
+      // 1 PAC · 2 SEDEX · 17 Mini Envios · 3 Jadlog · 31 Loggi · 33 J&T
+      services: String(cfg.services || "1,2,3,17,31,33"),
       options: { own_hand: false, receipt: false, insurance_value: valorNota, use_insurance_value: valorNota > 0 },
       package: {
         height: Number(spec?.ship_h_cm ?? 16),
@@ -118,10 +119,12 @@ Deno.serve(async (req) => {
       id: Number(o.id),
       nome: String(o.name ?? ""),
       empresa: String((o.company as Record<string, unknown>)?.name ?? ""),
-      // Serviço indisponível para aquele CEP vem com `error` e sem preço.
+      // Serviço indisponível para aquele CEP ou pacote fora das medidas vem
+      // marcado com has_error e sem preço. Mini Envios, por exemplo, recusa
+      // qualquer coisa acima de 300 g — o nosso pacote nunca cabe.
       preco: Number(o.price ?? 0),
       prazo_dias: o.delivery_time != null ? Number(o.delivery_time) : null,
-      erro: o.error ? String(o.error) : null,
+      erro: o.has_error ? String(o.has_error) : (o.error ? String(o.error) : null),
     }));
 
     // Margem e subsídio, nesta ordem: primeiro a loja soma o que quer ganhar,

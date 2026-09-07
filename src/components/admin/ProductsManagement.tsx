@@ -754,11 +754,15 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             sem nunca aparecer na loja da Saporino. */}
         <div className="col-span-2">
           <label className="block text-sm font-semibold text-gray-700 mb-2">Onde pode ser vendido</label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          {/* Cartões de altura igual e texto que encolhe dentro da borda.
+              Antes o rótulo não tinha como quebrar (faltava min-w-0 no filho do
+              flex), então "Marketplaces" vazava para fora do cartão e o rótulo
+              longo da COFICO empurrava a altura dos quatro. */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 items-stretch">
             {([
               ['saporino', 'Loja Saporino', 'cafesaporino.com.br'],
               ['repco', 'Representantes', 'portal RepCo'],
-              ['cofico', 'COFICO / Casa Cofico', 'coficobrasil.com.br'],
+              ['cofico', 'COFICO', 'Casa Cofico'],
               ['marketplaces', 'Marketplaces', 'ML, Shopee, TikTok'],
             ] as const).map(([canal, titulo, onde]) => {
               const marcado = (formData.sales_channels ?? []).includes(canal);
@@ -771,18 +775,20 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
                       sales_channels: marcado ? atual.filter((c: string) => c !== canal) : [...atual, canal],
                     });
                   }}
-                  className={`text-left p-3 rounded-xl border-2 transition-all ${
+                  className={`flex h-full w-full flex-col overflow-hidden rounded-xl border-2 p-3 text-left transition-all ${
                     marcado ? 'border-[#8B2214] bg-[#8B2214]/5' : 'border-gray-200 hover:border-gray-300'
                   }`}>
-                  <span className="flex items-center gap-2">
-                    <span className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center ${
+                  <span className="flex items-start gap-2">
+                    <span className={`mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded border-2 ${
                       marcado ? 'border-[#8B2214] bg-[#8B2214]' : 'border-gray-300'
                     }`}>
                       {marcado && <Check className="w-3 h-3 text-white" />}
                     </span>
-                    <span className="text-sm font-medium text-gray-800">{titulo}</span>
+                    <span className="min-w-0 flex-1 break-words text-sm font-medium leading-snug text-gray-800">
+                      {titulo}
+                    </span>
                   </span>
-                  <span className="block text-[11px] text-gray-500 mt-1 pl-6">{onde}</span>
+                  <span className="mt-1 break-words pl-6 text-[11px] leading-snug text-gray-500">{onde}</span>
                 </button>
               );
             })}
