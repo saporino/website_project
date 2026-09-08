@@ -122,14 +122,17 @@ export function TrackingPage() {
 
   async function searchByTrackingCode(trackingCode: string) {
     try {
-      const { data: shipmentData } = await supabase
-        .from('shipments')
-        .select('*, orders(order_number, customer_name)')
-        .eq('tracking_code', trackingCode)
-        .limit(1)
-        .single();
+      // Esta consulta lia a tabela de envios direto, como anônimo, com
+      // `select('*, orders(order_number, customer_name))` — e usava daí
+      // exatamente UM campo: o nome da transportadora. O resto, incluindo o
+      // nome do comprador, era carregado e jogado fora. Como a leitura era
+      // pública, dava para varrer códigos e enumerar clientes.
+      //
+      // Agora pergunta a `rastrear_envio`, que devolve só o que a tela usa e
+      // responde igual para código inválido e código inexistente.
+      const { data: envio } = await supabase.rpc('rastrear_envio', { p_codigo: trackingCode });
 
-      const effectiveCarrier = shipmentData?.carrier_name || carrier;
+      const effectiveCarrier = (envio as { carrier_name?: string } | null)?.carrier_name || carrier;
       const trackResult = await getTrackingEvents(trackingCode, effectiveCarrier);
       setResult(trackResult);
     } catch {

@@ -1,4 +1,7 @@
-import { supabase } from './supabase';
+// Este arquivo passou a ser só tipos e utilidades de CEP/peso. A antiga
+// `getCarrierQuotes` foi removida: ninguém a chamava desde que a cotação
+// passou para `cotarFrete`/`cotarSuperFrete`, e ela selecionava `api_key` da
+// transportadora numa consulta feita pelo navegador.
 
 export interface CarrierQuote {
   id: string;
@@ -46,55 +49,6 @@ export interface ShippingAddress {
   state: string;
   cep: string;
   is_gift: boolean;
-}
-
-/**
- * Fetch shipping carrier quotes for a given CEP and cart weight.
- * Current mode: uses manual fallback (fixed_price + price_per_kg * weight).
- * Future: when api_type !== 'manual' and credentials are set, calls carrier API.
- */
-export async function getCarrierQuotes(_cep: string, weightKg: number = 0.5): Promise<CarrierQuote[]> {
-  try {
-    const { data: carriers, error } = await supabase
-      .from('shipping_carriers')
-      // Colunas explícitas (NUNCA api_password): o checkout é público (anon) e não deve
-      // trafegar credenciais. api_password fica revogada para o role anon (ver RLS).
-      .select('id, name, code, price_per_kg, fixed_price, delivery_time_days, is_active, logo_url, api_type, api_endpoint, api_key')
-      .eq('is_active', true)
-      .order('name');
-
-    if (error) throw error;
-    if (!carriers || carriers.length === 0) return [];
-
-    const quotes: CarrierQuote[] = carriers.map((carrier: any) => {
-      // Check if this carrier has API credentials configured
-      const isApiConfigured = !!(carrier.api_key && carrier.api_endpoint && carrier.api_type !== 'manual');
-
-      // Determine price:
-      // - If API is configured in the future, we'd call the carrier's API here
-      // - For now: use manual fixed_price + price_per_kg * weight (or 0 if not set)
-      let price = 0;
-      if (carrier.api_type === 'manual' || !isApiConfigured) {
-        price = (carrier.fixed_price || 0) + (carrier.price_per_kg || 0) * weightKg;
-      }
-
-      return {
-        id: carrier.id,
-        name: carrier.name,
-        code: carrier.code,
-        logo_url: carrier.logo_url,
-        price,
-        delivery_time_days: carrier.delivery_time_days || 5,
-        api_type: carrier.api_type || 'manual',
-        is_api_configured: isApiConfigured,
-      };
-    });
-
-    return quotes;
-  } catch (error) {
-    console.error('Error fetching carrier quotes:', error);
-    return [];
-  }
 }
 
 /**
