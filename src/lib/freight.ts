@@ -22,19 +22,27 @@ export type Cotacao = {
   preco: number;
 };
 
-let tabelaEmCache: string | null | undefined;
+export type TabelaDeFrete = {
+  id: string;
+  /** Se o desconto de envio da loja pode incidir sobre esta tabela. */
+  aceitaDesconto: boolean;
+};
+
+let tabelaEmCache: TabelaDeFrete | null | undefined;
 
 /** Tabela de preços ativa. Uma consulta por sessão. */
-export async function tabelaDeFreteAtiva(): Promise<string | null> {
-  if (tabelaEmCache !== undefined) return tabelaEmCache ?? null;
+export async function tabelaDeFreteAtiva(): Promise<TabelaDeFrete | null> {
+  if (tabelaEmCache !== undefined) return tabelaEmCache;
   const { data } = await supabase
     .from('shipping_rate_tables')
-    .select('id')
+    .select('id, allow_discount')
     .eq('is_active', true)
     .limit(1)
     .maybeSingle();
-  tabelaEmCache = (data?.id as string | undefined) ?? null;
-  return tabelaEmCache ?? null;
+  tabelaEmCache = data?.id
+    ? { id: data.id as string, aceitaDesconto: data.allow_discount === true }
+    : null;
+  return tabelaEmCache;
 }
 
 /**
@@ -53,17 +61,20 @@ export async function cotarFrete(
   valorMercadoria: number,
   pacotes = 0,
 ): Promise<Cotacao | null> {
-  const tableId = await tabelaDeFreteAtiva();
-  if (!tableId) return null;
+  const tabela = await tabelaDeFreteAtiva();
+  if (!tabela) return null;
 
   // A função do banco multiplica pelo peso, então convertemos o desconto para
-  // o equivalente por quilo. Assim a mesma regra vale nos dois caminhos de
-  // cotação, e o cliente vê o mesmo desconto venha de onde vier.
-  const desconto = await descontoDeEnvio(pacotes);
+  // o equivalente por quilo.
+  //
+  // A tabela da COFICO não aceita desconto: é entrega própria, o preço dela já
+  // é o nosso preço. O desconto de envio existe para amortecer o preço de uma
+  // transportadora terceira — aplicá-lo aqui seria descontar de nós mesmos.
+  const desconto = tabela.aceitaDesconto ? await descontoDeEnvio(pacotes) : 0;
   const porKg = pesoKg > 0 ? desconto / pesoKg : 0;
 
   const { data, error } = await supabase.rpc('cotar_frete', {
-    p_table_id: tableId,
+    p_table_id: tabela.id,
     p_cep: cep,
     p_peso_kg: pesoKg,
     p_valor: valorMercadoria,

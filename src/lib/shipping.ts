@@ -13,6 +13,21 @@ export interface CarrierQuote {
   desconto?: number;
   /** Cotação congelada, para a cobrança usar o mesmo preço mostrado. */
   cotacaoId?: string | null;
+  /**
+   * Composição do frete, quando a cotação sabe dizer. Só a tabela própria
+   * abre os números: o agregador entrega um preço fechado.
+   * Frete que aparece como um número só parece caro; separado, dá para ver
+   * o que é transporte e o que é seguro obrigatório.
+   */
+  detalhe?: {
+    zona: string | null;
+    uf: string | null;
+    cidade: string | null;
+    /** A faixa de peso da transportadora. */
+    transporte: number;
+    /** Seguro + GRIS, percentuais sobre o valor da mercadoria. */
+    seguro: number;
+  } | null;
 }
 
 export interface ShippingAddress {

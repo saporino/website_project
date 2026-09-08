@@ -242,13 +242,17 @@ Deno.serve(async (req: Request) => {
       // aqui de novo. É ela que atende acima de 20 kg, onde o agregador recusa.
       const pacotes = contarPacotes();
       const { data: tabela } = await supabase.from('shipping_rate_tables')
-        .select('id').eq('is_active', true).limit(1).maybeSingle();
+        .select('id, allow_discount').eq('is_active', true).limit(1).maybeSingle();
       const { data: pesoBruto } = await supabase.rpc('peso_bruto_kg', { p_unidades: pacotes });
       const { data: emp } = await supabase.from('companies')
         .select('shipping_subsidy_per_kg, shipping_discount_active, shipping_discount_unit, shipping_discount_min_packs, shipping_discount_max')
         .eq('id', empresa.id).maybeSingle();
 
-      const vale = emp?.shipping_discount_active !== false
+      // A tabela da COFICO é entrega própria e não aceita o desconto de envio:
+      // o preço dela já é o nosso preço. A trava é da tabela, não da empresa —
+      // o mesmo `allow_discount` que a loja lê para montar a tela.
+      const vale = tabela?.allow_discount === true
+        && emp?.shipping_discount_active !== false
         && pacotes >= Number(emp?.shipping_discount_min_packs ?? 1);
       let base = Number(emp?.shipping_subsidy_per_kg ?? 0)
         * (emp?.shipping_discount_unit === 'pacote' ? pacotes : pacotes * 0.5);

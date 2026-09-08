@@ -1068,12 +1068,19 @@ const Cart = ({ isOpen, onClose }: any) => {
           id: 'cofico',
           name: 'COFICO',
           code: 'cofico',
-          logo_url: null,
+          // As opções do agregador vêm com o logo oficial dentro da resposta;
+          // a COFICO sai da nossa tabela, que não tem esse campo — por isso ela
+          // ficava com o ícone genérico de caminhão. O logo é nosso, está aqui.
+          logo_url: '/carreiras/cofico-logo.png',
           price: cofico.preco,
           delivery_time_days: cofico.dias ?? 7,
           api_type: 'manual',
           is_api_configured: false,
           desconto: cofico.desconto,
+          detalhe: {
+            zona: cofico.zona, uf: cofico.uf, cidade: cofico.cidade,
+            transporte: cofico.transporte, seguro: cofico.seguro,
+          },
         }]
       : [];
 
@@ -1603,10 +1610,47 @@ const Cart = ({ isOpen, onClose }: any) => {
                     <span className="font-semibold text-green-700">Grátis</span>
                   </div>
                 ) : selectedCarrierId && carriers.find(c => c.id === selectedCarrierId)?.price ? (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Frete ({carriers.find(c => c.id === selectedCarrierId)?.name})</span>
-                    <span className="font-semibold">R$ {(carriers.find(c => c.id === selectedCarrierId)?.price || 0).toFixed(2)}</span>
-                  </div>
+                  (() => {
+                    const esc = carriers.find(c => c.id === selectedCarrierId)!;
+                    const d = esc.detalhe;
+                    return (
+                      <>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Frete ({esc.name})</span>
+                          <span className="font-semibold">R$ {(esc.price || 0).toFixed(2)}</span>
+                        </div>
+                        {/* Frete que aparece como um número só parece caro. Aberto,
+                            o cliente vê que parte é transporte e parte é seguro
+                            obrigatório — e para qual zona da tabela ele caiu. */}
+                        {d && (
+                          <div className="pl-3 border-l-2 border-gray-200 space-y-1 text-xs text-gray-500">
+                            <div className="flex justify-between">
+                              <span>Transporte (faixa de peso)</span>
+                              <span className="tabular-nums">R$ {d.transporte.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Seguro + GRIS</span>
+                              <span className="tabular-nums">R$ {d.seguro.toFixed(2)}</span>
+                            </div>
+                            {(esc.desconto ?? 0) > 0 && (
+                              <div className="flex justify-between text-green-700 font-semibold">
+                                <span>Desconto de envio</span>
+                                <span className="tabular-nums">− R$ {esc.desconto!.toFixed(2)}</span>
+                              </div>
+                            )}
+                            {d.zona && (
+                              <div className="flex justify-between">
+                                <span>Zona de frete</span>
+                                <span className="font-semibold text-gray-600">
+                                  {d.zona}{d.cidade ? ` · ${d.cidade}` : ''}{d.uf ? `/${d.uf}` : ''}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()
                 ) : null}
                 <div className="border-t border-gray-200 pt-3 mt-3 flex justify-between font-bold text-xl">
                   <span>Total</span>
