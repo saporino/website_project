@@ -1511,6 +1511,16 @@ const Cart = ({ isOpen, onClose }: any) => {
                           <div className="flex-1">
                             <p className="font-semibold text-gray-900">{carrier.name}</p>
                             <p className="text-xs text-gray-500">{carrier.delivery_time_days} dias úteis</p>
+                            {/* Na hora de comparar, a nossa opção costuma sair
+                                acima dos Correios. Sem dizer por quê, parece
+                                cara; dito, é uma entrega com seguro. Os valores
+                                ficam no resumo — aqui só o motivo. */}
+                            {carrier.detalhe && (
+                              <p className="text-[11px] text-gray-400">
+                                com seguro, GRIS e pedágio
+                                {carrier.detalhe.zona ? ` · zona ${carrier.detalhe.zona}` : ''}
+                              </p>
+                            )}
                           </div>
                           <div className="text-right">
                             {carrier.price > 0 ? (
