@@ -25,8 +25,10 @@ export interface CarrierQuote {
     cidade: string | null;
     /** A faixa de peso da transportadora. */
     transporte: number;
-    /** Seguro + GRIS, percentuais sobre o valor da mercadoria. */
+    /** Seguro (ad valorem): percentual sobre o valor da mercadoria. */
     seguro: number;
+    /** GRIS: gerenciamento de risco, percentual com piso. */
+    gris: number;
   } | null;
 }
 

@@ -92,7 +92,10 @@ export default function FreightSimulator({
               atendido: true, zona: null, uf: null, cidade: null,
               dias: melhorOpcao.prazo_dias,
               transporte: melhorOpcao.preco_base,
+              // O agregador entrega um preço fechado: seguro e GRIS já estão
+              // dentro dele, sem discriminar. Só a tabela própria abre a conta.
               seguro: 0,
+              gris: 0,
               desconto: melhorOpcao.desconto,
               preco: melhorOpcao.preco,
             }

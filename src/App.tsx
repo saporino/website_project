@@ -1079,7 +1079,7 @@ const Cart = ({ isOpen, onClose }: any) => {
           desconto: cofico.desconto,
           detalhe: {
             zona: cofico.zona, uf: cofico.uf, cidade: cofico.cidade,
-            transporte: cofico.transporte, seguro: cofico.seguro,
+            transporte: cofico.transporte, seguro: cofico.seguro, gris: cofico.gris,
           },
         }]
       : [];
@@ -1619,9 +1619,10 @@ const Cart = ({ isOpen, onClose }: any) => {
                           <span className="text-gray-600">Frete ({esc.name})</span>
                           <span className="font-semibold">R$ {(esc.price || 0).toFixed(2)}</span>
                         </div>
-                        {/* Frete que aparece como um número só parece caro. Aberto,
-                            o cliente vê que parte é transporte e parte é seguro
-                            obrigatório — e para qual zona da tabela ele caiu. */}
+                        {/* A tabela cobra TRÊS coisas, e elas aparecem as três.
+                            Frete que chega como um número só parece caro; e
+                            somar seguro com GRIS escondia justamente a parte
+                            que pesa no pedido pequeno, que é o piso do GRIS. */}
                         {d && (
                           <div className="pl-3 border-l-2 border-gray-200 space-y-1 text-xs text-gray-500">
                             <div className="flex justify-between">
@@ -1629,8 +1630,12 @@ const Cart = ({ isOpen, onClose }: any) => {
                               <span className="tabular-nums">R$ {d.transporte.toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span>Seguro + GRIS</span>
+                              <span>Seguro (ad valorem)</span>
                               <span className="tabular-nums">R$ {d.seguro.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>GRIS (gerenciamento de risco)</span>
+                              <span className="tabular-nums">R$ {d.gris.toFixed(2)}</span>
                             </div>
                             {(esc.desconto ?? 0) > 0 && (
                               <div className="flex justify-between text-green-700 font-semibold">

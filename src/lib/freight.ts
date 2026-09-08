@@ -14,8 +14,10 @@ export type Cotacao = {
   dias: number | null;
   /** O que a transportadora cobra pela faixa de peso. */
   transporte: number;
-  /** Seguro + GRIS, percentuais sobre o valor da mercadoria. */
+  /** Ad valorem: percentual sobre o valor da mercadoria. */
   seguro: number;
+  /** Gerenciamento de risco. Percentual com piso — nos pedidos pequenos, o piso manda. */
+  gris: number;
   /** O que a loja banca. Aparece ao cliente como "Desconto de envio". */
   desconto: number;
   /** O que o cliente paga. */
@@ -88,6 +90,7 @@ export async function cotarFrete(
     zona: c.zona, uf: c.uf, cidade: c.cidade, dias: c.dias,
     transporte: Number(c.transporte ?? 0),
     seguro: Number(c.seguro ?? 0),
+    gris: Number(c.gris ?? 0),
     desconto: Number(c.desconto ?? 0),
     preco: Number(c.preco ?? 0),
   };
