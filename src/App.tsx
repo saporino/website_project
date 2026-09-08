@@ -245,14 +245,24 @@ function AppContent() {
   const loadProducts = async () => {
     try {
       setLoading(true);
+      // A visão traz `disponivel` calculado: para o café é o próprio estoque,
+      // para o kit é o estoque do café dividido pelo tamanho do kit.
+      //
+      // Sem isto todo kit aparecia ESGOTADO na loja — kit não tem saldo
+      // próprio, e a vitrine perguntava por `stock`, que é sempre zero neles.
       const { data, error } = await supabase
-        .from('products')
+        .from('products_com_disponibilidade')
         .select('*')
         .eq('hidden_from_store', false)
         .eq('company_id', storeCompanyId)
         .order('display_order', { ascending: true });
       if (error) throw error;
-      setProducts((data || []).sort((a, b) => {
+      // Traduz na fronteira: o resto da loja continua perguntando por `stock`.
+      const comDisponibilidade = (data || []).map((p: any) => ({
+        ...p,
+        stock: p.disponivel ?? p.stock ?? 0,
+      }));
+      setProducts(comDisponibilidade.sort((a, b) => {
         // Treat 0 as "infinity" (put at the end)
         const orderA = a.display_order === 0 ? Number.MAX_SAFE_INTEGER : a.display_order;
         const orderB = b.display_order === 0 ? Number.MAX_SAFE_INTEGER : b.display_order;

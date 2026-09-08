@@ -110,6 +110,25 @@ Deno.serve(async (req: Request) => {
     const contarPacotes = () =>
       priced.ok ? priced.lines.reduce((s, l) => s + l.quantity * (pacotesPorProduto.get(l.product_id) ?? 1), 0) : 0;
 
+    // Estoque: kit nao tem saldo proprio, entao a disponibilidade dele vem do
+    // cafe dividida pelo tamanho do kit. Sem esta checagem daria para comprar
+    // 200 fardos tendo 149 — a loja venderia cafe que nao existe.
+    const { data: disponiveis } = await supabase
+      .from('products_com_disponibilidade')
+      .select('id, name, disponivel').in('id', ids);
+    for (const linha of items) {
+      const d = (disponiveis ?? []).find((x: { id: string }) => x.id === linha.product_id);
+      const saldo = Number(d?.disponivel ?? 0);
+      if (linha.quantity > saldo) {
+        return json({
+          error: saldo <= 0
+            ? `${d?.name ?? 'Este produto'} esta esgotado.`
+            : `So temos ${saldo} de ${d?.name ?? 'este produto'} em estoque.`,
+          code: 'SEM_ESTOQUE',
+        }, 409);
+      }
+    }
+
     const priced = priceCheckout(items, byId);
     if (!priced.ok) {
       await logEdge(supabase, { function_name: FN, request_id: rid, level: 'warn', status: 400, error_text: `${priced.code}` });
