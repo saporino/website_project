@@ -4,6 +4,7 @@ import { Plus, Edit, Trash2, Save, X, Image as ImageIcon, ChevronUp, ChevronDown
 import JsBarcode from 'jsbarcode';
 import { useCompany } from '../../contexts/CompanyContext';
 import KitBuilder from './KitBuilder';
+import { textoEmFardos } from '../../lib/estoque';
 
 interface Product {
   id: string;
@@ -469,7 +470,12 @@ export function ProductsManagement() {
 
                 <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                   <div>
-                    <p className="text-sm text-gray-600">Estoque: {product.stock} unidades</p>
+                    {/* Quem confere a prateleira conta fardos, não pacotes soltos.
+                        Os dois números são o mesmo café. */}
+                    <p className="text-sm text-gray-600">
+                      Estoque: <span className="font-medium text-gray-800">{textoEmFardos(product.stock)}</span>
+                      <span className="text-gray-400"> · {product.stock} pacotes</span>
+                    </p>
                     {product.promotional_price ? (
                       <div className="flex items-center space-x-2">
                         <span className="text-lg line-through text-gray-400">
@@ -839,6 +845,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
               produtoNome={formData.name}
               precoBase={Number(formData.price)}
               gramas={Number(formData.weight_grams) || 500}
+              estoquePacotes={Number(formData.stock) || 0}
             />
           </div>
         )}

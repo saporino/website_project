@@ -10,6 +10,7 @@
 import { useEffect, useState } from 'react';
 import { Layers, Loader2, Check, AlertTriangle, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { textoEmFardos } from '../../lib/estoque';
 
 type Degrau = { quantidade: number; precoPorPacote: string; marcado: boolean };
 
@@ -22,9 +23,11 @@ type KitExistente = {
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export default function KitBuilder({
-  produtoId, produtoNome, precoBase, gramas,
+  produtoId, produtoNome, precoBase, gramas, estoquePacotes = 0,
 }: {
   produtoId: string; produtoNome: string; precoBase: number; gramas: number;
+  /** Pacotes no lote. Todos os degraus saem daqui — não há estoque separado. */
+  estoquePacotes?: number;
 }) {
   const pesoKg = (gramas || 500) / 1000;
   const porKgBase = precoBase / pesoKg;
@@ -144,6 +147,17 @@ export default function KitBuilder({
         O mesmo café em 2, 3, 4 pacotes e no fardo. Cada um vira um produto com SKU próprio,
         mas o estoque continua sendo um só — um kit de 3 tira 3 pacotes do lote.
       </p>
+
+      {/* Um estoque só. Fardo e kit são formas de vender o mesmo pacote —
+          vender um kit de 2 tira 2 pacotes, e o fardo cai junto. */}
+      {estoquePacotes > 0 && (
+        <div className="mb-4 rounded-lg border border-gray-200 px-4 py-2.5 text-sm">
+          <span className="text-gray-600">Em estoque: </span>
+          <span className="font-semibold text-gray-900">{textoEmFardos(estoquePacotes)}</span>
+          <span className="text-gray-500"> — {estoquePacotes} pacotes ao todo, e é deles que
+            saem todos os degraus abaixo.</span>
+        </div>
+      )}
 
       <div className="mb-4 rounded-lg bg-[#faf8f7] px-4 py-2.5 text-sm">
         <span className="text-gray-600">Avulso: </span>
