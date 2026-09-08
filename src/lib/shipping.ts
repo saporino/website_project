@@ -29,6 +29,10 @@ export interface CarrierQuote {
     seguro: number;
     /** GRIS: gerenciamento de risco, percentual com piso. */
     gris: number;
+    /** Pedágio: por 100 kg ou fração, em toda entrega. */
+    pedagio: number;
+    /** TAS: só quando o envio é interestadual. Zero no resto. */
+    tas: number;
   } | null;
 }
 

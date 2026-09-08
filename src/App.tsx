@@ -1080,6 +1080,7 @@ const Cart = ({ isOpen, onClose }: any) => {
           detalhe: {
             zona: cofico.zona, uf: cofico.uf, cidade: cofico.cidade,
             transporte: cofico.transporte, seguro: cofico.seguro, gris: cofico.gris,
+            pedagio: cofico.pedagio, tas: cofico.tas,
           },
         }]
       : [];
@@ -1637,6 +1638,19 @@ const Cart = ({ isOpen, onClose }: any) => {
                               <span>GRIS (gerenciamento de risco)</span>
                               <span className="tabular-nums">R$ {d.gris.toFixed(2)}</span>
                             </div>
+                            <div className="flex justify-between">
+                              <span>Pedágio</span>
+                              <span className="tabular-nums">R$ {d.pedagio.toFixed(2)}</span>
+                            </div>
+                            {/* Só aparece quando o envio cruza a fronteira do
+                                estado. Mostrar "R$ 0,00" numa entrega dentro de
+                                SP só levantaria uma pergunta sem resposta. */}
+                            {d.tas > 0 && (
+                              <div className="flex justify-between">
+                                <span>TAS (envio interestadual)</span>
+                                <span className="tabular-nums">R$ {d.tas.toFixed(2)}</span>
+                              </div>
+                            )}
                             {(esc.desconto ?? 0) > 0 && (
                               <div className="flex justify-between text-green-700 font-semibold">
                                 <span>Desconto de envio</span>

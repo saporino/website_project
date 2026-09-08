@@ -96,6 +96,8 @@ export default function FreightSimulator({
               // dentro dele, sem discriminar. Só a tabela própria abre a conta.
               seguro: 0,
               gris: 0,
+              pedagio: 0,
+              tas: 0,
               desconto: melhorOpcao.desconto,
               preco: melhorOpcao.preco,
             }

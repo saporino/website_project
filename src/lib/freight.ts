@@ -18,6 +18,10 @@ export type Cotacao = {
   seguro: number;
   /** Gerenciamento de risco. Percentual com piso — nos pedidos pequenos, o piso manda. */
   gris: number;
+  /** Pedágio por 100 kg ou fração. Não é proporcional: 500 g paga a fração inteira. */
+  pedagio: number;
+  /** Taxa da Secretaria da Fazenda, só quando o CT-e cruza a fronteira do estado. */
+  tas: number;
   /** O que a loja banca. Aparece ao cliente como "Desconto de envio". */
   desconto: number;
   /** O que o cliente paga. */
@@ -91,6 +95,8 @@ export async function cotarFrete(
     transporte: Number(c.transporte ?? 0),
     seguro: Number(c.seguro ?? 0),
     gris: Number(c.gris ?? 0),
+    pedagio: Number(c.pedagio ?? 0),
+    tas: Number(c.tas ?? 0),
     desconto: Number(c.desconto ?? 0),
     preco: Number(c.preco ?? 0),
   };
