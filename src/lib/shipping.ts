@@ -109,22 +109,53 @@ export interface CEPAddress {
   error?: string;
 }
 
+/**
+ * Endereço a partir do CEP, com dois provedores.
+ *
+ * O ViaCEP sozinho não bastava: ele responde `erro` para os CEPs GERAIS de
+ * cidade (13930-000, Serra Negra, é um deles), que são CEPs perfeitamente
+ * válidos e entregáveis. Quando isso acontecia, quem digitava o CEP novo
+ * continuava vendo o endereço do CEP ANTERIOR na tela — e podia comprar com
+ * ele. Um pedido despachado para a cidade errada é o pior desfecho possível
+ * desta tela.
+ *
+ * A BrasilAPI cobre justamente esse caso: devolve cidade e UF mesmo sem
+ * logradouro. Aí o cliente completa rua e número à mão, que é o certo — num
+ * CEP geral não existe rua para preencher.
+ */
 export async function lookupCEP(cep: string): Promise<CEPAddress | null> {
   const cleaned = cep.replace(/\D/g, '');
   if (cleaned.length !== 8) return null;
 
   try {
     const response = await fetch(`https://viacep.com.br/ws/${cleaned}/json/`);
-    if (!response.ok) return null;
-    const data = await response.json();
-    if (data.erro) return null;
+    if (response.ok) {
+      const data = await response.json();
+      if (!data.erro && data.localidade) {
+        return {
+          cep: data.cep,
+          street: data.logradouro || '',
+          neighborhood: data.bairro || '',
+          city: data.localidade,
+          state: data.uf,
+        };
+      }
+    }
+  } catch {
+    // Provedor fora do ar não encerra a busca: ainda há o segundo.
+  }
 
+  try {
+    const r = await fetch(`https://brasilapi.com.br/api/cep/v2/${cleaned}`);
+    if (!r.ok) return null;
+    const d = await r.json();
+    if (!d?.city) return null;
     return {
-      cep: data.cep,
-      street: data.logradouro,
-      neighborhood: data.bairro,
-      city: data.localidade,
-      state: data.uf,
+      cep: cleaned,
+      street: d.street || '',
+      neighborhood: d.neighborhood || '',
+      city: d.city,
+      state: d.state,
     };
   } catch {
     return null;

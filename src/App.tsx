@@ -976,6 +976,8 @@ const Cart = ({ isOpen, onClose }: any) => {
   const [recipientName, setRecipientName] = useState('');
   const [cep, setCep] = useState('');
   const [cepLoading, setCepLoading] = useState(false);
+  /** Recado sobre o CEP digitado: não encontrado, ou CEP geral sem rua. */
+  const [cepAviso, setCepAviso] = useState('');
   const [street, setStreet] = useState('');
   const [number, setNumber] = useState('');
   const [complement, setComplement] = useState('');
@@ -1071,7 +1073,10 @@ const Cart = ({ isOpen, onClose }: any) => {
           // As opções do agregador vêm com o logo oficial dentro da resposta;
           // a COFICO sai da nossa tabela, que não tem esse campo — por isso ela
           // ficava com o ícone genérico de caminhão. O logo é nosso, está aqui.
-          logo_url: '/carreiras/cofico-logo.png',
+          // Marca em fundo transparente, no mesmo padrão limpo das outras
+          // transportadoras da lista. O arquivo quadrado vermelho pesava
+          // demais ao lado dos logos da Loggi e dos Correios.
+          logo_url: '/carreiras/cofico-wordmark.png',
           price: cofico.preco,
           delivery_time_days: cofico.dias ?? 7,
           api_type: 'manual',
@@ -1115,12 +1120,21 @@ const Cart = ({ isOpen, onClose }: any) => {
     if (formatted.replace(/\D/g, '').length === 8) {
       setCepLoading(true);
       const address = await lookupCEP(formatted);
-      if (address) {
-        setStreet(address.street);
-        setNeighborhood(address.neighborhood);
-        setCity(address.city);
-        setState(address.state);
-      }
+      // Trocar de CEP e continuar vendo o endereço do CEP ANTERIOR é o pior
+      // desfecho desta tela: dá para comprar com ele e o pedido sai para a
+      // cidade errada. Então o endereço antigo cai SEMPRE que o CEP muda —
+      // com resposta ou sem.
+      setStreet(address?.street ?? '');
+      setNeighborhood(address?.neighborhood ?? '');
+      setCity(address?.city ?? '');
+      setState(address?.state ?? '');
+      setCepAviso(
+        !address
+          ? 'Não encontramos esse CEP. Confira o número ou preencha o endereço à mão.'
+          : !address.street
+            ? 'Esse é um CEP geral da cidade — complete a rua, o número e o bairro.'
+            : '',
+      );
       setCepLoading(false);
       await fetchCarriers();
     }
@@ -1451,6 +1465,13 @@ const Cart = ({ isOpen, onClose }: any) => {
                     </div>
                   )}
                 </div>
+                {/* Sem este recado, um CEP que a busca não conhece ficava
+                    indistinguível de um CEP certo com os campos em branco. */}
+                {cepAviso && !cepLoading && (
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    {cepAviso}
+                  </p>
+                )}
 
                 {/* Street + Number */}
                 <div className="grid grid-cols-2 gap-3">
