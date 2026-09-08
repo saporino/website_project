@@ -8,7 +8,7 @@
 // cada degrau. A tela só mostra o número antes, para a pessoa ver o que vai
 // acontecer — quem recusa é a função.
 import { useEffect, useState } from 'react';
-import { Layers, Loader2, Check, AlertTriangle } from 'lucide-react';
+import { Layers, Loader2, Check, AlertTriangle, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 type Degrau = { quantidade: number; precoPorPacote: string; marcado: boolean };
@@ -16,6 +16,7 @@ type Degrau = { quantidade: number; precoPorPacote: string; marcado: boolean };
 type KitExistente = {
   id: string; name: string; sku: string | null; price: number;
   kit_quantity: number; weight_grams: number | null;
+  image_url: string | null; has_custom_image: boolean;
 };
 
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -38,6 +39,7 @@ export default function KitBuilder({
   ]);
   const [existentes, setExistentes] = useState<KitExistente[]>([]);
   const [criando, setCriando] = useState(false);
+  const [subindo, setSubindo] = useState<string | null>(null);
   const [erro, setErro] = useState('');
   const [ok, setOk] = useState('');
 
@@ -45,10 +47,51 @@ export default function KitBuilder({
 
   const carregar = async () => {
     const { data } = await supabase.from('products')
-      .select('id, name, sku, price, kit_quantity, weight_grams')
+      .select('id, name, sku, price, kit_quantity, weight_grams, image_url, has_custom_image')
       .eq('kit_of_product_id', produtoId)
       .order('kit_quantity');
     setExistentes((data ?? []) as KitExistente[]);
+  };
+
+  // Foto própria do kit. Um fardo de 10 pacotes com a foto de um pacote só
+  // vende mal — o cliente não vê o que está levando.
+  const trocarFoto = async (kit: KitExistente, file: File) => {
+    setErro(''); setOk('');
+    if (!file.type.startsWith('image/')) { setErro('Escolha um arquivo de imagem.'); return; }
+    if (file.size > 2 * 1024 * 1024) { setErro('Imagem muito grande. O limite é 2 MB.'); return; }
+
+    setSubindo(kit.id);
+    try {
+      const ext = file.name.split('.').pop();
+      const nome = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error: eUp } = await supabase.storage
+        .from('product-images').upload(nome, file, { cacheControl: '3600', upsert: false });
+      if (eUp) { setErro(`Não deu para subir: ${eUp.message}`); return; }
+
+      const { data: { publicUrl } } = supabase.storage.from('product-images').getPublicUrl(nome);
+      const { error: eDb } = await supabase.from('products')
+        .update({ image_url: publicUrl, has_custom_image: true })
+        .eq('id', kit.id);
+      if (eDb) { setErro(eDb.message); return; }
+
+      setOk('Foto do kit atualizada.');
+      carregar();
+    } finally {
+      setSubindo(null);
+    }
+  };
+
+  // Volta a espelhar a foto do café, e passa a acompanhar as trocas dela.
+  const voltarFotoDoCafe = async (kit: KitExistente) => {
+    setSubindo(kit.id);
+    const { data: base } = await supabase.from('products')
+      .select('image_url').eq('id', produtoId).maybeSingle();
+    await supabase.from('products')
+      .update({ image_url: base?.image_url ?? null, has_custom_image: false })
+      .eq('id', kit.id);
+    setSubindo(null);
+    setOk('O kit voltou a usar a foto do café.');
+    carregar();
   };
 
   const alterar = (q: number, campo: keyof Degrau, valor: unknown) =>
@@ -177,18 +220,59 @@ export default function KitBuilder({
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
             Já no catálogo
           </p>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             {existentes.map((k) => (
-              <div key={k.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-sm">
-                <span className="font-mono text-xs text-gray-500">{k.sku}</span>
-                <span className="text-gray-800">{k.name.replace(produtoNome, '').replace(/^\s*—\s*/, '')}</span>
-                <span className="ml-auto font-mono tabular-nums text-gray-900">{brl(k.price)}</span>
-                <span className="font-mono text-xs tabular-nums text-gray-500">
-                  {brl(k.price / ((k.weight_grams ?? 0) / 1000 || 1))}/kg
-                </span>
+              <div key={k.id} className="flex items-center gap-3 rounded-lg border border-gray-200 p-2.5">
+                <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white">
+                  {k.image_url
+                    ? <img src={k.image_url} alt={k.name} className="h-full w-full object-contain" />
+                    : <ImageIcon className="h-5 w-5 text-gray-300" />}
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-gray-800">
+                    {k.name.replace(produtoNome, '').replace(/^\s*—\s*/, '')}
+                  </p>
+                  <p className="font-mono text-[11px] text-gray-500">{k.sku}</p>
+                  <p className="text-[11px] text-gray-500">
+                    {k.has_custom_image
+                      ? <span className="text-[#8B2214]">foto própria</span>
+                      : 'usa a foto do café'}
+                  </p>
+                </div>
+
+                <div className="hidden text-right sm:block">
+                  <p className="font-mono text-sm tabular-nums text-gray-900">{brl(k.price)}</p>
+                  <p className="font-mono text-[11px] tabular-nums text-gray-500">
+                    {brl(k.price / ((k.weight_grams ?? 0) / 1000 || 1))}/kg
+                  </p>
+                </div>
+
+                <div className="flex flex-shrink-0 flex-col gap-1">
+                  <label className="cursor-pointer rounded-lg border border-gray-300 px-2.5 py-1.5 text-center text-[11px] font-semibold text-gray-700 hover:bg-gray-50">
+                    {subindo === k.id ? 'Subindo…' : 'Trocar foto'}
+                    <input type="file" accept="image/*" className="hidden" disabled={subindo === k.id}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) trocarFoto(k, f);
+                        e.target.value = '';
+                      }} />
+                  </label>
+                  {k.has_custom_image && (
+                    <button type="button" onClick={() => voltarFotoDoCafe(k)} disabled={subindo === k.id}
+                      className="rounded-lg px-2.5 py-1 text-[11px] text-gray-500 hover:text-gray-800">
+                      usar a do café
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
+          <p className="mt-3 text-xs leading-relaxed text-gray-500">
+            Enquanto o kit não tiver foto própria, ele acompanha a foto do café — trocar
+            lá troca em todos de uma vez. Depois de subir uma foto aqui, ela fica: nem o
+            botão de atualizar kits nem a troca da foto do café mexem nela.
+          </p>
           <p className="mt-3 text-xs leading-relaxed text-gray-500">
             Falta o código de barras de cada kit. Cada um é um produto diferente para o
             varejo e precisa do próprio EAN-13, emitido no GS1 Brasil com o prefixo da
