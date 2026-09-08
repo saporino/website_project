@@ -170,6 +170,8 @@ Deno.serve(async (req: Request) => {
     // Retirada no local é o caso especial: sem transportadora e sem frete.
     let shippingCost = 0;
     let carrierName: string | null = null;
+    let zonaFrete: string | null = null;
+    let zonaDias: number | null = null;
     // Qual serviço do agregador o cliente escolheu. Sem isto não há como emitir
     // a etiqueta certa depois — o pedido saberia o preço, mas não a transportadora.
     let servicoFrete: { id: number; nome: string } | null = null;
@@ -274,6 +276,10 @@ Deno.serve(async (req: Request) => {
       shippingCost = round2(Number(q.preco) || 0);
       carrierName = 'COFICO';
       carrierId = '';
+      // A zona segue com o pedido: quem separa precisa dela para agrupar por
+      // destino, e é ela que permite contar depois quanto cada região pede.
+      zonaFrete = q.zona ? String(q.zona) : null;
+      zonaDias = q.dias != null ? Number(q.dias) : null;
 
     } else if (carrierId) {
       // A tabela guarda `fixed_price` e `price_per_kg` — não existe coluna `price`.
@@ -389,6 +395,8 @@ Deno.serve(async (req: Request) => {
       shipping_service_id: servicoFrete?.id ?? null,
       shipping_service_name: servicoFrete?.nome ?? null,
       shipping_cost: shippingCost,
+      shipping_zone: zonaFrete,
+      shipping_zone_days: zonaDias,
       coupon_code: cupomAplicado,
       discount_amount: descontoCupom,
       is_pickup: isPickup,

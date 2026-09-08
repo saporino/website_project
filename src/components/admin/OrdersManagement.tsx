@@ -42,6 +42,9 @@ interface Order {
   shipping_city?: string;
   shipping_state?: string;
   shipping_postal_code?: string;
+  /** Zona comercial de frete do destino. Serve para agrupar a separação por região. */
+  shipping_zone?: string;
+  shipping_zone_days?: number;
   is_pickup?: boolean;
   mercadopago_payment_id?: string;
   address_street?: string;
@@ -498,6 +501,17 @@ function OverviewSection({ order, onRefresh }: any) {
               <p className="text-sm">{order.shipping_neighborhood}</p>
               <p className="text-sm">{[order.shipping_city, order.shipping_state].filter(Boolean).join(' - ')}</p>
               <p className="text-sm font-mono">CEP: {order.shipping_postal_code}</p>
+              {/* A zona é a linguagem da operação: é por ela que se agrupa o
+                  que vai para o mesmo destino, e é ela que se acumula para
+                  decidir quando uma região justifica rota própria. */}
+              {order.shipping_zone && (
+                <p className="mt-1 inline-flex items-center gap-1 rounded-md bg-[#f5f0ef] px-2 py-0.5 text-xs font-bold text-[#8B2214]">
+                  ZONA {order.shipping_zone}
+                  {order.shipping_zone_days != null && (
+                    <span className="font-normal text-gray-500">· {order.shipping_zone_days} dias</span>
+                  )}
+                </p>
+              )}
             </>
           ) : (
             <p className="text-sm whitespace-pre-line">{order.shipping_address || '—'}</p>
@@ -774,14 +788,18 @@ function LogisticsSection({ order, shipment, invoice, onRefresh }: any) {
     </div>
     <div class="sec"><div class="sec-title">Destinatário</div>
       <div class="big">${order.shipping_recipient || order.customer_name}</div>
-      ${order.address_street || ''}, ${order.address_number || ''}${order.address_complement ? ', ' + order.address_complement : ''}<br>
-      ${order.address_neighborhood || ''}<br>
-      ${order.address_city || ''} - ${order.address_state || ''}<br>
-      <strong>CEP: ${order.cep || ''}</strong>
+      ${/* A etiqueta lia address_street/address_city/cep — nomes que não existem
+            na tabela `orders`, os mesmos que já deixavam o endereço em branco na
+            tela. Etiqueta impressa sem endereço não é entregável. */ ''}
+      ${order.shipping_street || ''}, ${order.shipping_number || ''}${order.shipping_complement ? ', ' + order.shipping_complement : ''}<br>
+      ${order.shipping_neighborhood || ''}<br>
+      ${order.shipping_city || ''} - ${order.shipping_state || ''}<br>
+      <strong>CEP: ${order.shipping_postal_code || ''}</strong>
     </div>
     <div class="sec"><div class="sec-title">Envio</div>
       <div class="row">
         <div><strong>Transportadora:</strong> ${order.shipping_carrier_name || order.carrier_name || 'A definir'}<br>
+        ${order.shipping_zone ? `<strong>Zona:</strong> ${order.shipping_zone}<br>` : ''}
         <strong>Pedido:</strong> ${order.order_number}<br>
         ${inv ? `<strong>NF:</strong> ${inv.invoice_number}/${inv.invoice_series}` : ''}
         </div>
