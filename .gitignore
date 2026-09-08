@@ -26,3 +26,8 @@ save.ps1
 
 # Arquivos de marca originais (nomes com espaco, duplicatas dos assets kebab-case em public/)
 _assets-originais/
+
+# script auxiliar de auditoria (nao versionar)
+q.mjs
+sec.mjs
+audit.mjs
