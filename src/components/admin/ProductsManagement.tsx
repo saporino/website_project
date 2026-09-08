@@ -103,14 +103,16 @@ export function ProductsManagement() {
   const loadProducts = async () => {
     try {
       const [{ data, error }, { data: batches }] = await Promise.all([
-        supabase.from('products').select('*').eq('company_id', activeCompanyId).order('display_order', { ascending: true }),
+        // A visão traz `disponivel`: para o kit é o estoque do café dividido
+        // pelo tamanho. Sem ela a lista mostrava todo kit como "esgotado".
+        supabase.from('products_com_disponibilidade').select('*').eq('company_id', activeCompanyId).order('display_order', { ascending: true }),
         supabase.from('green_coffee_lots').select('product_id,batch_number,status').eq('status', 'active').eq('company_id', activeCompanyId)
       ]);
 
       if (error) throw error;
 
       // Sort in JS to treat 0 as "end of list"
-      const sortedData = (data || []).sort((a, b) => {
+      const sortedData = (data || []).map((p: any) => ({ ...p, stock: p.disponivel ?? p.stock ?? 0 })).sort((a, b) => {
         const orderA = a.display_order === 0 ? Number.MAX_SAFE_INTEGER : a.display_order;
         const orderB = b.display_order === 0 ? Number.MAX_SAFE_INTEGER : b.display_order;
         return orderA - orderB;
@@ -733,7 +735,9 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Peso (gramas) *</label>
             <div className="flex gap-2">
-              {[250, 500, 1000].map(w => (
+              {/* Os kits nascem com 1000, 1500, 2000 e 5000 g. Sem estes botões,
+                  abrir um fardo para edição não mostrava opção nenhuma marcada. */}
+              {[250, 500, 1000, 1500, 2000, 5000].map(w => (
                 <button
                   type="button"
                   key={w}
@@ -745,7 +749,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
                       : 'bg-white text-gray-700 border-gray-300 hover:border-[#8B2214]'
                   } ${hasLots ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  {w >= 1000 ? '1kg' : `${w}g`}
+                  {w >= 1000 ? `${(w / 1000).toString().replace('.', ',')}kg` : `${w}g`}
                 </button>
               ))}
             </div>

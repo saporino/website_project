@@ -261,6 +261,12 @@ function AppContent() {
       const comDisponibilidade = (data || []).map((p: any) => ({
         ...p,
         stock: p.disponivel ?? p.stock ?? 0,
+        // `price` passa a ser o preço que vale. O cheio fica guardado para o
+        // valor riscado — antes disto, preencher o promocional não mudava nada
+        // na loja: a vitrine e o servidor cobravam sempre o cheio.
+        price: Number(p.preco_final ?? p.price ?? 0),
+        precoCheio: Number(p.price ?? 0),
+        emPromocao: !!p.em_promocao,
       }));
       setProducts(comDisponibilidade.sort((a, b) => {
         // Treat 0 as "infinity" (put at the end)
@@ -872,6 +878,16 @@ const Products = ({ products, loading, addedProducts, setAddedProducts, selected
                   }}
                   className="relative z-10 w-4/5 h-4/5 object-contain transition-transform duration-500 group-hover:scale-105"
                 />
+                {/* Selo de desconto no canto da foto: é o que o olho pega antes
+                    de ler qualquer preço. Fica na esquerda para não brigar com o
+                    "Destaque", que vive na direita. */}
+                {(product as any).emPromocao && (
+                  <div className="absolute top-2 left-2 z-20 flex h-12 w-12 items-center justify-center rounded-full bg-[#8B2214] text-white shadow-lg sm:h-14 sm:w-14">
+                    <span className="text-xs font-bold sm:text-sm">
+                      −{Math.round((1 - product.price / (product as any).precoCheio) * 100)}%
+                    </span>
+                  </div>
+                )}
                 {product.featured && (
                   <div className="absolute top-2 right-2 bg-[#8B2214] text-white px-2 py-0.5 rounded-full text-[10px] font-semibold shadow">
                     Destaque
@@ -897,7 +913,16 @@ const Products = ({ products, loading, addedProducts, setAddedProducts, selected
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs text-gray-400">{product.weight_grams}g</span>
                     {product.stock > 0 && product.is_active && (
-                      <span className="text-sm font-bold text-[#8B2214]">R$ {product.price.toFixed(2)}</span>
+                      <span className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                        {(product as any).emPromocao && (
+                          <span className="text-xs text-gray-400 line-through">
+                            R$ {(product as any).precoCheio.toFixed(2)}
+                          </span>
+                        )}
+                        {/* Sem repetir o percentual aqui: ele já está no selo
+                            redondo sobre a foto, e duas vezes vira ruído. */}
+                        <span className="text-sm font-bold text-[#8B2214]">R$ {product.price.toFixed(2)}</span>
+                      </span>
                     )}
                   </div>
 

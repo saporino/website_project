@@ -81,7 +81,16 @@ export default function ProductDetail({ product, onBack, onAddToCart, isAdded, o
         {/* Galeria */}
         <div className="md:w-1/2 border-r border-gray-50">
           {/* Imagem ativa */}
-          <div className="aspect-square flex items-center justify-center p-10 sm:p-16 bg-white">
+          <div className="relative aspect-square flex items-center justify-center p-10 sm:p-16 bg-white">
+            {/* Mesmo selo da vitrine, para o cliente não perder o desconto de
+                vista ao abrir o produto. */}
+            {(product as any).emPromocao && (
+              <div className="absolute top-4 left-4 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-[#8B2214] text-white shadow-lg sm:h-16 sm:w-16">
+                <span className="text-sm font-bold sm:text-base">
+                  −{Math.round((1 - product.price / Number((product as any).precoCheio)) * 100)}%
+                </span>
+              </div>
+            )}
             <img
               src={activeImg}
               alt={product.name}
@@ -121,8 +130,17 @@ export default function ProductDetail({ product, onBack, onAddToCart, isAdded, o
             </h1>
           </div>
 
-          <p className="text-xl font-bold text-gray-900">
-            R$ {price.toFixed(2).replace(".", ",")}
+          {/* Preço cheio riscado ao lado do promocional. Sem ele o cliente não
+              tem como saber que está pagando menos. */}
+          <p className="flex items-baseline gap-2">
+            {(product as any).emPromocao && purchase !== "assinatura" && (
+              <span className="text-base text-gray-400 line-through">
+                R$ {Number((product as any).precoCheio).toFixed(2).replace(".", ",")}
+              </span>
+            )}
+            <span className="text-xl font-bold text-gray-900">
+              R$ {price.toFixed(2).replace(".", ",")}
+            </span>
           </p>
 
           {product.description && (

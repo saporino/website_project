@@ -97,14 +97,22 @@ Deno.serve(async (req: Request) => {
     const ids = [...new Set(items.map((i) => i.product_id).filter(Boolean))];
     if (ids.length === 0) return json({ error: 'Pedido vazio' }, 400);
     const { data: prods, error: prodErr } = await supabase
-      .from('products').select('id, name, price, is_active, kit_quantity').in('id', ids);
+      .from('products').select('id, name, price, promotional_price, is_active, kit_quantity').in('id', ids);
     if (prodErr) throw prodErr;
     const byId = new Map<string, ProductInfo>();
     // Quantos pacotes de 500 g cada linha representa. Um fardo é 1 item e
     // 10 pacotes — contar itens faria o frete ser cotado para 0,5 kg.
     const pacotesPorProduto = new Map<string, number>();
     for (const p of prods || []) {
-      byId.set(p.id, { id: p.id, name: p.name, price: Number(p.price), is_active: !!p.is_active });
+      // Preço promocional vale quando existe e é MENOR que o cheio. Sem isto o
+      // cliente veria o desconto na loja e pagaria o preço cheio na hora.
+      const promo = Number(p.promotional_price ?? 0);
+      const cheio = Number(p.price);
+      byId.set(p.id, {
+        id: p.id, name: p.name,
+        price: promo > 0 && promo < cheio ? promo : cheio,
+        is_active: !!p.is_active,
+      });
       pacotesPorProduto.set(p.id, Number(p.kit_quantity) || 1);
     }
     const contarPacotes = () =>
