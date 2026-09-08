@@ -69,7 +69,11 @@ export default function ProductDetail({ product, onBack, onAddToCart, isAdded, o
   const btn = getButton();
 
   return (
-    <div className="bg-white min-h-screen">
+    // O cabeçalho do site é `fixed` e ocupa os primeiros ~92px da tela. Sem
+    // esta folga, o "Todos os produtos" nascia DEBAIXO dele: o botão aparecia,
+    // mas o clique acertava o cabeçalho e nunca chegava nele. Não era o
+    // onBack que estava quebrado — era um botão inalcançável.
+    <div className="bg-white min-h-screen pt-24">
       {/* Breadcrumb */}
       <div className="border-b border-gray-100 px-4 sm:px-6 py-3">
         <button onClick={onBack} className="flex items-center gap-1.5 text-xs text-[#8B2214] font-semibold hover:underline">

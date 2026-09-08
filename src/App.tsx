@@ -282,9 +282,45 @@ function AppContent() {
     }
   };
 
-  const scrollToSection = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+  /** Volta para a home: fecha a página de produto e sobe a tela. */
+  const irParaHome = () => {
     setIsMobileMenuOpen(false);
+    setSelectedProduct(null);
+    if (window.location.pathname !== '/') {
+      window.history.pushState({}, '', '/');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  /**
+   * Leva até uma seção da home.
+   *
+   * A seção nem sempre está na tela: a página de produto SUBSTITUI a home
+   * inteira, então `#products`, `#journey` e companhia deixam de existir.
+   * Enquanto isso não era tratado, LOJA e JORNADA não faziam nada na página
+   * de produto — o clique acertava o botão, não achava o destino e morria
+   * calado. ASSINATURA funcionava porque troca de rota, não rola a página.
+   */
+  const scrollToSection = (id: string) => {
+    setIsMobileMenuOpen(false);
+    const alvo = document.getElementById(id);
+    if (alvo) { alvo.scrollIntoView({ behavior: 'smooth' }); return; }
+
+    setSelectedProduct(null);
+    if (window.location.pathname !== '/') {
+      window.history.pushState({}, '', '/');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+    // A home volta a montar no próximo render, e as seções vêm de dados que
+    // podem demorar. Tenta por um segundo em vez de chutar um só instante.
+    let tentativas = 0;
+    const procurar = () => {
+      const el = document.getElementById(id);
+      if (el) { el.scrollIntoView({ behavior: 'smooth' }); return; }
+      if (++tentativas < 20) setTimeout(procurar, 50);
+    };
+    setTimeout(procurar, 50);
   };
 
   const openAuth = (mode: 'login' | 'register', context: 'client' | 'admin' = 'client') => {
@@ -299,6 +335,7 @@ function AppContent() {
         isMobileMenuOpen={isMobileMenuOpen}
         setIsMobileMenuOpen={setIsMobileMenuOpen}
         scrollToSection={scrollToSection}
+        onHome={irParaHome}
         onCartOpen={() => setIsCartOpen(true)}
         onAuthOpen={openAuth}
       />
@@ -331,7 +368,7 @@ function AppContent() {
   );
 }
 
-const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCartOpen, onAuthOpen, hidden = false }: any) => {
+const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onHome, onCartOpen, onAuthOpen, hidden = false }: any) => {
   const { getCartCount } = useCart();
   const { user, profile, signOut } = useAuth();
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
@@ -358,8 +395,13 @@ const Header = ({ isMobileMenuOpen, setIsMobileMenuOpen, scrollToSection, onCart
         className={`fixed top-0 left-0 right-0 z-50 bg-gradient-to-b from-black/50 to-transparent transition-all duration-500 ${hidden ? 'opacity-0 -translate-y-4 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="relative flex justify-center items-center py-6">
+            {/* O logo é o caminho de volta para casa, e é assim que todo mundo
+                espera que ele funcione. Antes ele só rolava a tela para o topo:
+                na página de produto, onde a pessoa JÁ está no topo, clicar não
+                produzia nada. */}
             <button
-              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              onClick={() => (onHome ? onHome() : window.scrollTo({ top: 0, behavior: 'smooth' }))}
+              aria-label="Ir para a página inicial"
               className="absolute left-0 cursor-pointer group z-50"
             >
               <img
