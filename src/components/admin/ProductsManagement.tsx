@@ -29,6 +29,8 @@ interface Product {
   subscription_discount_pct?: number;
   display_order: number;
   barcode?: string | null;
+  /** Codigo interno, com letras. Diferente do barcode, que e o EAN do varejo. */
+  sku?: string | null;
   pj_only?: boolean;
   sales_channels?: string[];
 }
@@ -79,6 +81,7 @@ export function ProductsManagement() {
     subscription_discount_pct: 20 as number,
     display_order: 0,
     barcode: '',
+    sku: '',
     pj_only: false,
     sales_channels: ['saporino', 'repco', 'cofico', 'marketplaces'] as string[],
   });
@@ -176,6 +179,7 @@ export function ProductsManagement() {
       roast_type: '',
       flavor_notes: '',
       barcode: '',
+      sku: '',
       // Produto novo nasce vendável em todos os canais. Sem isto ele nasceria com
       // a lista vazia e não apareceria em lugar nenhum, sem dizer o porquê.
       sales_channels: ['saporino', 'repco', 'cofico', 'marketplaces'],
@@ -209,6 +213,7 @@ export function ProductsManagement() {
         subscription_discount_pct: formData.subscription_discount_pct || 20,
         display_order: Number.isNaN(Number(formData.display_order)) ? 0 : Number(formData.display_order),
         barcode: (formData as any).barcode || null,
+        sku: (formData as any).sku?.trim() || null,
         pj_only: !!formData.pj_only,
         sales_channels: formData.sales_channels ?? [],
       };
@@ -560,6 +565,29 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
               <BarcodeDisplay value={(formData as any).barcode} />
             </div>
           )}
+
+          {/* SKU é código interno e aceita letras; EAN é do varejo e só tem
+              números. Misturar os dois no mesmo campo não funciona — foi por
+              isso que o padrão da casa não cabia no campo de código de barras. */}
+          <label className="block text-sm font-semibold text-gray-700 mb-2 mt-4">
+            SKU (código interno)
+          </label>
+          <input
+            type="text"
+            value={(formData as any).sku || ''}
+            onChange={(e) => setFormData({ ...formData, sku: e.target.value.toUpperCase().slice(0, 40) })}
+            placeholder="Ex: TRP-TRD-500M-U01"
+            className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded font-mono"
+          />
+          <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+            Padrão: MARCA-LINHA-GRAMATURA+MOAGEM-VENDA.
+            {' '}<span className="font-mono">M</span> = moído,{' '}
+            <span className="font-mono">G</span> = grão.{' '}
+            <span className="font-mono">U01</span> avulso ·{' '}
+            <span className="font-mono">K02</span> kit ·{' '}
+            <span className="font-mono">F01</span> fardo.
+            {' '}Os kits herdam a família daqui.
+          </p>
         </div>
 
         <div className="md:col-span-4">
