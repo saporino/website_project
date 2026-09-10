@@ -9,6 +9,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { custoDaImagemUSD, decomporEntrada, FORMATOS, type FormatoId } from "../_shared/aiPricing.ts";
 import { registrarUsoDeIA } from "../_shared/aiUsage.ts";
+import {
+  MODELO_DIRETOR, DIRETOR_VERSION, TIPOS, systemDoDiretor, custoDoDiretorUSD, type TipoId,
+} from "../_shared/diretorCriativo.ts";
 
 // Dois modelos, um critério: `sunburst` é o que a OpenAI indica para fluxos
 // "onde a precisão de edição importa mais" — é o que usamos quando há um ativo
@@ -60,10 +63,12 @@ Deno.serve(async (req: Request) => {
   const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
   const OPENAI = Deno.env.get("OPENAI_API_KEY");
+  const ANTHROPIC = Deno.env.get("ANTHROPIC_API_KEY");
   const db = createClient(url, service);
 
   let geracaoId: string | null = null;
   let companyId: string | null = null;
+  let organizationId: string | null = null;
   let userId: string | null = null;
   let modelo = MODELO_LIVRE;
 
@@ -134,6 +139,10 @@ Deno.serve(async (req: Request) => {
     const referencePath = body?.reference_path ? String(body.reference_path) : null;
     const parentId = body?.parent_id ? String(body.parent_id) : null;
     companyId = body?.company_id ? String(body.company_id) : null;
+    // Tipo vem de ATALHO, nunca digitado — é o que permite selecionar só as
+    // regras daquele caso em vez de despejar o manual inteiro no prompt.
+    const tipo = (TIPOS[String(body?.content_type ?? "livre") as TipoId] ? String(body.content_type) : "livre") as TipoId;
+    const usarDiretor = body?.usar_diretor !== false;
 
     if (!companyId) return json({ error: "Escolha a marca antes de gerar." }, 400);
     if (brief.length < 5) return json({ error: "Descreva o que você quer na imagem." }, 400);
@@ -150,10 +159,17 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // ---- Organização dona desta criação ----
+    // O tenant do Studio é a organização, não a empresa faturadora. Enquanto
+    // só existem clientes internos, ela é encontrada pela ponte company_id.
+    const { data: org } = await db.from("studio_organizations")
+      .select("id").eq("company_id", companyId).maybeSingle();
+    organizationId = org?.id ?? null;
+
     // ---- Contexto da marca ----
     const { data: brand } = await db
       .from("studio_brand_profiles")
-      .select("name, guardrails")
+      .select("id, name, guardrails")
       .eq("company_id", companyId)
       .order("is_primary", { ascending: false })
       .limit(1)
@@ -162,7 +178,68 @@ Deno.serve(async (req: Request) => {
 
     const f = FORMATOS[formato];
     modelo = referencePath ? MODELO_COM_REFERENCIA : MODELO_LIVRE;
-    const prompt = montarPrompt(brief, formato, brand?.guardrails, marca, !!referencePath);
+
+    // ---- Diretor Criativo ----
+    // O cliente escreveu em português comum. Aqui isso vira direção criativa
+    // e um prompt profissional. Se o Diretor falhar, a geração NÃO para: cai
+    // no prompt montado por regra, que é pior mas funciona. Perder a imagem
+    // porque a etapa de texto tropeçou seria trocar um problema por outro.
+    let prompt = montarPrompt(brief, formato, brand?.guardrails, marca, !!referencePath);
+    let briefing: Record<string, unknown> | null = null;
+
+    if (ANTHROPIC && usarDiretor) {
+      const t0 = Date.now();
+      try {
+        const system = systemDoDiretor({
+          intencao: brief, tipo, canal: formato, marca,
+          dna: brand?.guardrails, temAtivoOficial: !!referencePath,
+        });
+        const r = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "x-api-key": ANTHROPIC, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+          body: JSON.stringify({
+            model: MODELO_DIRETOR, max_tokens: 2000, system,
+            messages: [{ role: "user", content: `Pedido de quem encomendou:\n"""${brief}"""\n\nTipo: ${TIPOS[tipo]?.rotulo ?? "livre"}. Devolva só o JSON.` }],
+          }),
+        });
+        const txt = await r.text();
+        const requestIdDiretor = r.headers.get("request-id");
+        if (r.ok) {
+          const j = JSON.parse(txt);
+          const bruto = (j.content || []).find((b: { type: string }) => b.type === "text")?.text ?? "";
+          const achado = bruto.match(/\{[\s\S]*\}/);
+          if (achado) {
+            briefing = JSON.parse(achado[0]);
+            if (typeof briefing?.prompt_imagem === "string" && briefing.prompt_imagem.length > 40) {
+              prompt = briefing.prompt_imagem;
+            }
+          }
+          // Custo do Diretor é custo do produto. Sem esta linha, o texto viraria
+          // exatamente o buraco que a auditoria encontrou na imagem.
+          await registrarUsoDeIA(db, {
+            company_id: companyId, organization_id: organizationId, user_id: userId,
+            operation: "direcao_criativa", provider: "anthropic", model: MODELO_DIRETOR,
+            prompt_version: DIRETOR_VERSION,
+            input_tokens: j?.usage?.input_tokens ?? null,
+            output_tokens: j?.usage?.output_tokens ?? null,
+            cached_tokens: j?.usage?.cache_read_input_tokens ?? null,
+            cost_usd: custoDoDiretorUSD(j?.usage),
+            request_id: requestIdDiretor, subject_type: "generation", subject_id: null,
+            status: "ok", duration_ms: Date.now() - t0,
+          });
+        } else {
+          await registrarUsoDeIA(db, {
+            company_id: companyId, organization_id: organizationId, user_id: userId,
+            operation: "direcao_criativa", provider: "anthropic", model: MODELO_DIRETOR,
+            prompt_version: DIRETOR_VERSION, request_id: requestIdDiretor,
+            status: "erro", error_text: txt.slice(0, 400), duration_ms: Date.now() - t0,
+          });
+        }
+      } catch (e) {
+        // Silencioso de propósito: o prompt de regra assume e a imagem sai.
+        console.error("diretor criativo falhou:", String(e).slice(0, 200));
+      }
+    }
 
     // ---- Nasce a tentativa, ANTES da chamada ----
     // Assim uma chamada que falha continua existindo no histórico: tentativa
@@ -171,7 +248,9 @@ Deno.serve(async (req: Request) => {
       .from("studio_generations")
       .insert({
         company_id: companyId, created_by: userId,
-        format: formato, brief, prompt, reference_path: referencePath,
+        organization_id: organizationId, brand_id: brand?.id ?? null,
+        format: formato, content_type: tipo, brief, prompt, briefing,
+        reference_path: referencePath,
         provider: "openai", model: modelo,
         width: f.largura, height: f.altura,
         status: "pendente", parent_id: parentId,
@@ -229,7 +308,7 @@ Deno.serve(async (req: Request) => {
       await db.from("studio_generations")
         .update({ status: "erro", error_text: texto.slice(0, 500) }).eq("id", geracaoId);
       await registrarUsoDeIA(db, {
-        company_id: companyId, user_id: userId, operation: "image_generation",
+        company_id: companyId, organization_id: organizationId, user_id: userId, operation: "image_generation",
         provider: "openai", model: modelo, prompt_version: PROMPT_VERSION,
         quality: "high", width: f.largura, height: f.altura,
         request_id: requestId, subject_type: "generation", subject_id: geracaoId,
@@ -269,7 +348,7 @@ Deno.serve(async (req: Request) => {
     // referência acrescentou — texto e imagem custam preços diferentes.
     const entrada = decomporEntrada(uso);
     await registrarUsoDeIA(db, {
-      company_id: companyId, user_id: userId, operation: "image_generation",
+      company_id: companyId, organization_id: organizationId, user_id: userId, operation: "image_generation",
       provider: "openai", model: modelo, prompt_version: PROMPT_VERSION,
       input_tokens: uso?.input_tokens ?? null,
       input_text_tokens: entrada.texto,
@@ -302,7 +381,7 @@ Deno.serve(async (req: Request) => {
     if (geracaoId) {
       await db.from("studio_generations").update({ status: "erro", error_text: msg }).eq("id", geracaoId).then(() => {}, () => {});
       await registrarUsoDeIA(db, {
-        company_id: companyId, user_id: userId, operation: "image_generation",
+        company_id: companyId, organization_id: organizationId, user_id: userId, operation: "image_generation",
         provider: "openai", model: modelo, prompt_version: PROMPT_VERSION,
         subject_type: "generation", subject_id: geracaoId,
         status: "erro", error_text: msg, duration_ms: Date.now() - inicio,

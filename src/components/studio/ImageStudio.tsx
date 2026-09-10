@@ -15,11 +15,18 @@ const FORMATOS: { id: Formato; rotulo: string; medida: string; classe: string }[
   { id: 'story', rotulo: 'Story / WhatsApp', medida: '9:16 · 1152×2048', classe: 'aspect-[9/16]' },
 ];
 
-const EXEMPLOS = [
-  'Faça uma oferta deste café',
-  'Crie um bom dia com xícara na mesa',
-  'Post institucional sobre nossa torra',
-  'Quero divulgar meu café gourmet',
+// Atalhos: o cliente ESCOLHE o tipo em vez de descrever. É o que permite ao
+// servidor selecionar só as regras daquele caso — e é o que faz a diferença
+// entre "digite seu prompt" e "o que você quer criar?".
+const TIPOS: { id: string; rotulo: string; sugestao: string }[] = [
+  { id: 'bom_dia',       rotulo: 'Bom dia',            sugestao: 'Um bom dia com o nosso café' },
+  { id: 'boa_tarde',     rotulo: 'Boa tarde',          sugestao: 'Uma boa tarde para acompanhar o café' },
+  { id: 'produto',       rotulo: 'Divulgar produto',   sugestao: 'Quero divulgar este café' },
+  { id: 'oferta',        rotulo: 'Oferta',             sugestao: 'Quero anunciar uma condição especial' },
+  { id: 'institucional', rotulo: 'Institucional',      sugestao: 'Um post sobre quem somos' },
+  { id: 'educativo',     rotulo: 'Educativo',          sugestao: 'Ensinar algo sobre café' },
+  { id: 'representante', rotulo: 'Para representante', sugestao: 'Material de apoio para o representante' },
+  { id: 'livre',         rotulo: 'A partir de uma ideia', sugestao: '' },
 ];
 
 interface Geracao {
@@ -34,6 +41,7 @@ interface Geracao {
 export default function ImageStudio({ companyId }: { companyId: string | null }) {
   const [formato, setFormato] = useState<Formato>('feed');
   const [brief, setBrief] = useState('');
+  const [tipo, setTipo] = useState('livre');
   const [referencia, setReferencia] = useState<string | null>(null);
   // Miniatura local, criada no instante da escolha. Não espera o upload nem a
   // rede: o bucket é privado e pedir URL assinada só para mostrar o que já
@@ -90,7 +98,7 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
     setErro(null);
     try {
       const d = await chamar({
-        brief: brief.trim(), format: formato,
+        brief: brief.trim(), format: formato, content_type: tipo,
         reference_path: referencia, parent_id: parentId ?? null,
       });
       setAtual({ id: d.generation_id, url: d.url, aviso: d.aviso_ativo ?? null });
@@ -205,18 +213,24 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
         </div>
 
         <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">O que você quer</label>
-          <textarea value={brief} onChange={e => setBrief(e.target.value)} rows={4}
-            placeholder="Ex.: uma oferta do nosso café tradicional, com clima de manhã"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-[#8B2214]" />
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {EXEMPLOS.map(x => (
-              <button key={x} type="button" onClick={() => setBrief(x)}
-                className="rounded-full border border-gray-200 px-2.5 py-1 text-[11px] text-gray-600 hover:border-gray-400">
-                {x}
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">O que você quer criar?</label>
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {TIPOS.map(t => (
+              <button key={t.id} type="button"
+                onClick={() => { setTipo(t.id); if (t.sugestao) setBrief(t.sugestao); }}
+                className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                  tipo === t.id ? 'border-[#8B2214] bg-[#8B2214] text-white' : 'border-gray-200 text-gray-600 hover:border-gray-400'
+                }`}>
+                {t.rotulo}
               </button>
             ))}
           </div>
+          <textarea value={brief} onChange={e => setBrief(e.target.value)} rows={3}
+            placeholder="Conte para o Studio o que você precisa. Não precisa escrever prompt."
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-[#8B2214]" />
+          <p className="mt-1.5 text-[11px] text-gray-400">
+            Escreva do seu jeito. O Studio cuida da direção criativa.
+          </p>
         </div>
 
         <div>
