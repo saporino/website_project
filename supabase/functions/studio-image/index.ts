@@ -270,11 +270,16 @@ Deno.serve(async (req: Request) => {
       const { data: registrados } = await db.from("studio_reference_assets")
         .select("path, brand_id, brand_name").in("path", listaRef);
       for (const a of registrados ?? []) {
-        const donoOutro = a.brand_id && brand?.id && a.brand_id !== brand.id;
-        const nomeOutro = a.brand_name && marca && a.brand_name.toLowerCase() !== marca.toLowerCase();
-        if (donoOutro || (modoMarca === "livre" && nomeOutro)) {
+        // Marca CADASTRADA é rígida: o ativo tem de ser dela, e ponto. Um
+        // ativo sem marca — enviado em marca livre — também não serve, senão
+        // a porta que fechamos volta a abrir por outro lado.
+        // Marca LIVRE compara pelo nome, que é a única identidade que ela tem.
+        const conflito = modoMarca === "perfil"
+          ? a.brand_id !== brand!.id
+          : Boolean(a.brand_name) && a.brand_name.toLowerCase() !== marca.toLowerCase();
+        if (conflito) {
           return json({
-            error: `Este ativo foi enviado para a marca "${a.brand_name ?? "outra"}" e você está gerando para "${marca}". Anexe a embalagem certa ou troque a marca.`,
+            error: `Este ativo foi enviado para "${a.brand_name ?? "outra marca"}" e você está gerando para "${marca}". Anexe a embalagem certa ou troque a marca no topo.`,
           }, 409);
         }
       }

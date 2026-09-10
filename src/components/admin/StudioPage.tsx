@@ -42,6 +42,14 @@ export default function StudioPage() {
   const [studioCompanyId, setStudioCompanyId] = useState<string | null>(null);
   const [studioBrands, setStudioBrands] = useState<{ id: string; label: string; logo: string | null }[]>([]);
   const activeCompanyId = studioCompanyId ?? salesCompanyId;
+  // MARCA LIVRE é um contexto administrativo de criação, não uma empresa.
+  // Ela aparece junto no seletor e por baixo NÃO troca company nem
+  // organization: a empresa continua sendo a dona do arquivo, da sessão e da
+  // auditoria. O que ela troca é a IDENTIDADE CRIATIVA da peça.
+  // Confundir dono do arquivo com marca da peça foi exatamente o que fez
+  // Capital entrar e Saporino sair.
+  const [marcaLivre, setMarcaLivre] = useState(false);
+  const [nomeLivre, setNomeLivre] = useState('');
   // "Criar post (arte pronta)": sua arte vai DIRETO pra campanha (legenda + publicar), sem análise de concorrente.
   const [ownPost, setOwnPost] = useState<{ mediaPath: string; mediaType: string; thumbUrl: string | null } | null>(null);
   const [uploadingOwn, setUploadingOwn] = useState(false);
@@ -396,11 +404,33 @@ export default function StudioPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-semibold text-gray-500">Publicando pela marca:</span>
           {studioBrands.map(b => (
-            <button key={b.id} onClick={() => setStudioCompanyId(b.id)}
-              className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium border ${activeCompanyId === b.id ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
+            <button key={b.id} onClick={() => { setStudioCompanyId(b.id); setMarcaLivre(false); }}
+              className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium border ${!marcaLivre && activeCompanyId === b.id ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
               {b.label}
             </button>
           ))}
+          {/* Só na criação de imagem, e só no admin. Nas outras visões (Marca,
+              Conexões, Campanhas) marca livre não significa nada: elas operam
+              sobre dados cadastrados de uma empresa real. */}
+          {view === 'imagem' && (
+            <button onClick={() => setMarcaLivre(true)}
+              className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium border ${marcaLivre ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
+              Marca livre
+            </button>
+          )}
+        </div>
+      )}
+
+      {marcaLivre && view === 'imagem' && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[#ddd0cc] bg-[#f5f0ef] px-3 py-2.5">
+          <label className="text-xs font-semibold text-gray-600">Nome da marca:</label>
+          <input value={nomeLivre} onChange={e => setNomeLivre(e.target.value)}
+            placeholder="Café Capital"
+            className="min-w-[200px] flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm" />
+          <span className="w-full text-[11px] leading-snug text-gray-500">
+            Nenhuma identidade cadastrada entra nesta peça: nem DNA, nem produto, nem paleta, nem Instagram
+            de outra marca. A identidade é o nome digitado mais a embalagem que você anexar.
+          </span>
         </div>
       )}
 
@@ -412,7 +442,7 @@ export default function StudioPage() {
       </div>
 
       {view === 'imagem' ? (
-        <ImageStudio companyId={activeCompanyId} avancado />
+        <ImageStudio companyId={activeCompanyId} avancado marcaLivre={marcaLivre} nomeLivre={nomeLivre} />
       ) : view === 'marca' ? (
         <BrandProfile companyId={activeCompanyId} />
       ) : view === 'conexoes' ? (

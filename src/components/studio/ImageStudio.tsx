@@ -89,11 +89,17 @@ interface Geracao {
   created_at: string;
 }
 
-export default function ImageStudio({ companyId, avancado = false }: {
+export default function ImageStudio({ companyId, avancado = false, marcaLivre = false, nomeLivre = '' }: {
+  /** DONO ADMINISTRATIVO: empresa que responde pelo arquivo, pela sessão e
+   *  pela auditoria. NÃO é a marca da peça — foi confundir as duas coisas que
+   *  fez a embalagem Capital sair como Saporino. */
   companyId: string | null;
   /** Painel administrativo. Cliente final recebe a tela simples, sem estilo,
    *  sem modo de texto, sem lote e sem marca livre. Nao sao o mesmo produto. */
   avancado?: boolean;
+  /** Contexto administrativo de criação, escolhido no seletor do topo. */
+  marcaLivre?: boolean;
+  nomeLivre?: string;
 }) {
   const [formato, setFormato] = useState<Formato>('feed');
   const [brief, setBrief] = useState('');
@@ -118,14 +124,15 @@ export default function ImageStudio({ companyId, avancado = false }: {
   // A marca da peça deixou de vir do seletor de EMPRESA do topo. Era dali que
   // a Saporino entrava numa peça da Café Capital.
   const [marcas, setMarcas] = useState<Marca[]>([]);
-  const [brandId, setBrandId] = useState<string>('');   // '' = marca livre
-  const [nomeLivre, setNomeLivre] = useState('');
+  const [brandId, setBrandId] = useState<string>('');
   const [quantidade, setQuantidade] = useState(1);
   const [lote, setLote] = useState<{ feitas: number; total: number } | null>(null);
   const [maisOpcoes, setMaisOpcoes] = useState(false);
 
-  const modoMarca = brandId ? 'perfil' : 'livre';
-  const marcaAtual = brandId ? (marcas.find(m => m.id === brandId)?.name ?? '') : nomeLivre.trim();
+  // A marca da peça vem do seletor do topo, e só de lá. Uma seleção visível,
+  // um lugar para errar.
+  const modoMarca = marcaLivre ? 'livre' : 'perfil';
+  const marcaAtual = marcaLivre ? nomeLivre.trim() : (marcas.find(m => m.id === brandId)?.name ?? '');
 
   // As marcas da empresa. A lista pode vir vazia, e nesse caso marca livre é o
   // único caminho — que é exatamente como um cliente novo começa.
@@ -136,10 +143,10 @@ export default function ImageStudio({ companyId, avancado = false }: {
       .then(({ data }) => {
         const lista = (data as Marca[]) ?? [];
         setMarcas(lista);
-        // Marca cadastrada é o padrão para todo mundo. Marca livre precisa de
-        // um clique deliberado, e só existe no admin — cair nela sem querer
-        // seria repetir a origem do incidente por outro caminho.
-        if (lista.length) setBrandId(prev => prev || lista[0].id);
+        // Trocar de empresa no topo TEM de trocar a marca junto. Manter a
+        // anterior deixaria o formulário apontando para a marca de outra
+        // empresa — a mesma classe de erro que estamos fechando.
+        setBrandId(lista[0]?.id ?? '');
       });
   }, [companyId]);
 
@@ -187,7 +194,7 @@ export default function ImageStudio({ companyId, avancado = false }: {
     // Fail closed na tela também: sem marca resolvida, não gera. Antes o
     // servidor caía na primeira marca da empresa e ninguém ficava sabendo.
     if (modoMarca === 'livre' && marcaAtual.length < 2) {
-      setErro('Escreva o nome da marca desta peça, ou escolha uma marca cadastrada.');
+      setErro('Escreva o nome da marca livre no topo, ou escolha uma marca cadastrada.');
       return;
     }
     if (modoMarca === 'livre' && !ativos.some(a => a.path)) {
@@ -220,7 +227,7 @@ export default function ImageStudio({ companyId, avancado = false }: {
       reference_paths: ativos.filter(a => a.path).map(a => a.path),
       reference_roles: ativos.filter(a => a.path).map(a => a.papel),
       style: estilo || null, text_mode: modoTexto, handle: handle.trim() || null,
-      brand_mode: modoMarca, brand_id: brandId || null, brand_name: marcaAtual,
+      brand_mode: modoMarca, brand_id: marcaLivre ? null : (brandId || null), brand_name: marcaAtual,
     };
 
     try {
@@ -331,7 +338,11 @@ export default function ImageStudio({ companyId, avancado = false }: {
         await supabase.from('studio_reference_assets').insert({
           path: caminho, company_id: companyId,
           organization_id: marcas[0]?.organization_id ?? null,
-          brand_id: brandId || null, brand_mode: modoMarca, brand_name: marcaAtual || null,
+          // Em marca livre o ativo NÃO recebe brand_profile nenhum: a empresa
+          // por baixo é dona do arquivo, não da identidade. Carimbar Saporino
+          // aqui foi o que disparou a trava com a embalagem da Capital.
+          brand_id: marcaLivre ? null : (brandId || null),
+          brand_mode: modoMarca, brand_name: marcaAtual || null,
           filename: file.name || null, mime: file.type || null, size_bytes: file.size,
         });
       }
@@ -359,43 +370,6 @@ export default function ImageStudio({ companyId, avancado = false }: {
         <div>
           <h3 className="font-bold text-gray-900">Criar imagem</h3>
           <p className="text-sm text-gray-500">Escreva o que você precisa. O resto é com o Studio.</p>
-        </div>
-
-        {/* A marca da peça. Fica em primeiro porque é a decisão que contamina
-            todas as outras: foi a marca errada que trocou a embalagem. */}
-        <div className="rounded-lg border border-[#ddd0cc] bg-[#f5f0ef] p-3">
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-600">Marca desta peça</label>
-          <div className="flex flex-wrap gap-1.5">
-            {marcas.map(m => (
-              <button key={m.id} type="button" onClick={() => setBrandId(m.id)}
-                className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${
-                  brandId === m.id ? 'border-[#8B2214] bg-[#8B2214] text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-[#8B2214]'
-                }`}>
-                {m.name}
-              </button>
-            ))}
-            {/* Ferramenta interna de teste. Cliente final trabalha sempre
-                dentro de uma marca cadastrada da propria organizacao. */}
-            {avancado && (
-              <button type="button" onClick={() => setBrandId('')}
-                className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${
-                  !brandId ? 'border-[#8B2214] bg-[#8B2214] text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-[#8B2214]'
-                }`}>
-                Marca livre
-              </button>
-            )}
-          </div>
-          {avancado && !brandId && (
-            <div className="mt-2">
-              <input value={nomeLivre} onChange={e => setNomeLivre(e.target.value)}
-                placeholder="Nome da marca, ex.: Café Capital"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
-              <p className="mt-1 text-[11px] leading-snug text-gray-500">
-                Sem identidade cadastrada: a embalagem que você anexar é o documento da marca.
-                Nenhuma outra marca pode aparecer na peça.
-              </p>
-            </div>
-          )}
         </div>
 
         <div>
