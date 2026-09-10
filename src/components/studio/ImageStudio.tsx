@@ -88,6 +88,9 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
   const [estilo, setEstilo] = useState('post_pronto');
   const [modoTexto, setModoTexto] = useState('automatico');
   const [handle, setHandle] = useState('');
+  // Sem marcar o exemplo escolhido, o clique preenchia campos LA EMBAIXO,
+  // fora da vista, e parecia que nada acontecia.
+  const [exemploAtivo, setExemploAtivo] = useState<string | null>(null);
   // Vários ativos: a embalagem sozinha diz o que é o produto; junto com uma
   // referência de cenário ou de luz, diz o que a peça deve VIRAR. A API aceita
   // múltiplas referências, então limitar a uma era limitação nossa.
@@ -264,12 +267,33 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
           <div className="flex flex-wrap gap-1.5">
             {EXEMPLOS.map(x => (
               <button key={x.texto} type="button"
-                onClick={() => { setBrief(x.texto); setTipo(x.tipo); setEstilo(x.estilo); }}
-                className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-left text-[11px] leading-tight text-gray-600 hover:border-[#8B2214] hover:text-[#8B2214]">
+                onClick={() => { setBrief(x.texto); setTipo(x.tipo); setEstilo(x.estilo); setExemploAtivo(x.texto); }}
+                className={`rounded-lg border px-2.5 py-1.5 text-left text-[11px] leading-tight transition-colors ${
+                  exemploAtivo === x.texto
+                    ? 'border-[#8B2214] bg-[#8B2214] text-white'
+                    : 'border-gray-200 text-gray-600 hover:border-[#8B2214] hover:text-[#8B2214]'
+                }`}>
                 {x.texto}
               </button>
             ))}
           </div>
+
+          {/* O efeito do clique acontece nos blocos de baixo, fora da vista de
+              quem acabou de clicar. Esta linha traz o resultado para perto do
+              botao — senao o exemplo parece nao ter funcionado. */}
+          {exemploAtivo && (
+            <p className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-green-800">
+              <Check className="h-3.5 w-3.5" />
+              Aplicado:
+              <span className="rounded bg-green-50 px-1.5 py-0.5 font-semibold">
+                {TIPOS.find(t => t.id === tipo)?.rotulo}
+              </span>
+              <span className="rounded bg-green-50 px-1.5 py-0.5 font-semibold">
+                {ESTILOS.find(e => e.id === estilo)?.rotulo}
+              </span>
+              <span className="text-gray-500">— ajuste abaixo se quiser</span>
+            </p>
+          )}
         </div>
 
         <div>
@@ -292,7 +316,7 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
           <div className="mb-3 flex flex-wrap gap-1.5">
             {TIPOS.map(t => (
               <button key={t.id} type="button"
-                onClick={() => { setTipo(t.id); if (t.sugestao) setBrief(t.sugestao); }}
+                onClick={() => { setTipo(t.id); if (t.sugestao) setBrief(t.sugestao); setExemploAtivo(null); }}
                 className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
                   tipo === t.id ? 'border-[#8B2214] bg-[#8B2214] text-white' : 'border-gray-200 text-gray-600 hover:border-gray-400'
                 }`}>
@@ -312,7 +336,7 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
           <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">Estilo da peça</label>
           <div className="flex flex-wrap gap-1.5">
             {ESTILOS.map(e => (
-              <button key={e.id} type="button" onClick={() => setEstilo(e.id)}
+              <button key={e.id} type="button" onClick={() => { setEstilo(e.id); setExemploAtivo(null); }}
                 className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${estilo === e.id ? 'border-[#8B2214] bg-[#8B2214] text-white' : 'border-gray-200 text-gray-600 hover:border-gray-400'}`}>
                 {e.rotulo}
               </button>
