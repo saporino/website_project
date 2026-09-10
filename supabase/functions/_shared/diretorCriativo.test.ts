@@ -349,3 +349,68 @@ describe('assinatura do Instagram — garantida por código', () => {
     expect(s).toContain('não desenhe o ícone do Instagram');
   });
 });
+
+// ---------------------------------------------------------------------
+// Marca livre e trava de contaminação — o incidente Capital→Saporino
+// ---------------------------------------------------------------------
+import { MODO_MARCA_LIVRE, marcaEstranhaNoPrompt } from './diretorCriativo.ts';
+
+describe('marca livre — a embalagem é o documento da marca', () => {
+  it('em modo livre o DNA some e a regra da embalagem entra', () => {
+    const s = systemDoDiretor({ ...base, modoMarca: 'livre', marca: 'Café Capital', dna: { tom: 'x' } });
+    expect(s).toContain(MODO_MARCA_LIVRE);
+    // O DNA cadastrado NÃO pode vazar para dentro do prompt.
+    expect(s).not.toContain('"tom":"x"');
+  });
+
+  it('em modo perfil o DNA continua mandando', () => {
+    expect(systemDoDiretor({ ...base, modoMarca: 'perfil' })).toContain('acolhedor');
+  });
+
+  it('a marca livre proíbe citar qualquer outra marca de café', () => {
+    expect(MODO_MARCA_LIVRE).toContain('PROIBIDO citar');
+  });
+
+  it('o prompt sempre proíbe marca que não seja a da peça', () => {
+    expect(systemDoDiretor({ ...base, marca: 'Café Capital' }))
+      .toContain('que não seja "Café Capital"');
+  });
+});
+
+describe('trava de contaminação de marca no prompt', () => {
+  const conhecidas = ['Café Saporino', 'COFICO Brasil'];
+
+  it('pega a marca intrusa que causou o incidente', () => {
+    const prompt = "place the official Saporino Clássico Tradicional coffee package, red packaging";
+    expect(marcaEstranhaNoPrompt(prompt, 'Café Capital', conhecidas)).toBe('Café Saporino');
+  });
+
+  it('não acusa a própria marca da peça', () => {
+    const prompt = 'place the official Saporino package on a linen cloth';
+    expect(marcaEstranhaNoPrompt(prompt, 'Café Saporino', conhecidas)).toBeNull();
+  });
+
+  it('palavra genérica de café não vira acusação', () => {
+    // "café" e "brasil" aparecem em quase toda peça; acusar por elas
+    // bloquearia tudo e a trava viraria ruído.
+    const prompt = 'a warm brazilian café scene with fresh coffee';
+    expect(marcaEstranhaNoPrompt(prompt, 'Café Capital', conhecidas)).toBeNull();
+  });
+
+  it('não confunde pedaço de palavra com nome de marca', () => {
+    const prompt = 'the coficobrasilia street market at sunrise';
+    expect(marcaEstranhaNoPrompt(prompt, 'Café Capital', conhecidas)).toBeNull();
+  });
+});
+
+describe('unicidade — nenhuma frase se repete', () => {
+  it('as frases já usadas entram no prompt como proibição', () => {
+    const s = systemDoDiretor({ ...base, headlinesProibidas: ['Bom dia com aroma de café'] });
+    expect(s).toContain('FRASES JÁ USADAS');
+    expect(s).toContain('Bom dia com aroma de café');
+  });
+
+  it('sem frases anteriores, a seção não polui o prompt', () => {
+    expect(systemDoDiretor({ ...base, headlinesProibidas: [] })).not.toContain('FRASES JÁ USADAS');
+  });
+});

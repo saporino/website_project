@@ -159,6 +159,67 @@ Nomeie em "paleta_da_peca" as cores que você escolheu e de onde vieram.`;
 export const PAPEL_INSPIRACAO = `REFERÊNCIA DE INSPIRAÇÃO — NÃO é da marca e NÃO deve ser copiada. Extraia dela o PRINCÍPIO: o mecanismo de composição, a relação entre produto e espaço, a sensação de luz, a lógica de hierarquia. Depois ABANDONE a execução. É proibido reproduzir o layout exato, a paleta específica, a tipografia, os objetos, o cenário ou qualquer elemento reconhecível da peça de origem. Se a adaptação puder ser confundida com a referência, ela está errada.`;
 
 // ---------------------------------------------------------------------
+// Modo da marca — perfil cadastrado ou marca livre
+// ---------------------------------------------------------------------
+// A peça de 10/09/2026 entrou com embalagem Café Capital e saiu com
+// embalagem Saporino. O modelo não trocou nada: o prompt mandava, por
+// escrito, "the official Saporino Clássico Tradicional package". A marca
+// vinha do seletor de empresa do topo do admin e o anexo não tinha marca
+// nenhuma — duas verdades contraditórias, e só uma delas tinha nome.
+//
+// MARCA LIVRE é a resposta, e não é só para teste: é como um cliente novo
+// entra. Ninguém cadastra DNA de marca antes da primeira peça. Anexa a
+// embalagem, escreve o nome, e a embalagem passa a ser o documento da marca.
+export type ModoMarca = "perfil" | "livre";
+
+export const MODO_MARCA_LIVRE = `MARCA LIVRE — A EMBALAGEM É O DOCUMENTO DA MARCA
+Esta marca NÃO tem identidade cadastrada, e isso é proposital. Tudo o que você sabe sobre ela está em dois lugares, e em nenhum outro:
+
+1. A EMBALAGEM ANEXADA — nome, cores, tipografia, produto e peso saem DELA. Leia a embalagem antes de compor.
+2. O PEDIDO ESCRITO — é o que a pessoa quer dizer.
+
+VOCÊ NÃO CONHECE ESTA MARCA. Não invente história, origem, região, prêmio, certificação, slogan, ano de fundação nem linha de produto.
+É PROIBIDO citar, escrever ou desenhar qualquer OUTRA marca de café. Nenhuma. Nem como comparação, nem como inspiração, nem "no estilo de".
+Não desenhe logotipo: o logotipo é o que já está na embalagem anexada.
+Se você não consegue ler o nome na embalagem, não escreva nome nenhum na peça.`;
+
+/**
+ * Detecta contaminação de marca no prompt final.
+ *
+ * A trava que faltava. Nenhuma instrução impede o Diretor de escrever o nome
+ * da marca errada — mas conferir o texto ANTES de pagar a imagem é barato e
+ * determinístico. Devolve o nome intruso, ou null.
+ */
+const PALAVRAS_NEUTRAS = new Set([
+  "cafe", "coffee", "brasil", "brazil", "ltda", "the", "com", "premium",
+  "gourmet", "torrefacao", "classico", "tradicional", "expresso", "especial",
+]);
+
+function tokensDeMarca(nome: string): string[] {
+  return nome.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .split(/[^a-z0-9]+/)
+    .filter(t => t.length > 3 && !PALAVRAS_NEUTRAS.has(t));
+}
+
+export function marcaEstranhaNoPrompt(
+  prompt: string,
+  marcaAtual: string,
+  nomesConhecidos: string[],
+): string | null {
+  const texto = prompt.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const meus = new Set(tokensDeMarca(marcaAtual));
+  for (const nome of nomesConhecidos) {
+    for (const t of tokensDeMarca(nome)) {
+      // Um token que também é meu não acusa: "Café Capital" e "Capital Ltda"
+      // podem coexistir sem que uma seja intrusa da outra.
+      if (meus.has(t)) continue;
+      if (new RegExp(`\\b${t}\\b`).test(texto)) return nome;
+    }
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------
 // Assinatura — o @ é garantido por código, não pedido ao modelo
 // ---------------------------------------------------------------------
 // O cliente digitava "cafecapital" e a peça saía sem arroba; digitava
@@ -295,6 +356,10 @@ export interface ContextoDoBriefing {
   papeis?: PapelDoAtivo[];
   /** @ da marca, para virar assinatura discreta na peça. */
   handle?: string | null;
+  /** "livre" = sem DNA cadastrado; a embalagem anexada é o documento da marca. */
+  modoMarca?: ModoMarca;
+  /** Frases já usadas — nesta leva e em qualquer cliente. Nenhuma se repete. */
+  headlinesProibidas?: string[];
 }
 
 export function systemDoDiretor(ctx: ContextoDoBriefing): string {
@@ -309,9 +374,14 @@ export function systemDoDiretor(ctx: ContextoDoBriefing): string {
     ctx.tipo === "oferta" ? REGRAS_CONDICIONAIS.oferta : "",
   ].filter(Boolean).join("\n");
 
-  const dnaTexto = ctx.dna && Object.keys(ctx.dna as object).length
-    ? JSON.stringify(ctx.dna).slice(0, 3500)
-    : "(esta marca ainda não cadastrou identidade — seja conservador e institucional, sem afirmar nada específico sobre ela)";
+  // Em marca livre o DNA não é omitido por acidente: ele é proibido. Foi
+  // exatamente um DNA de outra marca que virou embalagem errada na peça.
+  const modoMarca: ModoMarca = ctx.modoMarca ?? "perfil";
+  const dnaTexto = modoMarca === "livre"
+    ? MODO_MARCA_LIVRE
+    : ctx.dna && Object.keys(ctx.dna as object).length
+      ? JSON.stringify(ctx.dna).slice(0, 3500)
+      : "(esta marca ainda não cadastrou identidade — seja conservador e institucional, sem afirmar nada específico sobre ela)";
 
   const antiRepeticao = ctx.fingerprintsRecentes?.length
     ? `\n\nAS ÚLTIMAS PEÇAS DESTA MARCA USARAM:\n${ctx.fingerprintsRecentes.map(f => `- ${f}`).join("\n")}\nEscolha estrutura DIFERENTE. Variar o cenário não basta: mude a família de layout, a zona de texto ou o papel do produto.`
@@ -330,6 +400,17 @@ IMAGEM 1 — ${PAPEL_OFICIAL}` : "",
 
 IMAGEM DE REFERÊNCIA — ${PAPEL_INSPIRACAO}` : "",
   ].filter(Boolean).join("");
+
+  // Unicidade: nenhuma frase se repete, nem dentro da leva, nem entre
+  // clientes. Duas torrefações não podem receber a mesma peça.
+  const proibidas = (ctx.headlinesProibidas ?? []).filter(h => typeof h === "string" && h.trim()).slice(0, 40);
+  const unicidade = proibidas.length
+    ? `
+
+FRASES JÁ USADAS — NENHUMA DELAS PODE APARECER, nem igual, nem parecida, nem com as palavras trocadas de ordem:
+${proibidas.map(h => `- "${h}"`).join("\n")}
+Escreva uma headline que não seja variação de nenhuma dessas. Se a sua primeira ideia estiver na lista, descarte e escreva outra.`
+    : "";
 
   // Com embalagem em mãos, ela manda na paleta. Sem embalagem, a identidade
   // cadastrada é a única fonte de cor — e o resto é neutro.
@@ -384,6 +465,7 @@ ${Object.entries(ZONAS_DE_TEXTO).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
 OBJETIVO DESTA PEÇA: ${tipo.objetivo}
 
 MARCA: ${ctx.marca}
+É PROIBIDO escrever, citar ou desenhar qualquer marca de café que não seja "${ctx.marca}". Nenhuma outra, em nenhum lugar da peça e em nenhum lugar do final_prompt.
 IDENTIDADE (obedeça; não invente nada fora disto):
 ${dnaTexto}
 
@@ -397,7 +479,7 @@ ${REGRAS_DE_TEXTO}
 CANAL:
 ${REGRAS_CANAL[ctx.canal] ?? REGRAS_CANAL.feed}
 
-${condicionais}${papeisTexto}${paletaTexto}${multiRef}${assinatura}${textoPedido}${antiRepeticao}
+${condicionais}${papeisTexto}${paletaTexto}${multiRef}${assinatura}${textoPedido}${antiRepeticao}${unicidade}
 
 COMO TRABALHAR:
 1. Entenda a intenção por trás do pedido, não só as palavras. Quem escreve "bom dia" quer algo publicável, não um ensaio fotográfico.

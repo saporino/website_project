@@ -12,6 +12,7 @@ import { registrarUsoDeIA } from "../_shared/aiUsage.ts";
 import {
   MODELO_DIRETOR, DIRETOR_VERSION, TIPOS, ESTILOS, MODOS_DE_TEXTO, LOCALE_SAIDA,
   systemDoDiretor, custoDoDiretorUSD, pareceEstrangeiro, normalizarHandle,
+  marcaEstranhaNoPrompt, type ModoMarca,
   type TipoId, type EstiloId, type ModoTextoId, type PapelDoAtivo,
 } from "../_shared/diretorCriativo.ts";
 
@@ -55,6 +56,21 @@ function montarPrompt(brief: string, formato: FormatoId, guardrails: unknown, ma
     `\n\nPADRÃO: qualidade comercial, luz natural e crível, composição limpa com respiro para texto ser aplicado depois. ` +
     `Evite estética genérica de banco de imagens, evite aparência de render 3D e evite texto artificial na imagem.`
   );
+}
+
+/**
+ * Impressão digital de uma frase, para a unicidade entre clientes.
+ *
+ * Normaliza antes de somar: "Bom dia!" e "bom  dia" são a mesma frase, e
+ * fingir que não são seria fabricar variedade. Guardamos só o hash — dá para
+ * responder "isto já existe" sem saber o que é nem de quem era.
+ */
+async function impressaoDigital(texto: string): Promise<string> {
+  const normal = texto.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, " ").trim();
+  const bytes = new TextEncoder().encode(normal);
+  const hash = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
 Deno.serve(async (req: Request) => {
@@ -160,6 +176,15 @@ Deno.serve(async (req: Request) => {
     const papeis: PapelDoAtivo[] = Array.isArray(body?.reference_roles)
       ? body.reference_roles.map((r: unknown) => (String(r) === "inspiracao" ? "inspiracao" : "oficial"))
       : [];
+    // A marca da peça deixa de vir do seletor de EMPRESA do topo do admin.
+    // Era exatamente daí que "Saporino" entrava numa peça da Café Capital.
+    const modoMarca: ModoMarca = String(body?.brand_mode ?? "perfil") === "livre" ? "livre" : "perfil";
+    const brandIdPedido = body?.brand_id ? String(body.brand_id) : null;
+    const nomeLivre = String(body?.brand_name ?? "").trim().slice(0, 60);
+    // Levas: o navegador orquestra e manda uma peça por vez, porque sete
+    // imagens numa só chamada estouram o tempo da função.
+    const batchId = body?.batch_id ? String(body.batch_id) : null;
+    const batchIndex = Number.isFinite(Number(body?.batch_index)) ? Number(body.batch_index) : null;
 
     if (!companyId) return json({ error: "Escolha a marca antes de gerar." }, 400);
     if (brief.length < 5) return json({ error: "Descreva o que você quer na imagem." }, 400);
@@ -185,14 +210,59 @@ Deno.serve(async (req: Request) => {
     organizationId = org?.id ?? null;
 
     // ---- Contexto da marca ----
-    const { data: brand } = await db
-      .from("studio_brand_profiles")
-      .select("id, name, guardrails")
-      .eq("company_id", companyId)
-      .order("is_primary", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const marca = brand?.name || "sem nome cadastrado";
+    // FAIL CLOSED. Antes, isto era `.limit(1)` na primeira marca primária da
+    // empresa, e o DNA dessa marca virava a verdade da peça mesmo com a
+    // embalagem de outra marca anexada. Agora a marca é escolha explícita, e
+    // não haver marca resolvida IMPEDE a geração em vez de adivinhar.
+    let brand: { id: string; name: string; guardrails: unknown } | null = null;
+    let marca: string;
+
+    if (modoMarca === "livre") {
+      // Marca livre: nenhum DNA é carregado, de propósito. A embalagem
+      // anexada e o pedido escrito são a única fonte de verdade.
+      if (nomeLivre.length < 2) {
+        return json({ error: "Escreva o nome da marca desta peça." }, 400);
+      }
+      if (!listaRef.length) {
+        return json({ error: "Em marca livre, anexe a embalagem: ela é o documento da marca." }, 400);
+      }
+      marca = nomeLivre;
+    } else {
+      const consulta = db.from("studio_brand_profiles")
+        .select("id, name, guardrails").eq("company_id", companyId);
+      const { data: achada } = brandIdPedido
+        ? await consulta.eq("id", brandIdPedido).maybeSingle()
+        : await consulta.order("is_primary", { ascending: false }).limit(1).maybeSingle();
+      brand = (achada as typeof brand) ?? null;
+      // Marca ausente NÃO cai em marca padrão. Cair silenciosamente para a
+      // primeira marca disponível foi a causa raiz do incidente.
+      if (!brand) {
+        return json({
+          error: brandIdPedido
+            ? "Marca não encontrada nesta empresa."
+            : "Nenhuma marca cadastrada. Escolha Marca livre e anexe a embalagem.",
+        }, 400);
+      }
+      marca = brand.name;
+    }
+
+    // ---- Trava: o ativo oficial tem de ser desta marca ----
+    // O prefixo do caminho só garante a EMPRESA. Uma empresa com duas marcas
+    // passava reto: a embalagem da marca A servia de ativo oficial na peça da
+    // marca B. Ativo registrado em outra marca bloqueia, e não custa nada.
+    if (listaRef.length) {
+      const { data: registrados } = await db.from("studio_reference_assets")
+        .select("path, brand_id, brand_name").in("path", listaRef);
+      for (const a of registrados ?? []) {
+        const donoOutro = a.brand_id && brand?.id && a.brand_id !== brand.id;
+        const nomeOutro = a.brand_name && marca && a.brand_name.toLowerCase() !== marca.toLowerCase();
+        if (donoOutro || (modoMarca === "livre" && nomeOutro)) {
+          return json({
+            error: `Este ativo foi enviado para a marca "${a.brand_name ?? "outra"}" e você está gerando para "${marca}". Anexe a embalagem certa ou troque a marca.`,
+          }, 409);
+        }
+      }
+    }
 
     const f = FORMATOS[formato];
     modelo = referencePath ? MODELO_COM_REFERENCIA : MODELO_LIVRE;
@@ -220,15 +290,28 @@ Deno.serve(async (req: Request) => {
           .select("briefing")
           .eq("organization_id", organizationId)
           .not("briefing", "is", null)
-          .order("created_at", { ascending: false }).limit(5);
+          .order("created_at", { ascending: false }).limit(30);
         const fingerprints = (recentes ?? [])
           .map((r: { briefing?: Record<string, unknown> }) => r.briefing?.creative_fingerprint)
+          .filter((x: unknown): x is string => typeof x === "string" && x.length > 3)
+          .slice(0, 5);
+        // As frases que este cliente já recebeu. Numa leva de sete bom-dias,
+        // as anteriores já estão gravadas quando a próxima é pedida — é o que
+        // impede sete variações da mesma frase.
+        // Frase de OUTRO cliente nunca aparece aqui: a unicidade entre
+        // clientes é conferida por hash, adiante, justamente para que um
+        // cliente não veja o texto do outro.
+        const jaUsadas = (recentes ?? [])
+          .map((r: { briefing?: Record<string, unknown> }) => r.briefing?.headline)
           .filter((x: unknown): x is string => typeof x === "string" && x.length > 3);
 
         const system = systemDoDiretor({
           intencao: brief, tipo, canal: formato, marca,
-          dna: brand?.guardrails, temAtivoOficial: !!referencePath,
+          dna: modoMarca === "livre" ? null : brand?.guardrails,
+          modoMarca,
+          temAtivoOficial: !!referencePath,
           qtdAtivos: listaRef.length, fingerprintsRecentes: fingerprints,
+          headlinesProibidas: jaUsadas,
           estilo, modoTexto, papeis, handle,
         });
         const r = await fetch("https://api.anthropic.com/v1/messages", {
@@ -303,6 +386,37 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    // ---- Trava: nenhuma outra marca pode aparecer no prompt ----
+    // A verificação que teria impedido o incidente. É determinística e roda
+    // ANTES de pagar a imagem: se o texto que vai para o gerador nomeia uma
+    // marca que não é a desta peça, a geração não sai.
+    const { data: conhecidas } = await db.from("studio_brand_profiles").select("name");
+    const nomes = (conhecidas ?? []).map((m: { name: string }) => m.name).filter(Boolean);
+    const intrusa = marcaEstranhaNoPrompt(prompt, marca, nomes);
+    if (intrusa) {
+      console.error(`contaminacao de marca: "${intrusa}" no prompt de "${marca}"`);
+      return json({
+        error: `A direção criativa citou a marca "${intrusa}" numa peça de "${marca}". A geração foi bloqueada antes de gastar. Tente de novo.`,
+        contaminacao: intrusa,
+      }, 409);
+    }
+
+    // ---- Trava: a frase não pode já existir, em cliente nenhum ----
+    // Comparação por hash: responde "já existe" sem que ninguém precise ver o
+    // texto do outro cliente.
+    const headline = typeof briefing?.headline === "string" ? briefing.headline.trim() : "";
+    const headlineHash = headline.length > 3 ? await impressaoDigital(headline) : null;
+    if (headlineHash) {
+      const { data: repetida } = await db.from("studio_content_fingerprints")
+        .select("id").eq("headline_hash", headlineHash).maybeSingle();
+      if (repetida) {
+        return json({
+          error: `A frase "${headline}" já foi entregue antes. A geração foi bloqueada antes de gastar. Peça outra.`,
+          repetida: true,
+        }, 409);
+      }
+    }
+
     // ---- Nasce a tentativa, ANTES da chamada ----
     // Assim uma chamada que falha continua existindo no histórico: tentativa
     // perdida também consumiu tempo e, às vezes, dinheiro.
@@ -316,6 +430,8 @@ Deno.serve(async (req: Request) => {
         reference_path: referencePath, reference_paths: listaRef.length ? listaRef : null,
         reference_roles: papeis.length ? papeis : null,
         style: estilo ?? null, text_mode: modoTexto, handle,
+        brand_mode: modoMarca, brand_name: marca,
+        batch_id: batchId, batch_index: batchIndex,
         provider: "openai", model: modelo,
         width: f.largura, height: f.altura,
         status: "pendente", parent_id: parentId,
@@ -420,6 +536,18 @@ Deno.serve(async (req: Request) => {
 
     await db.from("studio_generations")
       .update({ status: "pronta", storage_path: caminho }).eq("id", geracaoId);
+
+    // A frase entra no livro de unicidade só depois de a peça existir de
+    // verdade: queimar uma frase numa geração que falhou seria perder frase
+    // boa por nada. O índice único é quem garante a regra sob concorrência.
+    if (headlineHash) {
+      await db.from("studio_content_fingerprints").insert({
+        headline_hash: headlineHash,
+        structure_hash: typeof briefing?.creative_fingerprint === "string"
+          ? await impressaoDigital(briefing.creative_fingerprint) : null,
+        organization_id: organizationId, generation_id: geracaoId,
+      });
+    }
 
     // ---- Custo, do usage REAL ----
     const uso = out?.usage ?? null;

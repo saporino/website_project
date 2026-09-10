@@ -72,6 +72,16 @@ const EXEMPLOS = [
   { texto: 'Crie um anúncio premium com meu produto',    tipo: 'produto',        estilo: 'premium' },
 ];
 
+/** Uma marca cadastrada da empresa, ou o modo livre. */
+interface Marca { id: string; name: string; organization_id: string | null }
+
+// Custo medido em produção: US$ 0,043 de direção criativa + US$ 0,061 de
+// imagem. Serve para o cliente saber quanto vai gastar ANTES de clicar, e não
+// para cobrar — a cobrança sai do usage real, sempre.
+const CUSTO_MEDIO_USD = 0.104;
+
+const QUANTIDADES = [1, 3, 5, 7, 10];
+
 interface Geracao {
   id: string;
   url: string | null;
@@ -102,6 +112,25 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
   const [erro, setErro] = useState<string | null>(null);
   const [atual, setAtual] = useState<{ id: string; url: string; aviso: string | null } | null>(null);
   const [historico, setHistorico] = useState<Geracao[]>([]);
+  // A marca da peça deixou de vir do seletor de EMPRESA do topo. Era dali que
+  // a Saporino entrava numa peça da Café Capital.
+  const [marcas, setMarcas] = useState<Marca[]>([]);
+  const [brandId, setBrandId] = useState<string>('');   // '' = marca livre
+  const [nomeLivre, setNomeLivre] = useState('');
+  const [quantidade, setQuantidade] = useState(1);
+  const [lote, setLote] = useState<{ feitas: number; total: number } | null>(null);
+
+  const modoMarca = brandId ? 'perfil' : 'livre';
+  const marcaAtual = brandId ? (marcas.find(m => m.id === brandId)?.name ?? '') : nomeLivre.trim();
+
+  // As marcas da empresa. A lista pode vir vazia, e nesse caso marca livre é o
+  // único caminho — que é exatamente como um cliente novo começa.
+  useEffect(() => {
+    if (!companyId) { setMarcas([]); return; }
+    supabase.from('studio_brand_profiles')
+      .select('id, name, organization_id').eq('company_id', companyId).order('is_primary', { ascending: false })
+      .then(({ data }) => setMarcas((data as Marca[]) ?? []));
+  }, [companyId]);
 
   const chamar = useCallback(async (body: Record<string, unknown>) => {
     const { data, error } = await supabase.functions.invoke('studio-image', {
@@ -144,22 +173,63 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
     // produziria uma imagem SEM a embalagem, e quem pediu acharia que ela foi
     // usada. Vale esperar alguns segundos.
     if (enviandoRef || ativos.some(a => a.enviando)) { toast.error('Aguarde o envio dos ativos terminar.'); return; }
+    // Fail closed na tela também: sem marca resolvida, não gera. Antes o
+    // servidor caía na primeira marca da empresa e ninguém ficava sabendo.
+    if (modoMarca === 'livre' && marcaAtual.length < 2) {
+      setErro('Escreva o nome da marca desta peça, ou escolha uma marca cadastrada.');
+      return;
+    }
+    if (modoMarca === 'livre' && !ativos.some(a => a.path)) {
+      setErro('Em marca livre, anexe a embalagem: ela é o documento da marca.');
+      return;
+    }
+
+    // Uma peça por chamada, mesmo em leva: sete imagens numa só requisição
+    // estouram o tempo da função. O navegador orquestra e mostra o progresso.
+    const total = parentId ? 1 : quantidade;
+    if (total > 1) {
+      const estimado = (total * CUSTO_MEDIO_USD).toFixed(2);
+      const ok = window.confirm(
+        `Gerar ${total} peças de "${TIPOS.find(t => t.id === tipo)?.rotulo}" para ${marcaAtual}?\n\n` +
+        `Custo aproximado: US$ ${estimado}. Nenhuma frase se repete.`,
+      );
+      if (!ok) return;
+    }
+
+    const batchId = total > 1 ? crypto.randomUUID() : null;
     setGerando(true);
     setErro(null);
+    setLote(total > 1 ? { feitas: 0, total } : null);
+
+    const corpo = {
+      brief: pedido, format: formato, content_type: tipo,
+      reference_paths: ativos.filter(a => a.path).map(a => a.path),
+      reference_roles: ativos.filter(a => a.path).map(a => a.papel),
+      style: estilo, text_mode: modoTexto, handle: handle.trim() || null,
+      brand_mode: modoMarca, brand_id: brandId || null, brand_name: marcaAtual,
+    };
+
     try {
-      const d = await chamar({
-        brief: pedido, format: formato, content_type: tipo,
-        reference_paths: ativos.filter(a => a.path).map(a => a.path),
-        reference_roles: ativos.filter(a => a.path).map(a => a.papel),
-        style: estilo, text_mode: modoTexto, handle: handle.trim() || null,
-        parent_id: parentId ?? null,
-      });
-      setAtual({ id: d.generation_id, url: d.url, aviso: d.aviso_ativo ?? null });
-      carregarHistorico();
+      for (let i = 1; i <= total; i++) {
+        let d;
+        try {
+          d = await chamar({ ...corpo, parent_id: parentId ?? null, batch_id: batchId, batch_index: batchId ? i : null });
+        } catch (e) {
+          // Frase repetida e marca intrusa são bloqueios ANTES do gasto: uma
+          // segunda tentativa costuma resolver, e não custa imagem nenhuma.
+          const msg = e instanceof Error ? e.message : '';
+          if (!/já foi entregue|citou a marca/i.test(msg)) throw e;
+          d = await chamar({ ...corpo, parent_id: parentId ?? null, batch_id: batchId, batch_index: batchId ? i : null });
+        }
+        setAtual({ id: d.generation_id, url: d.url, aviso: d.aviso_ativo ?? null });
+        setLote(prev => (prev ? { ...prev, feitas: i } : null));
+        await carregarHistorico();
+      }
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Não foi possível gerar.');
     } finally {
       setGerando(false);
+      setLote(null);
     }
   }
 
@@ -237,6 +307,17 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
       const { error } = await supabase.storage.from('studio-videos')
         .upload(caminho, file, { contentType: file.type || undefined });
 
+      // O ativo passa a ter dono. Sem isto, a embalagem de uma marca servia de
+      // "ativo oficial" na peça de outra e não havia o que conferir.
+      if (!error) {
+        await supabase.from('studio_reference_assets').insert({
+          path: caminho, company_id: companyId,
+          organization_id: marcas[0]?.organization_id ?? null,
+          brand_id: brandId || null, brand_mode: modoMarca, brand_name: marcaAtual || null,
+          filename: file.name || null, mime: file.type || null, size_bytes: file.size,
+        });
+      }
+
       setAtivos(prev => prev.map(a => {
         if (a.id !== novos[i].id) return a;
         if (error) { URL.revokeObjectURL(a.preview); return a; }
@@ -260,6 +341,39 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
         <div>
           <h3 className="font-bold text-gray-900">Criar imagem</h3>
           <p className="text-sm text-gray-500">Escreva o que você precisa. O resto é com o Studio.</p>
+        </div>
+
+        {/* A marca da peça. Fica em primeiro porque é a decisão que contamina
+            todas as outras: foi a marca errada que trocou a embalagem. */}
+        <div className="rounded-lg border border-[#ddd0cc] bg-[#f5f0ef] p-3">
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-600">Marca desta peça</label>
+          <div className="flex flex-wrap gap-1.5">
+            {marcas.map(m => (
+              <button key={m.id} type="button" onClick={() => setBrandId(m.id)}
+                className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${
+                  brandId === m.id ? 'border-[#8B2214] bg-[#8B2214] text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-[#8B2214]'
+                }`}>
+                {m.name}
+              </button>
+            ))}
+            <button type="button" onClick={() => setBrandId('')}
+              className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${
+                !brandId ? 'border-[#8B2214] bg-[#8B2214] text-white' : 'border-gray-300 bg-white text-gray-700 hover:border-[#8B2214]'
+              }`}>
+              Marca livre
+            </button>
+          </div>
+          {!brandId && (
+            <div className="mt-2">
+              <input value={nomeLivre} onChange={e => setNomeLivre(e.target.value)}
+                placeholder="Nome da marca, ex.: Café Capital"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm" />
+              <p className="mt-1 text-[11px] leading-snug text-gray-500">
+                Sem identidade cadastrada: a embalagem que você anexar é o documento da marca.
+                Nenhuma outra marca pode aparecer na peça.
+              </p>
+            </div>
+          )}
         </div>
 
         <div>
@@ -441,13 +555,41 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
           </p>
         </div>
 
+        {/* Quantas peças de uma vez. Sete bom-dias resolvem a semana, e
+            nenhuma frase se repete — nem entre elas, nem com clientes. */}
+        <div>
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">Quantas peças</label>
+          <div className="flex flex-wrap gap-1.5">
+            {QUANTIDADES.map(q => (
+              <button key={q} type="button" onClick={() => setQuantidade(q)}
+                className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${
+                  quantidade === q ? 'border-[#8B2214] bg-[#8B2214] text-white' : 'border-gray-200 text-gray-600 hover:border-[#8B2214]'
+                }`}>
+                {q === 1 ? '1 peça' : `${q} peças`}
+              </button>
+            ))}
+          </div>
+          {quantidade > 1 && (
+            <p className="mt-1.5 text-[11px] leading-snug text-gray-500">
+              Aproximadamente US$ {(quantidade * CUSTO_MEDIO_USD).toFixed(2)}. Você confirma antes de gerar.
+              Cada peça sai com frase e montagem diferentes.
+            </p>
+          )}
+        </div>
+
         <button type="button" onClick={() => gerar()} disabled={gerando || !companyId}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#8B2214] px-4 py-3 font-semibold text-white transition-colors hover:bg-[#6d1a10] disabled:opacity-50">
-          {gerando ? <><Loader2 className="h-4 w-4 animate-spin" /> Gerando imagem…</> : <><Sparkles className="h-4 w-4" /> Gerar imagem</>}
+          {gerando
+            ? <><Loader2 className="h-4 w-4 animate-spin" /> {lote ? `Gerando ${lote.feitas + 1} de ${lote.total}…` : 'Gerando imagem…'}</>
+            : <><Sparkles className="h-4 w-4" /> {quantidade > 1 ? `Gerar ${quantidade} peças` : 'Gerar imagem'}</>}
         </button>
 
         {gerando && (
-          <p className="text-center text-xs text-gray-500">Pode levar até um minuto. Não feche esta tela.</p>
+          <p className="text-center text-xs text-gray-500">
+            {lote
+              ? `${lote.feitas} de ${lote.total} prontas. Cada peça leva cerca de um minuto — não feche esta tela.`
+              : 'Pode levar até um minuto. Não feche esta tela.'}
+          </p>
         )}
 
         {erro && !gerando && (
