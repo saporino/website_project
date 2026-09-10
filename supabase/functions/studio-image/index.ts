@@ -136,7 +136,13 @@ Deno.serve(async (req: Request) => {
 
     const brief = String(body?.brief ?? "").trim();
     const formato = (String(body?.format ?? "feed") as FormatoId);
-    const referencePath = body?.reference_path ? String(body.reference_path) : null;
+    // Aceita uma ou várias. A API da OpenAI suporta múltiplas referências, e
+    // limitar a uma era limitação nossa: a embalagem diz o que é o produto;
+    // junto com uma referência de cenário, diz o que a peça deve virar.
+    const listaRef: string[] = Array.isArray(body?.reference_paths)
+      ? body.reference_paths.map(String).filter(Boolean).slice(0, 4)
+      : (body?.reference_path ? [String(body.reference_path)] : []);
+    const referencePath = listaRef[0] ?? null;
     const parentId = body?.parent_id ? String(body.parent_id) : null;
     companyId = body?.company_id ? String(body.company_id) : null;
     // Tipo vem de ATALHO, nunca digitado — é o que permite selecionar só as
@@ -152,10 +158,11 @@ Deno.serve(async (req: Request) => {
     // O caminho vem do navegador, então não dá para confiar nele. O bucket
     // studio-videos guarda arte de todas as marcas; sem esta checagem, alguém
     // poderia passar o caminho da embalagem de outra empresa.
-    if (referencePath) {
-      const donoDoCaminho = referencePath.split("/")[0];
-      if (donoDoCaminho !== companyId) {
-        return json({ error: "Esse ativo não pertence a esta marca." }, 403);
+    // TODOS os caminhos são conferidos, não só o primeiro: bastaria um ativo
+    // alheio na lista para vazar a embalagem de outra marca.
+    for (const caminho of listaRef) {
+      if (caminho.split("/")[0] !== companyId) {
+        return json({ error: "Um dos ativos não pertence a esta marca." }, 403);
       }
     }
 
@@ -190,9 +197,23 @@ Deno.serve(async (req: Request) => {
     if (ANTHROPIC && usarDiretor) {
       const t0 = Date.now();
       try {
+        // Anti-repetição: as últimas assinaturas estruturais desta marca. Sem
+        // isto o modelo repete mesa-xícara-fundo-desfocado para pedidos
+        // diferentes — variar o cenário não resolve, o que precisa variar é a
+        // estrutura da peça.
+        const { data: recentes } = await db.from("studio_generations")
+          .select("briefing")
+          .eq("organization_id", organizationId)
+          .not("briefing", "is", null)
+          .order("created_at", { ascending: false }).limit(5);
+        const fingerprints = (recentes ?? [])
+          .map((r: { briefing?: Record<string, unknown> }) => r.briefing?.creative_fingerprint)
+          .filter((x: unknown): x is string => typeof x === "string" && x.length > 3);
+
         const system = systemDoDiretor({
           intencao: brief, tipo, canal: formato, marca,
           dna: brand?.guardrails, temAtivoOficial: !!referencePath,
+          qtdAtivos: listaRef.length, fingerprintsRecentes: fingerprints,
         });
         const r = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
@@ -210,9 +231,8 @@ Deno.serve(async (req: Request) => {
           const achado = bruto.match(/\{[\s\S]*\}/);
           if (achado) {
             briefing = JSON.parse(achado[0]);
-            if (typeof briefing?.prompt_imagem === "string" && briefing.prompt_imagem.length > 40) {
-              prompt = briefing.prompt_imagem;
-            }
+            const dele = (briefing?.final_prompt ?? briefing?.prompt_imagem) as unknown;
+            if (typeof dele === "string" && dele.length > 40) prompt = dele;
           }
           // Custo do Diretor é custo do produto. Sem esta linha, o texto viraria
           // exatamente o buraco que a auditoria encontrou na imagem.
@@ -250,7 +270,7 @@ Deno.serve(async (req: Request) => {
         company_id: companyId, created_by: userId,
         organization_id: organizationId, brand_id: brand?.id ?? null,
         format: formato, content_type: tipo, brief, prompt, briefing,
-        reference_path: referencePath,
+        reference_path: referencePath, reference_paths: listaRef.length ? listaRef : null,
         provider: "openai", model: modelo,
         width: f.largura, height: f.altura,
         status: "pendente", parent_id: parentId,
@@ -274,19 +294,34 @@ Deno.serve(async (req: Request) => {
       //   "Invalid file 'image': unsupported mimetype ('application/octet-stream')"
       // O Blob que vem do storage já traz o tipo; a extensão é só a rede de
       // segurança para quando ele vier vazio.
-      const nomeRef = referencePath.split("/").pop() || "ref.png";
-      const porExtensao = nomeRef.toLowerCase().endsWith(".webp") ? "image/webp"
-        : (nomeRef.toLowerCase().endsWith(".jpg") || nomeRef.toLowerCase().endsWith(".jpeg")) ? "image/jpeg"
-        : "image/png";
-      const mimeRef = arquivo.type && arquivo.type.startsWith("image/") ? arquivo.type : porExtensao;
-
       const fd = new FormData();
       fd.append("model", modelo);
       fd.append("prompt", prompt);
       fd.append("size", size);
       fd.append("quality", "high");
       fd.append("output_format", "png");
-      fd.append("image", new Blob([new Uint8Array(await arquivo.arrayBuffer())], { type: mimeRef }), nomeRef);
+
+      // Com mais de uma referência o campo vira `image[]` — é a convenção de
+      // array em multipart da OpenAI. Com uma só mantém `image`, que é o
+      // formato já validado em produção.
+      const campo = listaRef.length > 1 ? "image[]" : "image";
+      const baixados = [{ path: referencePath, blob: arquivo }];
+      for (const outro of listaRef.slice(1)) {
+        const { data: b } = await db.storage.from("studio-videos").download(outro);
+        if (b) baixados.push({ path: outro, blob: b });
+      }
+
+      for (const item of baixados) {
+        const nome = item.path!.split("/").pop() || "ref.png";
+        const n = nome.toLowerCase();
+        const porExtensao = n.endsWith(".webp") ? "image/webp"
+          : (n.endsWith(".jpg") || n.endsWith(".jpeg")) ? "image/jpeg" : "image/png";
+        // O tipo TEM que ir no Blob: sem ele o FormData manda
+        // application/octet-stream e a OpenAI recusa — ela olha o MIME, não a
+        // extensão do nome.
+        const mime = item.blob.type && item.blob.type.startsWith("image/") ? item.blob.type : porExtensao;
+        fd.append(campo, new Blob([new Uint8Array(await item.blob.arrayBuffer())], { type: mime }), nome);
+      }
       resp = await fetch("https://api.openai.com/v1/images/edits", {
         method: "POST", headers: { Authorization: `Bearer ${OPENAI}` }, body: fd,
       });

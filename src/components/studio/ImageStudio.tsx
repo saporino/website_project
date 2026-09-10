@@ -29,6 +29,17 @@ const TIPOS: { id: string; rotulo: string; sugestao: string }[] = [
   { id: 'livre',         rotulo: 'A partir de uma ideia', sugestao: '' },
 ];
 
+/** Um ativo anexado. `path` só existe depois que o upload termina. */
+interface Ativo {
+  id: string;
+  preview: string;   // objectURL local, aparece antes da rede responder
+  nome: string;
+  path: string | null;
+  enviando: boolean;
+}
+
+const MAX_ATIVOS = 4;
+
 interface Geracao {
   id: string;
   url: string | null;
@@ -42,12 +53,10 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
   const [formato, setFormato] = useState<Formato>('feed');
   const [brief, setBrief] = useState('');
   const [tipo, setTipo] = useState('livre');
-  const [referencia, setReferencia] = useState<string | null>(null);
-  // Miniatura local, criada no instante da escolha. Não espera o upload nem a
-  // rede: o bucket é privado e pedir URL assinada só para mostrar o que já
-  // está na mão do navegador seria lento e inútil.
-  const [refPreview, setRefPreview] = useState<string | null>(null);
-  const [refNome, setRefNome] = useState<string | null>(null);
+  // Vários ativos: a embalagem sozinha diz o que é o produto; junto com uma
+  // referência de cenário ou de luz, diz o que a peça deve VIRAR. A API aceita
+  // múltiplas referências, então limitar a uma era limitação nossa.
+  const [ativos, setAtivos] = useState<Ativo[]>([]);
   const [enviandoRef, setEnviandoRef] = useState(false);
   const [gerando, setGerando] = useState(false);
   // Erro fica NA TELA até a próxima tentativa. Como toast ele sumia em
@@ -93,13 +102,13 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
     // Enquanto o ativo está subindo, `referencia` ainda é nulo — gerar agora
     // produziria uma imagem SEM a embalagem, e quem pediu acharia que ela foi
     // usada. Vale esperar alguns segundos.
-    if (enviandoRef) { toast.error('Aguarde o envio do ativo terminar.'); return; }
+    if (enviandoRef || ativos.some(a => a.enviando)) { toast.error('Aguarde o envio dos ativos terminar.'); return; }
     setGerando(true);
     setErro(null);
     try {
       const d = await chamar({
         brief: brief.trim(), format: formato, content_type: tipo,
-        reference_path: referencia, parent_id: parentId ?? null,
+        reference_paths: ativos.filter(a => a.path).map(a => a.path), parent_id: parentId ?? null,
       });
       setAtual({ id: d.generation_id, url: d.url, aviso: d.aviso_ativo ?? null });
       carregarHistorico();
@@ -141,49 +150,60 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
   const TIPOS_ACEITOS = ['image/png', 'image/jpeg', 'image/webp'];
   const TAMANHO_MAX = 25 * 1024 * 1024;
 
-  function limparReferencia() {
-    if (refPreview) URL.revokeObjectURL(refPreview);
-    setRefPreview(null);
-    setRefNome(null);
-    setReferencia(null);
+  function removerAtivo(id: string) {
+    setAtivos(prev => {
+      const alvo = prev.find(a => a.id === id);
+      if (alvo) URL.revokeObjectURL(alvo.preview);
+      return prev.filter(a => a.id !== id);
+    });
   }
 
-  async function subirReferencia(file: File) {
-    // Falha silenciosa era metade do problema: sem marca escolhida, a função
-    // simplesmente voltava e a tela não dizia nada.
+  /** Aceita arquivo escolhido, arrastado ou COLADO. Todos passam por aqui. */
+  async function anexar(arquivos: File[]) {
     if (!companyId) { toast.error('Escolha a marca antes de anexar o ativo.'); return; }
-    if (!TIPOS_ACEITOS.includes(file.type)) {
-      toast.error('Use uma imagem PNG, JPG ou WEBP.');
-      return;
-    }
-    if (file.size > TAMANHO_MAX) {
-      toast.error('Imagem muito grande. O limite é 25 MB.');
-      return;
-    }
 
-    // A miniatura aparece ANTES do upload. Quem escolheu vê na hora que o
-    // arquivo certo foi reconhecido, mesmo que a rede demore.
-    if (refPreview) URL.revokeObjectURL(refPreview);
-    setRefPreview(URL.createObjectURL(file));
-    setRefNome(file.name);
+    const vagas = MAX_ATIVOS - ativos.length;
+    if (vagas <= 0) { toast.error(`Máximo de ${MAX_ATIVOS} imagens.`); return; }
+
+    const validos = arquivos.filter(f => {
+      if (!TIPOS_ACEITOS.includes(f.type)) { toast.error(`"${f.name}" não é PNG, JPG ou WEBP.`); return false; }
+      if (f.size > TAMANHO_MAX) { toast.error(`"${f.name}" passa de 25 MB.`); return false; }
+      return true;
+    }).slice(0, vagas);
+    if (!validos.length) return;
+
+    // As miniaturas entram ANTES do upload. Quem colou vê na hora que a
+    // imagem foi reconhecida, mesmo que a rede demore.
+    const novos: Ativo[] = validos.map(f => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      preview: URL.createObjectURL(f),
+      nome: f.name || 'imagem colada.png',
+      path: null,
+      enviando: true,
+    }));
+    setAtivos(prev => [...prev, ...novos]);
     setEnviandoRef(true);
 
-    // Caminho começa pelo company_id: o servidor confere esse prefixo antes de
-    // aceitar o ativo, para ninguém apontar para a embalagem de outra marca.
-    const caminho = `${companyId}/ref-${Date.now()}-${file.name.replace(/[^\w.-]/g, '_')}`;
-    const { error } = await supabase.storage.from('studio-videos')
-      .upload(caminho, file, { contentType: file.type || undefined });
-    setEnviandoRef(false);
+    await Promise.all(validos.map(async (file, i) => {
+      // Caminho começa pelo company_id: o servidor confere esse prefixo antes
+      // de aceitar o ativo, para ninguém apontar para a embalagem de outra marca.
+      const limpo = (file.name || 'colada.png').replace(/[^\w.-]/g, '_');
+      const caminho = `${companyId}/ref-${Date.now()}-${i}-${limpo}`;
+      const { error } = await supabase.storage.from('studio-videos')
+        .upload(caminho, file, { contentType: file.type || undefined });
 
-    if (error) {
-      // Desfaz a miniatura: mostrar a imagem com o upload quebrado faria a
-      // pessoa acreditar que o ativo seria usado — que é o defeito de origem.
-      limparReferencia();
-      toast.error('Não foi possível anexar: ' + error.message);
-      return;
-    }
-    setReferencia(caminho);
-    toast.success('Ativo anexado.');
+      setAtivos(prev => prev.map(a => {
+        if (a.id !== novos[i].id) return a;
+        if (error) { URL.revokeObjectURL(a.preview); return a; }
+        return { ...a, path: caminho, enviando: false };
+      // Ativo que falhou sai da lista: mostrar a miniatura com o envio quebrado
+      // faria a pessoa acreditar que ele seria usado.
+      }).filter(a => !(a.id === novos[i].id && error)));
+
+      if (error) toast.error(`Não foi possível anexar "${file.name}": ${error.message}`);
+    }));
+
+    setEnviandoRef(false);
   }
 
   const f = FORMATOS.find(x => x.id === formato)!;
@@ -237,50 +257,58 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
           <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
             Ativo da marca <span className="font-normal normal-case tracking-normal text-gray-400">(opcional)</span>
           </label>
-          {refPreview ? (
-            <div className={`rounded-lg border p-3 ${referencia ? 'border-green-300 bg-green-50/60' : 'border-gray-200 bg-gray-50'}`}>
-              <div className="flex gap-3">
-                <img src={refPreview} alt={refNome ?? 'Ativo anexado'}
-                  className="h-20 w-20 flex-shrink-0 rounded-md border border-gray-200 bg-white object-contain" />
-                <div className="min-w-0 flex-1">
-                  {enviandoRef ? (
-                    <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-600">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Enviando…
-                    </p>
-                  ) : (
-                    <p className="flex items-center gap-1.5 text-sm font-semibold text-green-800">
-                      <Check className="h-4 w-4" /> Imagem de referência anexada
-                    </p>
-                  )}
-                  <p className="mt-0.5 truncate text-xs text-gray-500" title={refNome ?? ''}>{refNome}</p>
-                  <p className="mt-1 text-[11px] text-gray-500">
-                    {enviandoRef ? 'Aguarde o envio terminar.' : 'É esta imagem que será usada na geração.'}
-                  </p>
-                  <div className="mt-2 flex gap-3">
-                    <label className="cursor-pointer text-xs font-semibold text-[#8B2214] hover:underline">
-                      Trocar
-                      <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" disabled={enviandoRef}
-                        onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) subirReferencia(f); }} />
-                    </label>
-                    <button type="button" onClick={limparReferencia} disabled={enviandoRef}
-                      className="text-xs font-semibold text-gray-500 hover:underline disabled:opacity-50">
-                      Remover
+          <div
+            onPaste={e => {
+              // Colar da área de transferência: é assim que quem trabalha com
+              // imagem realmente move arquivo — print, recorte, foto do
+              // fornecedor. Exigir "procurar no disco" era atrito nosso.
+              const imgs = Array.from(e.clipboardData?.files ?? []).filter(f => f.type.startsWith('image/'));
+              if (imgs.length) { e.preventDefault(); anexar(imgs); }
+            }}
+            onDragOver={e => e.preventDefault()}
+            onDrop={e => {
+              e.preventDefault();
+              const imgs = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+              if (imgs.length) anexar(imgs);
+            }}
+            tabIndex={0}
+            className="rounded-lg outline-none focus:ring-2 focus:ring-[#8B2214]/40"
+          >
+            {ativos.length > 0 && (
+              <div className="mb-2 grid grid-cols-4 gap-2">
+                {ativos.map(a => (
+                  <div key={a.id} className={`relative overflow-hidden rounded-md border bg-white ${a.enviando ? 'border-gray-200' : 'border-green-300'}`}>
+                    <img src={a.preview} alt={a.nome} className="aspect-square w-full object-contain" />
+                    {a.enviando && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/70">
+                        <Loader2 className="h-4 w-4 animate-spin text-gray-600" />
+                      </div>
+                    )}
+                    {!a.enviando && (
+                      <span className="absolute left-1 top-1 rounded-full bg-green-700 p-0.5 text-white"><Check className="h-2.5 w-2.5" /></span>
+                    )}
+                    <button type="button" onClick={() => removerAtivo(a.id)}
+                      className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white hover:bg-black/80" aria-label={`Remover ${a.nome}`}>
+                      <X className="h-2.5 w-2.5" />
                     </button>
                   </div>
-                </div>
+                ))}
               </div>
-            </div>
-          ) : (
-            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-3 py-4 text-sm text-gray-500 hover:border-gray-400">
-              <ImagePlus className="h-4 w-4" />
-              Anexar embalagem, logo ou produto
-              {/* `e.target.value = ''` antes de usar o arquivo: sem isso,
-                  escolher o MESMO arquivo de novo não dispara o onChange, e a
-                  tela fica muda depois de um erro. */}
-              <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
-                onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) subirReferencia(f); }} />
-            </label>
-          )}
+            )}
+
+            {ativos.length < MAX_ATIVOS && (
+              <label className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-gray-300 px-3 py-4 text-center text-sm text-gray-500 hover:border-gray-400">
+                <ImagePlus className="h-4 w-4" />
+                <span>{ativos.length ? 'Anexar mais uma' : 'Anexar embalagem, logo ou produto'}</span>
+                <span className="text-[11px] text-gray-400">
+                  arraste, escolha ou <strong>cole com Ctrl+V</strong> · até {MAX_ATIVOS} imagens
+                </span>
+                <input type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden"
+                  onChange={e => { const fs = Array.from(e.target.files ?? []); e.target.value = ''; if (fs.length) anexar(fs); }} />
+              </label>
+            )}
+          </div>
+
           {/* Honestidade: instrução ao modelo não é garantia de preservação.
               Prometer pixel-perfect aqui seria mentir para quem vai publicar. */}
           <p className="mt-2 text-[11px] leading-relaxed text-gray-400">
