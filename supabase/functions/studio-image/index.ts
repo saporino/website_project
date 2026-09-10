@@ -11,7 +11,7 @@ import { custoDaImagemUSD, decomporEntrada, FORMATOS, type FormatoId } from "../
 import { registrarUsoDeIA } from "../_shared/aiUsage.ts";
 import {
   MODELO_DIRETOR, DIRETOR_VERSION, TIPOS, ESTILOS, MODOS_DE_TEXTO, LOCALE_SAIDA,
-  systemDoDiretor, custoDoDiretorUSD, pareceEstrangeiro,
+  systemDoDiretor, custoDoDiretorUSD, pareceEstrangeiro, normalizarHandle,
   type TipoId, type EstiloId, type ModoTextoId, type PapelDoAtivo,
 } from "../_shared/diretorCriativo.ts";
 
@@ -154,7 +154,9 @@ Deno.serve(async (req: Request) => {
     // Escolhas guiadas: o cliente aponta, o servidor traduz.
     const estilo = (ESTILOS[String(body?.style ?? "") as EstiloId] ? String(body.style) : undefined) as EstiloId | undefined;
     const modoTexto = (MODOS_DE_TEXTO[String(body?.text_mode ?? "") as ModoTextoId] ? String(body.text_mode) : "automatico") as ModoTextoId;
-    const handle = body?.handle ? String(body.handle).trim().slice(0, 40) : null;
+    // A arroba é garantida aqui: o cliente digita como quiser e a assinatura
+    // sai sempre igual, com @ e sem espaço.
+    const handle = normalizarHandle(body?.handle);
     const papeis: PapelDoAtivo[] = Array.isArray(body?.reference_roles)
       ? body.reference_roles.map((r: unknown) => (String(r) === "inspiracao" ? "inspiracao" : "oficial"))
       : [];

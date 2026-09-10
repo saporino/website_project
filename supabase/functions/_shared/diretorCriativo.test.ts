@@ -287,3 +287,65 @@ describe('experiência guiada — o cliente aponta, o servidor traduz', () => {
     expect(systemDoDiretor({ ...base, papeis: ['oficial'] })).not.toContain(PAPEL_INSPIRACAO);
   });
 });
+
+// ---------------------------------------------------------------------
+// Paleta e assinatura — o que a peça vermelha sobre embalagem verde ensinou
+// ---------------------------------------------------------------------
+import { REGRA_DE_PALETA, normalizarHandle } from './diretorCriativo.ts';
+
+describe('a embalagem manda na paleta da peça', () => {
+  it('com ativo oficial, a regra de paleta entra no prompt', () => {
+    const s = systemDoDiretor({ ...base, temAtivoOficial: true, papeis: ['oficial'] });
+    expect(s).toContain(REGRA_DE_PALETA);
+  });
+
+  it('sem ativo oficial, a paleta cai na identidade cadastrada', () => {
+    const s = systemDoDiretor({ ...base, temAtivoOficial: false });
+    expect(s).not.toContain(REGRA_DE_PALETA);
+    expect(s).toContain('apenas as cores da identidade da marca');
+  });
+
+  it('a regra proíbe cor que não existe na embalagem', () => {
+    expect(REGRA_DE_PALETA).toContain('PROIBIDO introduzir cor que não existe na embalagem');
+  });
+
+  it('a paleta escolhida é auditável no briefing', () => {
+    expect(ESQUEMA_BRIEFING).toContain('paleta_da_peca');
+  });
+
+  it('o final_prompt tem de nomear a cor do fundo e a de cada texto', () => {
+    expect(systemDoDiretor({ ...base, temAtivoOficial: true }))
+      .toContain('qual é a cor do fundo e qual é a cor de cada texto');
+  });
+});
+
+describe('assinatura do Instagram — garantida por código', () => {
+  it('põe a arroba quando o cliente não põe', () => {
+    expect(normalizarHandle('cafecapital')).toBe('@cafecapital');
+  });
+
+  it('não duplica a arroba de quem já digitou', () => {
+    expect(normalizarHandle('@cafecapital')).toBe('@cafecapital');
+    expect(normalizarHandle('@@cafecapital')).toBe('@cafecapital');
+  });
+
+  it('tira espaço, que na arte vira nome quebrado', () => {
+    expect(normalizarHandle('  @cafe capital ')).toBe('@cafecapital');
+  });
+
+  it('vazio continua vazio — não inventa assinatura', () => {
+    expect(normalizarHandle('')).toBeNull();
+    expect(normalizarHandle('   ')).toBeNull();
+    expect(normalizarHandle('@')).toBeNull();
+    expect(normalizarHandle(null)).toBeNull();
+  });
+
+  it('a assinatura sai sempre com arroba, mesmo digitada sem', () => {
+    expect(systemDoDiretor({ ...base, handle: 'cafecapital' })).toContain('"@cafecapital"');
+  });
+
+  it('o ícone de rede social é proibido — o gerador não sabe compor lockup', () => {
+    const s = systemDoDiretor({ ...base, handle: '@cafecapital' });
+    expect(s).toContain('não desenhe o ícone do Instagram');
+  });
+});

@@ -134,7 +134,41 @@ export type PapelDoAtivo = "oficial" | "inspiracao";
 
 export const PAPEL_OFICIAL = `ATIVO OFICIAL — é o produto real da marca. Mantenha embalagem, cores, textos e logotipo fiéis à referência. NÃO redesenhe o rótulo, NÃO reescreva palavras, NÃO altere o peso, NÃO crie variação "parecida". Cenário, luz e composição são livres.`;
 
+// ---------------------------------------------------------------------
+// Paleta — a peça obedece à embalagem, não ao gosto do modelo
+// ---------------------------------------------------------------------
+// Sintoma que originou esta regra: embalagem verde/dourado/branco do Café
+// Capital gerou headline VERMELHA. Não era erro do modelo — era omissão
+// nossa: PAPEL_OFICIAL mandava preservar as cores DA EMBALAGEM e não dizia
+// nada sobre a cor do RESTO da peça. Sem instrução, o gerador escolhe cor
+// por conta, e escolhe diferente a cada vez.
+//
+// A embalagem é o único documento de marca que temos com certeza em mãos.
+// Ela manda na paleta da postagem inteira.
+export const REGRA_DE_PALETA = `PALETA — A EMBALAGEM MANDA NA PEÇA INTEIRA
+A paleta da postagem sai do ATIVO OFICIAL, não do seu gosto. Antes de compor, leia as cores da embalagem: a cor dominante, a cor secundária e o metal ou detalhe, se houver.
+
+- A COR DOMINANTE da embalagem é a cor dominante da peça: fundo, bloco de cor, faixa.
+- HEADLINE e textos usam a cor dominante, a secundária, ou um neutro (branco, off-white, preto, creme). Nada além disso.
+- É PROIBIDO introduzir cor que não existe na embalagem. Embalagem verde não gera texto vermelho; embalagem vermelha não gera texto azul.
+- Neutros e materiais reais do cenário (madeira, linho, cerâmica, vapor, luz do sol) são sempre permitidos — não contam como cor nova.
+- Se a marca cadastrou cores na identidade, elas valem junto com as da embalagem. Em conflito, a embalagem vence: é o produto que a pessoa vai ver na prateleira.
+
+Nomeie em "paleta_da_peca" as cores que você escolheu e de onde vieram.`;
+
 export const PAPEL_INSPIRACAO = `REFERÊNCIA DE INSPIRAÇÃO — NÃO é da marca e NÃO deve ser copiada. Extraia dela o PRINCÍPIO: o mecanismo de composição, a relação entre produto e espaço, a sensação de luz, a lógica de hierarquia. Depois ABANDONE a execução. É proibido reproduzir o layout exato, a paleta específica, a tipografia, os objetos, o cenário ou qualquer elemento reconhecível da peça de origem. Se a adaptação puder ser confundida com a referência, ela está errada.`;
+
+// ---------------------------------------------------------------------
+// Assinatura — o @ é garantido por código, não pedido ao modelo
+// ---------------------------------------------------------------------
+// O cliente digitava "cafecapital" e a peça saía sem arroba; digitava
+// "@cafecapital" e saía com. Isso não é escolha dele: assinatura de
+// Instagram tem arroba. Regra que software garante não vai para o prompt.
+export function normalizarHandle(bruto: unknown): string | null {
+  if (typeof bruto !== "string") return null;
+  const limpo = bruto.trim().replace(/\s+/g, "").replace(/^@+/, "").slice(0, 40);
+  return limpo ? `@${limpo}` : null;
+}
 
 // ---------------------------------------------------------------------
 // Famílias de layout — o repertório que o sistema não tinha
@@ -232,6 +266,7 @@ export const ESQUEMA_BRIEFING = `{
   "support_text": "",
   "layout_family": "",
   "text_zone_strategy": "",
+  "paleta_da_peca": "",
   "product_role": "",
   "background_role": "",
   "visual_density": "baixa | media | alta",
@@ -296,10 +331,24 @@ IMAGEM 1 — ${PAPEL_OFICIAL}` : "",
 IMAGEM DE REFERÊNCIA — ${PAPEL_INSPIRACAO}` : "",
   ].filter(Boolean).join("");
 
-  const assinatura = ctx.handle
+  // Com embalagem em mãos, ela manda na paleta. Sem embalagem, a identidade
+  // cadastrada é a única fonte de cor — e o resto é neutro.
+  const paletaTexto = temOficial
     ? `
 
-ASSINATURA: a peça pode trazer "${ctx.handle}" de forma discreta, num canto respirado. Escreva exatamente assim, sem traduzir e sem alterar.`
+${REGRA_DE_PALETA}`
+    : `
+
+PALETA: use apenas as cores da identidade da marca acima e neutros (branco, off-white, preto, creme) mais os materiais reais do cenário. Não introduza cor de marca que não esteja cadastrada.`;
+
+  // O @ vem normalizado; o ícone de rede social é proibido porque o gerador
+  // desenha logotipo de terceiro malfeito e não sabe compor ícone + texto
+  // como uma unidade — foi o que produziu o vão entre a câmera e o nome.
+  const handle = normalizarHandle(ctx.handle);
+  const assinatura = handle
+    ? `
+
+ASSINATURA: a peça pode trazer "${handle}" de forma discreta, num canto respirado. Escreva exatamente assim, com a arroba, sem traduzir e sem alterar. APENAS O TEXTO: não desenhe o ícone do Instagram nem logotipo de rede social nenhum. A assinatura usa um neutro ou uma cor da embalagem, em corpo pequeno.`
     : "";
 
   const textoPedido = ctx.modoTexto && ctx.modoTexto !== "automatico"
@@ -348,15 +397,16 @@ ${REGRAS_DE_TEXTO}
 CANAL:
 ${REGRAS_CANAL[ctx.canal] ?? REGRAS_CANAL.feed}
 
-${condicionais}${papeisTexto}${multiRef}${assinatura}${textoPedido}${antiRepeticao}
+${condicionais}${papeisTexto}${paletaTexto}${multiRef}${assinatura}${textoPedido}${antiRepeticao}
 
 COMO TRABALHAR:
 1. Entenda a intenção por trás do pedido, não só as palavras. Quem escreve "bom dia" quer algo publicável, não um ensaio fotográfico.
 2. Decida se a peça precisa de texto na arte. Saudação e comunicado quase sempre precisam; lifestyle quase nunca.
 3. Se precisar, escreva você a headline — curta, em português, no tom da marca. Quem pediu não vai escrever.
 4. Escolha UMA família de layout e UMA zona de texto, e componha para elas.
-5. Escreva "final_prompt" em INGLÊS, que é a língua em que o gerador responde melhor. Descreva a ESTRUTURA da peça — onde está o produto, onde está o texto, o que ocupa cada área — e não só o que aparece na cena.
-6. Em "creative_fingerprint", resuma a estrutura em poucas palavras (ex.: "dividido / texto lateral / produto à direita / fundo escuro"). É o que impede a próxima peça de repetir esta.
+5. Defina a paleta a partir da embalagem e registre em "paleta_da_peca". O "final_prompt" DEVE dizer, com nome de cor, qual é a cor do fundo e qual é a cor de cada texto — sem isso o gerador escolhe sozinho e erra.
+6. Escreva "final_prompt" em INGLÊS, que é a língua em que o gerador responde melhor. Descreva a ESTRUTURA da peça — onde está o produto, onde está o texto, o que ocupa cada área — e não só o que aparece na cena.
+7. Em "creative_fingerprint", resuma a estrutura em poucas palavras (ex.: "dividido / texto lateral / produto à direita / fundo escuro"). É o que impede a próxima peça de repetir esta.
 
 Responda SOMENTE um JSON com ESTA estrutura, sem markdown e sem texto em volta:
 ${ESQUEMA_BRIEFING}
