@@ -202,6 +202,10 @@ Deno.serve(async (req: Request) => {
     // porque a etapa de texto tropeçou seria trocar um problema por outro.
     let prompt = montarPrompt(brief, formato, brand?.guardrails, marca, !!referencePath);
     let briefing: Record<string, unknown> | null = null;
+    // 'success' | 'fallback'. Precisa aparecer no registro: sem isso, cinco
+    // falhas seguidas passaram despercebidas e a imagem saiu do prompt de
+    // regra sem ninguem saber que a direcao criativa tinha morrido.
+    let diretorStatus = "fallback";
 
     if (ANTHROPIC && usarDiretor) {
       const t0 = Date.now();
@@ -229,7 +233,7 @@ Deno.serve(async (req: Request) => {
           method: "POST",
           headers: { "x-api-key": ANTHROPIC, "anthropic-version": "2023-06-01", "content-type": "application/json" },
           body: JSON.stringify({
-            model: MODELO_DIRETOR, max_tokens: 2000, system,
+            model: MODELO_DIRETOR, max_tokens: 4000, system,
             messages: [{ role: "user", content: `Pedido de quem encomendou:\n"""${brief}"""\n\nTipo: ${TIPOS[tipo]?.rotulo ?? "livre"}. Devolva só o JSON.` }],
           }),
         });
@@ -239,8 +243,17 @@ Deno.serve(async (req: Request) => {
           const j = JSON.parse(txt);
           const bruto = (j.content || []).find((b: { type: string }) => b.type === "text")?.text ?? "";
           const achado = bruto.match(/\{[\s\S]*\}/);
-          if (achado) {
-            briefing = JSON.parse(achado[0]);
+          if (!achado) throw new Error("Diretor nao devolveu JSON. Inicio: " + bruto.slice(0, 150));
+          {
+            // Se o parse falhar, a excecao SOBE e vira registro. Resposta
+            // truncada por max_tokens era exatamente este caso: JSON pela
+            // metade, parse quebrado, e silencio absoluto.
+            try {
+              briefing = JSON.parse(achado[0]);
+            } catch (_) {
+              throw new Error("Diretor devolveu JSON invalido (" + achado[0].length + " chars, provavel truncamento). Fim: ..." + achado[0].slice(-120));
+            }
+            diretorStatus = "success";
             const dele = (briefing?.final_prompt ?? briefing?.prompt_imagem) as unknown;
             if (typeof dele === "string" && dele.length > 40) prompt = dele;
             // O idioma é regra do produto, e regra não pode depender só de o
@@ -274,8 +287,17 @@ Deno.serve(async (req: Request) => {
           });
         }
       } catch (e) {
-        // Silencioso de propósito: o prompt de regra assume e a imagem sai.
-        console.error("diretor criativo falhou:", String(e).slice(0, 200));
+        // A imagem continua saindo com o prompt de regra — mas a falha DEIXA
+        // RASTRO. Silenciosa, custou cinco direcoes criativas pagas e jogadas
+        // fora sem ninguem perceber.
+        const msg = String(e instanceof Error ? e.message : e).slice(0, 400);
+        console.error("diretor criativo falhou:", msg);
+        await registrarUsoDeIA(db, {
+          company_id: companyId, organization_id: organizationId, user_id: userId,
+          operation: "direcao_criativa", provider: "anthropic", model: MODELO_DIRETOR,
+          prompt_version: DIRETOR_VERSION, status: "erro", error_text: msg,
+          duration_ms: Date.now() - t0,
+        });
       }
     }
 
@@ -288,6 +310,7 @@ Deno.serve(async (req: Request) => {
         company_id: companyId, created_by: userId,
         organization_id: organizationId, brand_id: brand?.id ?? null,
         format: formato, content_type: tipo, brief, prompt, briefing,
+        creative_director_status: diretorStatus,
         reference_path: referencePath, reference_paths: listaRef.length ? listaRef : null,
         reference_roles: papeis.length ? papeis : null,
         style: estilo ?? null, text_mode: modoTexto, handle,
