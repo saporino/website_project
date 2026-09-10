@@ -35,6 +35,11 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
   const [formato, setFormato] = useState<Formato>('feed');
   const [brief, setBrief] = useState('');
   const [referencia, setReferencia] = useState<string | null>(null);
+  // Miniatura local, criada no instante da escolha. Não espera o upload nem a
+  // rede: o bucket é privado e pedir URL assinada só para mostrar o que já
+  // está na mão do navegador seria lento e inútil.
+  const [refPreview, setRefPreview] = useState<string | null>(null);
+  const [refNome, setRefNome] = useState<string | null>(null);
   const [enviandoRef, setEnviandoRef] = useState(false);
   const [gerando, setGerando] = useState(false);
   const [atual, setAtual] = useState<{ id: string; url: string; aviso: string | null } | null>(null);
@@ -64,6 +69,10 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
   async function gerar(parentId?: string) {
     if (!companyId) { toast.error('Escolha a marca primeiro.'); return; }
     if (brief.trim().length < 5) { toast.error('Escreva o que você quer na imagem.'); return; }
+    // Enquanto o ativo está subindo, `referencia` ainda é nulo — gerar agora
+    // produziria uma imagem SEM a embalagem, e quem pediu acharia que ela foi
+    // usada. Vale esperar alguns segundos.
+    if (enviandoRef) { toast.error('Aguarde o envio do ativo terminar.'); return; }
     setGerando(true);
     try {
       const d = await chamar({
@@ -107,16 +116,50 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
     }
   }
 
+  const TIPOS_ACEITOS = ['image/png', 'image/jpeg', 'image/webp'];
+  const TAMANHO_MAX = 25 * 1024 * 1024;
+
+  function limparReferencia() {
+    if (refPreview) URL.revokeObjectURL(refPreview);
+    setRefPreview(null);
+    setRefNome(null);
+    setReferencia(null);
+  }
+
   async function subirReferencia(file: File) {
-    if (!companyId) return;
+    // Falha silenciosa era metade do problema: sem marca escolhida, a função
+    // simplesmente voltava e a tela não dizia nada.
+    if (!companyId) { toast.error('Escolha a marca antes de anexar o ativo.'); return; }
+    if (!TIPOS_ACEITOS.includes(file.type)) {
+      toast.error('Use uma imagem PNG, JPG ou WEBP.');
+      return;
+    }
+    if (file.size > TAMANHO_MAX) {
+      toast.error('Imagem muito grande. O limite é 25 MB.');
+      return;
+    }
+
+    // A miniatura aparece ANTES do upload. Quem escolheu vê na hora que o
+    // arquivo certo foi reconhecido, mesmo que a rede demore.
+    if (refPreview) URL.revokeObjectURL(refPreview);
+    setRefPreview(URL.createObjectURL(file));
+    setRefNome(file.name);
     setEnviandoRef(true);
+
     // Caminho começa pelo company_id: o servidor confere esse prefixo antes de
     // aceitar o ativo, para ninguém apontar para a embalagem de outra marca.
     const caminho = `${companyId}/ref-${Date.now()}-${file.name.replace(/[^\w.-]/g, '_')}`;
     const { error } = await supabase.storage.from('studio-videos')
       .upload(caminho, file, { contentType: file.type || undefined });
     setEnviandoRef(false);
-    if (error) { toast.error('Erro no upload: ' + error.message); return; }
+
+    if (error) {
+      // Desfaz a miniatura: mostrar a imagem com o upload quebrado faria a
+      // pessoa acreditar que o ativo seria usado — que é o defeito de origem.
+      limparReferencia();
+      toast.error('Não foi possível anexar: ' + error.message);
+      return;
+    }
     setReferencia(caminho);
     toast.success('Ativo anexado.');
   }
@@ -166,17 +209,48 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
           <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
             Ativo da marca <span className="font-normal normal-case tracking-normal text-gray-400">(opcional)</span>
           </label>
-          {referencia ? (
-            <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-              <span className="truncate text-xs text-gray-600">{referencia.split('/').pop()}</span>
-              <button type="button" onClick={() => setReferencia(null)} className="text-xs font-semibold text-[#8B2214]">remover</button>
+          {refPreview ? (
+            <div className={`rounded-lg border p-3 ${referencia ? 'border-green-300 bg-green-50/60' : 'border-gray-200 bg-gray-50'}`}>
+              <div className="flex gap-3">
+                <img src={refPreview} alt={refNome ?? 'Ativo anexado'}
+                  className="h-20 w-20 flex-shrink-0 rounded-md border border-gray-200 bg-white object-contain" />
+                <div className="min-w-0 flex-1">
+                  {enviandoRef ? (
+                    <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-600">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Enviando…
+                    </p>
+                  ) : (
+                    <p className="flex items-center gap-1.5 text-sm font-semibold text-green-800">
+                      <Check className="h-4 w-4" /> Imagem de referência anexada
+                    </p>
+                  )}
+                  <p className="mt-0.5 truncate text-xs text-gray-500" title={refNome ?? ''}>{refNome}</p>
+                  <p className="mt-1 text-[11px] text-gray-500">
+                    {enviandoRef ? 'Aguarde o envio terminar.' : 'É esta imagem que será usada na geração.'}
+                  </p>
+                  <div className="mt-2 flex gap-3">
+                    <label className="cursor-pointer text-xs font-semibold text-[#8B2214] hover:underline">
+                      Trocar
+                      <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" disabled={enviandoRef}
+                        onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) subirReferencia(f); }} />
+                    </label>
+                    <button type="button" onClick={limparReferencia} disabled={enviandoRef}
+                      className="text-xs font-semibold text-gray-500 hover:underline disabled:opacity-50">
+                      Remover
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           ) : (
             <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-3 py-4 text-sm text-gray-500 hover:border-gray-400">
-              {enviandoRef ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
-              {enviandoRef ? 'Enviando…' : 'Anexar embalagem, logo ou produto'}
-              <input type="file" accept="image/*" className="hidden" disabled={enviandoRef}
-                onChange={e => { const file = e.target.files?.[0]; if (file) subirReferencia(file); }} />
+              <ImagePlus className="h-4 w-4" />
+              Anexar embalagem, logo ou produto
+              {/* `e.target.value = ''` antes de usar o arquivo: sem isso,
+                  escolher o MESMO arquivo de novo não dispara o onChange, e a
+                  tela fica muda depois de um erro. */}
+              <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) subirReferencia(f); }} />
             </label>
           )}
           {/* Honestidade: instrução ao modelo não é garantia de preservação.
