@@ -15,7 +15,9 @@ export interface EventoDeUso {
   provider: string;                  // openai | anthropic
   model: string;
   prompt_version?: string | null;
-  input_tokens?: number | null;
+  input_tokens?: number | null;        // total, sempre que a API mandar
+  input_text_tokens?: number | null;   // parte de texto, quando informada
+  input_image_tokens?: number | null;  // parte de imagem de referência
   output_tokens?: number | null;
   cached_tokens?: number | null;
   audio_seconds?: number | null;
@@ -49,6 +51,10 @@ export async function registrarUsoDeIA(db: Db, e: EventoDeUso): Promise<void> {
       model: e.model,
       prompt_version: e.prompt_version ?? null,
       input_tokens: e.input_tokens ?? null,
+      // Nulo significa "a API não informou", nunca zero: gravar zero faria um
+      // relatório dizer que a imagem de referência não custou nada.
+      input_text_tokens: e.input_text_tokens ?? null,
+      input_image_tokens: e.input_image_tokens ?? null,
       output_tokens: e.output_tokens ?? null,
       cached_tokens: e.cached_tokens ?? null,
       audio_seconds: e.audio_seconds ?? null,

@@ -32,7 +32,39 @@ export const PRECOS: Record<string, PrecoPorMilhao> = {
 export interface UsoDeImagem {
   input_tokens?: number;
   output_tokens?: number;
-  input_tokens_details?: { text_tokens?: number; image_tokens?: number };
+  input_tokens_details?: {
+    text_tokens?: number;
+    image_tokens?: number;
+    cached_tokens?: number;
+  };
+  cached_tokens?: number;
+}
+
+/**
+ * Separa os tokens de entrada em texto e imagem, quando a API informa.
+ *
+ * Existe porque no custo as duas partes valem diferente — imagem de entrada é
+ * $8/1M contra $5/1M do texto — e é essa separação que responde "quanto a
+ * embalagem de referência acrescentou".
+ *
+ * Devolve `null` em cada campo que a API não mandou. Nulo é "não informado",
+ * nunca zero: gravar zero faria um relatório afirmar que a referência não
+ * custou nada, que é diferente de não saber.
+ */
+export function decomporEntrada(uso: UsoDeImagem | null | undefined): {
+  texto: number | null;
+  imagem: number | null;
+  cache: number | null;
+} {
+  const d = uso?.input_tokens_details;
+  // O cache pode vir no detalhamento ou solto no usage, conforme o endpoint.
+  const cache = d?.cached_tokens ?? uso?.cached_tokens ?? null;
+  if (!d) return { texto: null, imagem: null, cache };
+  return {
+    texto: typeof d.text_tokens === "number" ? d.text_tokens : null,
+    imagem: typeof d.image_tokens === "number" ? d.image_tokens : null,
+    cache,
+  };
 }
 
 /**

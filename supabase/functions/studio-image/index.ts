@@ -7,7 +7,7 @@
 //
 // Deploy: npx supabase functions deploy studio-image
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { custoDaImagemUSD, FORMATOS, type FormatoId } from "../_shared/aiPricing.ts";
+import { custoDaImagemUSD, decomporEntrada, FORMATOS, type FormatoId } from "../_shared/aiPricing.ts";
 import { registrarUsoDeIA } from "../_shared/aiUsage.ts";
 
 // Dois modelos, um critério: `sunburst` é o que a OpenAI indica para fluxos
@@ -243,10 +243,16 @@ Deno.serve(async (req: Request) => {
     // ---- Custo, do usage REAL ----
     const uso = out?.usage ?? null;
     const custo = custoDaImagemUSD(modelo, uso);
+    // O total já era gravado; a decomposição é o que diz quanto a imagem de
+    // referência acrescentou — texto e imagem custam preços diferentes.
+    const entrada = decomporEntrada(uso);
     await registrarUsoDeIA(db, {
       company_id: companyId, user_id: userId, operation: "image_generation",
       provider: "openai", model: modelo, prompt_version: PROMPT_VERSION,
       input_tokens: uso?.input_tokens ?? null,
+      input_text_tokens: entrada.texto,
+      input_image_tokens: entrada.imagem,
+      cached_tokens: entrada.cache,
       output_tokens: uso?.output_tokens ?? null,
       image_count: 1, quality: "high", width: f.largura, height: f.altura,
       cost_usd: custo, request_id: requestId,
