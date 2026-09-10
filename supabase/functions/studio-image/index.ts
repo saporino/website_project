@@ -188,13 +188,26 @@ Deno.serve(async (req: Request) => {
       // Com referência: /images/edits, que aceita a imagem como base.
       const { data: arquivo, error: dlErr } = await db.storage.from("studio-videos").download(referencePath);
       if (dlErr || !arquivo) throw new Error("Não foi possível ler o ativo de referência.");
+
+      // O tipo do arquivo TEM que ir no Blob. `new Blob([bytes])` sem `type`
+      // nasce com tipo vazio, o FormData manda como application/octet-stream e
+      // a OpenAI recusa — ela olha o MIME, não a extensão do nome:
+      //   "Invalid file 'image': unsupported mimetype ('application/octet-stream')"
+      // O Blob que vem do storage já traz o tipo; a extensão é só a rede de
+      // segurança para quando ele vier vazio.
+      const nomeRef = referencePath.split("/").pop() || "ref.png";
+      const porExtensao = nomeRef.toLowerCase().endsWith(".webp") ? "image/webp"
+        : (nomeRef.toLowerCase().endsWith(".jpg") || nomeRef.toLowerCase().endsWith(".jpeg")) ? "image/jpeg"
+        : "image/png";
+      const mimeRef = arquivo.type && arquivo.type.startsWith("image/") ? arquivo.type : porExtensao;
+
       const fd = new FormData();
       fd.append("model", modelo);
       fd.append("prompt", prompt);
       fd.append("size", size);
       fd.append("quality", "high");
       fd.append("output_format", "png");
-      fd.append("image", new Blob([new Uint8Array(await arquivo.arrayBuffer())]), referencePath.split("/").pop() || "ref.png");
+      fd.append("image", new Blob([new Uint8Array(await arquivo.arrayBuffer())], { type: mimeRef }), nomeRef);
       resp = await fetch("https://api.openai.com/v1/images/edits", {
         method: "POST", headers: { Authorization: `Bearer ${OPENAI}` }, body: fd,
       });
@@ -222,7 +235,16 @@ Deno.serve(async (req: Request) => {
         request_id: requestId, subject_type: "generation", subject_id: geracaoId,
         status: "erro", error_text: texto.slice(0, 500), duration_ms: Date.now() - inicio,
       });
-      return json({ error: "A geração falhou. Tente de novo em instantes.", generation_id: geracaoId }, 502);
+      // A mensagem genérica escondia a causa: as duas primeiras tentativas com
+      // embalagem falharam por MIME e a tela só dizia "tente de novo". Quem
+      // opera precisa do motivo — sem ele, tentar de novo é chutar.
+      let detalhe = "";
+      try { detalhe = JSON.parse(texto)?.error?.message ?? ""; } catch { /* resposta não-JSON */ }
+      return json({
+        error: "A geração falhou.",
+        detalhe: detalhe ? String(detalhe).slice(0, 300) : null,
+        generation_id: geracaoId,
+      }, 502);
     }
 
     const out = JSON.parse(texto);

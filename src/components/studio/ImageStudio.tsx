@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
-import { Sparkles, Download, Check, X, RefreshCw, ImagePlus, Loader2 } from 'lucide-react';
+import { Sparkles, Download, Check, X, RefreshCw, ImagePlus, Loader2, AlertCircle } from 'lucide-react';
 
 type Formato = 'feed' | 'story';
 
@@ -42,6 +42,9 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
   const [refNome, setRefNome] = useState<string | null>(null);
   const [enviandoRef, setEnviandoRef] = useState(false);
   const [gerando, setGerando] = useState(false);
+  // Erro fica NA TELA até a próxima tentativa. Como toast ele sumia em
+  // segundos, e foi por isso que duas falhas seguidas pareceram "nada acontece".
+  const [erro, setErro] = useState<string | null>(null);
   const [atual, setAtual] = useState<{ id: string; url: string; aviso: string | null } | null>(null);
   const [historico, setHistorico] = useState<Geracao[]>([]);
 
@@ -49,8 +52,18 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
     const { data, error } = await supabase.functions.invoke('studio-image', {
       body: { company_id: companyId, ...body },
     });
-    if (error) throw new Error(error.message);
-    if (data?.error) throw new Error(data.error);
+    // `invoke` devolve erro genérico em status 4xx/5xx e joga o corpo real em
+    // `error.context`. Sem ler dali, a causa (que o servidor mandou) se perde e
+    // sobra "Edge Function returned a non-2xx status code".
+    if (error) {
+      let msg = error.message;
+      try {
+        const corpo = await (error as { context?: Response }).context?.json();
+        if (corpo?.error) msg = corpo.detalhe ? `${corpo.error} ${corpo.detalhe}` : corpo.error;
+      } catch { /* mantém a mensagem original */ }
+      throw new Error(msg);
+    }
+    if (data?.error) throw new Error(data.detalhe ? `${data.error} ${data.detalhe}` : data.error);
     return data;
   }, [companyId]);
 
@@ -74,6 +87,7 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
     // usada. Vale esperar alguns segundos.
     if (enviandoRef) { toast.error('Aguarde o envio do ativo terminar.'); return; }
     setGerando(true);
+    setErro(null);
     try {
       const d = await chamar({
         brief: brief.trim(), format: formato,
@@ -82,7 +96,7 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
       setAtual({ id: d.generation_id, url: d.url, aviso: d.aviso_ativo ?? null });
       carregarHistorico();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Não foi possível gerar.');
+      setErro(e instanceof Error ? e.message : 'Não foi possível gerar.');
     } finally {
       setGerando(false);
     }
@@ -263,8 +277,23 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
 
         <button type="button" onClick={() => gerar()} disabled={gerando || !companyId}
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#8B2214] px-4 py-3 font-semibold text-white transition-colors hover:bg-[#6d1a10] disabled:opacity-50">
-          {gerando ? <><Loader2 className="h-4 w-4 animate-spin" /> Gerando…</> : <><Sparkles className="h-4 w-4" /> Gerar imagem</>}
+          {gerando ? <><Loader2 className="h-4 w-4 animate-spin" /> Gerando imagem…</> : <><Sparkles className="h-4 w-4" /> Gerar imagem</>}
         </button>
+
+        {gerando && (
+          <p className="text-center text-xs text-gray-500">Pode levar até um minuto. Não feche esta tela.</p>
+        )}
+
+        {erro && !gerando && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-3">
+            <p className="flex items-start gap-1.5 text-sm font-semibold text-red-800">
+              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" /> A geração falhou
+            </p>
+            <p className="mt-1 break-words text-xs leading-relaxed text-red-700">{erro}</p>
+            <button type="button" onClick={() => setErro(null)}
+              className="mt-2 text-xs font-semibold text-red-800 hover:underline">Entendi</button>
+          </div>
+        )}
       </div>
 
       {/* ---------- Resultado ---------- */}
