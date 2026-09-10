@@ -412,7 +412,7 @@ export default function StudioPage() {
       </div>
 
       {view === 'imagem' ? (
-        <ImageStudio companyId={activeCompanyId} />
+        <ImageStudio companyId={activeCompanyId} avancado />
       ) : view === 'marca' ? (
         <BrandProfile companyId={activeCompanyId} />
       ) : view === 'conexoes' ? (

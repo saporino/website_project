@@ -414,3 +414,88 @@ describe('unicidade — nenhuma frase se repete', () => {
     expect(systemDoDiretor({ ...base, headlinesProibidas: [] })).not.toContain('FRASES JÁ USADAS');
   });
 });
+
+// ---------------------------------------------------------------------
+// Visão, papéis e intenção — a rodada que tirou a venda do Diretor
+// ---------------------------------------------------------------------
+import {
+  REGRA_DE_VISAO, REGRA_DE_PALETA as PALETA, classificarIntencao, modoPreferido,
+} from './diretorCriativo.ts';
+
+describe('o Diretor passou a enxergar', () => {
+  it('a regra de visão entra em todo prompt', () => {
+    expect(systemDoDiretor(base)).toContain(REGRA_DE_VISAO);
+  });
+
+  it('a regra manda olhar antes de afirmar cor', () => {
+    expect(REGRA_DE_VISAO).toContain('Café NÃO é necessariamente marrom');
+    expect(REGRA_DE_VISAO).toContain('OLHE ANTES DE DECIDIR');
+  });
+
+  it('a inspiração não decide a paleta da marca', () => {
+    // O caso real: referência amarela, embalagem verde, peça saiu marrom.
+    expect(PALETA).toContain('A INSPIRAÇÃO NÃO DECIDE PALETA');
+  });
+
+  it('oficial e inspiração continuam com instruções opostas', () => {
+    const s = systemDoDiretor({ ...base, papeis: ['oficial', 'inspiracao'], qtdAtivos: 2 });
+    expect(s).toContain(PAPEL_OFICIAL);
+    expect(s).toContain(PAPEL_INSPIRACAO);
+  });
+});
+
+describe('classificação automática da intenção', () => {
+  it('entende bom dia sem o cliente escolher tipo', () => {
+    expect(classificarIntencao('Faça um bom dia com este café')).toBe('bom_dia');
+  });
+
+  it('entende oferta', () => {
+    expect(classificarIntencao('Quero uma oferta deste café')).toBe('oferta');
+    expect(classificarIntencao('post com desconto pra semana')).toBe('oferta');
+  });
+
+  it('entende divulgar produto, institucional e padaria', () => {
+    expect(classificarIntencao('Quero divulgar este produto')).toBe('produto');
+    expect(classificarIntencao('Quero um post institucional da marca')).toBe('institucional');
+    expect(classificarIntencao('nosso café no balcão da padaria')).toBe('ponto_de_venda');
+  });
+
+  it('funciona sem acento, que é como as pessoas escrevem com pressa', () => {
+    expect(classificarIntencao('faca um bom dia')).toBe('bom_dia');
+  });
+
+  it('o que não reconhece cai em livre, e o Diretor lê a frase inteira', () => {
+    expect(classificarIntencao('algo bonito com a xícara azul')).toBe('livre');
+  });
+
+  it('escolha explícita do cliente vence a adivinhação', () => {
+    expect(classificarIntencao('Faça um bom dia', 'oferta')).toBe('oferta');
+    // "livre" não é escolha: é ausência de escolha.
+    expect(classificarIntencao('Faça um bom dia', 'livre')).toBe('bom_dia');
+  });
+});
+
+describe('modo de saída continua interno', () => {
+  it('oficial + inspiração prefere híbrido', () => {
+    expect(modoPreferido('oferta', true, true)).toBe('hybrid');
+    expect(modoPreferido('institucional', true, true)).toBe('hybrid');
+  });
+
+  it('sem inspiração, o tipo manda como antes', () => {
+    expect(modoPreferido('oferta', true, false)).toBe('post_first');
+  });
+
+  it('lifestyle não vira cartaz nem com inspiração anexada', () => {
+    expect(modoPreferido('lifestyle', true, true)).toBe('photo_first');
+  });
+
+  it('o cliente não escolhe o modo: ele sai dos anexos e da intenção', () => {
+    const s = systemDoDiretor({ ...base, tipo: 'oferta', papeis: ['oficial', 'inspiracao'], qtdAtivos: 2 });
+    expect(s).toContain('o modo é **hybrid**');
+  });
+
+  it('estilo escolhido no admin ainda manda no modo', () => {
+    const s = systemDoDiretor({ ...base, estilo: 'fotografico', papeis: ['oficial', 'inspiracao'] });
+    expect(s).toContain('o modo é **photo_first**');
+  });
+});

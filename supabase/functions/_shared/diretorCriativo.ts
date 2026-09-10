@@ -13,7 +13,26 @@
 // GARANTIDA POR SOFTWARE, ELA NÃO VAI PARA O PROMPT.
 
 export const MODELO_DIRETOR = "claude-sonnet-5";
-export const DIRETOR_VERSION = "diretor-v4-ptbr";
+export const DIRETOR_VERSION = "diretor-v5-visao";
+
+// ---------------------------------------------------------------------
+// O Diretor passou a ENXERGAR
+// ---------------------------------------------------------------------
+// Até a v4 o Diretor decidia cor, produto e identidade sem receber imagem
+// nenhuma: a foto ia direto para o gerador e pulava quem escrevia o
+// briefing. Pedir "leia as cores da embalagem" a um modelo que não recebe
+// imagem produz o estereótipo, não a leitura — foi assim que a embalagem
+// verde e dourada do Café Capital virou "marrom escuro, cor dominante da
+// embalagem oficial" num prompt que afirmava tê-la lido.
+//
+// Agora as imagens vão junto, cada uma anunciada com o seu papel.
+export const REGRA_DE_VISAO = `VOCÊ ESTÁ VENDO AS IMAGENS DESTE PEDIDO.
+Elas vêm anexadas a esta conversa, cada uma anunciada com o seu papel antes de aparecer.
+
+OLHE ANTES DE DECIDIR. Não descreva o que você espera de uma marca de café: descreva o que está na imagem.
+Café NÃO é necessariamente marrom. Se a embalagem é verde, a peça é verde.
+Se você afirmar uma cor, um nome ou um peso, tem de ser porque está VISÍVEL na imagem — nunca porque é o mais provável.
+Se algo estiver ilegível ou você não tiver certeza, não afirme: componha sem aquilo.`;
 
 // ---------------------------------------------------------------------
 // IDIOMA DE SAÍDA — regra do produto, não preferência
@@ -146,7 +165,10 @@ export const PAPEL_OFICIAL = `ATIVO OFICIAL — é o produto real da marca. Mant
 // A embalagem é o único documento de marca que temos com certeza em mãos.
 // Ela manda na paleta da postagem inteira.
 export const REGRA_DE_PALETA = `PALETA — A EMBALAGEM MANDA NA PEÇA INTEIRA
-A paleta da postagem sai do ATIVO OFICIAL, não do seu gosto. Antes de compor, leia as cores da embalagem: a cor dominante, a cor secundária e o metal ou detalhe, se houver.
+A paleta da postagem sai do ATIVO OFICIAL, não do seu gosto e não da inspiração. Você está vendo a embalagem: olhe e nomeie a cor dominante, a secundária e o metal ou detalhe, se houver.
+
+NOMEIE A COR QUE VOCÊ VÊ, não a que se espera de café. Marrom só entra se a embalagem for marrom.
+A INSPIRAÇÃO NÃO DECIDE PALETA. Se a referência é amarela e a embalagem é verde, a peça é verde.
 
 - A COR DOMINANTE da embalagem é a cor dominante da peça: fundo, bloco de cor, faixa.
 - HEADLINE e textos usam a cor dominante, a secundária, ou um neutro (branco, off-white, preto, creme). Nada além disso.
@@ -282,6 +304,61 @@ export const TIPOS = {
 export type TipoId = keyof typeof TIPOS;
 
 // ---------------------------------------------------------------------
+// Classificação da intenção — o cliente escreve, o sistema entende
+// ---------------------------------------------------------------------
+// Escolher "Bom dia" numa parede de onze botões é trabalho de quem monta o
+// pedido, não de quem faz café. Quem escreve "faça um bom dia com este café"
+// já disse o tipo. Determinístico de propósito: classificar por palavra-chave
+// é instantâneo, é de graça e é auditável — e o que ele não souber cai em
+// "livre", onde o Diretor lê a frase inteira e decide.
+const PISTAS: [TipoId, RegExp][] = [
+  ["bom_dia",        /\bbom\s*dia\b|\bbomdia\b|\bmanh[aã]\b/],
+  ["boa_tarde",      /\bboa\s*tarde\b|\bfim\s+da\s+tarde\b/],
+  ["oferta",         /\boferta\b|\bpromo\w*|\bdesconto\b|\bcondi[cç][aã]o\b|\bpre[cç]o\b|\bliquida\w*|\bcombo\b|\bleve\s+\d/],
+  ["comunicado",     /\bcomunicad\w*|\baviso\b|\binformamos\b|\bfechad\w*|\bferiado\b|\bhor[aá]rio\b/],
+  ["institucional",  /\binstitucional\b|\bquem\s+somos\b|\bnossa\s+hist[oó]ria\b|\bnossos?\s+valores\b|\bsobre\s+a\s+(marca|empresa)\b/],
+  ["educativo",      /\beducativ\w*|\bensin\w*|\bdica\b|\bcomo\s+(fazer|preparar)\b|\bcuriosidade\b|\breceita\b/],
+  ["representante",  /\brepresentant\w*|\bvendedor\w*|\bfor[cç]a\s+de\s+vendas\b|\bmaterial\s+de\s+apoio\b/],
+  ["ponto_de_venda", /\bpadari\w*|\bponto\s+de\s+venda\b|\bpdv\b|\bbalc[aã]o\b|\bmercad\w*|\bcafeteri\w*|\bgondol\w*/],
+  ["produto",        /\bdivulg\w*|\blan[cç]\w*|\bapresent\w*|\bmostrar\s+(o|meu|este|esse)\b|\bnovo\s+produto\b/],
+  ["lifestyle",      /\blifestyle\b|\bmomento\b|\bclima\b|\baconcheg\w*|\brotina\b/],
+];
+
+/**
+ * Descobre o tipo de conteúdo a partir do que a pessoa escreveu.
+ *
+ * `preferido` é o que ela escolheu na tela, quando escolheu. Escolha explícita
+ * sempre vence: adivinhar por cima de uma decisão do cliente seria pior que
+ * não adivinhar.
+ */
+export function classificarIntencao(texto: unknown, preferido?: string | null): TipoId {
+  if (preferido && preferido !== "livre" && preferido in TIPOS) return preferido as TipoId;
+  if (typeof texto !== "string") return "livre";
+  const t = texto.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  for (const [tipo, pista] of PISTAS) {
+    if (pista.test(t)) return tipo;
+  }
+  return "livre";
+}
+
+/**
+ * Modo de saída quando ninguém escolheu estilo.
+ *
+ * Com embalagem real E referência de post, híbrido é a resposta certa: a
+ * embalagem precisa ser fotografada de verdade e a referência pede estrutura
+ * de post. Só photo_first puro escapa — lifestyle não vira cartaz.
+ */
+export function modoPreferido(
+  tipo: TipoId,
+  temOficial: boolean,
+  temInspiracao: boolean,
+): ModoSaida {
+  const padrao = TIPOS[tipo]?.modo ?? "hybrid";
+  if (temOficial && temInspiracao && padrao !== "photo_first") return "hybrid";
+  return padrao;
+}
+
+// ---------------------------------------------------------------------
 // Regras duras — leis, não sugestão
 // ---------------------------------------------------------------------
 const REGRAS_DURAS = `NUNCA invente preço, desconto, cupom, prazo, brinde, frete grátis ou qualquer condição comercial que não tenha sido informada.
@@ -365,9 +442,14 @@ export interface ContextoDoBriefing {
 export function systemDoDiretor(ctx: ContextoDoBriefing): string {
   const tipo = TIPOS[ctx.tipo] ?? TIPOS.livre;
   const estilo = ctx.estilo ? ESTILOS[ctx.estilo] : null;
-  // O estilo escolhido pelo cliente MANDA no modo de saída: ele apontou
-  // "mais premium" justamente para não precisar explicar o que isso significa.
-  const modoAlvo = estilo?.modo ?? tipo.modo;
+  const papeisDeclarados = ctx.papeis ?? [];
+  const oficialPresente = papeisDeclarados.includes("oficial") || (!papeisDeclarados.length && ctx.temAtivoOficial);
+  const inspiracaoPresente = papeisDeclarados.includes("inspiracao");
+  // O estilo escolhido MANDA no modo de saída: quem apontou "mais premium"
+  // fez isso para não precisar explicar. Sem escolha — que é o caso do
+  // cliente final, onde o campo nem existe — o modo vem da intenção e dos
+  // anexos: embalagem real mais referência de post pede híbrido.
+  const modoAlvo = estilo?.modo ?? modoPreferido(ctx.tipo, oficialPresente, inspiracaoPresente);
 
   const condicionais = [
     ctx.temAtivoOficial ? REGRAS_CONDICIONAIS.ativoOficial : REGRAS_CONDICIONAIS.semAtivo,
@@ -389,9 +471,8 @@ export function systemDoDiretor(ctx: ContextoDoBriefing): string {
 
   // Papel de cada anexo. Oficial e inspiração recebem instruções OPOSTAS:
   // uma se preserva, a outra se lê e se abandona.
-  const papeis = ctx.papeis ?? [];
-  const temOficial = papeis.includes("oficial") || (!papeis.length && ctx.temAtivoOficial);
-  const temInspiracao = papeis.includes("inspiracao");
+  const temOficial = oficialPresente;
+  const temInspiracao = inspiracaoPresente;
   const papeisTexto = [
     temOficial ? `
 
@@ -468,6 +549,8 @@ MARCA: ${ctx.marca}
 É PROIBIDO escrever, citar ou desenhar qualquer marca de café que não seja "${ctx.marca}". Nenhuma outra, em nenhum lugar da peça e em nenhum lugar do final_prompt.
 IDENTIDADE (obedeça; não invente nada fora disto):
 ${dnaTexto}
+
+${REGRA_DE_VISAO}
 
 ${REGRA_DE_IDIOMA}
 

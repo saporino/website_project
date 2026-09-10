@@ -12,7 +12,8 @@ import { registrarUsoDeIA } from "../_shared/aiUsage.ts";
 import {
   MODELO_DIRETOR, DIRETOR_VERSION, TIPOS, ESTILOS, MODOS_DE_TEXTO, LOCALE_SAIDA,
   systemDoDiretor, custoDoDiretorUSD, pareceEstrangeiro, normalizarHandle,
-  marcaEstranhaNoPrompt, type ModoMarca,
+  marcaEstranhaNoPrompt, classificarIntencao, PAPEL_OFICIAL, PAPEL_INSPIRACAO,
+  type ModoMarca,
   type TipoId, type EstiloId, type ModoTextoId, type PapelDoAtivo,
 } from "../_shared/diretorCriativo.ts";
 
@@ -165,7 +166,11 @@ Deno.serve(async (req: Request) => {
     companyId = body?.company_id ? String(body.company_id) : null;
     // Tipo vem de ATALHO, nunca digitado — é o que permite selecionar só as
     // regras daquele caso em vez de despejar o manual inteiro no prompt.
-    const tipo = (TIPOS[String(body?.content_type ?? "livre") as TipoId] ? String(body.content_type) : "livre") as TipoId;
+    // O cliente escreve; o sistema entende. Escolha explícita na tela vence a
+    // adivinhação — adivinhar por cima de uma decisão seria pior que não
+    // adivinhar. Sem escolha, a frase decide.
+    const tipoPedido = TIPOS[String(body?.content_type ?? "") as TipoId] ? String(body.content_type) : null;
+    const tipo = classificarIntencao(String(body?.brief ?? ""), tipoPedido);
     const usarDiretor = body?.usar_diretor !== false;
     // Escolhas guiadas: o cliente aponta, o servidor traduz.
     const estilo = (ESTILOS[String(body?.style ?? "") as EstiloId] ? String(body.style) : undefined) as EstiloId | undefined;
@@ -173,9 +178,14 @@ Deno.serve(async (req: Request) => {
     // A arroba é garantida aqui: o cliente digita como quiser e a assinatura
     // sai sempre igual, com @ e sem espaço.
     const handle = normalizarHandle(body?.handle);
-    const papeis: PapelDoAtivo[] = Array.isArray(body?.reference_roles)
-      ? body.reference_roles.map((r: unknown) => (String(r) === "inspiracao" ? "inspiracao" : "oficial"))
-      : [];
+    // PRIMEIRO anexo é oficial; do segundo em diante, inspiração. Antes tudo
+    // nascia "oficial" e uma referência amarela de post entrava como se fosse
+    // a embalagem real da marca. Segunda imagem quase nunca é a embalagem.
+    const papeis: PapelDoAtivo[] = listaRef.map((_, i) => {
+      const dito = Array.isArray(body?.reference_roles) ? body.reference_roles[i] : undefined;
+      if (dito === "oficial" || dito === "inspiracao") return dito;
+      return i === 0 ? "oficial" : "inspiracao";
+    });
     // A marca da peça deixa de vir do seletor de EMPRESA do topo do admin.
     // Era exatamente daí que "Saporino" entrava numa peça da Café Capital.
     const modoMarca: ModoMarca = String(body?.brand_mode ?? "perfil") === "livre" ? "livre" : "perfil";
@@ -218,8 +228,14 @@ Deno.serve(async (req: Request) => {
     let marca: string;
 
     if (modoMarca === "livre") {
-      // Marca livre: nenhum DNA é carregado, de propósito. A embalagem
-      // anexada e o pedido escrito são a única fonte de verdade.
+      // Marca livre é ferramenta INTERNA. Cliente externo trabalha sempre
+      // dentro de uma marca cadastrada da própria organização — deixá-lo
+      // digitar o nome da marca seria abrir mão da identidade cadastrada.
+      // Hoje a portaria já exige is_admin; a checagem fica explícita para o
+      // dia em que ela virar "pertence a esta organização".
+      if (!isAdmin) return json({ error: "Escolha uma marca cadastrada." }, 403);
+      // Nenhum DNA é carregado, de propósito. A embalagem anexada e o pedido
+      // escrito são a única fonte de verdade.
       if (nomeLivre.length < 2) {
         return json({ error: "Escreva o nome da marca desta peça." }, 400);
       }
@@ -309,17 +325,60 @@ Deno.serve(async (req: Request) => {
           intencao: brief, tipo, canal: formato, marca,
           dna: modoMarca === "livre" ? null : brand?.guardrails,
           modoMarca,
-          temAtivoOficial: !!referencePath,
+          temAtivoOficial: papeis.includes("oficial"),
           qtdAtivos: listaRef.length, fingerprintsRecentes: fingerprints,
           headlinesProibidas: jaUsadas,
           estilo, modoTexto, papeis, handle,
         });
+        // ---- O Diretor passa a ENXERGAR os anexos ----
+        // Até aqui ele decidia cor, produto e identidade sem receber imagem
+        // nenhuma: a foto ia direto ao gerador e pulava quem escreve o
+        // briefing. Foi assim que a embalagem verde e dourada do Café Capital
+        // virou "marrom escuro, cor dominante da embalagem oficial" — o
+        // estereótipo preenchendo o lugar da leitura.
+        //
+        // Cada imagem é ANUNCIADA antes de aparecer, com o seu papel. Oficial
+        // e inspiração recebem instruções opostas, e o modelo precisa saber
+        // qual está olhando na hora em que olha.
+        const conteudo: Record<string, unknown>[] = [];
+        for (let i = 0; i < listaRef.length; i++) {
+          const caminho = listaRef[i];
+          const papel = papeis[i] ?? (i === 0 ? "oficial" : "inspiracao");
+          const { data: arq } = await db.storage.from("studio-videos").download(caminho);
+          if (!arq) continue;
+          const bytes = new Uint8Array(await arq.arrayBuffer());
+          const n = caminho.toLowerCase();
+          const mime = arq.type?.startsWith("image/") ? arq.type
+            : n.endsWith(".webp") ? "image/webp"
+            : (n.endsWith(".jpg") || n.endsWith(".jpeg")) ? "image/jpeg" : "image/png";
+          // btoa em pedaços: a conversão de uma vez estoura a pilha em imagens
+          // grandes, e o limite de 25 MB do anexo cabe folgado nesse caso.
+          let bin = "";
+          for (let p = 0; p < bytes.length; p += 8192) {
+            bin += String.fromCharCode(...bytes.subarray(p, p + 8192));
+          }
+          conteudo.push({
+            type: "text",
+            text: papel === "oficial"
+              ? `IMAGEM A SEGUIR — ATIVO OFICIAL da marca ${marca}. ${PAPEL_OFICIAL}`
+              : `IMAGEM A SEGUIR — REFERÊNCIA DE INSPIRAÇÃO. ${PAPEL_INSPIRACAO}`,
+          });
+          conteudo.push({
+            type: "image",
+            source: { type: "base64", media_type: mime, data: btoa(bin) },
+          });
+        }
+        conteudo.push({
+          type: "text",
+          text: `Pedido de quem encomendou:\n"""${brief}"""\n\nTipo: ${TIPOS[tipo]?.rotulo ?? "livre"}. Devolva só o JSON.`,
+        });
+
         const r = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: { "x-api-key": ANTHROPIC, "anthropic-version": "2023-06-01", "content-type": "application/json" },
           body: JSON.stringify({
             model: MODELO_DIRETOR, max_tokens: 4000, system,
-            messages: [{ role: "user", content: `Pedido de quem encomendou:\n"""${brief}"""\n\nTipo: ${TIPOS[tipo]?.rotulo ?? "livre"}. Devolva só o JSON.` }],
+            messages: [{ role: "user", content: conteudo }],
           }),
         });
         const txt = await r.text();
@@ -356,6 +415,9 @@ Deno.serve(async (req: Request) => {
             company_id: companyId, organization_id: organizationId, user_id: userId,
             operation: "direcao_criativa", provider: "anthropic", model: MODELO_DIRETOR,
             prompt_version: DIRETOR_VERSION,
+            // O Diretor virou multimodal: as imagens entram no input_tokens
+            // dele. Sem image_count, o salto de custo pareceria inexplicavel.
+            image_count: listaRef.length || null,
             input_tokens: j?.usage?.input_tokens ?? null,
             output_tokens: j?.usage?.output_tokens ?? null,
             cached_tokens: j?.usage?.cache_read_input_tokens ?? null,
