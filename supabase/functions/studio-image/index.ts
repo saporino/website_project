@@ -10,7 +10,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { custoDaImagemUSD, decomporEntrada, FORMATOS, type FormatoId } from "../_shared/aiPricing.ts";
 import { registrarUsoDeIA } from "../_shared/aiUsage.ts";
 import {
-  MODELO_DIRETOR, DIRETOR_VERSION, TIPOS, systemDoDiretor, custoDoDiretorUSD, type TipoId,
+  MODELO_DIRETOR, DIRETOR_VERSION, TIPOS, ESTILOS, MODOS_DE_TEXTO, LOCALE_SAIDA,
+  systemDoDiretor, custoDoDiretorUSD, pareceEstrangeiro,
+  type TipoId, type EstiloId, type ModoTextoId, type PapelDoAtivo,
 } from "../_shared/diretorCriativo.ts";
 
 // Dois modelos, um critério: `sunburst` é o que a OpenAI indica para fluxos
@@ -149,6 +151,13 @@ Deno.serve(async (req: Request) => {
     // regras daquele caso em vez de despejar o manual inteiro no prompt.
     const tipo = (TIPOS[String(body?.content_type ?? "livre") as TipoId] ? String(body.content_type) : "livre") as TipoId;
     const usarDiretor = body?.usar_diretor !== false;
+    // Escolhas guiadas: o cliente aponta, o servidor traduz.
+    const estilo = (ESTILOS[String(body?.style ?? "") as EstiloId] ? String(body.style) : undefined) as EstiloId | undefined;
+    const modoTexto = (MODOS_DE_TEXTO[String(body?.text_mode ?? "") as ModoTextoId] ? String(body.text_mode) : "automatico") as ModoTextoId;
+    const handle = body?.handle ? String(body.handle).trim().slice(0, 40) : null;
+    const papeis: PapelDoAtivo[] = Array.isArray(body?.reference_roles)
+      ? body.reference_roles.map((r: unknown) => (String(r) === "inspiracao" ? "inspiracao" : "oficial"))
+      : [];
 
     if (!companyId) return json({ error: "Escolha a marca antes de gerar." }, 400);
     if (brief.length < 5) return json({ error: "Descreva o que você quer na imagem." }, 400);
@@ -214,6 +223,7 @@ Deno.serve(async (req: Request) => {
           intencao: brief, tipo, canal: formato, marca,
           dna: brand?.guardrails, temAtivoOficial: !!referencePath,
           qtdAtivos: listaRef.length, fingerprintsRecentes: fingerprints,
+          estilo, modoTexto, papeis, handle,
         });
         const r = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
@@ -233,6 +243,14 @@ Deno.serve(async (req: Request) => {
             briefing = JSON.parse(achado[0]);
             const dele = (briefing?.final_prompt ?? briefing?.prompt_imagem) as unknown;
             if (typeof dele === "string" && dele.length > 40) prompt = dele;
+            // O idioma é regra do produto, e regra não pode depender só de o
+            // modelo obedecer. Não bloqueia — heurística erra, e derrubar uma
+            // geração paga por falso positivo seria pior. Marca para conferir.
+            briefing.output_language = LOCALE_SAIDA;
+            const suspeitos = [briefing.headline, briefing.support_text].filter(pareceEstrangeiro);
+            if (suspeitos.length) {
+              briefing.aviso_idioma = "Texto possivelmente fora do português do Brasil — conferir antes de publicar.";
+            }
           }
           // Custo do Diretor é custo do produto. Sem esta linha, o texto viraria
           // exatamente o buraco que a auditoria encontrou na imagem.
@@ -271,6 +289,8 @@ Deno.serve(async (req: Request) => {
         organization_id: organizationId, brand_id: brand?.id ?? null,
         format: formato, content_type: tipo, brief, prompt, briefing,
         reference_path: referencePath, reference_paths: listaRef.length ? listaRef : null,
+        reference_roles: papeis.length ? papeis : null,
+        style: estilo ?? null, text_mode: modoTexto, handle,
         provider: "openai", model: modelo,
         width: f.largura, height: f.altura,
         status: "pendente", parent_id: parentId,

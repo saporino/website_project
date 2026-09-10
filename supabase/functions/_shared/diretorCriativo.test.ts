@@ -67,8 +67,11 @@ describe('texto na arte deixou de ser proibido, mas ganhou disciplina', () => {
     expect(systemDoDiretor(base)).not.toContain('NUNCA escreva texto legível');
   });
 
-  it('limita a headline, porque gerador erra letra', () => {
-    expect(systemDoDiretor(base)).toContain('MÁXIMO 5 palavras');
+  it('mantém a headline curta, porque gerador erra letra', () => {
+    // "~5 palavras" vale para a HEADLINE, não para a peça: uma peça com
+    // headline curta + linha de apoio + assinatura está certa.
+    expect(systemDoDiretor(base)).toContain('idealmente até ~5 palavras');
+    expect(systemDoDiretor(base)).toContain('quanto mais curta a frase, menor o risco');
   });
 
   it('mantém preço e telefone fora da imagem', () => {
@@ -156,5 +159,131 @@ describe('custo do Diretor', () => {
   it('sem usage devolve null, nunca zero', () => {
     expect(custoDoDiretorUSD(null)).toBeNull();
     expect(custoDoDiretorUSD(undefined)).toBeNull();
+  });
+});
+
+// =====================================================================
+// IDIOMA — regra dura do produto
+// =====================================================================
+import { LOCALE_SAIDA, REGRA_DE_IDIOMA, pareceEstrangeiro, ESTILOS, MODOS_DE_TEXTO, PAPEL_OFICIAL, PAPEL_INSPIRACAO } from './diretorCriativo.ts';
+
+describe('idioma de saída é regra de sistema, não frase ocasional', () => {
+  it('existe uma constante de locale — não depende do prompt', () => {
+    expect(LOCALE_SAIDA).toBe('pt-BR');
+  });
+
+  it('o esquema do briefing registra o idioma', () => {
+    expect(ESQUEMA_BRIEFING).toContain('"output_language": "pt-BR"');
+  });
+
+  it('a regra entra em todo prompt, qualquer que seja o pedido', () => {
+    for (const t of ['bom_dia', 'oferta', 'lifestyle'] as TipoId[]) {
+      expect(systemDoDiretor({ ...base, tipo: t })).toContain('PORTUGUÊS DO BRASIL');
+    }
+  });
+
+  it('a referência estrangeira não define o idioma da peça', () => {
+    expect(REGRA_DE_IDIOMA).toContain('Isso NÃO define o idioma da peça');
+  });
+
+  it('proíbe tradução literal — quer reinterpretação', () => {
+    expect(REGRA_DE_IDIOMA).toContain('NÃO traduza ao pé da letra');
+    expect(REGRA_DE_IDIOMA).toContain('BREWING HAPPINESS');
+  });
+
+  it('preserva @, marca, produto, URL e texto da embalagem oficial', () => {
+    for (const termo of ['nome da marca', 'nome registrado do produto', '@ do Instagram', 'URL', 'EMBALAGEM OFICIAL']) {
+      expect(REGRA_DE_IDIOMA, `preserva ${termo}`).toContain(termo);
+    }
+  });
+
+  it('o prompt de imagem carrega a exigência em inglês, para o gerador', () => {
+    expect(systemDoDiretor(base)).toContain('ALL VISIBLE TEXT MUST BE IN BRAZILIAN PORTUGUESE');
+  });
+});
+
+describe('pareceEstrangeiro — verificação determinística, não só confiança no modelo', () => {
+  it('pega headline em inglês', () => {
+    expect(pareceEstrangeiro('BREWING HAPPINESS EVERY DAY')).toBe(true);
+    expect(pareceEstrangeiro('Start your day with coffee')).toBe(true);
+  });
+
+  it('pega headline em espanhol', () => {
+    expect(pareceEstrangeiro('Buenos días, el mejor café')).toBe(true);
+  });
+
+  it('deixa passar português legítimo', () => {
+    expect(pareceEstrangeiro('Bom dia!')).toBe(false);
+    expect(pareceEstrangeiro('Que hoje não falte um bom café')).toBe(false);
+    expect(pareceEstrangeiro('Mais que café, mais momentos felizes')).toBe(false);
+  });
+
+  it('não acusa nome de marca ou @ isolado', () => {
+    // Uma palavra estrangeira sozinha pode ser nome próprio — só duas ou mais
+    // caracterizam frase em outro idioma.
+    expect(pareceEstrangeiro('@cafecapital')).toBe(false);
+    expect(pareceEstrangeiro('Café Capital Expresso')).toBe(false);
+  });
+
+  it('ignora texto vazio ou curto demais', () => {
+    expect(pareceEstrangeiro('')).toBe(false);
+    expect(pareceEstrangeiro(null)).toBe(false);
+    expect(pareceEstrangeiro(undefined)).toBe(false);
+  });
+});
+
+describe('texto na arte permite hierarquia, não vira slogan de 5 palavras', () => {
+  it('descreve os três níveis possíveis', () => {
+    const s = systemDoDiretor(base);
+    expect(s).toContain('HEADLINE');
+    expect(s).toContain('APOIO (opcional)');
+    expect(s).toContain('ASSINATURA (opcional)');
+  });
+
+  it('diz explicitamente que não é limite para a peça inteira', () => {
+    expect(systemDoDiretor(base)).toContain('NÃO é limite de cinco palavras para a peça inteira');
+  });
+});
+
+describe('experiência guiada — o cliente aponta, o servidor traduz', () => {
+  it('o estilo escolhido manda no modo de saída', () => {
+    // "Mais premium" é o que o dono de torrefação sabe dizer; luz direcional
+    // e espaço negativo é o que ele não saberia descrever.
+    expect(systemDoDiretor({ ...base, estilo: 'premium' })).toContain('Mais premium');
+    expect(systemDoDiretor({ ...base, estilo: 'fotografico' })).toContain('photo_first');
+    expect(systemDoDiretor({ ...base, estilo: 'comercial' })).toContain('post_first');
+  });
+
+  it('todo estilo tem modo e direção de acabamento', () => {
+    for (const [id, e] of Object.entries(ESTILOS)) {
+      expect(e.modo, `estilo ${id}`).toBeTruthy();
+      expect(e.direcao.length, `estilo ${id}`).toBeGreaterThan(30);
+    }
+  });
+
+  it('a decisão de texto do cliente chega ao Diretor', () => {
+    expect(systemDoDiretor({ ...base, modoTexto: 'sem_texto' })).toContain(MODOS_DE_TEXTO.sem_texto);
+    expect(systemDoDiretor({ ...base, modoTexto: 'com_frase' })).toContain(MODOS_DE_TEXTO.com_frase);
+    // "automático" não polui o prompt com instrução redundante.
+    expect(systemDoDiretor({ ...base, modoTexto: 'automatico' })).not.toContain('DECISÃO DE TEXTO');
+  });
+
+  it('o @ vira assinatura e é preservado sem tradução', () => {
+    const s = systemDoDiretor({ ...base, handle: '@cafecapital' });
+    expect(s).toContain('@cafecapital');
+    expect(s).toContain('sem traduzir');
+  });
+
+  it('oficial e inspiração recebem instruções OPOSTAS', () => {
+    const s = systemDoDiretor({ ...base, papeis: ['oficial', 'inspiracao'], qtdAtivos: 2 });
+    expect(s).toContain(PAPEL_OFICIAL);
+    expect(s).toContain(PAPEL_INSPIRACAO);
+    // A diferença que importa: uma se preserva, a outra se abandona.
+    expect(PAPEL_OFICIAL).toContain('fiéis à referência');
+    expect(PAPEL_INSPIRACAO).toContain('ABANDONE a execução');
+  });
+
+  it('sem inspiração anexada, a regra de não copiar não aparece', () => {
+    expect(systemDoDiretor({ ...base, papeis: ['oficial'] })).not.toContain(PAPEL_INSPIRACAO);
   });
 });

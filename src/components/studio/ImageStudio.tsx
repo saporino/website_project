@@ -26,6 +26,9 @@ const TIPOS: { id: string; rotulo: string; sugestao: string }[] = [
   { id: 'institucional', rotulo: 'Institucional',      sugestao: 'Um post sobre quem somos' },
   { id: 'educativo',     rotulo: 'Educativo',          sugestao: 'Ensinar algo sobre café' },
   { id: 'representante', rotulo: 'Para representante', sugestao: 'Material de apoio para o representante' },
+  { id: 'comunicado',    rotulo: 'Comunicado',         sugestao: 'Um aviso para os nossos clientes' },
+  { id: 'ponto_de_venda',rotulo: 'Padaria / PDV',      sugestao: 'Nosso café no balcão da padaria' },
+  { id: 'lifestyle',     rotulo: 'Lifestyle',          sugestao: 'Um momento com café' },
   { id: 'livre',         rotulo: 'A partir de uma ideia', sugestao: '' },
 ];
 
@@ -36,9 +39,38 @@ interface Ativo {
   nome: string;
   path: string | null;
   enviando: boolean;
+  // Oficial se preserva; inspiração se lê e se abandona. São instruções
+  // opostas, então o papel precisa viajar junto com o arquivo.
+  papel: 'oficial' | 'inspiracao';
 }
 
 const MAX_ATIVOS = 4;
+
+const ESTILOS = [
+  { id: 'post_pronto', rotulo: 'Post pronto' },
+  { id: 'fotografico', rotulo: 'Fotográfico' },
+  { id: 'comercial',   rotulo: 'Comercial' },
+  { id: 'premium',     rotulo: 'Premium' },
+  { id: 'moderno',     rotulo: 'Moderno' },
+];
+
+const MODOS_TEXTO = [
+  { id: 'automatico', rotulo: 'O Studio decide' },
+  { id: 'com_frase',  rotulo: 'Com frase' },
+  { id: 'sem_texto',  rotulo: 'Sem texto' },
+];
+
+// Pedidos prontos: o cliente clica em vez de escrever. Cada um preenche
+// tipo, estilo e intenção de uma vez — é o atalho de quem não tem tempo.
+const EXEMPLOS = [
+  { texto: 'Crie um bom dia com minha embalagem',        tipo: 'bom_dia',        estilo: 'moderno' },
+  { texto: 'Faça uma oferta com cara de post moderno',   tipo: 'oferta',         estilo: 'post_pronto' },
+  { texto: 'Crie um post institucional com frase',       tipo: 'institucional',  estilo: 'premium' },
+  { texto: 'Faça um story promocional para WhatsApp',    tipo: 'oferta',         estilo: 'comercial' },
+  { texto: 'Crie um post para padaria com meu café',     tipo: 'ponto_de_venda', estilo: 'comercial' },
+  { texto: 'Faça uma arte para representante comercial', tipo: 'representante',  estilo: 'post_pronto' },
+  { texto: 'Crie um anúncio premium com meu produto',    tipo: 'produto',        estilo: 'premium' },
+];
 
 interface Geracao {
   id: string;
@@ -52,7 +84,10 @@ interface Geracao {
 export default function ImageStudio({ companyId }: { companyId: string | null }) {
   const [formato, setFormato] = useState<Formato>('feed');
   const [brief, setBrief] = useState('');
-  const [tipo, setTipo] = useState('livre');
+  const [tipo, setTipo] = useState('bom_dia');
+  const [estilo, setEstilo] = useState('post_pronto');
+  const [modoTexto, setModoTexto] = useState('automatico');
+  const [handle, setHandle] = useState('');
   // Vários ativos: a embalagem sozinha diz o que é o produto; junto com uma
   // referência de cenário ou de luz, diz o que a peça deve VIRAR. A API aceita
   // múltiplas referências, então limitar a uma era limitação nossa.
@@ -98,7 +133,10 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
   // quantas tentativas um mesmo pedido precisou até alguém aprovar.
   async function gerar(parentId?: string) {
     if (!companyId) { toast.error('Escolha a marca primeiro.'); return; }
-    if (brief.trim().length < 5) { toast.error('Escreva o que você quer na imagem.'); return; }
+    // O campo livre deixou de ser a etapa principal: com tipo e estilo
+    // escolhidos, o Diretor tem o suficiente. Quem quiser detalhar, detalha.
+    const pedido = brief.trim() || (TIPOS.find(t => t.id === tipo)?.sugestao ?? '');
+    if (pedido.length < 5) { toast.error('Escolha um tipo de conteúdo ou escreva o que você precisa.'); return; }
     // Enquanto o ativo está subindo, `referencia` ainda é nulo — gerar agora
     // produziria uma imagem SEM a embalagem, e quem pediu acharia que ela foi
     // usada. Vale esperar alguns segundos.
@@ -107,8 +145,11 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
     setErro(null);
     try {
       const d = await chamar({
-        brief: brief.trim(), format: formato, content_type: tipo,
-        reference_paths: ativos.filter(a => a.path).map(a => a.path), parent_id: parentId ?? null,
+        brief: pedido, format: formato, content_type: tipo,
+        reference_paths: ativos.filter(a => a.path).map(a => a.path),
+        reference_roles: ativos.filter(a => a.path).map(a => a.papel),
+        style: estilo, text_mode: modoTexto, handle: handle.trim() || null,
+        parent_id: parentId ?? null,
       });
       setAtual({ id: d.generation_id, url: d.url, aviso: d.aviso_ativo ?? null });
       carregarHistorico();
@@ -180,6 +221,7 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
       nome: f.name || 'imagem colada.png',
       path: null,
       enviando: true,
+      papel: 'oficial',
     }));
     setAtivos(prev => [...prev, ...novos]);
     setEnviandoRef(true);
@@ -218,6 +260,19 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
         </div>
 
         <div>
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">Comece por um exemplo</label>
+          <div className="flex flex-wrap gap-1.5">
+            {EXEMPLOS.map(x => (
+              <button key={x.texto} type="button"
+                onClick={() => { setBrief(x.texto); setTipo(x.tipo); setEstilo(x.estilo); }}
+                className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-left text-[11px] leading-tight text-gray-600 hover:border-[#8B2214] hover:text-[#8B2214]">
+                {x.texto}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
           <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">Formato</label>
           <div className="grid grid-cols-2 gap-2">
             {FORMATOS.map(o => (
@@ -249,8 +304,42 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
             placeholder="Conte para o Studio o que você precisa. Não precisa escrever prompt."
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-[#8B2214]" />
           <p className="mt-1.5 text-[11px] text-gray-400">
-            Escreva do seu jeito. O Studio cuida da direção criativa.
+            Opcional. Com o tipo escolhido, o Studio já sabe o que fazer.
           </p>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">Estilo da peça</label>
+          <div className="flex flex-wrap gap-1.5">
+            {ESTILOS.map(e => (
+              <button key={e.id} type="button" onClick={() => setEstilo(e.id)}
+                className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${estilo === e.id ? 'border-[#8B2214] bg-[#8B2214] text-white' : 'border-gray-200 text-gray-600 hover:border-gray-400'}`}>
+                {e.rotulo}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">Texto na arte</label>
+          <div className="flex flex-wrap gap-1.5">
+            {MODOS_TEXTO.map(m => (
+              <button key={m.id} type="button" onClick={() => setModoTexto(m.id)}
+                className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${modoTexto === m.id ? 'border-[#8B2214] bg-[#8B2214] text-white' : 'border-gray-200 text-gray-600 hover:border-gray-400'}`}>
+                {m.rotulo}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+            Assinatura <span className="font-normal normal-case tracking-normal text-gray-400">(opcional)</span>
+          </label>
+          <input type="text" value={handle} onChange={e => setHandle(e.target.value)}
+            placeholder="@suamarca"
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:ring-[#8B2214]" />
+          <p className="mt-1 text-[11px] text-gray-400">Aparece discreto num canto da peça, sem tradução.</p>
         </div>
 
         <div>
@@ -290,6 +379,17 @@ export default function ImageStudio({ companyId }: { companyId: string | null })
                     <button type="button" onClick={() => removerAtivo(a.id)}
                       className="absolute right-1 top-1 rounded-full bg-black/60 p-0.5 text-white hover:bg-black/80" aria-label={`Remover ${a.nome}`}>
                       <X className="h-2.5 w-2.5" />
+                    </button>
+                    {/* Oficial se preserva; inspiração se interpreta e se
+                        abandona. Sem esta escolha, as duas iam pelo mesmo
+                        caminho — e o modelo copiaria a referência. */}
+                    <button type="button"
+                      onClick={() => setAtivos(prev => prev.map(x => x.id === a.id
+                        ? { ...x, papel: x.papel === 'oficial' ? 'inspiracao' : 'oficial' } : x))}
+                      className={`absolute inset-x-0 bottom-0 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
+                        a.papel === 'oficial' ? 'bg-[#8B2214] text-white' : 'bg-blue-700 text-white'
+                      }`}>
+                      {a.papel === 'oficial' ? 'oficial' : 'inspiração'}
                     </button>
                   </div>
                 ))}

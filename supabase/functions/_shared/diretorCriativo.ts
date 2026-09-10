@@ -13,7 +13,59 @@
 // GARANTIDA POR SOFTWARE, ELA NÃO VAI PARA O PROMPT.
 
 export const MODELO_DIRETOR = "claude-sonnet-5";
-export const DIRETOR_VERSION = "diretor-v2-post";
+export const DIRETOR_VERSION = "diretor-v4-ptbr";
+
+// ---------------------------------------------------------------------
+// IDIOMA DE SAÍDA — regra do produto, não preferência
+// ---------------------------------------------------------------------
+// Referência pode vir de qualquer país. A peça sai em português do Brasil.
+// Isto não vive só numa frase do prompt: é constante, entra em três pontos
+// da instrução, é gravada no briefing e tem verificação determinística
+// depois (`pareceEstrangeiro`), porque instrução ao modelo é pedido e
+// código é garantia.
+export const LOCALE_SAIDA = "pt-BR";
+
+export const REGRA_DE_IDIOMA = `IDIOMA — REGRA ABSOLUTA DO PRODUTO
+Toda copy NOVA e visível sai em PORTUGUÊS DO BRASIL: headline, apoio, chamada, oferta, comunicado, legenda e qualquer texto que apareça na arte.
+
+A referência pode estar em inglês, espanhol ou qualquer idioma. Isso NÃO define o idioma da peça. Da referência você extrai conceito, hierarquia e composição — nunca o texto.
+
+NÃO traduza ao pé da letra: entenda a intenção e escreva algo natural em português brasileiro. "BREWING HAPPINESS" não vira "PREPARANDO FELICIDADE"; vira uma frase que um brasileiro diria.
+
+NUNCA deixe headline estrangeira escapar para a peça.
+
+PERMANECEM COMO ESTÃO, sem tradução: nome da marca, nome registrado do produto, @ do Instagram, URL, domínio, códigos, nomes próprios, e QUALQUER TEXTO IMPRESSO NA EMBALAGEM OFICIAL — se a embalagem tem palavra em inglês, ela continua em inglês; o que se cria ao redor dela é que sai em português.`;
+
+/**
+ * Verificação determinística de idioma na copy gerada.
+ *
+ * Existe porque a regra não pode depender só de o modelo obedecer. Não
+ * bloqueia — heurística erra, e derrubar uma geração paga por falso positivo
+ * seria pior que o problema. Marca para quem aprova conferir.
+ *
+ * A lista só tem palavras que NÃO existem em português, para não acusar
+ * "café", "para" ou "com", que são comuns aos três idiomas.
+ */
+const PALAVRAS_ESTRANGEIRAS = [
+  // inglês
+  "the", "your", "with", "and", "coffee", "brewing", "happiness", "morning",
+  "taste", "every", "best", "start", "day", "good", "fresh", "love", "life",
+  "enjoy", "moment", "perfect", "blend", "roast", "shop", "now", "you",
+  // espanhol
+  "buenos", "dias", "días", "mejor", "cada", "más", "nuestro", "nuestra",
+  "sabor", "disfruta", "tu", "el", "los", "las", "con",
+];
+
+export function pareceEstrangeiro(texto: unknown): boolean {
+  if (typeof texto !== "string" || texto.trim().length < 3) return false;
+  const palavras = texto.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .split(/[^a-z]+/).filter(p => p.length > 1);
+  if (!palavras.length) return false;
+  const suspeitas = palavras.filter(p =>
+    PALAVRAS_ESTRANGEIRAS.some(e => e.normalize("NFD").replace(/[̀-ͯ]/g, "") === p));
+  // Duas ou mais: uma isolada pode ser nome próprio ou marca.
+  return suspeitas.length >= 2;
+}
 
 // ---------------------------------------------------------------------
 // Modo de saída — a decisão que faltava
@@ -24,6 +76,65 @@ export const MODOS = {
   hybrid:      "Fotografia forte COM linguagem de post: foto real como base, headline integrada à composição e área de respiro planejada.",
 } as const;
 export type ModoSaida = keyof typeof MODOS;
+
+
+// ---------------------------------------------------------------------
+// Estilo da peça — o que o cliente escolhe em vez de descrever
+// ---------------------------------------------------------------------
+// Cada estilo empurra o modo de saída e o acabamento. É a tradução de
+// "mais premium" — que qualquer dono de torrefação sabe dizer — para
+// decisões que ele não teria como descrever.
+export const ESTILOS = {
+  fotografico: {
+    rotulo: "Mais fotográfico",
+    modo: "photo_first" as ModoSaida,
+    direcao: "Realismo acima de tudo. Luz natural, profundidade real, imperfeição bem-vinda. Layout discreto ou ausente.",
+  },
+  post_pronto: {
+    rotulo: "Mais post pronto",
+    modo: "post_first" as ModoSaida,
+    direcao: "Estrutura de social media evidente: blocos, hierarquia clara, headline com peso, respiro planejado.",
+  },
+  comercial: {
+    rotulo: "Mais comercial",
+    modo: "post_first" as ModoSaida,
+    direcao: "Leitura rápida e apelo direto. Cores vivas, contraste alto, mensagem que se entende passando o dedo.",
+  },
+  premium: {
+    rotulo: "Mais premium",
+    modo: "hybrid" as ModoSaida,
+    direcao: "Fundo escuro ou texturizado, luz direcional e controlada, muito espaço negativo, tipografia sóbria. Menos elementos, mais silêncio.",
+  },
+  moderno: {
+    rotulo: "Mais moderno",
+    modo: "hybrid" as ModoSaida,
+    direcao: "Linguagem contemporânea de feed: geometria limpa, cor da marca em bloco, composição assimétrica com intenção.",
+  },
+} as const;
+export type EstiloId = keyof typeof ESTILOS;
+
+// ---------------------------------------------------------------------
+// Texto na arte — decisão do cliente, executada pelo Diretor
+// ---------------------------------------------------------------------
+export const MODOS_DE_TEXTO = {
+  automatico: "O Diretor decide se a peça pede texto. Saudação e comunicado quase sempre pedem; lifestyle quase nunca.",
+  com_frase: "A peça DEVE ter uma frase curta na arte. Escreva você a headline, no tom da marca.",
+  sem_texto: "A peça NÃO leva texto na arte. Reserve área de respiro para o texto ser aplicado depois por quem publica.",
+} as const;
+export type ModoTextoId = keyof typeof MODOS_DE_TEXTO;
+
+// ---------------------------------------------------------------------
+// Papel de cada imagem anexada — a distinção que faltava
+// ---------------------------------------------------------------------
+// Embalagem oficial e imagem de inspiração recebem instruções OPOSTAS. Uma
+// deve ser preservada; a outra deve ser lida e abandonada. Mandar as duas
+// pelo mesmo caminho era pedir para o modelo copiar a referência — que é
+// exatamente o que a disciplina do Studio proíbe.
+export type PapelDoAtivo = "oficial" | "inspiracao";
+
+export const PAPEL_OFICIAL = `ATIVO OFICIAL — é o produto real da marca. Mantenha embalagem, cores, textos e logotipo fiéis à referência. NÃO redesenhe o rótulo, NÃO reescreva palavras, NÃO altere o peso, NÃO crie variação "parecida". Cenário, luz e composição são livres.`;
+
+export const PAPEL_INSPIRACAO = `REFERÊNCIA DE INSPIRAÇÃO — NÃO é da marca e NÃO deve ser copiada. Extraia dela o PRINCÍPIO: o mecanismo de composição, a relação entre produto e espaço, a sensação de luz, a lógica de hierarquia. Depois ABANDONE a execução. É proibido reproduzir o layout exato, a paleta específica, a tipografia, os objetos, o cenário ou qualquer elemento reconhecível da peça de origem. Se a adaptação puder ser confundida com a referência, ela está errada.`;
 
 // ---------------------------------------------------------------------
 // Famílias de layout — o repertório que o sistema não tinha
@@ -84,12 +195,20 @@ NUNCA desenhe logotipo, marca ou rótulo identificável que não venha de um ati
 
 // Texto na arte deixou de ser proibido — mas ganhou disciplina própria, porque
 // gerador de imagem erra letra, e erra mais em português.
-const REGRAS_DE_TEXTO = `TEXTO NA ARTE, quando houver:
-- No MÁXIMO 5 palavras na headline. Frase longa vira letra torta.
+const REGRAS_DE_TEXTO = `TEXTO NA ARTE — pouco texto, bem hierarquizado. Uma peça pode ter até três níveis:
+
+1. HEADLINE — a frase que carrega a mensagem. Curta, idealmente até ~5 palavras. É o que se lê primeiro.
+2. APOIO (opcional) — uma linha que completa a ideia, um pouco mais longa que a headline. Só quando acrescenta.
+3. ASSINATURA (opcional) — o @ do Instagram ou o nome da marca, discreto, num canto.
+
+Isso NÃO é limite de cinco palavras para a peça inteira: é hierarquia. Uma peça com headline curta, uma linha de apoio e a assinatura está certa. Uma peça com um parágrafo está errada.
+
+DISCIPLINA DE TEXTO:
 - Português do Brasil, palavras comuns, sem trocadilho e sem palavra rara.
 - Nada de preço, porcentagem, data, telefone ou endereço na imagem — isso vai na legenda, escrito por quem publica.
-- A headline entra na composição com respiro; não é legenda colada em cima da foto.
-- Se a peça pede muitas informações, ela não pede texto na arte: pede espaço vazio para o texto ser aplicado depois.`;
+- O texto entra COMPONDO, com respiro; não é legenda colada em cima da foto.
+- Se a peça pede muita informação, ela não pede texto na arte: pede espaço vazio para o texto ser aplicado depois.
+- Gerador de imagem erra letra, e erra mais em português: quanto mais curta a frase, menor o risco. Prefira o essencial.`
 
 const REGRAS_CANAL: Record<string, string> = {
   feed: `Instagram Feed, 4:5 vertical. Precisa funcionar em miniatura: se a mensagem some no tamanho de polegar, a composição está errada.`,
@@ -104,6 +223,7 @@ const REGRAS_CONDICIONAIS = {
 
 /** O briefing que o Diretor devolve. Estruturado para ser auditado e comparado. */
 export const ESQUEMA_BRIEFING = `{
+  "output_language": "pt-BR",
   "content_intent": "",
   "creative_output_mode": "photo_first | post_first | hybrid",
   "post_goal": "",
@@ -133,10 +253,21 @@ export interface ContextoDoBriefing {
   qtdAtivos?: number;
   /** Assinaturas das últimas peças, para o Diretor não repetir a estrutura. */
   fingerprintsRecentes?: string[];
+  /** Escolhas guiadas: o cliente aponta, não descreve. */
+  estilo?: EstiloId;
+  modoTexto?: ModoTextoId;
+  /** Papel de cada anexo, na ordem enviada. */
+  papeis?: PapelDoAtivo[];
+  /** @ da marca, para virar assinatura discreta na peça. */
+  handle?: string | null;
 }
 
 export function systemDoDiretor(ctx: ContextoDoBriefing): string {
   const tipo = TIPOS[ctx.tipo] ?? TIPOS.livre;
+  const estilo = ctx.estilo ? ESTILOS[ctx.estilo] : null;
+  // O estilo escolhido pelo cliente MANDA no modo de saída: ele apontou
+  // "mais premium" justamente para não precisar explicar o que isso significa.
+  const modoAlvo = estilo?.modo ?? tipo.modo;
 
   const condicionais = [
     ctx.temAtivoOficial ? REGRAS_CONDICIONAIS.ativoOficial : REGRAS_CONDICIONAIS.semAtivo,
@@ -149,6 +280,32 @@ export function systemDoDiretor(ctx: ContextoDoBriefing): string {
 
   const antiRepeticao = ctx.fingerprintsRecentes?.length
     ? `\n\nAS ÚLTIMAS PEÇAS DESTA MARCA USARAM:\n${ctx.fingerprintsRecentes.map(f => `- ${f}`).join("\n")}\nEscolha estrutura DIFERENTE. Variar o cenário não basta: mude a família de layout, a zona de texto ou o papel do produto.`
+    : "";
+
+  // Papel de cada anexo. Oficial e inspiração recebem instruções OPOSTAS:
+  // uma se preserva, a outra se lê e se abandona.
+  const papeis = ctx.papeis ?? [];
+  const temOficial = papeis.includes("oficial") || (!papeis.length && ctx.temAtivoOficial);
+  const temInspiracao = papeis.includes("inspiracao");
+  const papeisTexto = [
+    temOficial ? `
+
+IMAGEM 1 — ${PAPEL_OFICIAL}` : "",
+    temInspiracao ? `
+
+IMAGEM DE REFERÊNCIA — ${PAPEL_INSPIRACAO}` : "",
+  ].filter(Boolean).join("");
+
+  const assinatura = ctx.handle
+    ? `
+
+ASSINATURA: a peça pode trazer "${ctx.handle}" de forma discreta, num canto respirado. Escreva exatamente assim, sem traduzir e sem alterar.`
+    : "";
+
+  const textoPedido = ctx.modoTexto && ctx.modoTexto !== "automatico"
+    ? `
+
+DECISÃO DE TEXTO (o cliente escolheu): ${MODOS_DE_TEXTO[ctx.modoTexto]}`
     : "";
 
   const multiRef = (ctx.qtdAtivos ?? 0) > 1
@@ -165,7 +322,9 @@ DECIDA PRIMEIRO O MODO DE SAÍDA:
 - post_first — ${MODOS.post_first}
 - hybrid — ${MODOS.hybrid}
 
-Para este tipo de conteúdo o padrão é **${tipo.modo}**. Você pode mudar se o pedido justificar, e deve dizer por quê em "post_goal".
+Para esta peça o modo é **${modoAlvo}**${estilo ? ` — o cliente escolheu "${estilo.rotulo}"` : ` (padrão deste tipo de conteúdo)`}. Só mude se o pedido tornar isso claramente errado, e diga por quê em "post_goal".${estilo ? `
+
+ACABAMENTO PEDIDO: ${estilo.direcao}` : ""}
 
 FAMÍLIAS DE LAYOUT disponíveis (escolha UMA e nomeie em "layout_family"):
 ${Object.entries(LAYOUTS).map(([k, v]) => `- ${k}: ${v}`).join("\n")}
@@ -179,6 +338,8 @@ MARCA: ${ctx.marca}
 IDENTIDADE (obedeça; não invente nada fora disto):
 ${dnaTexto}
 
+${REGRA_DE_IDIOMA}
+
 REGRAS INEGOCIÁVEIS:
 ${REGRAS_DURAS}
 
@@ -187,7 +348,7 @@ ${REGRAS_DE_TEXTO}
 CANAL:
 ${REGRAS_CANAL[ctx.canal] ?? REGRAS_CANAL.feed}
 
-${condicionais}${multiRef}${antiRepeticao}
+${condicionais}${papeisTexto}${multiRef}${assinatura}${textoPedido}${antiRepeticao}
 
 COMO TRABALHAR:
 1. Entenda a intenção por trás do pedido, não só as palavras. Quem escreve "bom dia" quer algo publicável, não um ensaio fotográfico.
@@ -200,7 +361,9 @@ COMO TRABALHAR:
 Responda SOMENTE um JSON com ESTA estrutura, sem markdown e sem texto em volta:
 ${ESQUEMA_BRIEFING}
 
-Se "on_art_text" for true, "final_prompt" DEVE especificar o texto exato a aparecer e onde, entre aspas.
+"output_language" é sempre "pt-BR".
+
+Se "on_art_text" for true, "final_prompt" DEVE especificar o texto exato a aparecer e onde, entre aspas, E DEVE conter a frase literal: ALL VISIBLE TEXT MUST BE IN BRAZILIAN PORTUGUESE, EXACTLY AS QUOTED.
 Se for false, "final_prompt" DEVE reservar a área de respiro onde o texto entraria depois.`;
 }
 
