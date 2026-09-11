@@ -1,47 +1,78 @@
 import { useState } from 'react';
-import { CoffeeBag, IconeSelo, IconeCoracao } from './svg';
-import { brl, pct, parcelas, estoqueVendido, type Produto } from './mockData';
+import { CoffeeBag, IconeSelo, IconeCoracao, ICONES_CATEGORIA } from './svg';
+import { navegar } from './config';
+import type { ItemDaVitrine } from './catalogo';
+import { pacoteDoProduto, seloDoProduto, partesDoPreco, reais, porcentagemOff, parcelas, ehCafe } from './visual';
 
-export default function ProductCard({ p, indice, comEstoque, aoAdicionar }: {
-  p: Produto;
-  /** Índice do produto na lista original — decide a barra de estoque. */
-  indice: number;
+/**
+ * Ilustração do item. Café vira pacote na cor da loja; equipamento vira o
+ * ícone grande da categoria — desenhar um moedor como pacote de café
+ * seria mentir na vitrine.
+ */
+function Ilustracao({ item }: { item: ItemDaVitrine }) {
+  if (ehCafe(item)) {
+    const p = pacoteDoProduto(item);
+    return <CoffeeBag cor={p.cor} fita={p.fita} rotulo={p.rotulo} tipo={p.tipo} />;
+  }
+  return (
+    <svg viewBox="0 0 120 150" aria-hidden="true">
+      <rect x="10" y="20" width="100" height="110" rx="10" fill="var(--etiqueta)" />
+      <g transform="translate(36 46) scale(2)" fill="none" stroke={item.loja_cor || '#3A2318'} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+        {ICONES_CATEGORIA[item.categoria_icone ?? 'maquina'] ?? ICONES_CATEGORIA.maquina}
+      </g>
+    </svg>
+  );
+}
+
+export default function ProductCard({ item, comEstoque, aoAdicionar }: {
+  item: ItemDaVitrine;
+  /** Barra de estoque só nas Ofertas do dia, e só com preço anterior. */
   comEstoque?: boolean;
-  aoAdicionar: (p: Produto) => void;
+  aoAdicionar: (item: ItemDaVitrine) => void;
 }) {
   const [favorito, setFavorito] = useState(false);
   const [adicionado, setAdicionado] = useState(false);
-  const [reais, centavos] = brl(p.por).split(',');
-  const parc = parcelas(p.por);
-  const vendido = estoqueVendido(indice);
+  const [reaisParte, centavosParte] = partesDoPreco(item.preco_cents);
+  const off = porcentagemOff(item.preco_de_cents, item.preco_cents);
+  const parc = parcelas(item.preco_cents);
+  const selo = seloDoProduto(item);
+  // Derivado do id, não sorteado: o mockup precisa ser estável entre
+  // recargas, senão o investidor vê o número mudar sozinho.
+  const vendido = 45 + (item.slug.length * 7) % 50;
+  const freteGratis = (item.preco_cents ?? 0) >= 9900;
+
+  function abrir(e: React.MouseEvent) {
+    // Cliques nos controles do cartão não navegam.
+    if ((e.target as HTMLElement).closest('button')) return;
+    navegar(`cafe/${item.slug}`);
+  }
 
   function adicionar() {
-    aoAdicionar(p);
+    aoAdicionar(item);
     setAdicionado(true);
-    // 1400 ms de "✓ Adicionado", como no HTML oficial.
     setTimeout(() => setAdicionado(false), 1400);
   }
 
   return (
-    <article className="prod">
+    <article className="prod" onClick={abrir} style={{ cursor: 'pointer' }}>
       <button className={`fav${favorito ? ' on' : ''}`} aria-label="Favoritar" onClick={() => setFavorito(v => !v)}>
         <IconeCoracao />
       </button>
-      <div className="img"><CoffeeBag cor={p.cor} fita={p.fita} rotulo={p.rot} tipo={p.tipo} /></div>
-      {p.selo ? <span className={`selo ${p.selo[0]}`}>{p.selo[1]}</span> : null}
-      <h3>{p.t}</h3>
-      <p className="loja">por {p.loja} <IconeSelo /></p>
-      <p className="de">{p.de ? 'R$ ' + brl(p.de) : ''}</p>
+      <div className="img"><Ilustracao item={item} /></div>
+      {selo ? <span className={`selo ${selo[0]}`}>{selo[1]}</span> : null}
+      <h3>{item.titulo}</h3>
+      <p className="loja">por {item.loja_nome} <IconeSelo /></p>
+      <p className="de">{item.preco_de_cents ? 'R$ ' + reais(item.preco_de_cents) : ''}</p>
       <div className="preco">
-        <span className="rs">R$</span>{reais}<sup>{centavos}</sup>
-        {p.de ? <span className="off">{pct(p.de, p.por)}% OFF</span> : null}
+        <span className="rs">R$</span>{reaisParte}<sup>{centavosParte}</sup>
+        {off ? <span className="off">{off}% OFF</span> : null}
       </div>
       {parc ? <p className="parc">{parc}</p> : null}
-      <p className={`frete ${p.full ? 'full' : ''}`}>{p.por >= 99 || p.full ? 'Frete grátis' : 'Chegará amanhã'}</p>
-      <p className="nota"><b>★ {p.nota.toFixed(1)}</b> ({p.av.toLocaleString('pt-BR')})</p>
-      {p.pts ? <span className="pont">Pontuação SCA {p.pts}</span> : null}
-      {/* A barra de estoque só aparece nas Ofertas do dia, e só com preço "de". */}
-      {comEstoque && p.de ? (
+      <p className={`frete ${freteGratis ? 'full' : ''}`}>{freteGratis ? 'Frete grátis' : 'Calcular frete'}</p>
+      {/* O selo da pontuacao existia no HTML aprovado e e o que separa um
+          especial num scroll rapido. Some quando nao ha nota. */}
+      {item.pontuacao ? <span className="pont">Pontuação SCA {item.pontuacao}</span> : null}
+      {comEstoque && item.preco_de_cents ? (
         <div className="estoque">
           <div className="barra"><i style={{ width: `${vendido}%` }} /></div>
           <small>{vendido}% vendido · restam {Math.max(3, Math.round((100 - vendido) / 3))} un.</small>

@@ -1,0 +1,173 @@
+/* Coffee LiVRE — estilos das páginas internas.
+ *
+ * ARQUIVO SEPARADO DE PROPÓSITO. `coffeelivre.css` é GERADO por
+ * scripts/escopar-css-coffeelivre.mjs a partir do HTML oficial: o que for
+ * escrito lá se perde na próxima geração. Tudo que não existe no HTML de
+ * referência — categoria, busca, produto, loja, menu do celular — vive
+ * aqui e sobrevive.
+ *
+ * Mesmo escopo, mesmas variáveis, mesma linguagem visual do original.
+ */
+
+/* ---------- menu do celular ---------- */
+.livre-root .menu-botao { display: none; color: var(--txt-lar-2); }
+.livre-root .menu-botao svg { width: 24px; height: 24px; }
+.livre-root .menu-gaveta { background: var(--marrom-esc); padding: 12px 0 16px; }
+.livre-root .menu-gaveta .wrap { display: grid; gap: 2px; }
+.livre-root .menu-gaveta a { color: #fff; opacity: .92; padding: 9px 4px; font-size: 14px; border-radius: 6px; }
+.livre-root .menu-gaveta a:active { background: var(--laranja); }
+.livre-root .menu-titulo {
+  color: var(--laranja-claro); font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .8px; margin: 10px 4px 2px;
+}
+
+/* ---------- cabeçalho de página interna ---------- */
+.livre-root .pag { margin-top: 20px; }
+.livre-root .pag-topo { margin-bottom: 14px; }
+.livre-root .migalha { font-size: 12.5px; color: var(--cinza); margin-bottom: 6px; }
+.livre-root .migalha a:hover { color: var(--laranja); }
+.livre-root .pag-topo h1 { font-size: 26px; font-weight: 600; letter-spacing: -.3px; }
+.livre-root .pag-topo p { font-size: 13.5px; color: var(--cinza); margin-top: 4px; }
+
+/* ---------- listagem com filtros ---------- */
+.livre-root .listagem { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 18px; align-items: start; }
+.livre-root .filtros {
+  background: var(--card); border-radius: var(--raio); box-shadow: var(--sombra);
+  padding: 16px; position: sticky; top: 96px;
+}
+.livre-root .filtro-grupo { margin-bottom: 14px; }
+.livre-root .filtro-grupo:last-child { margin-bottom: 0; }
+.livre-root .filtro-grupo h4 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--cinza); margin-bottom: 7px; }
+.livre-root .filtro-opcoes { display: flex; flex-wrap: wrap; gap: 6px; }
+.livre-root .filtro-opcoes button {
+  border: 1px solid var(--linha); border-radius: 20px; padding: 4px 10px;
+  font-size: 12px; color: var(--texto); transition: .15s;
+}
+.livre-root .filtro-opcoes button:hover { border-color: var(--laranja); color: var(--laranja); }
+.livre-root .filtro-opcoes button.on { background: var(--laranja); border-color: var(--laranja); color: #fff; }
+.livre-root .limpar-filtros { font-size: 12.5px; color: var(--laranja); font-weight: 600; margin-top: 4px; }
+
+.livre-root .barra-resultado { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.livre-root .barra-resultado .conta { font-size: 13px; color: var(--cinza); margin-left: 0; }
+.livre-root .barra-resultado select {
+  margin-left: auto; border: 1px solid var(--linha); border-radius: 6px;
+  padding: 7px 10px; font-size: 13px; background: var(--card); color: var(--texto);
+}
+
+/* A grade reaproveita o cartão do carrossel, sem o corte lateral dele. */
+.livre-root .grade { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--card); border-radius: var(--raio); box-shadow: var(--sombra); }
+.livre-root .grade .prod { flex: none; min-width: 0; border-bottom: 1px solid var(--linha); }
+.livre-root .grade .prod:nth-child(4n) { border-right: 0; }
+.livre-root .vazio { background: var(--card); border-radius: var(--raio); box-shadow: var(--sombra); padding: 40px 20px; text-align: center; color: var(--cinza); font-size: 14px; }
+
+/* ---------- página do produto ---------- */
+.livre-root .produto { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+.livre-root .produto-arte { background: var(--card); border-radius: var(--raio); box-shadow: var(--sombra); display: grid; place-items: center; padding: 30px; min-height: 380px; }
+.livre-root .produto-arte svg { height: 320px; width: auto; }
+.livre-root .produto-compra { background: var(--card); border-radius: var(--raio); box-shadow: var(--sombra); padding: 20px; position: sticky; top: 96px; }
+.livre-root .produto-compra h1 { font-size: 19px; font-weight: 400; line-height: 1.3; }
+.livre-root .produto-compra .preco { margin-top: 12px; font-size: 32px; }
+.livre-root .produto-compra .comprar {
+  display: block; width: 100%; margin-top: 14px; background: var(--laranja); color: #fff;
+  font-weight: 700; padding: 12px; border-radius: 6px; text-align: center;
+}
+.livre-root .produto-compra .comprar:hover { background: var(--laranja-hdr); }
+.livre-root .produto-compra .ao-carrinho {
+  display: block; width: 100%; margin-top: 8px; background: var(--marrom); color: #fff;
+  font-weight: 600; padding: 11px; border-radius: 6px;
+}
+.livre-root .produto-compra .ao-carrinho:hover { background: var(--marrom-esc); }
+.livre-root .vendido-por { display: flex; align-items: center; gap: 10px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--linha); }
+.livre-root .vendido-por .av { width: 42px; height: 42px; border-radius: 10px; display: grid; place-items: center; font-weight: 800; color: #fff; flex-shrink: 0; }
+.livre-root .vendido-por small { display: block; font-size: 11.5px; color: var(--cinza); }
+.livre-root .vendido-por b { font-size: 14px; }
+.livre-root .vendido-por a { font-size: 12.5px; color: var(--laranja); font-weight: 600; }
+
+/* ---------- Coffee Passport ---------- */
+.livre-root .passport { background: var(--card); border-radius: var(--raio); box-shadow: var(--sombra); padding: 20px; margin-top: 18px; }
+.livre-root .passport-topo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.livre-root .passport-topo h2 { font-size: 17px; font-weight: 600; }
+.livre-root .passport-topo svg { width: 20px; height: 20px; color: var(--laranja); }
+.livre-root .nivel { font-size: 11px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; padding: 4px 9px; border-radius: 4px; }
+.livre-root .nivel.especial { background: var(--laranja); color: #fff; }
+.livre-root .nivel.origem_identificada { background: var(--etiqueta); color: var(--marrom-esc); }
+.livre-root .nivel.comercial { background: var(--linha); color: var(--texto); }
+.livre-root .passport-campos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--linha); border-radius: 8px; overflow: hidden; }
+.livre-root .passport-campo { background: var(--card); padding: 11px 13px; }
+.livre-root .passport-campo small { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--cinza); }
+.livre-root .passport-campo b { font-size: 14px; font-weight: 600; }
+.livre-root .passport-nota { font-size: 12px; color: var(--cinza); margin-top: 12px; line-height: 1.5; }
+
+/* ---------- compartilhar / QR ---------- */
+.livre-root .compartilhar { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--linha); }
+.livre-root .compartilhar b { display: block; font-size: 13.5px; margin-bottom: 6px; }
+.livre-root .compartilhar .url { display: flex; gap: 8px; flex-wrap: wrap; }
+.livre-root .compartilhar input {
+  flex: 1; min-width: 200px; border: 1px solid var(--linha); border-radius: 6px;
+  padding: 8px 10px; font-size: 12.5px; color: var(--cinza); background: var(--bg);
+}
+.livre-root .compartilhar button { background: var(--marrom); color: #fff; font-weight: 600; padding: 8px 14px; border-radius: 6px; font-size: 13px; }
+.livre-root .compartilhar button:hover { background: var(--marrom-esc); }
+.livre-root .compartilhar small { display: block; font-size: 11.5px; color: var(--cinza); margin-top: 6px; line-height: 1.5; }
+
+/* ---------- página da loja ---------- */
+.livre-root .loja-capa { height: 170px; border-radius: var(--raio) var(--raio) 0 0; }
+.livre-root .loja-cabeca { background: var(--card); border-radius: 0 0 var(--raio) var(--raio); box-shadow: var(--sombra); padding: 0 22px 20px; }
+.livre-root .loja-cabeca .av { width: 84px; height: 84px; border-radius: 16px; background: #fff; margin-top: -42px; box-shadow: 0 2px 8px rgba(0,0,0,.18); display: grid; place-items: center; font-weight: 800; font-size: 26px; }
+.livre-root .loja-cabeca h1 { font-size: 24px; font-weight: 600; margin-top: 10px; }
+.livre-root .loja-cabeca .onde { font-size: 13px; color: var(--cinza); margin-top: 2px; }
+.livre-root .loja-cabeca .historia { font-size: 14px; line-height: 1.55; margin-top: 12px; max-width: 70ch; }
+.livre-root .loja-selos { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.livre-root .loja-selos span { font-size: 12px; background: var(--etiqueta); color: var(--marrom-esc); padding: 4px 10px; border-radius: 20px; }
+
+/* ---------- aviso de demonstração ---------- */
+/* Dado de demonstração precisa se anunciar. Numa conversa com investidor,
+   número que parece real e não é vale menos que número declarado. */
+.livre-root .selo-demo {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700;
+  letter-spacing: .4px; text-transform: uppercase; background: var(--marrom); color: #fff;
+  padding: 3px 8px; border-radius: 4px;
+}
+.livre-root .faixa-demo {
+  background: var(--etiqueta); color: var(--marrom-esc); font-size: 12.5px;
+  padding: 8px 0; text-align: center; line-height: 1.4;
+}
+
+/* ---------- 404 ---------- */
+.livre-root .nao-achou { background: var(--card); border-radius: var(--raio); box-shadow: var(--sombra); padding: 50px 24px; text-align: center; margin-top: 24px; }
+.livre-root .nao-achou h1 { font-size: 22px; font-weight: 600; }
+.livre-root .nao-achou p { font-size: 14px; color: var(--cinza); margin-top: 8px; }
+.livre-root .nao-achou a { display: inline-block; margin-top: 16px; background: var(--marrom); color: #fff; font-weight: 700; padding: 10px 20px; border-radius: 6px; }
+
+/* ---------- responsivo ---------- */
+@media (max-width: 1100px) {
+  .livre-root .grade { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .livre-root .grade .prod:nth-child(4n) { border-right: 1px solid var(--linha); }
+  .livre-root .grade .prod:nth-child(3n) { border-right: 0; }
+}
+@media (max-width: 860px) {
+  /* O menu horizontal some neste ponto no CSS original — é aqui que o
+     botão da gaveta precisa aparecer, senão o celular fica sem navegação. */
+  .livre-root .menu-botao { display: grid; place-items: center; }
+  .livre-root .listagem { grid-template-columns: 1fr; }
+  .livre-root .filtros { position: static; }
+  .livre-root .produto { grid-template-columns: 1fr; }
+  .livre-root .produto-compra { position: static; }
+  .livre-root .produto-arte { min-height: 300px; }
+  .livre-root .produto-arte svg { height: 240px; }
+  .livre-root .passport-campos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .livre-root .grade { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .livre-root .grade .prod:nth-child(3n) { border-right: 1px solid var(--linha); }
+  .livre-root .grade .prod:nth-child(2n) { border-right: 0; }
+}
+@media (max-width: 560px) {
+  .livre-root .pag-topo h1 { font-size: 21px; }
+  .livre-root .produto-arte svg { height: 200px; }
+  .livre-root .produto-compra .preco { font-size: 26px; }
+  .livre-root .passport-campos { grid-template-columns: 1fr; }
+  .livre-root .loja-capa { height: 120px; }
+  .livre-root .loja-cabeca { padding: 0 14px 16px; }
+  .livre-root .loja-cabeca .av { width: 64px; height: 64px; margin-top: -32px; font-size: 20px; }
+  .livre-root .loja-cabeca h1 { font-size: 20px; }
+  .livre-root .barra-resultado select { margin-left: 0; width: 100%; }
+}

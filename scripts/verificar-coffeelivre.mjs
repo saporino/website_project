@@ -8,10 +8,15 @@
 //
 // Uso: node scripts/verificar-coffeelivre.mjs
 //
-// Diferença que sobra não é necessariamente erro: o porte troca innerHTML por
-// map de componentes, então onde o HTML repete dez cards a mesma marcação
-// aparece uma vez só no JSX. O relatório serve para que toda diferença tenha
-// um motivo escrito, não para chegar a zero.
+// O QUE ELE VERIFICA DEPOIS DA UNIDADE 3: a FIDELIDADE VISUAL da home —
+// classes, CSS e textos fixos. O que ele NAO verifica mais: produto, loja
+// e categoria, que sairam do codigo e foram para o banco na unidade 3.
+// Continuar cobrando "Cafe Fazendinha" no JSX seria cobrar justamente o
+// que a auditoria mandou tirar.
+//
+// Diferenca que sobra nao e necessariamente erro: o porte troca innerHTML
+// por map de componentes. O relatorio serve para que toda diferenca tenha
+// um motivo escrito, nao para chegar a zero.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -23,7 +28,11 @@ const PASTA = path.join(RAIZ, 'src/pages/coffeelivre');
 const html = fs.readFileSync(ORIGEM, 'utf8');
 const arquivos = fs.readdirSync(PASTA).filter(f => f.endsWith('.tsx') || f.endsWith('.ts'));
 const jsx = arquivos.map(f => fs.readFileSync(path.join(PASTA, f), 'utf8')).join('\n');
-const css = fs.readFileSync(path.join(PASTA, 'coffeelivre.css'), 'utf8');
+// Dois arquivos: o gerado do HTML oficial e o das paginas internas, que
+// nao existem no HTML e por isso vivem fora do arquivo gerado.
+const cssGerado = fs.readFileSync(path.join(PASTA, 'coffeelivre.css'), 'utf8');
+const cssPaginas = fs.readFileSync(path.join(PASTA, 'coffeelivre-paginas.css'), 'utf8');
+const css = cssGerado + '\n' + cssPaginas;
 
 const corpo = html.slice(html.indexOf('<body>'), html.indexOf('<script>'));
 const script = html.slice(html.indexOf('<script>'), html.indexOf('</script>'));
@@ -77,17 +86,27 @@ for (const m of visivel.matchAll(/>([^<>{}]{3,})</g)) {
   const t = m[1].replace(/\s+/g, ' ').trim();
   if (t && !/^[\d.,%\s]+$/.test(t) && !t.startsWith('$')) textos.add(t);
 }
-for (const lista of [/const cats=\[(.*?)\];/s, /const regs=\[(.*?)\];/s, /const lojas=\[(.*?)\];/s]) {
-  const bloco = script.match(lista);
-  if (bloco) for (const m of bloco[1].matchAll(/'([^']{3,})'/g)) textos.add(m[1]);
+// As origens ainda vivem em mockData.ts; produtos, lojas e categorias
+// foram para o banco na unidade 3 e nao sao mais cobrados aqui.
+{
+  const bloco = script.match(/const regs=\[(.*?)\];/s);
+  if (bloco) for (const m of bloco[1].matchAll(/'([^']{3,})'/g)) {
+    if (!m[1].startsWith('#')) textos.add(m[1]);
+  }
 }
-for (const m of script.matchAll(/\{t:'([^']+)'/g)) textos.add(m[1]);
-for (const m of script.matchAll(/loja:'([^']+)'/g)) textos.add(m[1]);
 
 const dados = fs.readFileSync(path.join(PASTA, 'mockData.ts'), 'utf8');
 const tudo = jsx + dados;
 const normal = s => s.replace(/\s+/g, ' ').trim();
+// O menu "Categorias" do cabecalho era fixo no HTML e passou a vir do
+// banco na U3. Estes rotulos viraram linha de lv_categories.
+const MIGROU_PARA_O_BANCO = new Set([
+  'Cafe em graos', 'Café em grãos', 'Café moído', 'Cápsulas e drip bags',
+  'Cafés especiais (80+ pts)', 'Orgânicos e certificados', 'Café verde (cru)',
+  'Métodos de preparo', 'Máquinas e moedores', 'Para empresas (B2B)',
+]);
 const faltando = [...textos].filter(t => {
+  if (MIGROU_PARA_O_BANCO.has(t)) return false;
   const alvo = normal(t);
   if (tudo.includes(alvo)) return false;
   // Textos partidos por <br>, <em> ou interpolação chegam em pedaços.
@@ -105,23 +124,13 @@ const conta = (rotulo, esperado, obtido) => {
   else falha(`${rotulo}: esperado ${esperado}, obtido ${obtido}`);
 };
 conta('slides do hero', (corpo.match(/class="slide/g) || []).length, (jsx.match(/classe: 's\d'/g) || []).length);
-conta('itens do menu Categorias', (script.match(/dd-painel/g) || []).length ? 9 : 9, (dados.match(/^\s{2}'[^']+',$/gm) || []).filter(l => /Café|Cápsulas|Orgânicos|Métodos|Máquinas|Para empresas/.test(l)).length);
-{
-  const noHtml = (script.match(/class="ct[ "]/g) || []).length;
-  const destaque = (jsx.match(/className="ct destaque"/g) || []).length;
-  const soltos = (jsx.match(/className="ct"/g) || []).length;
-  const noMap = (jsx.match(/^\s+\['[^']+', p\d, /gm) || []).length;
-  conta('cards sobre o hero', noHtml, destaque + soltos - 1 + noMap);
-}
 conta('benefícios', (corpo.match(/class="bf"/g) || []).length, (jsx.match(/className="bf"/g) || []).length);
-conta('produtos', (script.match(/\{t:'/g) || []).length, (dados.match(/\{ t: '/g) || []).length);
 {
-  const bloco = script.match(/const cats=\[(.*?)\];/s);
-  conta('categorias', (bloco[1].match(/\['/g) || []).length, (dados.match(/^\s+\['(grao|moido|caps|esp|org|verde|metodo|maquina|drip|gelado)', /gm) || []).length);
+  const bloco = script.match(/const regs=\[(.*?)\];/s);
+  conta('origens', (bloco[1].match(/\['/g) || []).length, (dados.match(/^\s+\['[^']+', '[^']+', '[^']+', '#/gm) || []).length);
 }
-conta('origens', (script.match(/^\s+\['[^']+','[^']+','[^']+','#/gm) || []).length, (dados.match(/^\s+\['[^']+', '[^']+', '[^']+', '#/gm) || []).length);
-conta('lojas', (script.match(/^\s+\['[^']+','[^']+','[A-Z]{2}','#/gm) || []).length, (dados.match(/^\s+\['[^']+', '[^']+', '[A-Z]{2}', '#/gm) || []).length);
 conta('colunas do rodapé', (corpo.match(/<h4>/g) || []).length, (dados.match(/^\s+\['(Comprar|Vender|Ajuda|Institucional)'/gm) || []).length);
+console.log('  --  catalogo (produtos, lojas, categorias) saiu do codigo e foi para o banco na U3');
 
 // ---------------------------------------------------------------------
 // 4. SVGs
@@ -161,7 +170,7 @@ else ok('todo o CSS esta escopado em .livre-root');
 // Os valores do CSS precisam bater declaracao por declaracao com o original.
 const blocos = t => (t.match(/\{[^{}]*\}/g) || []).map(b => b.replace(/\s+/g, ''));
 const doOriginal = blocos(html.match(/<style>([\s\S]*?)<\/style>/)[1]);
-const doGerado = new Set(blocos(css));
+const doGerado = new Set(blocos(cssGerado));
 const perdidos = doOriginal.filter(b => !doGerado.has(b));
 if (perdidos.length) falha(`declaracoes do CSS original ausentes: ${perdidos.length}`);
 else ok(`todas as ${doOriginal.length} declaracoes do CSS original estao no arquivo escopado`);

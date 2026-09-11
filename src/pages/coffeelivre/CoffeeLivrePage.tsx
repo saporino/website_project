@@ -1,10 +1,15 @@
-// Coffee LiVRE — home oficial.
+// Coffee LiVRE — raiz da experiência pública.
 //
-// Porte fiel de docs/marketplace/coffee-livre-home-laranja.html: mesma árvore
-// de elementos, mesmas classes, mesmos textos. O CSS vive em coffeelivre.css,
-// escopado sob .livre-root para não vazar para o resto do site.
-import { useEffect, useRef, useState } from 'react';
+// Faz três coisas: o portão, o roteador interno e o carrinho de contagem.
+// Todo o resto mora nas páginas.
+//
+// O roteador é o mesmo padrão do projeto: lê o caminho e escuta popstate.
+// Nada aqui conhece "coficobrasil.com.br" — os caminhos saem do config, e
+// é por isso que a mudança para coffeelivre.com.br não exige reescrever
+// tela nenhuma.
+import { useCallback, useEffect, useRef, useState } from 'react';
 import './coffeelivre.css';
+import './coffeelivre-paginas.css';
 import AccessGate from './AccessGate';
 import MarketplaceHeader from './MarketplaceHeader';
 import HeroCarousel from './HeroCarousel';
@@ -20,70 +25,137 @@ import SellerCta from './SellerCta';
 import Newsletter from './Newsletter';
 import MarketplaceFooter from './MarketplaceFooter';
 import Toast from './Toast';
-import { produtos, maisIdx, type Produto } from './mockData';
+import PaginaProduto from './PaginaProduto';
+import PaginaCategoria from './PaginaCategoria';
+import PaginaBusca from './PaginaBusca';
+import PaginaLoja from './PaginaLoja';
+import NaoEncontrado from './NaoEncontrado';
+import { BASE, rota } from './config';
+import { listarVitrine, listarLojas, listarCategorias, type ItemDaVitrine, type Loja, type Categoria } from './catalogo';
 import type { MensagemToast } from './tipos';
 
-function Home() {
+type Rota =
+  | { nome: 'home' }
+  | { nome: 'categoria'; slug: string }
+  | { nome: 'produto'; slug: string }
+  | { nome: 'loja'; slug: string }
+  | { nome: 'busca'; termo: string }
+  | { nome: 'nada' };
+
+/** Caminho do navegador vira rota interna. Só isto sabe a forma das URLs. */
+function lerRota(): Rota {
+  const caminho = window.location.pathname.replace(BASE, '').replace(/^\/+|\/+$/g, '');
+  if (!caminho) return { nome: 'home' };
+  const [secao, resto] = [caminho.split('/')[0], caminho.split('/').slice(1).join('/')];
+  if (secao === 'busca') {
+    return { nome: 'busca', termo: new URLSearchParams(window.location.search).get('q') ?? '' };
+  }
+  if (!resto) return { nome: 'nada' };
+  if (secao === 'categoria') return { nome: 'categoria', slug: resto };
+  if (secao === 'cafe' || secao === 'produto') return { nome: 'produto', slug: resto };
+  if (secao === 'loja') return { nome: 'loja', slug: resto };
+  return { nome: 'nada' };
+}
+
+function Experiencia() {
+  const [rotaAtual, setRotaAtual] = useState<Rota>(lerRota);
   const [itens, setItens] = useState(0);
   const [pulsando, setPulsando] = useState(false);
   const [mensagem, setMensagem] = useState<MensagemToast | null>(null);
   const relogioToast = useRef<number | undefined>(undefined);
 
-  // scroll-behavior:smooth vive no <html>, então escopar em .livre-root não
-  // funcionaria. A classe entra ao montar e sai ao desmontar: nenhuma outra
-  // rota é afetada.
+  // Catálogo da home. Carregado uma vez e compartilhado pelas seções.
+  const [vitrine, setVitrine] = useState<ItemDaVitrine[]>([]);
+  const [lojas, setLojas] = useState<Loja[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+
+  useEffect(() => {
+    const aoVoltar = () => setRotaAtual(lerRota());
+    window.addEventListener('popstate', aoVoltar);
+    return () => window.removeEventListener('popstate', aoVoltar);
+  }, []);
+
+  // scroll-behavior:smooth vive no <html>, então escopar em .livre-root
+  // não funcionaria. A classe entra ao montar e sai ao desmontar.
   useEffect(() => {
     document.documentElement.classList.add('livre-scroll');
     return () => { document.documentElement.classList.remove('livre-scroll'); };
   }, []);
 
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      const [v, l, c] = await Promise.all([listarVitrine(), listarLojas(), listarCategorias()]);
+      if (!vivo) return;
+      setVitrine(v);
+      setLojas(l);
+      // Só as folhas viram atalho de categoria: "Cafés" e "Equipamentos"
+      // são agrupadores e apareceriam ao lado dos próprios filhos.
+      setCategorias(c.filter(x => x.parent_id));
+    })();
+    return () => { vivo = false; };
+  }, []);
 
-  function avisar(m: MensagemToast) {
+  const avisar = useCallback((m: MensagemToast) => {
     setMensagem(m);
     window.clearTimeout(relogioToast.current);
     relogioToast.current = window.setTimeout(() => setMensagem(null), 2600);
-  }
+  }, []);
 
-  function adicionar(p: Produto) {
+  const adicionar = useCallback((item: ItemDaVitrine) => {
     setItens(q => q + 1);
     setPulsando(true);
     setTimeout(() => setPulsando(false), 220);
-    // O toast mostra só a parte do nome antes do travessão, como no HTML.
-    avisar({ forte: p.t.split(' — ')[0], depois: ' foi adicionado ao carrinho' });
-  }
+    avisar({ forte: item.titulo.split(' — ')[0], depois: ' foi adicionado ao carrinho' });
+  }, [avisar]);
+
+  // Ofertas do dia: quem tem preço anterior. Mais vendidos: o resto.
+  const ofertas = vitrine.filter(i => i.preco_de_cents);
+  const maisVendidos = vitrine.filter(i => !i.preco_de_cents).concat(ofertas.slice(0, 4));
 
   return (
     <div className="livre-root">
-      <MarketplaceHeader itens={itens} pulsando={pulsando} aoAvisar={avisar} />
-      <HeroCarousel />
+      <MarketplaceHeader itens={itens} pulsando={pulsando} categorias={categorias} aoAvisar={avisar} />
 
-      <main className="wrap">
-        <HighlightCards />
-        <BenefitsBar />
-        <HarvestBanner />
+      {/* Dado de demonstração se anuncia. Número que parece real e não é
+          vale menos, numa conversa com investidor, que número declarado. */}
+      <div className="faixa-demo">
+        Demonstração privada · vendedores, produtos e preços são fictícios
+      </div>
 
-        <section className="secao" id="ofertas">
-          <div className="sec-h"><h2>Ofertas do dia</h2><a href="#">Mostrar todas as ofertas</a></div>
-          <ProductCarousel
-            idTrilho="trilhoOfertas"
-            indices={produtos.map((_, i) => i)}
-            comEstoque
-            aoAdicionar={adicionar}
-          />
-        </section>
+      {rotaAtual.nome === 'home' && (
+        <>
+          <HeroCarousel />
+          <main className="wrap">
+            <HighlightCards itens={vitrine} />
+            <BenefitsBar />
+            <HarvestBanner />
 
-        <PromoBanners />
-        <CategoryGrid />
+            <section className="secao" id="ofertas">
+              <div className="sec-h"><h2>Ofertas do dia</h2><a href={rota('categoria/cafes')}>Mostrar todas as ofertas</a></div>
+              <ProductCarousel idTrilho="trilhoOfertas" itens={ofertas} comEstoque aoAdicionar={adicionar} />
+            </section>
 
-        <section className="secao">
-          <div className="sec-h"><h2>Mais vendidos em Cafés Especiais</h2><a href="#">Ver mais</a></div>
-          <ProductCarousel idTrilho="trilhoMais" indices={maisIdx} aoAdicionar={adicionar} />
-        </section>
+            <PromoBanners />
+            <CategoryGrid categorias={categorias} />
 
-        <OriginGrid />
-        <StoreGrid />
-        <SellerCta />
-      </main>
+            <section className="secao">
+              <div className="sec-h"><h2>Mais vendidos em Cafés Especiais</h2><a href={rota('categoria/cafes-especiais')}>Ver mais</a></div>
+              <ProductCarousel idTrilho="trilhoMais" itens={maisVendidos} aoAdicionar={adicionar} />
+            </section>
+
+            <OriginGrid />
+            <StoreGrid lojas={lojas} itens={vitrine} />
+            <SellerCta />
+          </main>
+        </>
+      )}
+
+      {rotaAtual.nome === 'produto' && <PaginaProduto slug={rotaAtual.slug} aoAdicionar={adicionar} />}
+      {rotaAtual.nome === 'categoria' && <PaginaCategoria slug={rotaAtual.slug} aoAdicionar={adicionar} />}
+      {rotaAtual.nome === 'loja' && <PaginaLoja slug={rotaAtual.slug} aoAdicionar={adicionar} />}
+      {rotaAtual.nome === 'busca' && <PaginaBusca termo={rotaAtual.termo} aoAdicionar={adicionar} />}
+      {rotaAtual.nome === 'nada' && <NaoEncontrado oQue="O endereço não corresponde a nenhuma página do Coffee LiVRE." />}
 
       <Newsletter aoAvisar={avisar} />
       <MarketplaceFooter />
@@ -102,5 +174,5 @@ export default function CoffeeLivrePage() {
     return () => { if (icone && anterior) icone.href = anterior; };
   }, []);
 
-  return <AccessGate><Home /></AccessGate>;
+  return <AccessGate><Experiencia /></AccessGate>;
 }

@@ -1,28 +1,37 @@
 import { CoffeeBag } from './svg';
-import { produtos, brl } from './mockData';
+import { navegar } from './config';
+import type { ItemDaVitrine } from './catalogo';
+import { pacoteDoProduto, reais, ehCafe } from './visual';
 
 const METODOS = ['Coado / V60', 'Prensa francesa', 'Espresso', 'Moka italiana', 'Cold brew'];
 
-/** Os cinco cards que sobrepõem o hero. Ordem e produtos do HTML oficial. */
-export default function HighlightCards() {
-  const p0 = produtos[1], p1 = produtos[0], p2 = produtos[6];
-  const simples: [string, typeof p0, string | null][] = [
-    ['Visto recentemente', p0, null],
-    ['Mais vendido da semana', p1, null],
-    ['Microlote em destaque', p2, 'Ver microlotes'],
-  ];
+/** Os cinco cards que sobrepõem o hero, agora alimentados pelo catálogo. */
+export default function HighlightCards({ itens }: { itens: ItemDaVitrine[] }) {
+  const cafes = itens.filter(ehCafe);
+  const especial = cafes.find(i => i.nivel_passport === 'especial');
+  const destaque = cafes.find(i => i.destaque && i.id !== especial?.id);
+  const popular = cafes.find(i => i.id !== especial?.id && i.id !== destaque?.id);
+  const cartoes = [
+    ['Visto recentemente', popular, null],
+    ['Mais vendido da semana', destaque, null],
+    ['Microlote em destaque', especial, 'Ver microlotes'],
+  ] as const;
 
   return (
     <section className="cards" id="cards">
-      {simples.map(([titulo, p, botao]) => (
-        <div className="ct" key={titulo}>
-          <h3>{titulo}</h3>
-          <div className="im"><CoffeeBag cor={p.cor} fita={p.fita} rotulo={p.rot} tipo={p.tipo} /></div>
-          <p className="nm">{p.t}</p>
-          <p className="pr">R$ {brl(p.por)}</p>
-          {botao ? <a className="bt" href="#">{botao}</a> : <p className="fg">Frete grátis</p>}
-        </div>
-      ))}
+      {cartoes.map(([titulo, item, botao]) => {
+        if (!item) return null;
+        const p = pacoteDoProduto(item);
+        return (
+          <div className="ct" key={titulo} onClick={() => navegar(`cafe/${item.slug}`)} style={{ cursor: 'pointer' }}>
+            <h3>{titulo}</h3>
+            <div className="im"><CoffeeBag cor={p.cor} fita={p.fita} rotulo={p.rotulo} tipo={p.tipo} /></div>
+            <p className="nm">{item.titulo}</p>
+            <p className="pr">R$ {reais(item.preco_cents)}</p>
+            {botao ? <a className="bt" href="#">{botao}</a> : <p className="fg">Frete grátis</p>}
+          </div>
+        );
+      })}
 
       <div className="ct destaque">
         <h3>Primeira compra?</h3>

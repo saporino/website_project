@@ -143,7 +143,7 @@ function AppRouter() {
       ? 'RepCo'
       : currentPath.startsWith('/promotor')
       ? 'Promotor'
-      : currentPath === '/coffeelivre'
+      : currentPath.startsWith('/coffeelivre')
       ? 'Coffee LiVRE — O marketplace do café'
       : currentPath === '/admin'
         ? 'Admin — Café Saporino'
@@ -196,7 +196,7 @@ function AppRouter() {
   if (currentPath === '/para-seu-negocio') return <BusinessPage />;
   if (currentPath === '/nossa-historia' || currentPath === '/sobre') return <HistoryPage />;
   if (currentPath === '/coficobrasil') return <CoficoBrasilPage />;
-  if (currentPath === '/coffeelivre') return <CoffeeLivrePage />;
+  if (currentPath === '/coffeelivre' || currentPath.startsWith('/coffeelivre/')) return <CoffeeLivrePage />;
   if (currentPath === '/experiencia') return <HeroExperiencePage />;
 
   // Payment callback routes
