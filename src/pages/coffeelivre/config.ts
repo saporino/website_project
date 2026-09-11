@@ -27,6 +27,28 @@ export function navegar(caminho: string) {
   window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
+/**
+ * URL permanente de um café. É o destino do QR Code.
+ *
+ * QR impresso em embalagem, display ou material de feira aponta para cá, e
+ * embalagem não se recolhe: o slug de um produto que já circulou NUNCA
+ * pode mudar. A troca de domínio, essa sim, é livre — muda BASE e todo QR
+ * antigo continua funcionando por redirecionamento.
+ */
+export function rotaDoProduto(slug: string): string {
+  return rota(`cafe/${slug}`);
+}
+
+/** URL permanente da vitrine de um vendedor. */
+export function rotaDaLoja(slug: string): string {
+  return rota(`loja/${slug}`);
+}
+
+/** Listagem de uma categoria. */
+export function rotaDaCategoria(slug: string): string {
+  return rota(`categoria/${slug}`);
+}
+
 export const MARCA = {
   nome: 'Coffee LiVRE',
   titulo: 'Coffee LiVRE — O marketplace do café',
