@@ -22,6 +22,7 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.env.local
 save.ps1
 
 # Arquivos de marca originais (nomes com espaco, duplicatas dos assets kebab-case em public/)

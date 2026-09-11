@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { LogOut, Package } from 'lucide-react';
 import { OrdersManagement } from '../components/admin/OrdersManagement';
-import CoffeeNetworkAdmin from '../components/admin/CoffeeNetworkAdmin';
+import PlataformasAdmin from '../components/admin/PlataformasAdmin';
 import { ProductsManagement } from '../components/admin/ProductsManagement';
 import { ShippingManagement } from '../components/admin/ShippingManagement';
 import { StoreSettings } from '../components/admin/StoreSettings';
@@ -43,7 +43,7 @@ const TAB_DEFS: { id: TabType; label: string }[] = [
   { id: 'candidaturas', label: 'Candidaturas' },
   { id: 'shipping', label: 'Transportadoras' },
   { id: 'cofico', label: 'COFICO Entregas' },
-  { id: 'coffee_network', label: 'Coffee Network' },
+  { id: 'coffee_network', label: 'Plataformas' },
   { id: 'repco', label: 'RepCo' },
   { id: 'studio', label: 'Studio' },
   { id: 'promotores', label: 'Promotores' },
@@ -212,7 +212,7 @@ export function AdminDashboard() {
             {activeTab === 'customers' && <CustomersManagement refreshKey={refreshVersion.customers} />}
             {activeTab === 'shipping' && <ShippingManagement />}
             {activeTab === 'cofico' && <CoficoEntregas />}
-            {activeTab === 'coffee_network' && <CoffeeNetworkAdmin />}
+            {activeTab === 'coffee_network' && <PlataformasAdmin />}
             {activeTab === 'leads_b2b' && <B2BLeadsManagement />}
             {activeTab === 'candidaturas' && <RepApplicationsManagement />}
             {activeTab === 'repco' && <RepCoManagement refreshKey={refreshVersion.repco} />}

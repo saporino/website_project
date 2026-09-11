@@ -401,6 +401,7 @@ export default function CoficoBrasilPage() {
             <li><a href={`tel:+55${COFICO.phone.replace(/\D/g, '')}`} className="inline-flex items-center gap-2 hover:text-white"><Phone className="w-5 h-5 text-cofico" aria-hidden="true" /> {COFICO.phone}</a></li>
             <li><a href={COFICO.instagram} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:text-white"><Instagram className="w-5 h-5 text-cofico" aria-hidden="true" /> @coficobrasil</a></li>
             <li><a href={COFICO.maps} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:text-white"><MapPin className="w-5 h-5 text-cofico" aria-hidden="true" /> Como chegar <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" /></a></li>
+            <li><a href="/coffeelivre" className="inline-flex items-center gap-2 hover:text-white">Coffee LiVRE — login</a></li>
           </ul>
         </div>
       </section>

@@ -47,6 +47,7 @@ const PromotorDashboard = lazy(() => import('./pages/PromotorDashboard').then(m 
 const RepCoIntelligence = lazy(() => import('./pages/RepCoIntelligence'));
 const RepCoCoverageMap = lazy(() => import('./pages/RepCoCoverageMap'));
 const CoficoBrasilPage = lazy(() => import('./pages/coficobrasil/CoficoBrasilPage'));
+const CoffeeLivrePage = lazy(() => import('./pages/coffeelivre/CoffeeLivrePage'));
 const HeroExperiencePage = lazy(() => import('./pages/HeroExperiencePage'));
 import HeroGate from './components/HeroGate'; // ABERTURA (HERO) antes da HOME — import direto: é o LCP, não pode esperar code-split
 const heroImage = '/hero-colheita.webp';
@@ -142,6 +143,8 @@ function AppRouter() {
       ? 'RepCo'
       : currentPath.startsWith('/promotor')
       ? 'Promotor'
+      : currentPath === '/coffeelivre'
+      ? 'Coffee LiVRE — O marketplace do café'
       : currentPath === '/admin'
         ? 'Admin — Café Saporino'
         : 'Café Saporino — O Verdadeiro Sabor de Minas';
@@ -193,6 +196,7 @@ function AppRouter() {
   if (currentPath === '/para-seu-negocio') return <BusinessPage />;
   if (currentPath === '/nossa-historia' || currentPath === '/sobre') return <HistoryPage />;
   if (currentPath === '/coficobrasil') return <CoficoBrasilPage />;
+  if (currentPath === '/coffeelivre') return <CoffeeLivrePage />;
   if (currentPath === '/experiencia') return <HeroExperiencePage />;
 
   // Payment callback routes
