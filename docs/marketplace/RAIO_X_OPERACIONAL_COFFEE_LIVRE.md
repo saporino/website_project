@@ -689,6 +689,7 @@ _Seção mantida pelo Claude Code: a cada entrega, registrar data, fase, o que f
 | 11/09/2026 | 1 · U3 | Home lendo do banco; páginas de categoria, busca, produto e loja; Coffee Passport na tela; menu no celular; dinheiro em centavos | Origens e rodapé ainda em código |
 | 12/09/2026 | 1 · U4 | Planos e entrada do vendedor: `/coffeelivre/vender`, candidatura pública, aba Vendedores no admin com aprovação manual | Cobrança real (fase 2) |
 | 12/09/2026 | 1 · U5 | Escada de quantidade ponta a ponta, carrinho de verdade e bancada de teste automatizada | Tela do vendedor para configurar a escada (U6) |
+| 12/09/2026 | 1 · U6 | Seller Central com login real, cadastro guiado, LiVRE Passport com completude, preço, piso e escada pela tela, moderação no banco, estoque e LiVRE Copiloto | Ambiente de staging; envio de imagens; convite de vendedor por e-mail |
 
 ### 17.1 Divergências entre a implementação e a seção 10
 
@@ -766,18 +767,71 @@ Registradas aqui para não virarem surpresa. O documento é a fonte oficial; ond
 
 Dezoito critérios rodam sem nenhum clique: rascunho invisível, publicado visível, faixas legíveis, os quatro degraus com os valores da especificação, economia de R$ 8,00 em quatro pacotes, piso respeitado, nenhum SKU de kit criado, loja e busca encontrando o produto, e visitante sem permissão de escrita.
 
+### 17.1.5 O que a Unidade 6 entregou
+
+**O vendedor opera sozinho.** Entra com usuário real do Supabase Auth, edita a própria loja, cadastra café em cinco passos, acompanha a completude do LiVRE Passport, define preço, piso e escada de quantidade com prévia ao vivo, envia para publicação, despublica, vê o estoque no CD e recebe as recomendações do LiVRE Copiloto. Nenhum desses passos precisa de admin nem de migration — exceto aprovar, que é de propósito.
+
+**Migrations:** `20260912180000_seller_central.sql` e `20260912190000_vitrine_so_mostra_o_que_esta_no_ar.sql`.
+
+**Modelo, o que mudou:**
+- `lv_seller_users` liga usuário do Auth ao vendedor (papel `seller_owner` ou `seller_staff`, como na seção 10.2).
+- `lv_inventory_lots` guarda estoque por lote, **por produto** (variantes seguem pendentes), com lote, validade, entrada, disponível e reservado.
+- `lv_products` ganhou `sku`, `aprovado_em` e `nota_moderacao`.
+- Atributo `classificacao` (Tradicional, Extra Forte, Superior, Gourmet, Especial — a régua da ABIC) e "ABIC" nas certificações.
+
+**Três barreiras, nenhuma delas a tela:**
+1. **RLS por vínculo.** `lv_meus_vendedores()` devolve os vendedores do usuário, e as policies novas perguntam "este registro é meu?". São aditivas: as de admin e de leitura pública continuam como estavam.
+2. **Guardas de coluna por trigger.** RLS decide quais linhas, não quais colunas. `lv_guarda_loja` impede o vendedor de ativar a própria loja ou trocar o slug; `lv_guarda_produto` impede destaque, `is_demo`, troca de slug, troca de dono e recusa do próprio produto.
+3. **Moderação no banco.** Seção 4.3: produto novo ou editado em campo sensível (título, categoria, queda de preço acima de 50%) vai para `em_moderacao`. Se o vendedor pedir "ativo" sem aprovação vigente, o próprio banco converte o pedido. Um produto já aprovado pode ser pausado e reativado sem voltar à fila, desde que não mude campo sensível.
+
+**Duas funções transacionais**, `SECURITY INVOKER` para a RLS valer por inteiro: `lv_salvar_produto` grava produto, atributos e faixas juntos — e só grava atributo que a categoria admite, então um moedor que chegue com "pontuacao" pela API não grava pontuação — e `lv_publicar_produto` devolve o status que o banco decidiu, para a tela dizer "publicado" ou "enviado para moderação" sem adivinhar.
+
+**Completude do Passport sem punir café comercial.** Tradicional com classificação, espécie, torra, moagem e peso está 100% completo. A exigência sobe com o que o próprio vendedor declara: Gourmet ou qualquer pontuação passa a pedir origem; Especial ou pontuação 80+ passa a pedir variedade e pontuação. Fazenda, produtor, safra e lote nunca são exigidos. Equipamento não tem Passport, e a tela não mostra "0% completo" num moedor.
+
+**LiVRE Copiloto por regra, com no máximo três recomendações**, uma por tipo, em ordem: loja aguardando aprovação, recusado com o motivo, faixa abaixo do piso, rascunho, sem estoque, Passport abaixo de 80%, café no ar sem escada. Cada uma diz o problema, o porquê e leva à tela da ação.
+
+**Admin, o mínimo para fechar o ciclo.** Aba **Moderação** com aprovar e recusar (recusa exige motivo, que o vendedor vê) e botão **Publicar loja** na aba Vendedores. Sem isso, a Unidade 6 teria um "enviar para publicação" que ninguém conseguia aprovar sem SQL. O restante do admin segue na Unidade 7.
+
+**Decisões tomadas nesta unidade, fora da letra do documento:**
+- **Estoque > 0 não é exigido para aparecer na vitrine.** A seção 5.10 exige; ligar agora apagaria a demonstração inteira, que não tem recebimento no CD. Liga quando o CD existir.
+- **Mercado Pago conectado não é exigido.** Pagamento é fase 2.
+- **Vitrine com regra de negócio escrita na view.** Ver 17.2.
+
+**Limitações conhecidas:**
+- Login de vendedor é criado pela equipe, pelo comando `acesso-demo` da bancada. Não há convite por e-mail nem "esqueci minha senha" na Seller Central.
+- Logo e capa da loja não têm envio: falta a política de storage do vendedor, que `exec_migration` não consegue criar.
+- Pedidos e Financeiro aparecem como "em breve", sem tela.
+- A interface mostra faixas de 2, 3 e 4; o banco aceita outras e a tela preserva as que já existirem.
+
+**Dívida técnica registrada:**
+- A regra de cálculo da escada existe em TypeScript (`escada.ts`) e é replicada na bancada em JavaScript. As duas são testadas, mas vivem em dois lugares.
+- `lv_inventory_lots` por produto terá de migrar para variante quando a decisão de 17.3 for tomada.
+
+**Testes desta unidade:**
+- **Bancada com JWT real, 40 critérios**, dois vendedores de verdade tentando um contra o outro pela API: loja inativa invisível para o outro; vendedor edita dados mas não ativa a própria loja; atributo de outra categoria descartado; destaque, slug e `is_demo` protegidos; recusa bloqueada; inserir direto como "ativo" vira rascunho; publicar sem aprovação vira moderação; aprovado aparece com a mesma escada; despublicar some da vitrine sem perder preço nem faixas; aprovado volta sem nova fila; trocar título volta para moderação; B não altera, não apaga escada, não injeta atributo, não lê rascunho, não cria produto na loja de A; A vê o próprio estoque e não lança estoque para si; A apaga rascunho mas não produto que já passou pela vitrine.
+- **201 testes unitários**, incluindo completude do Passport, Copiloto e conversão de dinheiro sem ponto flutuante.
+- **Tela:** vitrine com 15 produtos e nenhum rascunho ou item de teste vazando; loja inativa fora da home; login da Seller Central em 1280 e 375 px, campos em 16 px, sem rolagem lateral.
+- **Não verificado na tela:** as páginas com vendedor logado. A automação não digita senha em navegador; a lógica dessas páginas foi verificada pela bancada.
+
 ### 17.2 Achados de segurança durante a construção
 
 | Data | Achado | Situação |
 |---|---|---|
 | 11/09 | Código de acesso da demonstração era comparado no navegador e ficava legível no pacote JavaScript | **Corrigido** na U1: hash no banco, conferência no servidor |
 | 11/09 | `vw_lv_coffee_passport` rodava com privilégios do dono e **atravessava a RLS**: produto em rascunho devolvia 0 atributos pela tabela e 14 pela view | **Corrigido** na U3: `security_invoker = on`. Toda view do Coffee LiVRE nasce assim daqui em diante |
+| 12/09 | Com a policy de leitura do vendedor, `vw_lv_vitrine` (security_invoker) passaria a mostrar a um vendedor logado **os próprios rascunhos misturados na vitrine pública** — e o admin já via os de todos | **Corrigido** na U6, antes de ir para a tela: "estar na vitrine" virou condição escrita na view (produto ativo em loja ativa), válida para qualquer pessoa |
 
 ### 17.2.1 O que foi verificado na tela, na Unidade 3
 
 Percorrido o critério de aceite inteiro: home com 15 produtos e 5 lojas do banco; clique numa categoria abre a listagem; filtrar por torra média reduz de 9 para 6 e a contagem acompanha; abrir um produto mostra os 14 campos do Passport e o nível "Café especial"; o moedor abre sem Passport, só com ficha técnica; a loja mostra os 3 produtos dela; a busca por "mantiqueira" acha 1; endereço inválido cai em 404 dentro da marca.
 
 Celular em 375 px: botão de menu aparece, gaveta abre com 13 destinos, fecha ao navegar, e nenhuma tela tem rolagem lateral. Tablet em 800 px: grade em duas colunas, gaveta ativa. Fora do Coffee LiVRE, `/coficobrasil` continua intacta e o CSS não vazou.
+
+### 17.2.1 PENDÊNCIA: ambiente de staging
+
+**O projeto Supabase é um só.** A bancada de teste escreve no mesmo banco da demonstração e, a partir da Unidade 6, cria e apaga usuários no Supabase Auth. A proteção hoje é de **marcação**, não de ambiente: tudo leva prefixo `teste-` ou e-mail `@coffeelivre.test`, e a limpeza só remove o que casa com isso.
+
+Isso é aceitável enquanto não houver vendedor real nem comprador real. **Antes de operação real, ou antes de a bancada poder colocar dado real em risco, criar um projeto de staging separado** e apontar a bancada para ele.
 
 ### 17.3 Próxima decisão que preciso do Vlademir
 

@@ -185,16 +185,313 @@ async function limpar(silencioso = false) {
   if (!silencioso) ok('vendedor, loja, produto e faixas da bancada removidos');
 }
 
+// =====================================================================
+// UNIDADE 6 — Seller Central: identidade, isolamento e moderação
+// =====================================================================
+//
+// Aqui a bancada testa com JWT DE VERDADE. Cria dois usuários no Supabase
+// Auth, entra como cada um, e tenta — como vendedor A e como vendedor B —
+// fazer o que a interface não oferece. O que importa não é a tela esconder
+// o botão: é o banco recusar quando alguém chama a API direto.
+//
+// As senhas são aleatórias, geradas na hora, nunca impressas e nunca
+// gravadas. Os dois usuários são apagados no fim.
+
+import crypto from 'node:crypto';
+
+const VEND = {
+  A: { nome: 'Bancada Vendedor A', loja: `${PREFIXO}loja-a`, email: 'teste-bancada-a@coffeelivre.test' },
+  B: { nome: 'Bancada Vendedor B', loja: `${PREFIXO}loja-b`, email: 'teste-bancada-b@coffeelivre.test' },
+};
+
+const senhaAleatoria = () => crypto.randomBytes(24).toString('base64url') + 'Aa1!';
+
+async function acharUsuarioPorEmail(email) {
+  for (let pagina = 1; pagina <= 20; pagina++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page: pagina, perPage: 200 });
+    if (error || !data?.users?.length) return null;
+    const achado = data.users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+    if (achado) return achado;
+    if (data.users.length < 200) return null;
+  }
+  return null;
+}
+
+/** Cliente autenticado como um usuário — é o JWT real que a RLS enxerga. */
+async function entrarComo(email, senha) {
+  const c = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { error } = await c.auth.signInWithPassword({ email, password: senha });
+  if (error) throw new Error(`entrar como ${email}: ${error.message}`);
+  return c;
+}
+
+async function limparVendedores(silencioso = false) {
+  if (!silencioso) console.log('\n=== LIMPANDO VENDEDORES DE TESTE ===');
+  for (const v of Object.values(VEND)) {
+    const { data: lojas } = await admin.from('lv_stores').select('id').eq('slug', v.loja);
+    for (const l of lojas ?? []) {
+      // Produtos levam atributos, faixas e estoque por cascade.
+      await admin.from('lv_products').delete().eq('store_id', l.id);
+    }
+    await admin.from('lv_stores').delete().eq('slug', v.loja);
+    await admin.from('lv_sellers').delete().eq('nome_fantasia', v.nome);
+    const u = await acharUsuarioPorEmail(v.email);
+    if (u) await admin.auth.admin.deleteUser(u.id);
+  }
+  if (!silencioso) ok('usuários, vendedores, lojas e produtos da bancada removidos');
+}
+
+async function semearVendedores() {
+  console.log('\n=== SEMEANDO VENDEDORES A e B ===');
+  await limparVendedores(true);
+  const criados = {};
+  for (const [chave, v] of Object.entries(VEND)) {
+    const { data: s, error: es } = await admin.from('lv_sellers').insert({
+      nome_fantasia: v.nome, tipo: 'torrefacao', status: 'aprovado', is_demo: true,
+    }).select('id').single();
+    if (es) throw new Error('vendedor ' + chave + ': ' + es.message);
+
+    // Loja nasce INATIVA, como na aprovação de verdade.
+    const { data: l, error: el } = await admin.from('lv_stores').insert({
+      seller_id: s.id, slug: v.loja, nome: `Loja ${chave} da Bancada`, cor: '#35506B',
+      iniciais: 'B' + chave, ativa: false, is_demo: true,
+    }).select('id').single();
+    if (el) throw new Error('loja ' + chave + ': ' + el.message);
+
+    const senha = senhaAleatoria();
+    const { data: u, error: eu } = await admin.auth.admin.createUser({
+      email: v.email, password: senha, email_confirm: true,
+    });
+    if (eu) throw new Error('usuário ' + chave + ': ' + eu.message);
+
+    const { error: ev } = await admin.from('lv_seller_users').insert({ seller_id: s.id, user_id: u.user.id });
+    if (ev) throw new Error('vínculo ' + chave + ': ' + ev.message);
+
+    criados[chave] = { sellerId: s.id, lojaId: l.id, cliente: await entrarComo(v.email, senha) };
+    ok(`vendedor ${chave}: usuário real, vínculo e loja inativa`);
+  }
+  return criados;
+}
+
+async function aceiteVendedor() {
+  const { A, B } = await semearVendedores();
+  const a = A.cliente, b = B.cliente;
+  const { data: cat } = await admin.from('lv_categories').select('id').eq('slug', 'cafe-torrado-moido').single();
+
+  console.log('\n=== LOJA: DADOS SIM, APROVAÇÃO NÃO ===');
+  const minhaLoja = await a.from('lv_stores').select('id, ativa').eq('id', A.lojaId).maybeSingle();
+  checar('A enxerga a própria loja mesmo inativa', !!minhaLoja.data);
+  const lojaAlheia = await a.from('lv_stores').select('id').eq('id', B.lojaId);
+  checar('A não enxerga a loja inativa de B', lojaAlheia.data.length === 0);
+
+  await a.from('lv_stores').update({ chamada: 'Editada pelo vendedor A', ativa: true }).eq('id', A.lojaId);
+  const depois = (await admin.from('lv_stores').select('chamada, ativa').eq('id', A.lojaId).single()).data;
+  checar('A edita a chamada da própria loja', depois.chamada === 'Editada pelo vendedor A');
+  checar('A NÃO consegue ativar a própria loja', depois.ativa === false);
+
+  await a.from('lv_stores').update({ chamada: 'Invadida por A' }).eq('id', B.lojaId);
+  const lojaB = (await admin.from('lv_stores').select('chamada').eq('id', B.lojaId).single()).data;
+  checar('A NÃO edita a loja de B', lojaB.chamada !== 'Invadida por A');
+
+  console.log('\n=== CADASTRO GUIADO ===');
+  const salvo = await a.rpc('lv_salvar_produto', { p: {
+    store_id: A.lojaId, category_id: cat.id,
+    titulo: 'Café da Bancada Tradicional 500g', marca: 'Bancada', sku: 'BAN-500',
+    preco_cents: 2390, peso_g: 500, preco_minimo_cents: 2250, venda_por_quantidade: true,
+    atributos: { classificacao: 'Tradicional', especie: 'Blend', torra: 'Média', moagem: 'Média', peso: '500', voltagem: '220V' },
+    faixas: [
+      { min_qty: 2, tipo: 'reais', valor: 100 },
+      { min_qty: 3, tipo: 'reais', valor: 150 },
+      { min_qty: 4, tipo: 'reais', valor: 200 },
+    ],
+  } });
+  checar('A cria produto pelo cadastro guiado', !salvo.error, salvo.error?.message);
+  const idA = salvo.data?.id;
+  checar('produto novo nasce em rascunho', salvo.data?.status === 'rascunho', `(veio ${salvo.data?.status})`);
+
+  // "Recarregar": ler de novo, como a tela faz depois de salvar.
+  const recarregado = (await a.from('lv_products')
+    .select('titulo, preco_cents, preco_minimo_cents, venda_por_quantidade, sku, slug').eq('id', idA).single()).data;
+  checar('preço, piso e SKU persistem', recarregado?.preco_cents === 2390 && recarregado?.preco_minimo_cents === 2250 && recarregado?.sku === 'BAN-500');
+  checar('venda por quantidade persiste ligada', recarregado?.venda_por_quantidade === true);
+
+  const attrs = (await a.from('lv_product_attributes').select('lv_attributes!inner(chave)').eq('product_id', idA)).data ?? [];
+  const chaves = attrs.map(x => x.lv_attributes.chave).sort();
+  checar('atributos da categoria gravados', ['classificacao', 'especie', 'moagem', 'peso', 'torra'].every(c => chaves.includes(c)), `(${chaves})`);
+  checar('atributo de OUTRA categoria (voltagem) descartado', !chaves.includes('voltagem'));
+
+  const tiers = (await a.from('lv_price_tiers').select('min_qty').eq('product_id', idA)).data ?? [];
+  checar('as três faixas persistem', tiers.length === 3, `(${tiers.length})`);
+
+  console.log('\n=== GUARDAS DE COLUNA ===');
+  await a.from('lv_products').update({ destaque: true, slug: 'slug-roubado', is_demo: true }).eq('id', idA);
+  const guardado = (await admin.from('lv_products').select('destaque, slug, is_demo').eq('id', idA).single()).data;
+  checar('A NÃO se dá destaque na vitrine', guardado.destaque === false);
+  checar('A NÃO troca o slug permanente', guardado.slug === recarregado.slug);
+  checar('A NÃO marca produto como demonstração', guardado.is_demo === false);
+
+  const recusa = await a.from('lv_products').update({ status: 'recusado' }).eq('id', idA);
+  checar('A NÃO recusa o próprio produto', !!recusa.error);
+
+  const direto = await a.from('lv_products').insert({
+    store_id: A.lojaId, seller_id: A.sellerId, slug: `${PREFIXO}direto-${Date.now()}`,
+    titulo: 'Tentativa direta', status: 'ativo',
+  }).select('status').single();
+  checar('inserir direto como "ativo" vira rascunho', direto.data?.status === 'rascunho', `(veio ${direto.data?.status})`);
+
+  console.log('\n=== MODERAÇÃO NÃO SE CONTORNA ===');
+  const pedido = await a.rpc('lv_publicar_produto', { p_id: idA, p_publicar: true });
+  checar('pedir publicação sem aprovação vira moderação', pedido.data === 'em_moderacao', `(veio ${pedido.data})`);
+  const naVitrine1 = await visitante.from('vw_lv_vitrine').select('id').eq('id', idA);
+  checar('em moderação não aparece na vitrine', naVitrine1.data.length === 0);
+
+  // O que só a plataforma faz: aprovar a loja e o produto.
+  await admin.from('lv_stores').update({ ativa: true }).eq('id', A.lojaId);
+  await admin.from('lv_products').update({ status: 'ativo' }).eq('id', idA);
+  const aprovado = (await admin.from('lv_products').select('status, aprovado_em').eq('id', idA).single()).data;
+  checar('a moderação aprova e carimba a aprovação', aprovado.status === 'ativo' && !!aprovado.aprovado_em);
+
+  const naVitrine2 = await visitante.from('vw_lv_vitrine').select('id, venda_por_quantidade').eq('id', idA).maybeSingle();
+  checar('aprovado aparece na vitrine', !!naVitrine2.data);
+  const tiersPublicos = await visitante.from('lv_price_tiers').select('min_qty').eq('product_id', idA);
+  checar('o comprador vê a mesma escada de 3 faixas', tiersPublicos.data.length === 3);
+
+  console.log('\n=== PAUSAR E VOLTAR ===');
+  const pausa = await a.rpc('lv_publicar_produto', { p_id: idA, p_publicar: false });
+  checar('A despublica', pausa.data === 'pausado', `(veio ${pausa.data})`);
+  const naVitrine3 = await visitante.from('vw_lv_vitrine').select('id').eq('id', idA);
+  checar('despublicado some da vitrine', naVitrine3.data.length === 0);
+  const ainda = (await a.from('lv_products').select('preco_cents').eq('id', idA).single()).data;
+  const tiersAinda = (await a.from('lv_price_tiers').select('min_qty').eq('product_id', idA)).data ?? [];
+  checar('despublicar não perde preço nem escada', ainda.preco_cents === 2390 && tiersAinda.length === 3);
+
+  const volta = await a.rpc('lv_publicar_produto', { p_id: idA, p_publicar: true });
+  checar('já aprovado volta ao ar sem nova fila', volta.data === 'ativo', `(veio ${volta.data})`);
+
+  // Edição sensível: título. Pela seção 4.3, volta para a fila.
+  await a.rpc('lv_salvar_produto', { p: {
+    id: idA, store_id: A.lojaId, category_id: cat.id, titulo: 'Café da Bancada RENOMEADO 500g',
+    preco_cents: 2390, peso_g: 500, preco_minimo_cents: 2250, venda_por_quantidade: true,
+    atributos: { classificacao: 'Tradicional', especie: 'Blend', torra: 'Média', moagem: 'Média', peso: '500' },
+    faixas: [{ min_qty: 2, tipo: 'reais', valor: 100 }, { min_qty: 3, tipo: 'reais', valor: 150 }, { min_qty: 4, tipo: 'reais', valor: 200 }],
+  } });
+  const sensivel = (await admin.from('lv_products').select('status').eq('id', idA).single()).data;
+  checar('trocar o título de produto no ar volta para moderação', sensivel.status === 'em_moderacao', `(veio ${sensivel.status})`);
+
+  console.log('\n=== ISOLAMENTO ENTRE VENDEDORES ===');
+  await admin.from('lv_products').update({ status: 'ativo' }).eq('id', idA);
+
+  await b.from('lv_products').update({ titulo: 'Invadido por B' }).eq('id', idA);
+  const tituloA = (await admin.from('lv_products').select('titulo').eq('id', idA).single()).data.titulo;
+  checar('B NÃO altera produto de A', tituloA !== 'Invadido por B');
+
+  const rpcInvasora = await b.rpc('lv_salvar_produto', { p: {
+    id: idA, store_id: A.lojaId, category_id: cat.id, titulo: 'Invasão por RPC', preco_cents: 1,
+  } });
+  checar('B NÃO altera produto de A pela função de salvar', !!rpcInvasora.error);
+
+  const penduraNaLojaDeA = await b.rpc('lv_salvar_produto', { p: {
+    store_id: A.lojaId, category_id: cat.id, titulo: 'Produto de B na loja de A', preco_cents: 100,
+  } });
+  checar('B NÃO cria produto na loja de A', !!penduraNaLojaDeA.error);
+
+  await b.from('lv_price_tiers').delete().eq('product_id', idA);
+  const tiersDepois = (await admin.from('lv_price_tiers').select('min_qty').eq('product_id', idA)).data ?? [];
+  checar('B NÃO apaga a escada de A', tiersDepois.length === 3);
+
+  const { data: attr } = await admin.from('lv_attributes').select('id').eq('chave', 'notas').single();
+  const injetar = await b.from('lv_product_attributes').insert({ product_id: idA, attribute_id: attr.id, valor: 'injetado' });
+  checar('B NÃO injeta atributo no produto de A', !!injetar.error);
+
+  const rascunhoA = await a.rpc('lv_salvar_produto', { p: {
+    store_id: A.lojaId, category_id: cat.id, titulo: 'Rascunho secreto de A', preco_cents: 1000,
+  } });
+  const espiar = await b.from('lv_products').select('id').eq('id', rascunhoA.data.id);
+  checar('B NÃO lê rascunho de A', espiar.data.length === 0);
+
+  console.log('\n=== ESTOQUE ===');
+  await admin.from('lv_inventory_lots').insert({
+    product_id: idA, seller_id: A.sellerId, lote: 'BAN-01', entrada_em: '2026-09-12', qtd_disponivel: 48, is_demo: true,
+  });
+  const estoqueA = await a.from('lv_inventory_lots').select('qtd_disponivel').eq('product_id', idA);
+  checar('A vê o próprio estoque', estoqueA.data?.[0]?.qtd_disponivel === 48);
+  const estoqueB = await b.from('lv_inventory_lots').select('id').eq('product_id', idA);
+  checar('B NÃO vê o estoque de A', estoqueB.data.length === 0);
+  const inflar = await a.from('lv_inventory_lots').insert({
+    product_id: idA, seller_id: A.sellerId, qtd_disponivel: 99999,
+  });
+  checar('A NÃO lança estoque para si mesmo', !!inflar.error);
+
+  console.log('\n=== APAGAR ===');
+  await a.from('lv_products').delete().eq('id', idA);
+  const aindaExiste = await admin.from('lv_products').select('id').eq('id', idA);
+  checar('A NÃO apaga produto que já passou pela vitrine', aindaExiste.data.length === 1);
+  await a.from('lv_products').delete().eq('id', rascunhoA.data.id);
+  const rascunhoSumiu = await admin.from('lv_products').select('id').eq('id', rascunhoA.data.id);
+  checar('A apaga o próprio rascunho', rascunhoSumiu.data.length === 0);
+
+  await a.auth.signOut();
+  await b.auth.signOut();
+  await limparVendedores();
+}
+
+/**
+ * Cria (ou reaproveita) um login de vendedor para a demonstração ao vivo.
+ *
+ * Roda na máquina de quem opera e imprime a senha provisória SÓ no
+ * terminal dele. Não é backdoor: usa a chave de serviço local, a mesma das
+ * migrations, e não existe caminho equivalente no site publicado.
+ */
+async function acessoDemo(email, slugDaLoja) {
+  if (!email || !slugDaLoja) {
+    console.error('Uso: node scripts/coffeelivre-demo.mjs acesso-demo <email> <slug-da-loja>');
+    process.exitCode = 1;
+    return;
+  }
+  const { data: loja } = await admin.from('lv_stores').select('id, seller_id, nome, ativa, is_demo').eq('slug', slugDaLoja).maybeSingle();
+  if (!loja) { console.error('Loja não encontrada: ' + slugDaLoja); process.exitCode = 1; return; }
+
+  const senha = senhaAleatoria();
+  let usuario = await acharUsuarioPorEmail(email);
+  if (usuario) {
+    await admin.auth.admin.updateUserById(usuario.id, { password: senha });
+  } else {
+    const { data, error } = await admin.auth.admin.createUser({ email, password: senha, email_confirm: true });
+    if (error) { console.error('Não foi possível criar o login: ' + error.message); process.exitCode = 1; return; }
+    usuario = data.user;
+  }
+  await admin.from('lv_seller_users').upsert({ seller_id: loja.seller_id, user_id: usuario.id });
+
+  console.log(`\nLogin de vendedor pronto para "${loja.nome}"${loja.is_demo ? ' (loja de demonstração)' : ''}.`);
+  console.log(`  e-mail: ${email}`);
+  console.log(`  senha provisória: ${senha}`);
+  console.log('  entrar em: /coffeelivre/vendedor');
+  if (!loja.ativa) console.log('  atenção: esta loja está inativa — publique-a no admin para os produtos aparecerem.');
+  console.log('');
+}
+
 const comando = process.argv[2] ?? 'ciclo';
 if (comando === 'semear') await semear();
 else if (comando === 'publicar') await publicar(true);
 else if (comando === 'despublicar') await publicar(false);
 else if (comando === 'aceite') await aceite();
-else if (comando === 'limpar') await limpar();
-else if (comando === 'ciclo') { await semear(); await aceite(); await limpar(); }
+else if (comando === 'limpar') { await limpar(); await limparVendedores(); }
+else if (comando === 'vendedor') await aceiteVendedor();
+else if (comando === 'acesso-demo') await acessoDemo(process.argv[3], process.argv[4]);
+else if (comando === 'ciclo') {
+  await semear(); await aceite(); await limpar();
+  try {
+    await aceiteVendedor();
+  } catch (e) {
+    erro('bancada do vendedor interrompida: ' + (e instanceof Error ? e.message : e));
+    await limparVendedores(true);
+  }
+}
 else { console.error('Comando desconhecido: ' + comando); process.exitCode = 1; }
 
-if (comando === 'aceite' || comando === 'ciclo') {
+if (comando === 'aceite' || comando === 'ciclo' || comando === 'vendedor') {
   console.log(`\n${falhas === 0 ? 'TODOS OS CRITÉRIOS PASSARAM' : falhas + ' CRITÉRIO(S) FALHARAM'}\n`);
 }
 if (falhas) process.exitCode = 1;

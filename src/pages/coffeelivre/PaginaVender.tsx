@@ -99,6 +99,13 @@ export default function PaginaVender() {
           Sua loja oficial para compradores de todo o Brasil. Você entende de café; o Coffee LiVRE
           entende de vender.
         </p>
+        <p>
+          Já vende no Coffee LiVRE?{' '}
+          <a href={rota('vendedor')} onClick={e => { e.preventDefault(); navegar('vendedor'); }}
+             style={{ color: 'var(--laranja)', fontWeight: 600 }}>
+            Entrar no Seller Central
+          </a>
+        </p>
       </div>
 
       <section className="planos">

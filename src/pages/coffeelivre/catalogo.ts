@@ -129,12 +129,14 @@ export async function buscarPorTexto(termo: string): Promise<ItemDaVitrine[]> {
 // Lojas e categorias
 // ---------------------------------------------------------------------
 export async function listarLojas(): Promise<Loja[]> {
-  const { data } = await supabase.from('lv_stores').select(CAMPOS_LOJA).order('ordem');
+  // `ativa` explicito: vendedor e admin leem lojas inativas pela RLS, e
+  // loja aguardando aprovacao nao pode aparecer na home para ninguem.
+  const { data } = await supabase.from('lv_stores').select(CAMPOS_LOJA).eq('ativa', true).order('ordem');
   return (data as Loja[]) ?? [];
 }
 
 export async function buscarLoja(slug: string): Promise<Loja | null> {
-  const { data } = await supabase.from('lv_stores').select(CAMPOS_LOJA).eq('slug', slug).maybeSingle();
+  const { data } = await supabase.from('lv_stores').select(CAMPOS_LOJA).eq('slug', slug).eq('ativa', true).maybeSingle();
   return (data as Loja) ?? null;
 }
 

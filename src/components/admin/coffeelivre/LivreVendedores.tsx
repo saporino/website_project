@@ -49,6 +49,8 @@ export default function LivreVendedores() {
   const [carregando, setCarregando] = useState(true);
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [aberta, setAberta] = useState<string | null>(null);
+  // Loja de cada vendedor aprovado, para publicar ou tirar do ar daqui.
+  const [lojas, setLojas] = useState<Record<string, { id: string; slug: string; ativa: boolean }>>({});
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -57,7 +59,15 @@ export default function LivreVendedores() {
       .select('*, lv_plans(nome)')
       .order('created_at', { ascending: false });
     if (error) toast.error('Não foi possível ler as candidaturas.');
-    setFila((data as Candidatura[]) ?? []);
+    const lista = (data as Candidatura[]) ?? [];
+    setFila(lista);
+    const vendedores = lista.map(c => c.seller_id).filter((x): x is string => !!x);
+    if (vendedores.length) {
+      const { data: ls } = await supabase.from('lv_stores').select('id, slug, ativa, seller_id').in('seller_id', vendedores);
+      const mapa: Record<string, { id: string; slug: string; ativa: boolean }> = {};
+      for (const l of (ls ?? []) as { id: string; slug: string; ativa: boolean; seller_id: string }[]) mapa[l.seller_id] = l;
+      setLojas(mapa);
+    }
     setCarregando(false);
   }, []);
 
@@ -128,6 +138,22 @@ export default function LivreVendedores() {
     }
   }
 
+  /**
+   * Publicar a loja e decisao da plataforma. O vendedor edita os dados no
+   * Seller Central mas nao liga a propria vitrine: a guarda do banco devolve
+   * o valor que era. E aqui que se liga.
+   */
+  async function alternarLoja(c: Candidatura) {
+    const loja = c.seller_id ? lojas[c.seller_id] : null;
+    if (!loja) return;
+    setOcupado(c.id);
+    const { error } = await supabase.from('lv_stores').update({ ativa: !loja.ativa }).eq('id', loja.id);
+    setOcupado(null);
+    if (error) { toast.error('Não foi possível alterar a loja.'); return; }
+    toast.success(loja.ativa ? `Loja de ${c.nome_marca} fora do ar.` : `Loja de ${c.nome_marca} publicada.`);
+    carregar();
+  }
+
   const quando = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 
   return (
@@ -164,6 +190,19 @@ export default function LivreVendedores() {
                     </span>
                   </button>
                   <span className={`rounded px-2 py-0.5 text-xs font-semibold ${s.classe}`}>{s.rotulo}</span>
+                  {c.status === 'aprovado' && c.seller_id && lojas[c.seller_id] && (
+                    <button
+                      onClick={() => alternarLoja(c)}
+                      disabled={ocupado === c.id}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
+                        lojas[c.seller_id].ativa
+                          ? 'border border-gray-300 text-gray-600 hover:border-red-400 hover:text-red-700'
+                          : 'bg-[#8B2214] text-white hover:bg-[#6d1a10]'
+                      }`}
+                    >
+                      {lojas[c.seller_id].ativa ? 'Tirar loja do ar' : 'Publicar loja'}
+                    </button>
+                  )}
 
                   {c.status !== 'aprovado' && (
                     <>

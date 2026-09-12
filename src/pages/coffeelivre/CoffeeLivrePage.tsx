@@ -32,6 +32,7 @@ import PaginaCategoria from './PaginaCategoria';
 import PaginaBusca from './PaginaBusca';
 import PaginaLoja from './PaginaLoja';
 import PaginaVender from './PaginaVender';
+import SellerCentral from './vendedor/SellerCentral';
 import NaoEncontrado from './NaoEncontrado';
 import { BASE, rota } from './config';
 import { listarVitrine, listarLojas, listarCategorias, type ItemDaVitrine, type Loja, type Categoria } from './catalogo';
@@ -44,6 +45,7 @@ type Rota =
   | { nome: 'loja'; slug: string }
   | { nome: 'busca'; termo: string }
   | { nome: 'vender' }
+  | { nome: 'vendedor'; subrota: string }
   | { nome: 'nada' };
 
 /** Caminho do navegador vira rota interna. Só isto sabe a forma das URLs. */
@@ -52,6 +54,9 @@ function lerRota(): Rota {
   if (!caminho) return { nome: 'home' };
   const [secao, resto] = [caminho.split('/')[0], caminho.split('/').slice(1).join('/')];
   if (secao === 'vender') return { nome: 'vender' };
+  // Seller Central. Vem antes da regra "sem resto e pagina inexistente",
+  // porque /vendedor sozinho e a visao geral.
+  if (secao === 'vendedor') return { nome: 'vendedor', subrota: resto };
   if (secao === 'busca') {
     return { nome: 'busca', termo: new URLSearchParams(window.location.search).get('q') ?? '' };
   }
@@ -126,6 +131,17 @@ function Experiencia() {
   // Ofertas do dia: quem tem preço anterior. Mais vendidos: o resto.
   const ofertas = vitrine.filter(i => i.preco_de_cents);
   const maisVendidos = vitrine.filter(i => !i.preco_de_cents).concat(ofertas.slice(0, 4));
+
+  // A Seller Central tem cabecalho proprio: o vendedor esta trabalhando,
+  // nao comprando. Continua dentro de .livre-root, com as mesmas variaveis,
+  // e continua atras do portao da demonstracao.
+  if (rotaAtual.nome === 'vendedor') {
+    return (
+      <div className="livre-root">
+        <SellerCentral subrota={rotaAtual.subrota} />
+      </div>
+    );
+  }
 
   return (
     <div className="livre-root">
