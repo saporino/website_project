@@ -252,6 +252,36 @@
   color: #fff; padding: 2px 7px; border-radius: 3px;
 }
 .livre-root .escada-nota { display: block; font-size: 11.5px; color: var(--cinza); margin-top: 9px; line-height: 1.5; }
+/* Faixa que o estoque não cobre: continua na tela, apagada. A configuração
+   do vendedor não some; volta quando o estoque subir. */
+.livre-root .degrau:disabled { cursor: not-allowed; opacity: .5; }
+.livre-root .degrau:disabled:hover { border-color: var(--linha); }
+.livre-root .degrau-falta { font-size: 12px; color: var(--cinza); font-weight: 600; }
+
+/* ---------- variante e estoque na página do produto ---------- */
+.livre-root .variantes { margin-top: 14px; }
+.livre-root .variantes-opcoes { display: flex; flex-wrap: wrap; gap: 7px; }
+.livre-root .variante {
+  display: grid; text-align: left; min-height: 44px; padding: 8px 12px; font-size: 13.5px;
+  border: 2px solid var(--linha); border-radius: 8px; transition: border-color .15s, background .15s;
+}
+.livre-root .variante:hover { border-color: var(--laranja-claro); }
+.livre-root .variante.on { border-color: var(--laranja); background: #FFF6F0; font-weight: 600; }
+.livre-root .variante.esgotada { color: var(--cinza); }
+.livre-root .variante small { font-size: 11px; color: var(--cinza); font-weight: 400; }
+.livre-root .estoque-status { margin-top: 12px; font-size: 13.5px; font-weight: 600; color: var(--verde); }
+.livre-root .estoque-status.ultimas { color: var(--laranja); }
+.livre-root .estoque-status.esgotado { color: var(--cinza); }
+.livre-root .produto-compra .comprar.off,
+.livre-root .produto-compra .comprar.off:hover { background: var(--linha); color: var(--cinza); cursor: not-allowed; }
+.livre-root .produto-compra .ao-carrinho:disabled,
+.livre-root .produto-compra .ao-carrinho:disabled:hover { background: var(--linha); color: var(--cinza); cursor: not-allowed; }
+.livre-root .add button.esgotado,
+.livre-root .add button.esgotado:hover { background: var(--linha); color: var(--cinza); opacity: 1; transform: none; cursor: not-allowed; }
+.livre-root .carrinho-qtd button:disabled { opacity: .4; cursor: not-allowed; }
+.livre-root .carrinho-qtd button:disabled:hover { border-color: var(--linha); color: var(--texto); }
+.livre-root .carrinho-corpo small.carrinho-max { color: var(--laranja); }
+
 .livre-root .total-escolhido { font-size: 14px; margin-top: 12px; }
 .livre-root .total-escolhido b { font-size: 17px; }
 

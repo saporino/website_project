@@ -1,7 +1,12 @@
 // Coffee LiVRE — página de um café.
 //
-// É a URL permanente do produto e o destino do QR. Tudo vem do banco; o
-// que o vendedor não preencheu simplesmente não aparece.
+// O PRODUTO é a identidade e dono do Passport. A VARIANTE é o que se
+// compra: tem gramatura, moagem, preço efetivo e o estoque. Quando o café
+// tem mais de uma, a página deixa escolher; quando tem uma só, a escolha
+// nem aparece.
+//
+// O QR impresso não aponta para cá pelo slug: aponta para `/q/<código>`,
+// que resolve e chega aqui com `?v=` na variante certa.
 import { useEffect, useState } from 'react';
 import { CoffeeBag, ICONES_CATEGORIA } from './svg';
 import CoffeePassport from './CoffeePassport';
@@ -10,23 +15,30 @@ import NaoEncontrado from './NaoEncontrado';
 import { navegar, rota, rotaDoProduto } from './config';
 import EscadaDeQuantidade from './EscadaDeQuantidade';
 import {
-  buscarProduto, passaporteDoProduto, atributosDoProduto, listarVitrine, escadaDoProduto,
-  type ItemDaVitrine, type CampoDoPassport,
+  buscarProduto, passaporteDoProduto, atributosDoProduto, listarVitrine, escadaDoProduto, variantesDoProduto,
+  type ItemDaVitrine, type CampoDoPassport, type EscadaDoProduto, type VarianteAVenda,
 } from './catalogo';
-import { montarEscada, type Degrau } from './escada';
+import { montarEscada } from './escada';
+import { aindaCabe, situacaoDoEstoque } from './estoque';
 import { pacoteDoProduto, partesDoPreco, reais, porcentagemOff, parcelas, ehCafe } from './visual';
 
-export default function PaginaProduto({ slug, aoAdicionar }: {
+export default function PaginaProduto({ slug, varianteInicial, noCarrinho, aoAdicionar, aoAdicionarDoCartao }: {
   slug: string;
-  /** Recebe a quantidade escolhida e o unitário JÁ com a faixa aplicada. */
-  aoAdicionar: (item: ItemDaVitrine, quantidade: number, unitario_cents: number) => void;
+  varianteInicial: string | null;
+  /** Unidades desta variante que já estão no carrinho. */
+  noCarrinho: (varianteId: string) => number;
+  /** Recebe a quantidade escolhida, o unitário JÁ com a faixa e a variante. */
+  aoAdicionar: (item: ItemDaVitrine, quantidade: number, unitario_cents: number, variante: VarianteAVenda) => void;
+  aoAdicionarDoCartao: (item: ItemDaVitrine) => void;
 }) {
   const [item, setItem] = useState<ItemDaVitrine | null>(null);
   const [passport, setPassport] = useState<CampoDoPassport[]>([]);
   const [ficha, setFicha] = useState<CampoDoPassport[]>([]);
   const [daLoja, setDaLoja] = useState<ItemDaVitrine[]>([]);
   const [carregando, setCarregando] = useState(true);
-  const [degraus, setDegraus] = useState<Degrau[]>([]);
+  const [escada, setEscada] = useState<EscadaDoProduto | null>(null);
+  const [variantes, setVariantes] = useState<VarianteAVenda[]>([]);
+  const [varianteId, setVarianteId] = useState<string | null>(null);
   // A quantidade é escolhida ANTES do carrinho. Começa em 1: sugerir 4 de
   // saída seria empurrar volume para quem só queria experimentar.
   const [quantidade, setQuantidade] = useState(1);
@@ -40,40 +52,83 @@ export default function PaginaProduto({ slug, aoAdicionar }: {
       if (!vivo) return;
       setItem(p);
       if (p) {
-        const [pass, at, irmaos, esc] = await Promise.all([
+        const [pass, at, irmaos, esc, vars] = await Promise.all([
           passaporteDoProduto(p.id),
           atributosDoProduto(p.id),
           listarVitrine({ lojaId: p.store_id }),
           p.venda_por_quantidade ? escadaDoProduto(p.id) : Promise.resolve(null),
+          variantesDoProduto(p.id),
         ]);
         if (!vivo) return;
         setPassport(pass);
         setFicha(at);
         setDaLoja(irmaos.filter(i => i.id !== p.id));
         setQuantidade(1);
-        setDegraus(esc ? montarEscada(p.preco_cents, esc.faixas, { pisoCents: esc.piso_cents }) : []);
+        setEscada(esc);
+        setVariantes(vars);
+        const inicial = vars.find(v => v.id === varianteInicial) ?? vars.find(v => v.padrao) ?? vars[0];
+        setVarianteId(inicial?.id ?? null);
       }
       setCarregando(false);
     })();
     return () => { vivo = false; };
-  }, [slug]);
+  }, [slug, varianteInicial]);
 
   if (carregando) return <main className="wrap"><p className="vazio" style={{ marginTop: 24 }}>Carregando…</p></main>;
   if (!item) return <NaoEncontrado oQue="Este café não foi encontrado." />;
 
-  const degrauAtual = degraus.find(d => d.quantidade === quantidade);
-  // Sem escada, o preço mostrado é o do produto; com escada, é o da faixa.
-  const unitarioAtual = degrauAtual?.unitario_cents ?? item.preco_cents ?? 0;
+  const variante = variantes.find(v => v.id === varianteId) ?? null;
+  const precoBase = variante?.preco_cents ?? item.preco_cents;
+  const degraus = escada ? montarEscada(precoBase, escada.faixas, { pisoCents: escada.piso_cents }) : [];
+
+  // Estoque da VARIANTE, descontado o que já está no carrinho.
+  const disponivel = variante?.disponivel ?? 0;
+  const jaNoCarrinho = variante ? noCarrinho(variante.id) : 0;
+  const cabe = aindaCabe(disponivel, jaNoCarrinho);
+  const situacao = situacaoDoEstoque(disponivel);
+  // A quantidade escolhida nunca fica acima do que cabe: se o estoque
+  // encolheu ou o carrinho encheu, a escolha desce sozinha.
+  const qtd = Math.max(1, Math.min(quantidade, cabe));
+  const podeComprar = !!variante && cabe > 0;
+
+  const degrauAtual = degraus.find(d => d.quantidade === qtd);
+  // Sem escada, o preço mostrado é o da variante; com escada, é o da faixa.
+  const unitarioAtual = degrauAtual?.unitario_cents ?? precoBase ?? 0;
   const totalAtual = degrauAtual?.total_cents ?? unitarioAtual;
   const [r, c] = partesDoPreco(unitarioAtual);
-  const off = porcentagemOff(item.preco_de_cents, item.preco_cents);
-  const parc = parcelas(item.preco_cents);
+  // O "de" compara com o preço do produto. Variante com preço próprio não
+  // tem "de" honesto para mostrar.
+  const mesmoPreco = precoBase === item.preco_cents;
+  const off = mesmoPreco ? porcentagemOff(item.preco_de_cents, item.preco_cents) : null;
+  const parc = parcelas(precoBase);
   const cafe = ehCafe(item);
   const pacote = pacoteDoProduto(item);
-  // Ficha técnica é o que sobra: atributos que não entram no passaporte,
-  // como material e voltagem de um equipamento.
   const chavesDoPassport = new Set(passport.map(p => p.chave));
   const fichaExtra = ficha.filter(f => !chavesDoPassport.has(f.chave));
+
+  const textoDoEstoque = !variante ? 'Indisponível'
+    : situacao === 'esgotado' ? 'Esgotado'
+    : cabe === 0 ? 'Todo o estoque disponível já está no seu carrinho'
+    : situacao === 'ultimas' ? (disponivel === 1 ? 'Última unidade' : `Últimas ${disponivel} unidades`)
+    : 'Em estoque';
+
+  // O endereço impresso é o do código permanente. Sem código (não deveria
+  // acontecer: todo produto nasce com um), cai na URL do produto.
+  const urlPermanente = item.qr_codigo
+    ? `${window.location.origin}${rota(`q/${item.qr_codigo}`)}`
+    : `${window.location.origin}${rotaDoProduto(item.slug)}`;
+
+  function escolherVariante(v: VarianteAVenda) {
+    setVarianteId(v.id);
+    setQuantidade(1);
+    // Quem copiar o endereço leva a versão que está vendo.
+    window.history.replaceState({}, '', `${rotaDoProduto(item!.slug)}?v=${v.id}`);
+  }
+
+  function comprar() {
+    if (!podeComprar || !variante) return;
+    aoAdicionar(item!, qtd, unitarioAtual, variante);
+  }
 
   return (
     <main className="wrap pag">
@@ -102,11 +157,7 @@ export default function PaginaProduto({ slug, aoAdicionar }: {
             )}
           </div>
 
-          <CoffeePassport
-            campos={passport}
-            nivel={item.nivel_passport}
-            urlPermanente={`${window.location.origin}${rotaDoProduto(item.slug)}`}
-          />
+          <CoffeePassport campos={passport} nivel={item.nivel_passport} urlPermanente={urlPermanente} />
 
           {item.descricao && (
             <section className="passport">
@@ -138,31 +189,54 @@ export default function PaginaProduto({ slug, aoAdicionar }: {
               dois juntos faria "R$ 22,90 · 24% OFF" — numeros que nao
               conversam. A partir de 2 pacotes, quem explica o desconto e a
               propria escada. */}
-          {quantidade === 1 && item.preco_de_cents ? <p className="de">R$ {reais(item.preco_de_cents)}</p> : null}
+          {qtd === 1 && mesmoPreco && item.preco_de_cents ? <p className="de">R$ {reais(item.preco_de_cents)}</p> : null}
           <div className="preco">
             <span className="rs">R$</span>{r}<sup>{c}</sup>
-            {quantidade === 1 && off ? <span className="off">{off}% OFF</span> : null}
+            {qtd === 1 && off ? <span className="off">{off}% OFF</span> : null}
           </div>
-          {quantidade > 1 && <p className="parc">por pacote, levando {quantidade}</p>}
+          {qtd > 1 && <p className="parc">por pacote, levando {qtd}</p>}
           {parc ? <p className="parc">{parc}</p> : null}
-          {item.peso_g ? <p className="nota">Peso: {item.peso_g} g</p> : null}
+          {(variante?.gramatura_g ?? item.peso_g) ? <p className="nota">Peso: {variante?.gramatura_g ?? item.peso_g} g</p> : null}
 
-          <EscadaDeQuantidade degraus={degraus} escolhido={quantidade} aoEscolher={setQuantidade} />
+          {variantes.length > 1 && (
+            <div className="variantes">
+              <b className="escada-titulo">Versão</b>
+              <div className="variantes-opcoes">
+                {variantes.map(v => (
+                  <button
+                    type="button"
+                    key={v.id}
+                    className={`variante${v.id === varianteId ? ' on' : ''}${v.disponivel <= 0 ? ' esgotada' : ''}`}
+                    aria-pressed={v.id === varianteId}
+                    onClick={() => escolherVariante(v)}
+                  >
+                    <span>{v.nome}</span>
+                    {v.disponivel <= 0 && <small>esgotada</small>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-          {quantidade > 1 && (
+          <p className={`estoque-status ${situacao}`} role="status">{textoDoEstoque}</p>
+
+          <EscadaDeQuantidade degraus={degraus} escolhido={qtd} maximo={cabe} aoEscolher={setQuantidade} />
+
+          {qtd > 1 && (
             <p className="total-escolhido">
-              Total de {quantidade} pacotes: <b>R$ {reais(totalAtual)}</b>
+              Total de {qtd} pacotes: <b>R$ {reais(totalAtual)}</b>
             </p>
           )}
 
           <a
-            className="comprar"
+            className={`comprar${podeComprar ? '' : ' off'}`}
             href="#"
-            onClick={e => { e.preventDefault(); aoAdicionar(item, quantidade, unitarioAtual); }}
+            aria-disabled={!podeComprar}
+            onClick={e => { e.preventDefault(); comprar(); }}
           >
-            Comprar agora
+            {situacao === 'esgotado' ? 'Esgotado' : 'Comprar agora'}
           </a>
-          <button className="ao-carrinho" onClick={() => aoAdicionar(item, quantidade, unitarioAtual)}>
+          <button className="ao-carrinho" onClick={comprar} disabled={!podeComprar}>
             Adicionar ao carrinho
           </button>
           <p className="passport-nota" style={{ marginTop: 10 }}>
@@ -188,7 +262,7 @@ export default function PaginaProduto({ slug, aoAdicionar }: {
             <h2>Outros produtos de {item.loja_nome}</h2>
             <a href={rota(`loja/${item.loja_slug}`)} onClick={e => { e.preventDefault(); navegar(`loja/${item.loja_slug}`); }}>Ver a loja</a>
           </div>
-          <ProductCarousel idTrilho="trilhoDaLoja" itens={daLoja} aoAdicionar={i => aoAdicionar(i, 1, i.preco_cents ?? 0)} />
+          <ProductCarousel idTrilho="trilhoDaLoja" itens={daLoja} aoAdicionar={aoAdicionarDoCartao} />
         </section>
       )}
     </main>

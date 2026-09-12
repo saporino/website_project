@@ -28,31 +28,36 @@ export default function Carrinho({ carrinho, aberto, aoFechar }: {
         ) : (
           <>
             <div className="carrinho-itens">
-              {carrinho.itens.map(i => (
-                <div className="carrinho-item" key={i.produtoId}>
-                  <span className="carrinho-av" style={{ background: i.lojaCor ?? '#3A2318' }} aria-hidden="true" />
-                  <div className="carrinho-corpo">
-                    <button
-                      type="button"
-                      className="carrinho-titulo"
-                      onClick={() => { aoFechar(); navegar(`cafe/${i.slug}`); }}
-                    >
-                      {i.titulo}
-                    </button>
-                    <small>por {i.lojaNome}</small>
-                    <div className="carrinho-qtd">
-                      <button type="button" onClick={() => carrinho.alterarQuantidade(i.produtoId, i.quantidade - 1)} aria-label="Menos um">−</button>
-                      <span>{i.quantidade}</span>
-                      <button type="button" onClick={() => carrinho.alterarQuantidade(i.produtoId, i.quantidade + 1)} aria-label="Mais um">+</button>
-                      <small>R$ {reais(i.unitario_cents)} por pacote</small>
+              {carrinho.itens.map(i => {
+                const noLimite = i.quantidade >= i.disponivel;
+                return (
+                  <div className="carrinho-item" key={i.varianteId}>
+                    <span className="carrinho-av" style={{ background: i.lojaCor ?? '#3A2318' }} aria-hidden="true" />
+                    <div className="carrinho-corpo">
+                      <button
+                        type="button"
+                        className="carrinho-titulo"
+                        onClick={() => { aoFechar(); navegar(`cafe/${i.slug}`); }}
+                      >
+                        {i.titulo}
+                      </button>
+                      <small>{i.varianteNome ? `${i.varianteNome} · ` : ''}por {i.lojaNome}</small>
+                      <div className="carrinho-qtd">
+                        <button type="button" onClick={() => carrinho.alterarQuantidade(i.varianteId, i.quantidade - 1)} aria-label="Menos um">−</button>
+                        <span>{i.quantidade}</span>
+                        <button type="button" onClick={() => carrinho.alterarQuantidade(i.varianteId, i.quantidade + 1)}
+                                aria-label="Mais um" disabled={noLimite}>+</button>
+                        <small>R$ {reais(i.unitario_cents)} por pacote</small>
+                      </div>
+                      {noLimite && <small className="carrinho-max">Todo o estoque disponível desta versão</small>}
+                    </div>
+                    <div className="carrinho-valor">
+                      <b>R$ {reais(i.unitario_cents * i.quantidade)}</b>
+                      <button type="button" onClick={() => carrinho.remover(i.varianteId)}>remover</button>
                     </div>
                   </div>
-                  <div className="carrinho-valor">
-                    <b>R$ {reais(i.unitario_cents * i.quantidade)}</b>
-                    <button type="button" onClick={() => carrinho.remover(i.produtoId)}>remover</button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <footer className="carrinho-rodape">

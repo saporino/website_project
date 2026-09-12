@@ -25,6 +25,9 @@ dist-ssr
 .env.local
 save.ps1
 
+# Capturas da bancada de teste no navegador
+test-results/
+
 # Arquivos de marca originais (nomes com espaco, duplicatas dos assets kebab-case em public/)
 _assets-originais/
 

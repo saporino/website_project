@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react';
 import { navegar, rota } from '../config';
 import { recomendacoes, type Recomendacao } from '../copiloto';
-import { listarProdutosDoVendedor, type CategoriaDoCadastro, type LinhaDeProduto } from './dados';
+import { listarProdutosDoVendedor, RECEBIMENTO, type CategoriaDoCadastro, type LinhaDeProduto } from './dados';
 import type { ContextoDoVendedor } from './sessao';
 
 export default function VisaoGeral({ contexto, categorias }: {
@@ -27,6 +27,7 @@ export default function VisaoGeral({ contexto, categorias }: {
   const unidades = produtos.reduce((s, p) => s + p.estoque, 0);
   const lojaAtiva = !!contexto.loja?.ativa;
   const dicas: Recomendacao[] = recomendacoes({ lojaAtiva, produtos });
+  const recebimento = RECEBIMENTO[contexto.pagamentoStatus] ?? RECEBIMENTO.nao_iniciado;
 
   return (
     <div className="sc-pilha">
@@ -60,6 +61,18 @@ export default function VisaoGeral({ contexto, categorias }: {
           <b>{dicas.length}</b>
           <span>{dicas.length ? 'veja o Copiloto abaixo' : 'tudo em ordem'}</span>
         </div>
+      </section>
+
+      <section className="sc-cartao sc-recebimento">
+        <div>
+          <b>Recebimento de vendas</b>
+          <p className="sc-sub">
+            {contexto.pagamentoStatus === 'verificado'
+              ? 'Sua loja está habilitada para receber o valor das vendas.'
+              : 'Antes das vendas reais, sua loja precisa estar habilitada para receber. Nesta fase de demonstração não há cobrança nem pagamento.'}
+          </p>
+        </div>
+        <span className={`sc-situacao ${recebimento.classe}`}>{recebimento.rotulo}</span>
       </section>
 
       <section className="sc-cartao sc-copiloto">

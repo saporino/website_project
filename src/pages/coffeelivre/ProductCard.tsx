@@ -40,6 +40,8 @@ export default function ProductCard({ item, comEstoque, aoAdicionar }: {
   // recargas, senão o investidor vê o número mudar sozinho.
   const vendido = 45 + (item.slug.length * 7) % 50;
   const freteGratis = (item.preco_cents ?? 0) >= 9900;
+  // Esgotado continua na vitrine — some da compra, não do catálogo.
+  const esgotado = !item.variante_padrao_id || item.disponivel <= 0;
 
   function abrir(e: React.MouseEvent) {
     // Cliques nos controles do cartão não navegam.
@@ -48,6 +50,7 @@ export default function ProductCard({ item, comEstoque, aoAdicionar }: {
   }
 
   function adicionar() {
+    if (esgotado) return;
     aoAdicionar(item);
     setAdicionado(true);
     setTimeout(() => setAdicionado(false), 1400);
@@ -72,15 +75,16 @@ export default function ProductCard({ item, comEstoque, aoAdicionar }: {
       {/* O selo da pontuacao existia no HTML aprovado e e o que separa um
           especial num scroll rapido. Some quando nao ha nota. */}
       {item.pontuacao ? <span className="pont">Pontuação SCA {item.pontuacao}</span> : null}
-      {comEstoque && item.preco_de_cents ? (
+      {/* "restam" é o vendável real da variante padrão. */}
+      {comEstoque && item.preco_de_cents && !esgotado ? (
         <div className="estoque">
           <div className="barra"><i style={{ width: `${vendido}%` }} /></div>
-          <small>{vendido}% vendido · restam {Math.max(3, Math.round((100 - vendido) / 3))} un.</small>
+          <small>{vendido}% vendido · restam {item.disponivel} un.</small>
         </div>
       ) : null}
       <div className="add">
-        <button className={adicionado ? 'ok' : ''} onClick={adicionar}>
-          {adicionado ? '✓ Adicionado' : 'Adicionar ao carrinho'}
+        <button className={esgotado ? 'esgotado' : adicionado ? 'ok' : ''} onClick={adicionar} disabled={esgotado}>
+          {esgotado ? 'Esgotado' : adicionado ? '✓ Adicionado' : 'Adicionar ao carrinho'}
         </button>
       </div>
     </article>

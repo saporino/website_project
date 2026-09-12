@@ -84,6 +84,10 @@
 .livre-root .sc-numero span { font-size: 12px; color: var(--cinza); }
 .livre-root .sc-numero.atencao { box-shadow: inset 4px 0 0 var(--laranja), var(--sombra); }
 
+/* ---------- Recebimento ---------- */
+.livre-root .sc-recebimento { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.livre-root .sc-recebimento p { margin-top: 2px; }
+
 /* ---------- Copiloto ---------- */
 .livre-root .sc-copiloto-topo { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
 .livre-root .sc-copiloto-vazio { font-size: 14px; color: var(--cinza); }

@@ -5,8 +5,9 @@
 // deixar ele vender o que não entregou. O banco garante isso: não existe
 // policy de escrita para o vendedor nesta tabela.
 //
-// Mostra o que o modelo tem hoje e nada além. Data de torra, idade do
-// estoque, giro e FEFO dependem do recebimento no CD, que ainda não existe.
+// Uma linha por LOTE de uma VARIANTE. Mostra o que o modelo tem hoje e nada
+// além. Idade do estoque, giro e FEFO dependem do recebimento no CD, que
+// ainda não existe.
 import { useEffect, useState } from 'react';
 import { navegar, rota } from '../config';
 import { listarEstoque, SITUACAO, type LinhaDeEstoque } from './dados';
@@ -27,7 +28,8 @@ export default function EstoqueDoVendedor({ contexto }: { contexto: ContextoDoVe
       <div className="sc-titulo">
         <h1>Estoque no CD</h1>
         <p className="sc-sub">
-          O que foi recebido e conferido no centro de distribuição. {linhas ? `${total.toLocaleString('pt-BR')} unidades disponíveis.` : ''}
+          O que foi recebido e conferido no centro de distribuição, por variante e lote: 250 g e 500 g são estoques
+          diferentes. {linhas ? `${total.toLocaleString('pt-BR')} unidades disponíveis.` : ''}
         </p>
       </div>
 
@@ -53,9 +55,12 @@ export default function EstoqueDoVendedor({ contexto }: { contexto: ContextoDoVe
                   <a href={rota(`vendedor/produtos/${l.produtoId}`)} onClick={e => { e.preventDefault(); navegar(`vendedor/produtos/${l.produtoId}`); }}>
                     {l.produtoTitulo}
                   </a>
-                  {l.sku && <small>{l.sku}</small>}
+                  <small>{l.varianteNome}{l.sku ? ` · ${l.sku}` : ''}</small>
                 </div>
-                <div className="sc-linha-dado" data-rotulo="Lote">{l.lote ?? '—'}</div>
+                <div className="sc-linha-dado" data-rotulo="Lote">
+                  {l.lote ?? '—'}
+                  {l.dataTorra && <small> · torra {data(l.dataTorra)}</small>}
+                </div>
                 <div className="sc-linha-dado" data-rotulo="Validade">{data(l.validade)}</div>
                 <div className="sc-linha-dado" data-rotulo="Entrada">{data(l.entradaEm)}</div>
                 <div className="sc-linha-dado" data-rotulo="Disponível">
@@ -70,8 +75,8 @@ export default function EstoqueDoVendedor({ contexto }: { contexto: ContextoDoVe
       )}
 
       <p className="sc-ajuda">
-        Data de torra, idade do estoque, previsão de giro e alerta de vencimento entram quando o recebimento no CD estiver
-        em operação.
+        Lote vencido não conta como disponível para venda. Idade do estoque, previsão de giro e alerta de vencimento entram
+        quando o recebimento no CD estiver em operação.
       </p>
     </div>
   );

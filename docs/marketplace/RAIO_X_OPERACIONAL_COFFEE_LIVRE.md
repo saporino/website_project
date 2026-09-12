@@ -690,6 +690,7 @@ _Seção mantida pelo Claude Code: a cada entrega, registrar data, fase, o que f
 | 12/09/2026 | 1 · U4 | Planos e entrada do vendedor: `/coffeelivre/vender`, candidatura pública, aba Vendedores no admin com aprovação manual | Cobrança real (fase 2) |
 | 12/09/2026 | 1 · U5 | Escada de quantidade ponta a ponta, carrinho de verdade e bancada de teste automatizada | Tela do vendedor para configurar a escada (U6) |
 | 12/09/2026 | 1 · U6 | Seller Central com login real, cadastro guiado, LiVRE Passport com completude, preço, piso e escada pela tela, moderação no banco, estoque e LiVRE Copiloto | Ambiente de staging; envio de imagens; convite de vendedor por e-mail |
+| 13/09/2026 | 1 · U6 (fechamento) | Produto → variante → lote; estoque por variante; estoque demo controlado limitando escada e carrinho; QR permanente por código; status de recebimento do vendedor; bancada no navegador com vendedor temporário (desktop e 375 px) | Editor de várias variantes; reserva de estoque no checkout; Lot Passport; onboarding de recebimento (fase 2) |
 
 ### 17.1 Divergências entre a implementação e a seção 10
 
@@ -699,7 +700,8 @@ Registradas aqui para não virarem surpresa. O documento é a fonte oficial; ond
 |---|---|---|---|
 | Loja | `lv_sellers` carrega slug, logo, capa e sobre | Tabela `lv_stores` separada | **Instrução do Vlademir na U2**: "VENDEDOR = entidade responsável pelo negócio; LOJA = presença pública. Não misture os conceitos de maneira que depois seja caro separá-los." O vendedor ficou privado, a loja pública. |
 | Atributos | `lv_category_attributes` com `key`/`label`/`type` embutidos e `lv_products.attributes jsonb` | `lv_attributes` como catálogo + `lv_category_attributes` como ponte + `lv_product_attributes` com os valores | Normalizar permite o mesmo atributo em várias categorias sem duplicar definição, e a view do Passport sai de graça. Superconjunto do previsto: `show_on_card` e `is_required` cabem como colunas. |
-| Variantes | `lv_product_variants` com preço, peso e dimensões | Preço e peso no próprio produto | **Pendente de decisão.** Hoje cada tamanho é um produto. Adicionar variantes é aditivo. Ver "próxima decisão" abaixo. |
+| Variantes | `lv_product_variants` com preço, peso e dimensões | `lv_product_variants` com gramatura, moagem, embalagem, SKU, EAN, preço opcional (nulo = preço do produto) e variante padrão; escada de quantidade continua no produto; dimensões ficam para o frete | **Decidido pelo Vlademir em 13/09.** Ver 17.1.6 |
+| Estoque | `lv_inventory_lots.variant_id` | `variant_id` obrigatório; `product_id` e `seller_id` derivados pelo banco; `data_torra` e `safra` no lote | Decisão de 13/09: estoque é da variante |
 | Dinheiro | centavos (`bigint`) | alinhado na U3 | Convertido enquanto custava uma migration e onze produtos. |
 | Status do produto | `rascunho`, `em_moderacao`, `ativo`, `pausado`, `recusado`, `arquivado` | alinhado na U3 | Mesma razão. |
 | Admin | D1 recomenda `/coffeelivre/admin` | Aba **Plataformas** no admin existente | Decisão do Vlademir: a barra tinha dezessete abas e não cabia mais uma. O caminho próprio continua possível. |
@@ -793,7 +795,7 @@ Dezoito critérios rodam sem nenhum clique: rascunho invisível, publicado visí
 **Admin, o mínimo para fechar o ciclo.** Aba **Moderação** com aprovar e recusar (recusa exige motivo, que o vendedor vê) e botão **Publicar loja** na aba Vendedores. Sem isso, a Unidade 6 teria um "enviar para publicação" que ninguém conseguia aprovar sem SQL. O restante do admin segue na Unidade 7.
 
 **Decisões tomadas nesta unidade, fora da letra do documento:**
-- **Estoque > 0 não é exigido para aparecer na vitrine.** A seção 5.10 exige; ligar agora apagaria a demonstração inteira, que não tem recebimento no CD. Liga quando o CD existir.
+- ~~**Estoque > 0 não é exigido para aparecer na vitrine.**~~ **Superado em 13/09 (17.1.6):** produto sem estoque aparece como esgotado e não pode ser comprado, também na demonstração.
 - **Mercado Pago conectado não é exigido.** Pagamento é fase 2.
 - **Vitrine com regra de negócio escrita na view.** Ver 17.2.
 
@@ -805,13 +807,58 @@ Dezoito critérios rodam sem nenhum clique: rascunho invisível, publicado visí
 
 **Dívida técnica registrada:**
 - A regra de cálculo da escada existe em TypeScript (`escada.ts`) e é replicada na bancada em JavaScript. As duas são testadas, mas vivem em dois lugares.
-- `lv_inventory_lots` por produto terá de migrar para variante quando a decisão de 17.3 for tomada.
+- ~~`lv_inventory_lots` por produto terá de migrar para variante.~~ **Feito em 13/09 (17.1.6).**
 
 **Testes desta unidade:**
 - **Bancada com JWT real, 40 critérios**, dois vendedores de verdade tentando um contra o outro pela API: loja inativa invisível para o outro; vendedor edita dados mas não ativa a própria loja; atributo de outra categoria descartado; destaque, slug e `is_demo` protegidos; recusa bloqueada; inserir direto como "ativo" vira rascunho; publicar sem aprovação vira moderação; aprovado aparece com a mesma escada; despublicar some da vitrine sem perder preço nem faixas; aprovado volta sem nova fila; trocar título volta para moderação; B não altera, não apaga escada, não injeta atributo, não lê rascunho, não cria produto na loja de A; A vê o próprio estoque e não lança estoque para si; A apaga rascunho mas não produto que já passou pela vitrine.
 - **201 testes unitários**, incluindo completude do Passport, Copiloto e conversão de dinheiro sem ponto flutuante.
 - **Tela:** vitrine com 15 produtos e nenhum rascunho ou item de teste vazando; loja inativa fora da home; login da Seller Central em 1280 e 375 px, campos em 16 px, sem rolagem lateral.
-- **Não verificado na tela:** as páginas com vendedor logado. A automação não digita senha em navegador; a lógica dessas páginas foi verificada pela bancada.
+- ~~**Não verificado na tela:** as páginas com vendedor logado.~~ **Fechado em 13/09 (17.1.6):** bancada no navegador com vendedor temporário.
+
+### 17.1.6 Fechamento estrutural da Unidade 6 (13/09/2026)
+
+**Migration:** `20260913100000_variante_estoque_e_qr_permanente.sql`.
+
+**Uma responsabilidade por nível** (decisão do Vlademir):
+
+| Nível | Responde por | Tabela |
+|---|---|---|
+| PRODUTO | identidade permanente e LiVRE Passport | `lv_products` |
+| VARIANTE | gramatura, moagem, embalagem, SKU/EAN, preço efetivo, **estoque** | `lv_product_variants` |
+| LOTE | número, data de torra, validade, safra, quantidades; futuro Lot Passport | `lv_inventory_lots` |
+
+- Todo produto tem exatamente uma **variante padrão**, criada pelo banco quando o produto nasce. O cadastro guiado ainda edita só ela (peso, moagem e SKU). A tela para várias variantes é futura; o modelo, a página do produto e o carrinho já trabalham com várias.
+- O nome da variante é montado dos campos ("500 g · Média", "1 kg · Em grãos"), para não haver cinco grafias do mesmo pacote.
+- A variante herda `is_demo` do produto e não muda de produto depois de criada.
+
+**Estoque é da variante.** O lote exige `variant_id`; produto e vendedor do lote são **derivados pelo banco**, então não existe lote cujo produto contradiga a variante. **Vendável** = soma de `qtd_disponivel` dos lotes **não vencidos** da variante, e só para produto no ar em loja no ar. O comprador nunca lê lote: recebe o número por `lv_variantes_a_venda` e pela vitrine (`disponivel`, `variante_padrao_id`).
+
+**Demo e real não se misturam.** Lote `is_demo` só entra em produto `is_demo`, e vice-versa; o banco recusa a mistura.
+
+**Regra de compra (vale na demonstração):**
+- Estoque 0: o produto continua visível, como **Esgotado**, sem botão de compra (cartão e página).
+- A escada mostra todas as faixas do vendedor, mas a faixa que o estoque não cobre fica **desabilitada** ("Indisponível no estoque atual"). A configuração não é apagada e a faixa volta sozinha quando o estoque subir.
+- O carrinho tem uma linha por variante e **nunca passa do vendável**, nem somando o mesmo pacote duas vezes. Pedido acima do que cabe é cortado, com aviso.
+- Casos controlados da demonstração: Serra Clara Tradicional 500 g com **7**, Serra Clara Especial 250 g com **2**, Torra Viva Descafeinado com **0**, e o Catuaí Vermelho com **duas variantes** (grãos e moído, estoques próprios).
+- **Limite honesto:** hoje o limite é aplicado no navegador com o número que a vitrine trouxe. Reserva de estoque e conferência no servidor entram com o checkout, antes de qualquer venda real.
+
+**QR permanente, sem slug.** `lv_qr_codes` guarda um código de 8 caracteres (sem 0/O/1/I/L) que resolve para produto, variante e, no futuro, lote. O endereço impresso é `/coffeelivre/q/<código>`; `lv_resolver_qr` devolve o destino só se o produto estiver no ar, e a página troca o endereço por `/cafe/<slug>?v=<variante>`. Todo produto nasce com um código, criado pelo banco: nem o dono cria ou reescreve código à mão. O "Compartilhe este café" do Passport já mostra o endereço do código. **Provado na bancada:** o slug foi trocado e o mesmo código levou ao endereço novo. Geração da imagem do QR para embalagem fica fora deste escopo.
+
+**Recebimento do vendedor.** `lv_sellers.pagamento_status`: `nao_iniciado` → `pendente` → `verificado` → `bloqueado`. O vendedor lê e não altera. `lv_vendedor_pode_receber()` é a pergunta única que o checkout vai fazer: só `verificado` recebe. A Visão geral mostra o status. Nenhum onboarding de Mercado Pago foi feito. **Antes de vendas reais, o vendedor precisa estar verificado.**
+
+**Bancada no navegador — `node scripts/coffeelivre-navegador.mjs`.** Sobe o Vite, cria um código de acesso de 1 hora e um vendedor temporário (usuário real do Auth, senha aleatória nunca impressa, marca `teste-navegador` / `@coffeelivre.test`), abre o Chrome e percorre, **em 1280 px e em 375 px**:
+- **Vendedor:** portão → login → Visão geral (Copiloto e recebimento) → Produtos → cadastro guiado nos 5 passos (Passport a 100%) → escada com prévia e alerta de piso → salvar → recarregar e editar → lista → estoque por variante e lote → Minha loja → sair. Depois de sair, a rota interna volta a pedir login.
+- **Comprador:** 2 unidades (faixas 3 e 4 desabilitadas), 7 unidades (4 + 3 e para), esgotado, troca de variante, esgotado na vitrine, QR permanente e código desconhecido.
+- Em cada tela: sem rolagem lateral e sem erro no console. Capturas em `test-results/coffeelivre/`, fora do git. A limpeza apaga só o que tem a marca e confere que nada sobrou.
+- Nenhum atalho de autenticação foi criado: o site confere código e senha pelo caminho de sempre.
+
+**A partir daqui, todo fluxo autenticado testável com usuário temporário entra nesta bancada**, sem depender do Vlademir.
+
+**Testes desta etapa:**
+- Bancada da API: **65 critérios** (40 anteriores, mais 25 novos: variante e QR nascem com o produto, B não lê nem cria variante ou QR de A, ninguém cria QR à mão, QR fora do ar não revela destino, slug trocado mantém o QR, lote demo em produto real recusado, lote vencido não conta, comprador não lê lote, vendedor não se declara habilitado a receber, estoque demo 7/2/0, duas variantes, escada preservada com estoque baixo).
+- Bancada no navegador: **143 critérios**, desktop e 375 px.
+- **214 testes unitários**, 13 novos para a regra de estoque (`estoque.ts`).
+- Typecheck, build e verificador de fidelidade da home sem diferenças.
 
 ### 17.2 Achados de segurança durante a construção
 
@@ -833,6 +880,11 @@ Celular em 375 px: botão de menu aparece, gaveta abre com 13 destinos, fecha ao
 
 Isso é aceitável enquanto não houver vendedor real nem comprador real. **Antes de operação real, ou antes de a bancada poder colocar dado real em risco, criar um projeto de staging separado** e apontar a bancada para ele.
 
-### 17.3 Próxima decisão que preciso do Vlademir
+### 17.3 Decisões tomadas em 13/09/2026
 
-**Variantes de produto (seção 10.1).** Hoje "250 g em grãos" e "1 kg em grãos" são dois produtos com dois slugs e dois QR. Com `lv_product_variants`, seriam um produto com duas variantes, um slug e um QR. A segunda forma é a do documento e a dos marketplaces grandes; a primeira é mais simples e já está no ar. A conversão é aditiva, mas muda a URL permanente — e URL permanente é o que vai impresso na embalagem. Decidir antes de qualquer QR sair para produção.
+- **Variantes:** produto → variante → lote, com estoque na variante. Passport no produto; a variante complementa; o Lot Passport será do lote. Ver 17.1.6.
+- **QR:** código permanente resolvido pelo banco, nunca slug impresso.
+- **Estoque > 0:** sem estoque não se compra, também na demonstração, com estoque demo controlado.
+- **Mercado Pago:** não exigido agora; o modelo já tem o status de recebimento e venda real exige vendedor verificado.
+
+Os produtos de demonstração que hoje são "um tamanho por produto" (por exemplo, Serra Clara Especial 250 g e Gourmet 1 kg) continuam separados. Juntá-los como variantes de um produto é curadoria de catálogo, não mudança de modelo.

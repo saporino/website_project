@@ -325,6 +325,39 @@ async function aceiteVendedor() {
   const tiers = (await a.from('lv_price_tiers').select('min_qty').eq('product_id', idA)).data ?? [];
   checar('as três faixas persistem', tiers.length === 3, `(${tiers.length})`);
 
+  console.log('\n=== VARIANTE E QR NASCEM COM O PRODUTO ===');
+  const variantesA = (await a.from('lv_product_variants').select('id, nome, gramatura_g, moagem, sku, padrao').eq('product_id', idA)).data ?? [];
+  const padraoA = variantesA.find(v => v.padrao);
+  checar('produto novo nasce com uma variante padrão', variantesA.length === 1 && !!padraoA, `(${variantesA.length})`);
+  checar('a variante recebe gramatura, moagem e SKU do cadastro',
+    padraoA?.gramatura_g === 500 && padraoA?.moagem === 'Média' && padraoA?.sku === 'BAN-500' && padraoA?.nome === '500 g · Média',
+    `(${JSON.stringify(padraoA)})`);
+  const qrA = (await a.from('lv_qr_codes').select('codigo, variant_id').eq('product_id', idA)).data ?? [];
+  checar('produto novo nasce com código permanente de QR', qrA.length === 1 && /^[A-HJKMNP-Z2-9]{8}$/.test(qrA[0]?.codigo ?? ''), `(${JSON.stringify(qrA)})`);
+  const codigoA = qrA[0]?.codigo;
+  const qrRascunho = await visitante.rpc('lv_resolver_qr', { p_codigo: codigoA });
+  checar('QR de produto fora do ar não revela o destino', qrRascunho.data?.disponivel === false && !qrRascunho.data?.slug);
+  const qrInexistente = await visitante.rpc('lv_resolver_qr', { p_codigo: 'ZZZZZZZZ' });
+  checar('QR inexistente não resolve', qrInexistente.data === null);
+
+  const varB = await b.from('lv_product_variants').select('id').eq('product_id', idA);
+  checar('B NÃO lê variantes do rascunho de A', (varB.data ?? []).length === 0);
+  const varInjetada = await b.from('lv_product_variants').insert({ product_id: idA, nome: 'injetada por B' });
+  checar('B NÃO cria variante no produto de A', !!varInjetada.error);
+  const qrB = await b.from('lv_qr_codes').select('codigo').eq('product_id', idA);
+  checar('B NÃO lê o QR de A', (qrB.data ?? []).length === 0);
+  const qrForjado = await a.from('lv_qr_codes').insert({ codigo: 'AAAAAAAA', product_id: idA });
+  checar('nem o dono cria QR à mão: o código nasce pelo banco', !!qrForjado.error);
+
+  console.log('\n=== RECEBIMENTO DO VENDEDOR ===');
+  const meuVendedor = (await a.from('lv_sellers').select('pagamento_status').eq('id', A.sellerId).single()).data;
+  checar('vendedor novo nasce com recebimento "não iniciado"', meuVendedor?.pagamento_status === 'nao_iniciado', `(${meuVendedor?.pagamento_status})`);
+  await a.from('lv_sellers').update({ pagamento_status: 'verificado' }).eq('id', A.sellerId);
+  const depoisDaTentativa = (await admin.from('lv_sellers').select('pagamento_status').eq('id', A.sellerId).single()).data;
+  checar('A NÃO se declara habilitado para receber', depoisDaTentativa.pagamento_status === 'nao_iniciado');
+  const podeReceber = await a.rpc('lv_vendedor_pode_receber', { p_seller: A.sellerId });
+  checar('vendedor não verificado não pode receber', podeReceber.data === false, `(${JSON.stringify(podeReceber.data ?? podeReceber.error)})`);
+
   console.log('\n=== GUARDAS DE COLUNA ===');
   await a.from('lv_products').update({ destaque: true, slug: 'slug-roubado', is_demo: true }).eq('id', idA);
   const guardado = (await admin.from('lv_products').select('destaque, slug, is_demo').eq('id', idA).single()).data;
@@ -411,18 +444,72 @@ async function aceiteVendedor() {
   const espiar = await b.from('lv_products').select('id').eq('id', rascunhoA.data.id);
   checar('B NÃO lê rascunho de A', espiar.data.length === 0);
 
-  console.log('\n=== ESTOQUE ===');
-  await admin.from('lv_inventory_lots').insert({
-    product_id: idA, seller_id: A.sellerId, lote: 'BAN-01', entrada_em: '2026-09-12', qtd_disponivel: 48, is_demo: true,
+  console.log('\n=== ESTOQUE POR VARIANTE ===');
+  const semEstoque = (await visitante.from('vw_lv_vitrine').select('disponivel').eq('id', idA).single()).data;
+  checar('produto no ar sem lote aparece com 0 disponível (esgotado)', semEstoque?.disponivel === 0, `(${semEstoque?.disponivel})`);
+
+  // O produto é real (o vendedor não marca demonstração), então o lote
+  // também é real — marcado pelo prefixo TESTE- e apagado junto com o produto.
+  const misturado = await admin.from('lv_inventory_lots').insert({
+    variant_id: padraoA.id, lote: 'TESTE-DEMO', qtd_disponivel: 500, is_demo: true,
   });
-  const estoqueA = await a.from('lv_inventory_lots').select('qtd_disponivel').eq('product_id', idA);
-  checar('A vê o próprio estoque', estoqueA.data?.[0]?.qtd_disponivel === 48);
+  checar('lote de demonstração em produto real é recusado', !!misturado.error, misturado.error ? '' : '(entrou)');
+
+  const lote = await admin.from('lv_inventory_lots').insert({
+    variant_id: padraoA.id, lote: 'TESTE-BAN-01', entrada_em: '2026-09-12', data_torra: '2026-09-08',
+    validade: '2027-03-01', qtd_disponivel: 7, is_demo: false,
+  }).select('product_id, seller_id').single();
+  checar('lote lançado na variante', !lote.error, lote.error?.message);
+  checar('o banco deriva produto e vendedor do lote pela variante',
+    lote.data?.product_id === idA && lote.data?.seller_id === A.sellerId);
+
+  const vencido = await admin.from('lv_inventory_lots').insert({
+    variant_id: padraoA.id, lote: 'TESTE-BAN-VENCIDO', validade: '2020-01-01', qtd_disponivel: 50, is_demo: false,
+  });
+  checar('lote vencido pode ser registrado', !vencido.error, vencido.error?.message);
+
+  const aVenda = await visitante.rpc('lv_variantes_a_venda', { p_product: idA });
+  checar('o comprador vê 7 vendáveis: lote vencido não conta', aVenda.data?.[0]?.disponivel === 7, `(${JSON.stringify(aVenda.data ?? aVenda.error)})`);
+  const naVitrine7 = (await visitante.from('vw_lv_vitrine').select('disponivel, variante_padrao_id, qr_codigo').eq('id', idA).single()).data;
+  checar('a vitrine traz disponível, variante padrão e código do QR',
+    naVitrine7?.disponivel === 7 && naVitrine7?.variante_padrao_id === padraoA.id && naVitrine7?.qr_codigo === codigoA,
+    `(${JSON.stringify(naVitrine7)})`);
+  const loteAlheio = await visitante.from('lv_inventory_lots').select('id').eq('product_id', idA);
+  checar('o comprador NÃO lê lote', (loteAlheio.data ?? []).length === 0);
+
+  console.log('\n=== QR NÃO DEPENDE DO SLUG ===');
+  const qrNoAr = await visitante.rpc('lv_resolver_qr', { p_codigo: codigoA.toLowerCase() });
+  checar('QR resolve para o produto no ar (caixa baixa também)', qrNoAr.data?.disponivel === true && qrNoAr.data?.slug === recarregado.slug);
+  // Só a plataforma troca slug. Se trocar, o código impresso segue válido.
+  const novoSlug = `${PREFIXO}slug-corrigido-${Date.now()}`;
+  await admin.from('lv_products').update({ slug: novoSlug }).eq('id', idA);
+  const qrDepois = await visitante.rpc('lv_resolver_qr', { p_codigo: codigoA });
+  checar('slug corrigido: o mesmo QR leva ao endereço novo', qrDepois.data?.slug === novoSlug, `(${qrDepois.data?.slug})`);
+
+  const estoqueA = await a.from('lv_inventory_lots').select('qtd_disponivel').eq('product_id', idA).eq('lote', 'TESTE-BAN-01');
+  checar('A vê o próprio estoque', estoqueA.data?.[0]?.qtd_disponivel === 7);
   const estoqueB = await b.from('lv_inventory_lots').select('id').eq('product_id', idA);
   checar('B NÃO vê o estoque de A', estoqueB.data.length === 0);
   const inflar = await a.from('lv_inventory_lots').insert({
     product_id: idA, seller_id: A.sellerId, qtd_disponivel: 99999,
   });
   checar('A NÃO lança estoque para si mesmo', !!inflar.error);
+
+  console.log('\n=== ESTOQUE DE DEMONSTRAÇÃO CONTROLADO ===');
+  const demo = Object.fromEntries(((await visitante.from('vw_lv_vitrine').select('slug, disponivel')
+    .in('slug', ['serra-clara-tradicional-moido-500g', 'serra-clara-especial-graos-250g', 'torra-viva-descafeinado-moido-250g'])).data ?? [])
+    .map(x => [x.slug, x.disponivel]));
+  checar('demo com 7 unidades', demo['serra-clara-tradicional-moido-500g'] === 7, `(${demo['serra-clara-tradicional-moido-500g']})`);
+  checar('demo com 2 unidades', demo['serra-clara-especial-graos-250g'] === 2, `(${demo['serra-clara-especial-graos-250g']})`);
+  checar('demo esgotado continua na vitrine com 0', demo['torra-viva-descafeinado-moido-250g'] === 0, `(${demo['torra-viva-descafeinado-moido-250g']})`);
+  const { data: catuai } = await visitante.from('vw_lv_vitrine').select('id').eq('slug', 'alto-horizonte-catuai-vermelho-250g').single();
+  const variantesCatuai = await visitante.rpc('lv_variantes_a_venda', { p_product: catuai.id });
+  checar('demo com duas variantes e estoques próprios',
+    variantesCatuai.data?.length === 2 && variantesCatuai.data[0].disponivel !== variantesCatuai.data[1].disponivel,
+    `(${JSON.stringify(variantesCatuai.data)})`);
+  const escadaDo2 = await visitante.from('lv_price_tiers').select('min_qty')
+    .eq('product_id', (await visitante.from('vw_lv_vitrine').select('id').eq('slug', 'serra-clara-especial-graos-250g').single()).data.id);
+  checar('estoque baixo NÃO apaga a escada do vendedor (3 faixas seguem gravadas)', (escadaDo2.data ?? []).length === 3);
 
   console.log('\n=== APAGAR ===');
   await a.from('lv_products').delete().eq('id', idA);

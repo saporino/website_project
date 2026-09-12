@@ -26,6 +26,8 @@ export interface ContextoDoVendedor {
   sellerId: string;
   sellerNome: string;
   sellerStatus: string;
+  /** Habilitação para receber vendas. Só "verificado" recebe. */
+  pagamentoStatus: string;
   loja: LojaDoVendedor | null;
 }
 
@@ -47,13 +49,13 @@ export async function carregarContexto(): Promise<Contexto> {
   if (!sellerId) return { tipo: 'sem_vinculo', email: user.email ?? null };
 
   const [vendedor, loja] = await Promise.all([
-    supabase.from('lv_sellers').select('id, nome_fantasia, status').eq('id', sellerId).maybeSingle(),
+    supabase.from('lv_sellers').select('id, nome_fantasia, status, pagamento_status').eq('id', sellerId).maybeSingle(),
     supabase.from('lv_stores')
       .select('id, slug, nome, chamada, historia, especialidade, cidade, uf, cor, iniciais, ativa, is_demo')
       .eq('seller_id', sellerId).order('created_at').limit(1).maybeSingle(),
   ]);
 
-  const v = vendedor.data as { nome_fantasia: string; status: string } | null;
+  const v = vendedor.data as { nome_fantasia: string; status: string; pagamento_status: string } | null;
   return {
     tipo: 'vendedor',
     contexto: {
@@ -61,6 +63,7 @@ export async function carregarContexto(): Promise<Contexto> {
       sellerId,
       sellerNome: v?.nome_fantasia ?? 'Vendedor',
       sellerStatus: v?.status ?? 'rascunho',
+      pagamentoStatus: v?.pagamento_status ?? 'nao_iniciado',
       loja: (loja.data as LojaDoVendedor | null) ?? null,
     },
   };

@@ -6,12 +6,18 @@
 //
 // Nenhum número é escrito à mão: tudo vem de `montarEscada`, a mesma
 // função que o carrinho usa.
+//
+// ESTOQUE: faixa que o estoque não cobre aparece desabilitada, não some. A
+// configuração do vendedor continua intacta e a faixa volta sozinha quando
+// o estoque subir.
 import type { Degrau } from './escada';
 import { reais } from './visual';
 
-export default function EscadaDeQuantidade({ degraus, escolhido, aoEscolher }: {
+export default function EscadaDeQuantidade({ degraus, escolhido, maximo, aoEscolher }: {
   degraus: Degrau[];
   escolhido: number;
+  /** Quantas unidades ainda cabem desta variante (estoque menos carrinho). */
+  maximo: number;
   aoEscolher: (quantidade: number) => void;
 }) {
   // Um degrau só significa produto sem escada: mostrar uma lista de uma
@@ -24,25 +30,29 @@ export default function EscadaDeQuantidade({ degraus, escolhido, aoEscolher }: {
       <div className="escada-degraus">
         {degraus.map(d => {
           const selecionado = d.quantidade === escolhido;
+          const falta = d.quantidade > maximo;
           return (
             <button
               type="button"
               key={d.quantidade}
-              className={`degrau${selecionado ? ' on' : ''}`}
+              className={`degrau${selecionado && !falta ? ' on' : ''}`}
               onClick={() => aoEscolher(d.quantidade)}
-              aria-pressed={selecionado}
+              aria-pressed={selecionado && !falta}
+              disabled={falta}
             >
               <span className="degrau-qtd">
                 {d.quantidade} {d.quantidade === 1 ? 'pacote' : 'pacotes'}
               </span>
               <span className="degrau-total">R$ {reais(d.total_cents)}</span>
               <span className="degrau-unit">R$ {reais(d.unitario_cents)} por pacote</span>
-              {d.economia_cents > 0 && (
+              {falta ? (
+                <span className="degrau-falta">Indisponível no estoque atual</span>
+              ) : d.economia_cents > 0 && (
                 <span className="degrau-economia">
                   Você economiza R$ {reais(d.economia_cents)}
                 </span>
               )}
-              {d.melhorCustoPorUnidade && (
+              {d.melhorCustoPorUnidade && !falta && (
                 <span className="degrau-melhor">Melhor custo por pacote</span>
               )}
             </button>

@@ -26,8 +26,9 @@ import Newsletter from './Newsletter';
 import MarketplaceFooter from './MarketplaceFooter';
 import Toast from './Toast';
 import Carrinho from './Carrinho';
-import { useCarrinho } from './usarCarrinho';
+import { useCarrinho, type LinhaNova } from './usarCarrinho';
 import PaginaProduto from './PaginaProduto';
+import ResolverQr from './ResolverQr';
 import PaginaCategoria from './PaginaCategoria';
 import PaginaBusca from './PaginaBusca';
 import PaginaLoja from './PaginaLoja';
@@ -35,13 +36,17 @@ import PaginaVender from './PaginaVender';
 import SellerCentral from './vendedor/SellerCentral';
 import NaoEncontrado from './NaoEncontrado';
 import { BASE, rota } from './config';
-import { listarVitrine, listarLojas, listarCategorias, type ItemDaVitrine, type Loja, type Categoria } from './catalogo';
+import {
+  listarVitrine, listarLojas, listarCategorias,
+  type ItemDaVitrine, type Loja, type Categoria, type VarianteAVenda,
+} from './catalogo';
 import type { MensagemToast } from './tipos';
 
 type Rota =
   | { nome: 'home' }
   | { nome: 'categoria'; slug: string }
-  | { nome: 'produto'; slug: string }
+  | { nome: 'produto'; slug: string; variante: string | null }
+  | { nome: 'qr'; codigo: string }
   | { nome: 'loja'; slug: string }
   | { nome: 'busca'; termo: string }
   | { nome: 'vender' }
@@ -62,7 +67,11 @@ function lerRota(): Rota {
   }
   if (!resto) return { nome: 'nada' };
   if (secao === 'categoria') return { nome: 'categoria', slug: resto };
-  if (secao === 'cafe' || secao === 'produto') return { nome: 'produto', slug: resto };
+  // Endereço impresso no QR: código permanente, nunca slug.
+  if (secao === 'q') return { nome: 'qr', codigo: resto };
+  if (secao === 'cafe' || secao === 'produto') {
+    return { nome: 'produto', slug: resto, variante: new URLSearchParams(window.location.search).get('v') };
+  }
   if (secao === 'loja') return { nome: 'loja', slug: resto };
   return { nome: 'nada' };
 }
@@ -114,18 +123,44 @@ function Experiencia() {
   }, []);
 
   /**
-   * Recebe a quantidade escolhida e o unitário JÁ com a faixa aplicada.
+   * Recebe a quantidade escolhida, o unitário JÁ com a faixa aplicada e a
+   * variante. O cartão da vitrine não escolhe variante: vende a padrão.
    * O preço é congelado aqui: o que o comprador viu na página é o que ele
-   * encontra no carrinho.
+   * encontra no carrinho. A quantidade, não: o carrinho corta no estoque.
    */
-  const adicionar = useCallback((item: ItemDaVitrine, quantidade = 1, unitario_cents?: number) => {
-    carrinho.adicionar(item, quantidade, unitario_cents ?? item.preco_cents ?? 0);
+  const adicionar = useCallback((item: ItemDaVitrine, quantidade = 1, unitario_cents?: number, variante?: VarianteAVenda) => {
+    const varianteId = variante?.id ?? item.variante_padrao_id;
+    const nome = item.titulo.split(' — ')[0];
+    if (!varianteId) {
+      avisar({ forte: nome, depois: ' não está disponível para compra' });
+      return;
+    }
+    const linha: LinhaNova = {
+      varianteId,
+      produtoId: item.id,
+      slug: item.slug,
+      titulo: item.titulo,
+      varianteNome: variante && !variante.padrao ? variante.nome : null,
+      lojaNome: item.loja_nome,
+      lojaSlug: item.loja_slug,
+      lojaCor: item.loja_cor,
+      disponivel: variante?.disponivel ?? item.disponivel,
+      cheio_cents: variante?.preco_cents ?? item.preco_cents ?? 0,
+    };
+    const entrou = carrinho.adicionar(linha, quantidade, unitario_cents ?? linha.cheio_cents);
+    if (entrou === 0) {
+      avisar({ antes: 'Não há estoque para mais unidades de ', forte: nome });
+      return;
+    }
     setPulsando(true);
     setTimeout(() => setPulsando(false), 220);
-    const nome = item.titulo.split(' — ')[0];
-    avisar(quantidade > 1
-      ? { antes: `${quantidade} pacotes de `, forte: nome, depois: ' no carrinho' }
-      : { forte: nome, depois: ' foi adicionado ao carrinho' });
+    if (entrou < quantidade) {
+      avisar({ antes: `Adicionamos ${entrou} de `, forte: nome, depois: ': é o que resta no estoque' });
+    } else {
+      avisar(quantidade > 1
+        ? { antes: `${quantidade} pacotes de `, forte: nome, depois: ' no carrinho' }
+        : { forte: nome, depois: ' foi adicionado ao carrinho' });
+    }
   }, [avisar, carrinho]);
 
   // Ofertas do dia: quem tem preço anterior. Mais vendidos: o resto.
@@ -187,7 +222,16 @@ function Experiencia() {
         </>
       )}
 
-      {rotaAtual.nome === 'produto' && <PaginaProduto slug={rotaAtual.slug} aoAdicionar={adicionar} />}
+      {rotaAtual.nome === 'produto' && (
+        <PaginaProduto
+          slug={rotaAtual.slug}
+          varianteInicial={rotaAtual.variante}
+          noCarrinho={carrinho.quantidadeNoCarrinho}
+          aoAdicionar={(item, quantidade, unitario, variante) => adicionar(item, quantidade, unitario, variante)}
+          aoAdicionarDoCartao={adicionar}
+        />
+      )}
+      {rotaAtual.nome === 'qr' && <ResolverQr codigo={rotaAtual.codigo} />}
       {rotaAtual.nome === 'categoria' && <PaginaCategoria slug={rotaAtual.slug} aoAdicionar={adicionar} />}
       {rotaAtual.nome === 'loja' && <PaginaLoja slug={rotaAtual.slug} aoAdicionar={adicionar} />}
       {rotaAtual.nome === 'busca' && <PaginaBusca termo={rotaAtual.termo} aoAdicionar={adicionar} />}

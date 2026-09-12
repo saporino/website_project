@@ -41,6 +41,25 @@ export interface ItemDaVitrine {
   pontuacao: string | null;
   /** O produto tem escada de quantidade configurada. */
   venda_por_quantidade: boolean;
+  /** Variante que o cartão vende com um clique. */
+  variante_padrao_id: string | null;
+  /** Vendável da variante padrão. Zero = esgotado: aparece, não vende. */
+  disponivel: number;
+  /** Código permanente do QR. Nunca muda, mesmo que o slug mude. */
+  qr_codigo: string | null;
+}
+
+/** Variante à venda, com o preço efetivo e o vendável dela. */
+export interface VarianteAVenda {
+  id: string;
+  nome: string;
+  gramatura_g: number | null;
+  moagem: string | null;
+  embalagem: string | null;
+  preco_cents: number | null;
+  padrao: boolean;
+  ordem: number;
+  disponivel: number;
 }
 
 export interface Loja {
@@ -117,6 +136,29 @@ export async function listarVitrine(opcoes: {
 export async function buscarProduto(slug: string): Promise<ItemDaVitrine | null> {
   const { data } = await supabase.from('vw_lv_vitrine').select('*').eq('slug', slug).maybeSingle();
   return (data as ItemDaVitrine) ?? null;
+}
+
+/**
+ * Variantes à venda de um produto. O vendável vem pronto do banco: o
+ * comprador não lê lote, recebe só o número.
+ */
+export async function variantesDoProduto(produtoId: string): Promise<VarianteAVenda[]> {
+  const { data } = await supabase.rpc('lv_variantes_a_venda', { p_product: produtoId });
+  return (data as VarianteAVenda[]) ?? [];
+}
+
+export type DestinoDoQr =
+  | { tipo: 'produto'; slug: string; varianteId: string | null }
+  | { tipo: 'fora_do_ar' }
+  | { tipo: 'desconhecido' };
+
+/** Resolve o código permanente impresso no QR. */
+export async function resolverQr(codigo: string): Promise<DestinoDoQr> {
+  const { data, error } = await supabase.rpc('lv_resolver_qr', { p_codigo: codigo });
+  if (error || !data) return { tipo: 'desconhecido' };
+  const r = data as { disponivel: boolean; slug?: string; variante_id?: string | null };
+  if (!r.disponivel || !r.slug) return { tipo: 'fora_do_ar' };
+  return { tipo: 'produto', slug: r.slug, varianteId: r.variante_id ?? null };
 }
 
 /** Busca por texto, ignorando acento. Simples e confiável de propósito. */

@@ -269,13 +269,16 @@ export async function salvarLoja(id: string, c: CamposDaLoja): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
+/** Um lote de uma variante. O estoque é da variante, nunca do produto. */
 export interface LinhaDeEstoque {
   id: string;
   produtoId: string;
   produtoTitulo: string;
   produtoStatus: string;
+  varianteNome: string;
   sku: string | null;
   lote: string | null;
+  dataTorra: string | null;
   validade: string | null;
   entradaEm: string | null;
   disponivel: number;
@@ -284,25 +287,38 @@ export interface LinhaDeEstoque {
 
 export async function listarEstoque(sellerId: string): Promise<LinhaDeEstoque[]> {
   const { data } = await supabase.from('lv_inventory_lots')
-    .select('id, product_id, lote, validade, entrada_em, qtd_disponivel, qtd_reservada, lv_products!inner(titulo, status, sku)')
+    .select('id, product_id, lote, data_torra, validade, entrada_em, qtd_disponivel, qtd_reservada, lv_products!inner(titulo, status), lv_product_variants!inner(nome, sku)')
     .eq('seller_id', sellerId)
     .order('entrada_em', { ascending: false });
   return ((data ?? []) as unknown as {
-    id: string; product_id: string; lote: string | null; validade: string | null; entrada_em: string | null;
-    qtd_disponivel: number; qtd_reservada: number; lv_products: { titulo: string; status: string; sku: string | null };
+    id: string; product_id: string; lote: string | null; data_torra: string | null; validade: string | null;
+    entrada_em: string | null; qtd_disponivel: number; qtd_reservada: number;
+    lv_products: { titulo: string; status: string };
+    lv_product_variants: { nome: string; sku: string | null };
   }[]).map(l => ({
     id: l.id,
     produtoId: l.product_id,
     produtoTitulo: l.lv_products.titulo,
     produtoStatus: l.lv_products.status,
-    sku: l.lv_products.sku,
+    varianteNome: l.lv_product_variants.nome,
+    sku: l.lv_product_variants.sku,
     lote: l.lote,
+    dataTorra: l.data_torra,
     validade: l.validade,
     entradaEm: l.entrada_em,
     disponivel: l.qtd_disponivel,
     reservado: l.qtd_reservada,
   }));
 }
+
+// Habilitação para RECEBER vendas. Não existe onboarding de pagamento
+// nesta fase; o status existe para ninguém supor que todo vendedor já recebe.
+export const RECEBIMENTO: Record<string, { rotulo: string; classe: string }> = {
+  nao_iniciado: { rotulo: 'Não iniciado', classe: 'neutro' },
+  pendente: { rotulo: 'Pendente', classe: 'aviso' },
+  verificado: { rotulo: 'Verificado', classe: 'ok' },
+  bloqueado: { rotulo: 'Bloqueado', classe: 'erro' },
+};
 
 // ---------------------------------------------------------------------
 // Vocabulário de status, uma vez só
