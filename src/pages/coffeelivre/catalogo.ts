@@ -10,6 +10,7 @@
 //
 // Dinheiro em CENTAVOS, conforme a seção 10 do RAIO-X.
 import { supabase } from '../../lib/supabase';
+import type { Faixa } from './escada';
 
 export interface ItemDaVitrine {
   id: string;
@@ -38,6 +39,8 @@ export interface ItemDaVitrine {
   nivel_passport: NivelDoPassport;
   /** Nulo quando o vendedor nao informou — e ai o selo nao aparece. */
   pontuacao: string | null;
+  /** O produto tem escada de quantidade configurada. */
+  venda_por_quantidade: boolean;
 }
 
 export interface Loja {
@@ -264,4 +267,30 @@ export async function listarPlanos(): Promise<Plano[]> {
 export async function enviarCandidatura(c: Candidatura): Promise<string | null> {
   const { error } = await supabase.from('lv_seller_applications').insert(c);
   return error?.message ?? null;
+}
+
+// ---------------------------------------------------------------------
+// Escada de quantidade
+// ---------------------------------------------------------------------
+export interface EscadaDoProduto {
+  faixas: Faixa[];
+  /** Piso por unidade do vendedor. Alerta na tela dele, nunca bloqueio. */
+  piso_cents: number | null;
+}
+
+/**
+ * Faixas de um produto, mais o piso do vendedor.
+ *
+ * O piso vem de `lv_products` e não da vitrine: é informação de gestão do
+ * vendedor, e a view pública não precisa carregá-la em toda listagem.
+ */
+export async function escadaDoProduto(produtoId: string): Promise<EscadaDoProduto> {
+  const [tiers, produto] = await Promise.all([
+    supabase.from('lv_price_tiers').select('min_qty, tipo, valor').eq('product_id', produtoId).order('min_qty'),
+    supabase.from('lv_products').select('preco_minimo_cents').eq('id', produtoId).maybeSingle(),
+  ]);
+  return {
+    faixas: (tiers.data as Faixa[]) ?? [],
+    piso_cents: (produto.data as { preco_minimo_cents: number | null } | null)?.preco_minimo_cents ?? null,
+  };
 }

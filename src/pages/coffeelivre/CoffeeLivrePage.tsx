@@ -25,6 +25,8 @@ import SellerCta from './SellerCta';
 import Newsletter from './Newsletter';
 import MarketplaceFooter from './MarketplaceFooter';
 import Toast from './Toast';
+import Carrinho from './Carrinho';
+import { useCarrinho } from './usarCarrinho';
 import PaginaProduto from './PaginaProduto';
 import PaginaCategoria from './PaginaCategoria';
 import PaginaBusca from './PaginaBusca';
@@ -62,7 +64,8 @@ function lerRota(): Rota {
 
 function Experiencia() {
   const [rotaAtual, setRotaAtual] = useState<Rota>(lerRota);
-  const [itens, setItens] = useState(0);
+  const carrinho = useCarrinho();
+  const [carrinhoAberto, setCarrinhoAberto] = useState(false);
   const [pulsando, setPulsando] = useState(false);
   const [mensagem, setMensagem] = useState<MensagemToast | null>(null);
   const relogioToast = useRef<number | undefined>(undefined);
@@ -105,12 +108,20 @@ function Experiencia() {
     relogioToast.current = window.setTimeout(() => setMensagem(null), 2600);
   }, []);
 
-  const adicionar = useCallback((item: ItemDaVitrine) => {
-    setItens(q => q + 1);
+  /**
+   * Recebe a quantidade escolhida e o unitário JÁ com a faixa aplicada.
+   * O preço é congelado aqui: o que o comprador viu na página é o que ele
+   * encontra no carrinho.
+   */
+  const adicionar = useCallback((item: ItemDaVitrine, quantidade = 1, unitario_cents?: number) => {
+    carrinho.adicionar(item, quantidade, unitario_cents ?? item.preco_cents ?? 0);
     setPulsando(true);
     setTimeout(() => setPulsando(false), 220);
-    avisar({ forte: item.titulo.split(' — ')[0], depois: ' foi adicionado ao carrinho' });
-  }, [avisar]);
+    const nome = item.titulo.split(' — ')[0];
+    avisar(quantidade > 1
+      ? { antes: `${quantidade} pacotes de `, forte: nome, depois: ' no carrinho' }
+      : { forte: nome, depois: ' foi adicionado ao carrinho' });
+  }, [avisar, carrinho]);
 
   // Ofertas do dia: quem tem preço anterior. Mais vendidos: o resto.
   const ofertas = vitrine.filter(i => i.preco_de_cents);
@@ -118,7 +129,13 @@ function Experiencia() {
 
   return (
     <div className="livre-root">
-      <MarketplaceHeader itens={itens} pulsando={pulsando} categorias={categorias} aoAvisar={avisar} />
+      <MarketplaceHeader
+        itens={carrinho.unidades}
+        pulsando={pulsando}
+        categorias={categorias}
+        aoAvisar={avisar}
+        aoAbrirCarrinho={() => setCarrinhoAberto(true)}
+      />
 
       {/* Dado de demonstração se anuncia. Número que parece real e não é
           vale menos, numa conversa com investidor, que número declarado. */}
@@ -163,6 +180,7 @@ function Experiencia() {
 
       <Newsletter aoAvisar={avisar} />
       <MarketplaceFooter />
+      <Carrinho carrinho={carrinho} aberto={carrinhoAberto} aoFechar={() => setCarrinhoAberto(false)} />
       <Toast mensagem={mensagem} />
     </div>
   );

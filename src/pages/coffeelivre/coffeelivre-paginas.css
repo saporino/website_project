@@ -231,3 +231,77 @@
   .livre-root .formulario { padding: 16px; }
   .livre-root .enviar { width: 100%; }
 }
+
+/* ---------- escada de quantidade ---------- */
+.livre-root .escada { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--linha); }
+.livre-root .escada-titulo { display: block; font-size: 13.5px; margin-bottom: 8px; }
+.livre-root .escada-degraus { display: grid; gap: 7px; }
+.livre-root .degrau {
+  display: grid; gap: 1px; text-align: left; padding: 10px 12px;
+  border: 2px solid var(--linha); border-radius: 8px; transition: border-color .15s, background .15s;
+}
+.livre-root .degrau:hover { border-color: var(--laranja-claro); }
+.livre-root .degrau.on { border-color: var(--laranja); background: #FFF6F0; }
+.livre-root .degrau-qtd { font-size: 13.5px; font-weight: 600; }
+.livre-root .degrau-total { font-size: 18px; font-weight: 600; line-height: 1.2; }
+.livre-root .degrau-unit { font-size: 12px; color: var(--cinza); }
+.livre-root .degrau-economia { font-size: 12.5px; color: var(--verde); font-weight: 600; }
+.livre-root .degrau-melhor {
+  justify-self: start; margin-top: 3px; font-size: 10.5px; font-weight: 700;
+  letter-spacing: .3px; text-transform: uppercase; background: var(--laranja);
+  color: #fff; padding: 2px 7px; border-radius: 3px;
+}
+.livre-root .escada-nota { display: block; font-size: 11.5px; color: var(--cinza); margin-top: 9px; line-height: 1.5; }
+.livre-root .total-escolhido { font-size: 14px; margin-top: 12px; }
+.livre-root .total-escolhido b { font-size: 17px; }
+
+/* ---------- gaveta do carrinho ---------- */
+/* Acima do aviso (z-index 99 no CSS original): com a gaveta aberta, quem
+   manda na tela e' a gaveta, e o aviso passando por cima do total parecia
+   defeito. */
+.livre-root .carrinho-fundo { position: fixed; inset: 0; background: rgba(36,21,14,.45); z-index: 100; }
+.livre-root .carrinho {
+  position: fixed; top: 0; right: 0; bottom: 0; width: 380px; max-width: 100vw;
+  background: var(--card); z-index: 101; display: flex; flex-direction: column;
+  box-shadow: -8px 0 28px rgba(0,0,0,.22);
+}
+.livre-root .carrinho-topo {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 18px; border-bottom: 1px solid var(--linha);
+}
+.livre-root .carrinho-topo b { font-size: 16px; }
+.livre-root .carrinho-topo button { font-size: 18px; color: var(--cinza); line-height: 1; }
+.livre-root .carrinho-vazio { padding: 40px 20px; text-align: center; color: var(--cinza); font-size: 14px; }
+.livre-root .carrinho-itens { flex: 1; overflow-y: auto; padding: 8px 0; }
+.livre-root .carrinho-item { display: flex; gap: 10px; padding: 12px 18px; border-bottom: 1px solid var(--linha); }
+.livre-root .carrinho-av { width: 40px; height: 52px; border-radius: 5px; flex-shrink: 0; }
+.livre-root .carrinho-corpo { flex: 1; min-width: 0; }
+.livre-root .carrinho-titulo {
+  font-size: 13px; text-align: left; line-height: 1.3; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.livre-root .carrinho-titulo:hover { color: var(--laranja); }
+.livre-root .carrinho-corpo small { display: block; font-size: 11.5px; color: var(--cinza); margin-top: 2px; }
+.livre-root .carrinho-qtd { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.livre-root .carrinho-qtd button {
+  width: 24px; height: 24px; border: 1px solid var(--linha); border-radius: 5px;
+  display: grid; place-items: center; font-size: 14px; color: var(--texto);
+}
+.livre-root .carrinho-qtd button:hover { border-color: var(--laranja); color: var(--laranja); }
+.livre-root .carrinho-qtd span { min-width: 18px; text-align: center; font-size: 13.5px; font-weight: 600; }
+.livre-root .carrinho-qtd small { margin: 0 0 0 4px; }
+.livre-root .carrinho-valor { text-align: right; flex-shrink: 0; }
+.livre-root .carrinho-valor b { font-size: 14px; }
+.livre-root .carrinho-valor button { display: block; margin-top: 4px; font-size: 11.5px; color: var(--cinza); }
+.livre-root .carrinho-valor button:hover { color: #B81C1C; }
+.livre-root .carrinho-rodape { border-top: 1px solid var(--linha); padding: 16px 18px; }
+.livre-root .carrinho-linha { display: flex; justify-content: space-between; align-items: baseline; font-size: 14px; }
+.livre-root .carrinho-linha b { font-size: 20px; }
+.livre-root .carrinho-linha.economia { margin-top: 4px; color: var(--verde); font-size: 13px; }
+.livre-root .carrinho-linha.economia b { font-size: 14px; }
+.livre-root .carrinho-nota { font-size: 11.5px; color: var(--cinza); margin-top: 10px; line-height: 1.5; }
+
+@media (max-width: 560px) {
+  .livre-root .carrinho { width: 100vw; }
+  .livre-root .degrau-total { font-size: 17px; }
+}

@@ -688,6 +688,7 @@ _Seção mantida pelo Claude Code: a cada entrega, registrar data, fase, o que f
 | 11/09/2026 | 1 · U2 | Catálogo: vendedor, loja, categoria, atributo, produto, Coffee Passport e seeds de demonstração | Ligar à tela |
 | 11/09/2026 | 1 · U3 | Home lendo do banco; páginas de categoria, busca, produto e loja; Coffee Passport na tela; menu no celular; dinheiro em centavos | Origens e rodapé ainda em código |
 | 12/09/2026 | 1 · U4 | Planos e entrada do vendedor: `/coffeelivre/vender`, candidatura pública, aba Vendedores no admin com aprovação manual | Cobrança real (fase 2) |
+| 12/09/2026 | 1 · U5 | Escada de quantidade ponta a ponta, carrinho de verdade e bancada de teste automatizada | Tela do vendedor para configurar a escada (U6) |
 
 ### 17.1 Divergências entre a implementação e a seção 10
 
@@ -736,6 +737,34 @@ Registradas aqui para não virarem surpresa. O documento é a fonte oficial; ond
 **Ninguém se aprova sozinho.** O `with check` da RLS trava o status no envio: uma candidatura só nasce como "interessado" e só um administrador a move. Aprovar cria o vendedor e a loja **inativa** — aprovar o cadastro não é publicar a vitrine.
 
 **Verificado:** visitante anônimo envia candidatura, não lê a fila dos outros e não consegue se aprovar; o pedido chega ao banco com plano escolhido; o caminho de aprovação foi ensaiado ponta a ponta e desfeito, e a loja criada por ele não aparece para o visitante enquanto estiver inativa; celular em 375 px com planos em coluna, campos com fonte de 16 px e sem rolagem lateral.
+
+### 17.1.3 O que a Unidade 5 entregou
+
+**Um produto, um estoque unitário.** Levar quatro pacotes é quantidade quatro numa linha, não um SKU de kit. Kit como produto separado duplicaria catálogo, foto e avaliação, e desalinharia estoque no primeiro mês.
+
+**Duas formas de desconto**, porque torrefação pensa das duas: percentual por faixa e reais por unidade. A segunda é a que aparece em conversa de balcão e não dava para exprimir só com percentual sem arredondar feio.
+
+**O cálculo é função pura com 21 testes.** A mesma função alimenta a página e o carrinho; se cada tela calculasse por conta, o comprador veria um total na vitrine e outro no checkout. Tudo em centavos inteiros. Arredondamento no favor do comprador: `round`, não `trunc`, porque truncar entrega menos do que foi anunciado.
+
+**"Melhor custo por pacote" no empate marca a MENOR quantidade** que alcança o preço. Mandar levar mais pelo mesmo custo por pacote seria empurrar volume.
+
+**O piso do vendedor alerta, não bloqueia.** `preco_minimo_cents` é opcional; quem informa recebe a marcação da faixa que fura. Quem decide preço é o vendedor. A tela dele para configurar isso é a Unidade 6; hoje o alerta existe no cálculo e na bancada de teste.
+
+**Carrinho de verdade.** Guarda quantidade e o unitário **já com a faixa aplicada**, congelado no momento de adicionar. O contador do cabeçalho conta unidades, não linhas, porque unidade é o que baixa do estoque.
+
+**Base futura.** A escada é a estrutura sobre a qual entram, sem refazer modelo: kits montados, promoções por faixa, recorrência com desconto de assinatura, comparação de economia entre vendedores e diluição de frete por pacote. O texto sob a escada já avisa o comprador que o frete se dilui e que essa conta vem depois.
+
+**Decisão pendente:** a tela do vendedor para configurar faixas e piso (Unidade 6). Hoje as faixas entram por migration ou pela bancada.
+
+### 17.1.4 Bancada de teste — por que é script e não rota
+
+`scripts/coffeelivre-demo.mjs` cria vendedor, loja e produto com escada, publica, roda os critérios de aceite e limpa tudo. Comandos: `semear`, `publicar`, `despublicar`, `aceite`, `limpar`, `ciclo`.
+
+**Não é rota nem função no banco de propósito.** Qualquer atalho de aprovação que exista numa rota, numa edge function ou numa RPC existe **também em produção** — basta alguém descobrir o caminho. Um script de linha de comando usa a chave de serviço que já está no `.env` de quem desenvolve, a mesma que aplica migrations, e ela nunca chega ao navegador. Nada foi acrescentado ao pacote publicado.
+
+**Limite honesto:** o projeto Supabase é um só, então a bancada escreve no mesmo banco. A proteção não é de ambiente, é de marcação: tudo leva prefixo `teste-` e `is_demo`, e `limpar` só apaga o que casa com esse prefixo. Ela não tem como remover vendedor, loja ou produto que não tenha criado.
+
+Dezoito critérios rodam sem nenhum clique: rascunho invisível, publicado visível, faixas legíveis, os quatro degraus com os valores da especificação, economia de R$ 8,00 em quatro pacotes, piso respeitado, nenhum SKU de kit criado, loja e busca encontrando o produto, e visitante sem permissão de escrita.
 
 ### 17.2 Achados de segurança durante a construção
 

@@ -3,11 +3,13 @@ import { MARCA, navegar, rota } from './config';
 import type { Categoria } from './catalogo';
 import type { MostrarToast } from './tipos';
 
-export default function MarketplaceHeader({ itens, pulsando, categorias, aoAvisar }: {
+export default function MarketplaceHeader({ itens, pulsando, categorias, aoAvisar, aoAbrirCarrinho }: {
+  /** Unidades, não linhas: é o que vai baixar do estoque. */
   itens: number;
   pulsando: boolean;
   categorias: Categoria[];
   aoAvisar: MostrarToast;
+  aoAbrirCarrinho: () => void;
 }) {
   const [busca, setBusca] = useState('');
   // O menu do celular. Sem ele, acima de 860px a navegação inteira sumia:
@@ -93,7 +95,8 @@ export default function MarketplaceHeader({ itens, pulsando, categorias, aoAvisa
           <a className="txt" href="#">Crie a sua conta</a>
           <a className="txt" href="#">Entre</a>
           <a className="txt" href="#">Compras</a>
-          <a className="cart" href="#" aria-label="Carrinho">
+          <a className="cart" href="#" aria-label="Carrinho"
+             onClick={e => { e.preventDefault(); aoAbrirCarrinho(); }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 4h2.2l2.3 11h10.8l2-7.5H6.3" /><circle cx="9.5" cy="19" r="1.4" /><circle cx="17" cy="19" r="1.4" />
             </svg>

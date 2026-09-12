@@ -8,21 +8,28 @@ import CoffeePassport from './CoffeePassport';
 import ProductCarousel from './ProductCarousel';
 import NaoEncontrado from './NaoEncontrado';
 import { navegar, rota, rotaDoProduto } from './config';
+import EscadaDeQuantidade from './EscadaDeQuantidade';
 import {
-  buscarProduto, passaporteDoProduto, atributosDoProduto, listarVitrine,
+  buscarProduto, passaporteDoProduto, atributosDoProduto, listarVitrine, escadaDoProduto,
   type ItemDaVitrine, type CampoDoPassport,
 } from './catalogo';
+import { montarEscada, type Degrau } from './escada';
 import { pacoteDoProduto, partesDoPreco, reais, porcentagemOff, parcelas, ehCafe } from './visual';
 
 export default function PaginaProduto({ slug, aoAdicionar }: {
   slug: string;
-  aoAdicionar: (item: ItemDaVitrine) => void;
+  /** Recebe a quantidade escolhida e o unitário JÁ com a faixa aplicada. */
+  aoAdicionar: (item: ItemDaVitrine, quantidade: number, unitario_cents: number) => void;
 }) {
   const [item, setItem] = useState<ItemDaVitrine | null>(null);
   const [passport, setPassport] = useState<CampoDoPassport[]>([]);
   const [ficha, setFicha] = useState<CampoDoPassport[]>([]);
   const [daLoja, setDaLoja] = useState<ItemDaVitrine[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [degraus, setDegraus] = useState<Degrau[]>([]);
+  // A quantidade é escolhida ANTES do carrinho. Começa em 1: sugerir 4 de
+  // saída seria empurrar volume para quem só queria experimentar.
+  const [quantidade, setQuantidade] = useState(1);
 
   useEffect(() => {
     let vivo = true;
@@ -33,15 +40,18 @@ export default function PaginaProduto({ slug, aoAdicionar }: {
       if (!vivo) return;
       setItem(p);
       if (p) {
-        const [pass, at, irmaos] = await Promise.all([
+        const [pass, at, irmaos, esc] = await Promise.all([
           passaporteDoProduto(p.id),
           atributosDoProduto(p.id),
           listarVitrine({ lojaId: p.store_id }),
+          p.venda_por_quantidade ? escadaDoProduto(p.id) : Promise.resolve(null),
         ]);
         if (!vivo) return;
         setPassport(pass);
         setFicha(at);
         setDaLoja(irmaos.filter(i => i.id !== p.id));
+        setQuantidade(1);
+        setDegraus(esc ? montarEscada(p.preco_cents, esc.faixas, { pisoCents: esc.piso_cents }) : []);
       }
       setCarregando(false);
     })();
@@ -51,7 +61,11 @@ export default function PaginaProduto({ slug, aoAdicionar }: {
   if (carregando) return <main className="wrap"><p className="vazio" style={{ marginTop: 24 }}>Carregando…</p></main>;
   if (!item) return <NaoEncontrado oQue="Este café não foi encontrado." />;
 
-  const [r, c] = partesDoPreco(item.preco_cents);
+  const degrauAtual = degraus.find(d => d.quantidade === quantidade);
+  // Sem escada, o preço mostrado é o do produto; com escada, é o da faixa.
+  const unitarioAtual = degrauAtual?.unitario_cents ?? item.preco_cents ?? 0;
+  const totalAtual = degrauAtual?.total_cents ?? unitarioAtual;
+  const [r, c] = partesDoPreco(unitarioAtual);
   const off = porcentagemOff(item.preco_de_cents, item.preco_cents);
   const parc = parcelas(item.preco_cents);
   const cafe = ehCafe(item);
@@ -119,22 +133,38 @@ export default function PaginaProduto({ slug, aoAdicionar }: {
         <aside className="produto-compra">
           {item.is_demo && <span className="selo-demo">Demonstração</span>}
           <h1 style={{ marginTop: item.is_demo ? 10 : 0 }}>{item.titulo}</h1>
-          {item.preco_de_cents ? <p className="de">R$ {reais(item.preco_de_cents)}</p> : null}
+          {/* O "de" e o "% OFF" comparam com o preco anterior do produto.
+              Com a faixa aplicada, a base da comparacao muda, e mostrar os
+              dois juntos faria "R$ 22,90 · 24% OFF" — numeros que nao
+              conversam. A partir de 2 pacotes, quem explica o desconto e a
+              propria escada. */}
+          {quantidade === 1 && item.preco_de_cents ? <p className="de">R$ {reais(item.preco_de_cents)}</p> : null}
           <div className="preco">
             <span className="rs">R$</span>{r}<sup>{c}</sup>
-            {off ? <span className="off">{off}% OFF</span> : null}
+            {quantidade === 1 && off ? <span className="off">{off}% OFF</span> : null}
           </div>
+          {quantidade > 1 && <p className="parc">por pacote, levando {quantidade}</p>}
           {parc ? <p className="parc">{parc}</p> : null}
           {item.peso_g ? <p className="nota">Peso: {item.peso_g} g</p> : null}
+
+          <EscadaDeQuantidade degraus={degraus} escolhido={quantidade} aoEscolher={setQuantidade} />
+
+          {quantidade > 1 && (
+            <p className="total-escolhido">
+              Total de {quantidade} pacotes: <b>R$ {reais(totalAtual)}</b>
+            </p>
+          )}
 
           <a
             className="comprar"
             href="#"
-            onClick={e => { e.preventDefault(); aoAdicionar(item); }}
+            onClick={e => { e.preventDefault(); aoAdicionar(item, quantidade, unitarioAtual); }}
           >
             Comprar agora
           </a>
-          <button className="ao-carrinho" onClick={() => aoAdicionar(item)}>Adicionar ao carrinho</button>
+          <button className="ao-carrinho" onClick={() => aoAdicionar(item, quantidade, unitarioAtual)}>
+            Adicionar ao carrinho
+          </button>
           <p className="passport-nota" style={{ marginTop: 10 }}>
             Checkout e pagamento entram numa fase seguinte. Nesta demonstração o carrinho só conta itens.
           </p>
@@ -158,7 +188,7 @@ export default function PaginaProduto({ slug, aoAdicionar }: {
             <h2>Outros produtos de {item.loja_nome}</h2>
             <a href={rota(`loja/${item.loja_slug}`)} onClick={e => { e.preventDefault(); navegar(`loja/${item.loja_slug}`); }}>Ver a loja</a>
           </div>
-          <ProductCarousel idTrilho="trilhoDaLoja" itens={daLoja} aoAdicionar={aoAdicionar} />
+          <ProductCarousel idTrilho="trilhoDaLoja" itens={daLoja} aoAdicionar={i => aoAdicionar(i, 1, i.preco_cents ?? 0)} />
         </section>
       )}
     </main>
