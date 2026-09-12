@@ -687,6 +687,7 @@ _Seção mantida pelo Claude Code: a cada entrega, registrar data, fase, o que f
 | 11/09/2026 | 1 · U1 | Fundação `lv_`, portão da demonstração conferido no servidor, logout, `config.ts`, admin de acesso, agrupador Plataformas | Trocar o código inicial |
 | 11/09/2026 | 1 · U2 | Catálogo: vendedor, loja, categoria, atributo, produto, Coffee Passport e seeds de demonstração | Ligar à tela |
 | 11/09/2026 | 1 · U3 | Home lendo do banco; páginas de categoria, busca, produto e loja; Coffee Passport na tela; menu no celular; dinheiro em centavos | Origens e rodapé ainda em código |
+| 12/09/2026 | 1 · U4 | Planos e entrada do vendedor: `/coffeelivre/vender`, candidatura pública, aba Vendedores no admin com aprovação manual | Cobrança real (fase 2) |
 
 ### 17.1 Divergências entre a implementação e a seção 10
 
@@ -721,6 +722,20 @@ Registradas aqui para não virarem surpresa. O documento é a fonte oficial; ond
 **Celular corrigido.** O menu horizontal some em 860 px no CSS original, e até aqui nada o substituía: nove destinos desapareciam. Entrou uma gaveta com as categorias do banco e os destinos da navegação.
 
 **Alinhamento ao documento.** Dinheiro passou a ser centavos e o status do produto passou a usar o vocabulário da seção 10, enquanto isso custava uma migration e onze produtos.
+
+### 17.1.2 O que a Unidade 4 entregou
+
+**Modo execução, meta de demonstração forte para investidor antes do fim de setembro.** Sequência combinada até o vertical slice: U4 planos e entrada do vendedor · U5 escada de quantidade · U6 acesso do vendedor e Seller Central · U7 comparação, B2B e admin.
+
+**Duas tabelas, nenhuma cobrança.** `lv_plans` com os quatro planos (Zero, LiVRE, Plus, Oficial) e `lv_seller_applications` com a fila de análise.
+
+**Preço é dado, não constante.** Os valores são de estudo e vão mudar antes do lançamento; em código, cada conversa de diretoria viraria um deploy, e o site poderia mostrar um número diferente da proposta. A coluna `em_estudo` faz a própria página dizer isso ao visitante.
+
+**A comissão por plano ficou NULA de propósito.** A decisão D2 não foi tomada, e número inventado numa tela de preço vira promessa.
+
+**Ninguém se aprova sozinho.** O `with check` da RLS trava o status no envio: uma candidatura só nasce como "interessado" e só um administrador a move. Aprovar cria o vendedor e a loja **inativa** — aprovar o cadastro não é publicar a vitrine.
+
+**Verificado:** visitante anônimo envia candidatura, não lê a fila dos outros e não consegue se aprovar; o pedido chega ao banco com plano escolhido; o caminho de aprovação foi ensaiado ponta a ponta e desfeito, e a loja criada por ele não aparece para o visitante enquanto estiver inativa; celular em 375 px com planos em coluna, campos com fonte de 16 px e sem rolagem lateral.
 
 ### 17.2 Achados de segurança durante a construção
 

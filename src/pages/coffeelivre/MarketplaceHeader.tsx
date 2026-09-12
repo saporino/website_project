@@ -85,7 +85,7 @@ export default function MarketplaceHeader({ itens, pulsando, categorias, aoAvisa
           <a href="#lojas">Torrefações</a>
           <a href="#regioes">Origens</a>
           <a href="#">Assinaturas</a>
-          <a href="#vender">Vender</a>
+          <a href={rota('vender')} onClick={e => { e.preventDefault(); irPara('vender'); }}>Vender</a>
           <a href="#">Ajuda</a>
         </nav>
 
@@ -117,7 +117,7 @@ export default function MarketplaceHeader({ itens, pulsando, categorias, aoAvisa
             <a href="#ofertas" onClick={() => setMenuAberto(false)}>Ofertas</a>
             <a href="#lojas" onClick={() => setMenuAberto(false)}>Torrefações</a>
             <a href="#regioes" onClick={() => setMenuAberto(false)}>Origens</a>
-            <a href="#vender" onClick={() => setMenuAberto(false)}>Venda no Coffee LiVRE</a>
+            <a href={rota('vender')} onClick={e => { e.preventDefault(); irPara('vender'); }}>Venda no Coffee LiVRE</a>
           </div>
         </div>
       )}

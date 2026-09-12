@@ -171,3 +171,63 @@
   .livre-root .loja-cabeca h1 { font-size: 20px; }
   .livre-root .barra-resultado select { margin-left: 0; width: 100%; }
 }
+
+/* ---------- planos e entrada do vendedor ---------- */
+.livre-root .planos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.livre-root .plano {
+  background: var(--card); border: 2px solid var(--linha); border-radius: var(--raio);
+  box-shadow: var(--sombra); padding: 18px; text-align: left; display: flex;
+  flex-direction: column; gap: 6px; transition: border-color .15s;
+}
+.livre-root .plano:hover { border-color: var(--laranja-claro); }
+.livre-root .plano.on { border-color: var(--laranja); }
+.livre-root .plano b { font-size: 16px; }
+.livre-root .plano-preco { font-size: 24px; font-weight: 600; color: var(--laranja); line-height: 1.1; }
+.livre-root .plano-preco small { font-size: 13px; font-weight: 400; color: var(--cinza); }
+.livre-root .plano-chamada { font-size: 12.5px; color: var(--cinza); }
+.livre-root .plano ul { list-style: none; display: grid; gap: 5px; margin-top: 8px; font-size: 12.5px; }
+.livre-root .plano ul li { padding-left: 15px; position: relative; line-height: 1.35; }
+.livre-root .plano ul li::before { content: "•"; position: absolute; left: 2px; color: var(--laranja); font-weight: 700; }
+.livre-root .planos-nota { font-size: 12.5px; color: var(--cinza); margin-top: 10px; line-height: 1.5; max-width: 75ch; }
+
+.livre-root .formulario { background: var(--card); border-radius: var(--raio); box-shadow: var(--sombra); padding: 22px; margin-top: 20px; }
+.livre-root .formulario h2 { font-size: 18px; font-weight: 600; }
+.livre-root .formulario-sub { font-size: 13px; color: var(--cinza); margin-top: 3px; }
+.livre-root .campos { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.livre-root .campo { grid-column: span 2; display: grid; gap: 4px; border: 0; padding: 0; margin: 0; }
+.livre-root .campo-largo { grid-column: span 3; }
+.livre-root .campo-curto { grid-column: span 1; }
+.livre-root .campo > span { font-size: 12px; font-weight: 600; color: var(--cinza); }
+.livre-root .campo input, .livre-root .campo select, .livre-root .campo textarea {
+  border: 1px solid var(--linha); border-radius: 6px; padding: 9px 11px;
+  /* 16px evita o zoom automatico do iPhone ao focar o campo. */
+  font-size: 16px; color: var(--texto); background: #fff; width: 100%; font-family: inherit;
+}
+.livre-root .campo input:focus, .livre-root .campo select:focus, .livre-root .campo textarea:focus {
+  outline: 2px solid var(--laranja-claro); outline-offset: -1px;
+}
+.livre-root .campo textarea { resize: vertical; }
+.livre-root .escolha { display: flex; gap: 14px; padding-top: 8px; }
+.livre-root .escolha label { display: flex; align-items: center; gap: 5px; font-size: 13.5px; }
+.livre-root .escolha input { width: auto; }
+.livre-root .enviar {
+  margin-top: 16px; background: var(--laranja); color: #fff; font-weight: 700;
+  padding: 12px 24px; border-radius: 6px; font-size: 15px;
+}
+.livre-root .enviar:hover { background: var(--laranja-hdr); }
+.livre-root .enviar:disabled { opacity: .6; cursor: default; }
+.livre-root .formulario-erro { color: #B81C1C; font-size: 13px; margin-top: 10px; font-weight: 600; }
+.livre-root .formulario-nota { font-size: 11.5px; color: var(--cinza); margin-top: 10px; line-height: 1.5; max-width: 70ch; }
+
+@media (max-width: 860px) {
+  .livre-root .planos { grid-template-columns: 1fr 1fr; }
+  .livre-root .campos { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .livre-root .campo-largo { grid-column: span 4; }
+}
+@media (max-width: 560px) {
+  .livre-root .planos { grid-template-columns: 1fr; }
+  .livre-root .campos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .livre-root .campo, .livre-root .campo-largo, .livre-root .campo-curto { grid-column: span 2; }
+  .livre-root .formulario { padding: 16px; }
+  .livre-root .enviar { width: 100%; }
+}

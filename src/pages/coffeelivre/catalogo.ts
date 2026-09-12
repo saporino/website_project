@@ -212,3 +212,56 @@ export async function atributosDosProdutos(ids: string[]): Promise<Map<string, R
   }
   return mapa;
 }
+
+// ---------------------------------------------------------------------
+// Planos e entrada do vendedor
+// ---------------------------------------------------------------------
+export interface Plano {
+  id: string;
+  slug: string;
+  nome: string;
+  chamada: string | null;
+  mensalidade_cents: number;
+  comissao_bps: number | null;
+  destaques: string[];
+  limite_produtos: number | null;
+  /** Valor ainda em estudo. A tela diz isso em vez de fingir tabela fechada. */
+  em_estudo: boolean;
+}
+
+export interface Candidatura {
+  cnpj?: string;
+  razao_social?: string;
+  nome_marca: string;
+  tipo: string;
+  responsavel: string;
+  email: string;
+  telefone?: string;
+  cidade?: string;
+  uf?: string;
+  tipos_de_cafe?: string;
+  volume_mensal?: string;
+  prazo_expedicao?: string;
+  emite_nfe?: boolean | null;
+  mensagem?: string;
+  plan_id?: string | null;
+}
+
+export async function listarPlanos(): Promise<Plano[]> {
+  const { data } = await supabase
+    .from('lv_plans')
+    .select('id, slug, nome, chamada, mensalidade_cents, comissao_bps, destaques, limite_produtos, em_estudo')
+    .order('ordem');
+  return (data as Plano[]) ?? [];
+}
+
+/**
+ * Envia um pedido de entrada.
+ *
+ * Não passa `status`: ele nasce "interessado" por padrão e a RLS recusa
+ * qualquer outro valor vindo do navegador. Ninguém se aprova sozinho.
+ */
+export async function enviarCandidatura(c: Candidatura): Promise<string | null> {
+  const { error } = await supabase.from('lv_seller_applications').insert(c);
+  return error?.message ?? null;
+}

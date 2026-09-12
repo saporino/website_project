@@ -29,6 +29,7 @@ import PaginaProduto from './PaginaProduto';
 import PaginaCategoria from './PaginaCategoria';
 import PaginaBusca from './PaginaBusca';
 import PaginaLoja from './PaginaLoja';
+import PaginaVender from './PaginaVender';
 import NaoEncontrado from './NaoEncontrado';
 import { BASE, rota } from './config';
 import { listarVitrine, listarLojas, listarCategorias, type ItemDaVitrine, type Loja, type Categoria } from './catalogo';
@@ -40,6 +41,7 @@ type Rota =
   | { nome: 'produto'; slug: string }
   | { nome: 'loja'; slug: string }
   | { nome: 'busca'; termo: string }
+  | { nome: 'vender' }
   | { nome: 'nada' };
 
 /** Caminho do navegador vira rota interna. Só isto sabe a forma das URLs. */
@@ -47,6 +49,7 @@ function lerRota(): Rota {
   const caminho = window.location.pathname.replace(BASE, '').replace(/^\/+|\/+$/g, '');
   if (!caminho) return { nome: 'home' };
   const [secao, resto] = [caminho.split('/')[0], caminho.split('/').slice(1).join('/')];
+  if (secao === 'vender') return { nome: 'vender' };
   if (secao === 'busca') {
     return { nome: 'busca', termo: new URLSearchParams(window.location.search).get('q') ?? '' };
   }
@@ -155,6 +158,7 @@ function Experiencia() {
       {rotaAtual.nome === 'categoria' && <PaginaCategoria slug={rotaAtual.slug} aoAdicionar={adicionar} />}
       {rotaAtual.nome === 'loja' && <PaginaLoja slug={rotaAtual.slug} aoAdicionar={adicionar} />}
       {rotaAtual.nome === 'busca' && <PaginaBusca termo={rotaAtual.termo} aoAdicionar={adicionar} />}
+      {rotaAtual.nome === 'vender' && <PaginaVender />}
       {rotaAtual.nome === 'nada' && <NaoEncontrado oQue="O endereço não corresponde a nenhuma página do Coffee LiVRE." />}
 
       <Newsletter aoAvisar={avisar} />
