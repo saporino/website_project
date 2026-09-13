@@ -691,6 +691,7 @@ _Seção mantida pelo Claude Code: a cada entrega, registrar data, fase, o que f
 | 12/09/2026 | 1 · U5 | Escada de quantidade ponta a ponta, carrinho de verdade e bancada de teste automatizada | Tela do vendedor para configurar a escada (U6) |
 | 12/09/2026 | 1 · U6 | Seller Central com login real, cadastro guiado, LiVRE Passport com completude, preço, piso e escada pela tela, moderação no banco, estoque e LiVRE Copiloto | Ambiente de staging; envio de imagens; convite de vendedor por e-mail |
 | 13/09/2026 | 1 · U6 (fechamento) | Produto → variante → lote; estoque por variante; estoque demo controlado limitando escada e carrinho; QR permanente por código; status de recebimento do vendedor; bancada no navegador com vendedor temporário (desktop e 375 px) | Editor de várias variantes; reserva de estoque no checkout; Lot Passport; onboarding de recebimento (fase 2) |
+| 13/09/2026 | 1 · U6.5 | Calculadora de Economia LiVRE em `/coffeelivre/vender`: comparação com Mercado Livre, Shopee, Amazon e Magalu pelos números do vendedor, regras de tarifa em tabela com fonte e confiabilidade, funções inversas, escada, aba Calculadora no admin | Validação financeira das hipóteses do LiVRE; frete real do LiVRE; tarifas do LiVRE Oficial e de 250 g / 1 kg nos planos pagos |
 
 ### 17.1 Divergências entre a implementação e a seção 10
 
@@ -859,6 +860,87 @@ Dezoito critérios rodam sem nenhum clique: rascunho invisível, publicado visí
 - Bancada no navegador: **143 critérios**, desktop e 375 px.
 - **214 testes unitários**, 13 novos para a regra de estoque (`estoque.ts`).
 - Typecheck, build e verificador de fidelidade da home sem diferenças.
+
+### 17.1.7 Unidade 6.5 — Calculadora de Economia LiVRE (13/09/2026)
+
+**Para que serve.** Ferramenta de aquisição de vendedor: a torrefação coloca os próprios números e vê quanto sobra em cada plataforma — por pedido, por pacote, por mês e por ano —, se o piso dela se sustenta, quanto poderia preservar no Coffee LiVRE e por quanto poderia vender mantendo o mesmo líquido. Princípio: "Você não precisa acreditar no Coffee LiVRE. Veja a conta."
+
+**Onde está.** `/coffeelivre/vender`, entre a apresentação e os planos. Fluxo: conte sobre o seu café → conte sobre suas vendas → veja a comparação → planos → "Quero vender melhor no Coffee LiVRE". O plano escolhido na calculadora continua selecionado nos planos e no formulário.
+
+#### Arquitetura
+| Peça | Arquivo | Papel |
+|---|---|---|
+| Regras de tarifa | `lv_tarifas_simulacao` (migration `20260913120000_calculadora_de_economia.sql`) | Uma linha por regra: plataforma, modalidade, componente, cenário, percentual (pontos-base), valor (centavos ou micros), faixa de preço do pedido, faixa de peso (envio ou pacote), confiabilidade, natureza, fonte, URL, data de verificação, vigência, observação |
+| Premissas | `lv_simulacao_premissas` | Peso da embalagem por pacote (14 g) e margem de "próximo do piso" (5%) |
+| Mensalidade dos planos | `lv_plans` | A mesma fonte que a vitrine de planos usa; convertida em regra no carregamento |
+| Motor | `src/pages/coffeelivre/calculadora/economia.ts` | Funções puras, sem nenhum número de plataforma: acha a faixa, aplica, soma, compara, projeta, resolve o preço |
+| Tela | `calculadora/CalculadoraEconomia.tsx` + `calculadora.css` | Passos, cartões, cenário, funções inversas, escada, cálculo detalhado, benefícios, CTA |
+| Benefícios não financeiros | `calculadora/beneficios.ts` | Texto com status Existe / Limitado / Não encontrado / Planejado no LiVRE |
+| Admin | Aba **Calculadora** em Plataformas › Coffee LiVRE (`LivreTarifas.tsx`) | Editar valor, confiabilidade, data de verificação, vigência, fonte e observação; editar premissas. Criar regra nova continua sendo migration |
+
+Leitura pública por RLS (é a conta que o vendedor vê); escrita só admin.
+
+#### Duas naturezas, nunca misturadas
+- **`benchmark`** — regra pública de outra plataforma, tirada dos estudos de 11 e 12/09/2026 (`MERCADOLIVRE_TAXAS`, `MERCADOLIVRE_COMPLEMENTO`, `SIMULACAO_ML_CAFE_500G`, `ESTRUTURA_SHOPEE`, `AMAZON_BRASIL_RAIO_X`, `AMAZON_COMPLEMENTO`, `MAGALU_RAIO_X_COMPLETO`). Nenhuma pesquisa nova.
+- **`hipotese_livre`** — valor do Coffee LiVRE **em estudo**. A tela diz "Valores ilustrativos da fase de apresentação" e o selo "Em estudo". Não é tarifa contratual.
+
+**Confiabilidade de cada regra:** fonte oficial · fonte secundária · calculado de fonte oficial · premissa do estudo · fontes oficiais divergem · não disponível publicamente · em estudo · desatualizado (vigência vencida) · não entra na conta. No resultado existe ainda "fora das faixas estudadas".
+
+#### Fórmulas
+Tudo em centavos inteiros; percentual em pontos-base; arredondamento meio-para-cima, uma vez por componente.
+- **Pedido** = N pacotes enviados juntos, como kit, exatamente como nos estudos. Valor = preço × N (ou o total da escada).
+- **Peso do envio** = N × (gramatura + 14 g de embalagem). Reproduz as faixas dos estudos: 1 pacote de 500 g = 514 g = faixa de 0,5 a 1 kg.
+- **Componentes:** comissão = percentual × valor do pedido (com mínimo, se houver) · tarifa fixa por pedido · tarifa por pacote × N · logística por pedido pela faixa de peso e preço · pagamento = percentual × valor · armazenagem por pacote × N · mensalidade rateada = mensalidade × N ÷ pacotes do mês.
+- **Líquido do pedido** = valor − soma dos custos; **por pacote** = líquido ÷ N; **carga efetiva** = custos ÷ valor.
+- **Mês** = pedido × (pacotes do mês ÷ N), com a mensalidade inteira uma vez; **ano** = 12 meses. Sem vendas, a mensalidade não se dilui e aparece cheia.
+- **Piso:** abaixo se líquido por pacote < piso; próximo se acima, mas a menos de 5% do piso; acima no resto.
+- **Economia potencial** = líquido mensal no LiVRE − líquido mensal na plataforma atual. **Peso da mensalidade** = mensalidade ÷ economia mensal. **Mensalidade por pedido** = mensalidade ÷ pedidos do mês.
+- **Preço para o piso** e **preço LiVRE equivalente:** menor preço por pacote cujo líquido por pacote alcança o alvo, buscado centavo a centavo (as tabelas têm degraus e o líquido não cresce de forma contínua).
+- **Escada:** usa `montarEscada`, o mesmo motor da página do produto, e passa cada degrau pelo motor de custos.
+
+#### Desconhecido nunca vira zero
+Componente sem valor público fica **nulo**. O pedido fica "incompleto", o líquido vira **teto** ("até R$ X"), a carga efetiva não é mostrada, e só se conclui o que é matematicamente certo: se nem o teto alcança o piso, está abaixo; se alcança, "não dá para afirmar". O preço para o piso para e responde "Não é possível determinar com precisão com os dados públicos disponíveis." quando a busca atravessa custo não público. Na tabela detalhada: **R$ 0,00** quando o componente não faz parte da cobrança, **Não disponível** quando existe e não é conhecido.
+
+#### O que está configurado (resumo das regras semeadas)
+| Plataforma | Comissão | Fixa | Logística | Outras | Lacunas |
+|---|---|---|---|---|---|
+| Mercado Livre | Clássico 14%, Premium 19% (simulador oficial, inclui Mercado Pago) | — | Custo de envio por peso (até 3 kg) × preço (R$ 19 a R$ 99,99), tabela oficial | — | Acima de R$ 99,99 e de 3 kg; abaixo de R$ 19 |
+| Shopee | 20% até R$ 79,99; 14% acima (oficial, inclui pagamento) | R$ 4 / 16 / 20 / 26 por faixa | R$ 0 como premissa do estudo (frete do comprador ou cupom da Shopee) | — | Custo de postagem do vendedor fora da conta |
+| Amazon | 10%, mínimo R$ 1 (oficial) | — | FBA por peso × preço até R$ 119,99; faixa 1–1,5 kg com **conflito** entre página e PDF oficiais, usado o PDF, como no estudo | Armazenagem de 1 mês (calculada só para 500 g); plano Profissional R$ 19/mês | Acima de R$ 119,99; armazenagem de outras gramaturas |
+| Magalu | 18% como premissa (padrão oficial; comissão de café não publicada) | R$ 5 por pedido (existência oficial, valor secundário) | R$ 0 abaixo de R$ 99 (o comprador paga o frete); **não público** a partir de R$ 99 | Frete grátis ao comprador a partir de R$ 99 (informação) | Coparticipação do vendedor no frete grátis |
+| Coffee LiVRE (em estudo) | Zero 12%, LiVRE 10%, LiVRE+ Plus 8%, Oficial não definida | Tarifa operacional por pacote: Zero 250 g R$ 0,50 · 500 g R$ 0,95 · 1 kg R$ 1,00; LiVRE 500 g R$ 0,85; Plus 500 g R$ 0,75; demais em estudo | Frete calculado separadamente (não entra) | Pagamento Mercado Pago: cartão à vista 4,98% (padrão) ou Pix 0,99%, fonte secundária; mensalidade de `lv_plans` | Oficial inteiro; 250 g e 1 kg nos planos pagos; frete real |
+
+#### Exemplo-base (café 500 g a R$ 23,90, piso R$ 19,00, 1.000 pacotes/mês, 1 pacote por pedido)
+| Plataforma | Líquido por pacote | Carga | Piso | Diferença no mês / ano | Preço para o piso |
+|---|---|---|---|---|---|
+| Mercado Livre Clássico | R$ 13,40 | 43,9% | abaixo, −R$ 5,60 | −R$ 5.600 / −R$ 67.200 | R$ 30,41 |
+| Mercado Livre Premium | R$ 12,21 | 48,9% | abaixo, −R$ 6,79 | −R$ 6.790 / −R$ 81.480 | — |
+| Shopee | R$ 15,12 | 36,7% | abaixo, −R$ 3,88 | −R$ 3.880 / −R$ 46.560 | R$ 28,75 |
+| Amazon FBA | R$ 9,35 | 60,9% | abaixo, −R$ 9,65 | −R$ 9.650 / −R$ 115.800 | R$ 36,84 |
+| Magalu | R$ 14,60 | 38,9% | abaixo, −R$ 4,40 | −R$ 4.400 / −R$ 52.800 | R$ 29,27 |
+| Coffee LiVRE Zero, cartão | R$ 18,89 | 21,0% | abaixo, −R$ 0,11 | −R$ 110 / −R$ 1.320 | R$ 24,03 |
+| Coffee LiVRE Zero, Pix | R$ 19,84 | — | acima | — | — |
+
+Vendendo hoje na Magalu: economia potencial estimada de **+R$ 4.290/mês** e **+R$ 51.480 em 12 meses** no LiVRE Zero; o mesmo líquido de R$ 14,60 caberia num preço LiVRE de **R$ 18,73** (R$ 5,17 a menos para o comprador, se o vendedor quiser). Os números de ML, Amazon e Magalu reproduzem, centavo a centavo, as simulações dos estudos — isso é teste automatizado.
+
+#### Limitações assumidas
+- **A comparação não é simétrica no frete.** Nos concorrentes entra o custo de envio que a regra cobra do vendedor; no Coffee LiVRE o frete é pago pelo comprador e o custo real ainda não existe. A tela diz isso no cartão do LiVRE.
+- **Pagamento:** nos concorrentes está dentro da comissão; no LiVRE é linha própria (split do Mercado Pago). O padrão é cartão à vista, o cenário menos favorável ao LiVRE; o Pix é opção visível.
+- **Kit:** N pacotes são tratados como um envio, como nos estudos. Vendidos como itens separados, a Amazon cobra FBA por unidade e a Shopee cobra a tarifa fixa por item.
+- **Fora da conta:** impostos, custo do café, embalagem, postagem própria, Ads, afiliados, devoluções, antecipação, promoções de entrada (Magalu 9,9%, isenção de 12 meses da Amazon) e reputação diferente de verde.
+- **Tabelas incompletas** acima das faixas estudadas aparecem como "não disponível", nunca estimadas.
+- A escada e os benefícios usam só o que existe hoje; "Planejado no LiVRE" marca o que ainda não está construído.
+
+#### Precisa de validação financeira antes de virar argumento comercial
+1. Comissões e tarifas operacionais do LiVRE (decisão D2) e se a tarifa operacional cobre o custo real do CD (P6).
+2. Se a taxa do Mercado Pago fica com o vendedor ou entra "por dentro" (D3) — ela sozinha move o LiVRE Zero de abaixo para acima do piso no exemplo.
+3. Frete do LiVRE (D4) — enquanto não existir, a vantagem mostrada exclui logística.
+4. Tarifas do LiVRE Oficial e de 250 g / 1 kg nos planos LiVRE e Plus.
+5. Confirmação em painel logado: valor 2026 da tarifa fixa da Magalu, comissão de café na Magalu, tabela FBA conflitante da Amazon.
+
+#### Testes
+- **57 testes do motor** (271 no total do projeto): percentual, tarifa fixa, tarifa por pacote, mensalidade rateada, piso (acima, próximo, abaixo, indeterminado), volume mensal e ano, função inversa, custo desconhecido, zero vendas, preço e quantidade inválidos, arredondamento, quantidade de 1 a 5, e reprodução das simulações de ML, Amazon e Magalu.
+- **Bancada no navegador** (`node scripts/coffeelivre-navegador.mjs --so=calculadora`), desktop e 375 px: calculadora antes dos planos; cinco plataformas; valores do exemplo-base; piso, impacto mensal e anual; economia; período por pedido, mês e ano; preço do piso; preço equivalente; aviso de frete grátis com 4 pacotes; "até" e "não é possível determinar" com 5 pacotes; "Como calculamos" com fonte e confiabilidade; cálculo detalhado (tabela no desktop, cartões no celular); benefícios; plano mantido ao ir aos planos; CTA levando ao formulário; sem rolagem lateral e sem erro de console. Recortes em tamanho real ficam em `test-results/coffeelivre/`.
 
 ### 17.2 Achados de segurança durante a construção
 

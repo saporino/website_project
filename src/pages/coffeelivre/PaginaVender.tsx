@@ -11,6 +11,11 @@ import { useEffect, useState } from 'react';
 import { navegar, rota } from './config';
 import { listarPlanos, enviarCandidatura, type Plano } from './catalogo';
 import { reais } from './visual';
+import CalculadoraEconomia from './calculadora/CalculadoraEconomia';
+
+// A calculadora vem antes dos planos: primeiro o vendedor vê a conta com os
+// próprios números, depois escolhe o plano, depois pede a entrada.
+const rolarPara = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
 const TIPOS: [string, string][] = [
   ['produtor', 'Produtor'],
@@ -108,7 +113,14 @@ export default function PaginaVender() {
         </p>
       </div>
 
-      <section className="planos">
+      <CalculadoraEconomia
+        planoId={escolhido}
+        aoEscolherPlano={setEscolhido}
+        aoVerPlanos={() => rolarPara('planos')}
+        aoQuererVender={() => rolarPara('quero-vender')}
+      />
+
+      <section className="planos" id="planos">
         {planos.map(p => (
           <button
             type="button"
@@ -134,7 +146,7 @@ export default function PaginaVender() {
         antes da abertura da plataforma e vai no contrato, não numa página que muda sozinha.
       </p>
 
-      <section className="formulario">
+      <section className="formulario" id="quero-vender">
         <h2>Conte sobre a sua marca</h2>
         <p className="formulario-sub">
           Levamos até cinco dias úteis para responder. Campos com <b>*</b> são obrigatórios.

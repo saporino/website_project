@@ -1,0 +1,223 @@
+/* Calculadora de Economia LiVRE.
+   Tudo escopado em .livre-root .calc e usando as variáveis do Coffee LiVRE.
+   Um único tom próprio: o vermelho de "abaixo do piso", definido uma vez. */
+
+.livre-root .calc {
+  --calc-vermelho: #B3261E;
+  --calc-vermelho-fundo: #FBEDEB;
+  --calc-ambar: #9A5B00;
+  --calc-ambar-fundo: #FFF4E0;
+  --calc-verde-fundo: #E8F5EE;
+  margin-top: 22px; background: var(--card); border-radius: var(--raio); box-shadow: var(--sombra);
+  padding: 24px; color: var(--texto);
+}
+/* O CSS base do Coffee LiVRE põe marcador em todo ul. */
+.livre-root .calc ul { list-style: none; padding: 0; margin: 0; }
+.livre-root .calc-topo { max-width: 68ch; }
+.livre-root .calc-selo {
+  display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+  background: var(--etiqueta); color: var(--marrom); padding: 3px 8px; border-radius: 4px;
+}
+.livre-root .calc-topo h2 { font-size: 24px; font-weight: 700; margin-top: 8px; text-wrap: balance; }
+.livre-root .calc-chamada { font-size: 17px; margin-top: 6px; }
+.livre-root .calc-sub { font-size: 13.5px; color: var(--cinza); margin-top: 4px; line-height: 1.5; }
+.livre-root .calc-link {
+  display: inline-block; margin-top: 10px; font-size: 13.5px; font-weight: 600; color: var(--laranja);
+  text-decoration: underline; text-underline-offset: 3px; min-height: 32px;
+}
+.livre-root .calc-link:hover { color: var(--marrom-esc); }
+
+/* ---------- passos ---------- */
+.livre-root .calc-passos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
+.livre-root .calc-passo { border: 1px solid var(--linha); border-radius: var(--raio); padding: 16px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.livre-root .calc-passo legend, .livre-root .calc-resultado-topo h3 {
+  display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; padding: 0 4px;
+}
+.livre-root .calc-passo legend em, .livre-root .calc-resultado-topo h3 em {
+  font-style: normal; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--marrom); color: #fff; font-size: 12.5px;
+}
+.livre-root .calc-campo { display: grid; gap: 6px; min-width: 0; }
+.livre-root .calc-campo > span { font-size: 13.5px; font-weight: 600; }
+.livre-root .calc-campo small { font-size: 12px; color: var(--cinza); line-height: 1.45; }
+.livre-root .calc-erro { color: var(--calc-vermelho) !important; }
+.livre-root .calc-dinheiro {
+  display: flex; align-items: stretch; border: 1px solid var(--linha); border-radius: 8px; overflow: hidden; background: #fff;
+}
+.livre-root .calc-dinheiro:focus-within { border-color: var(--laranja); box-shadow: 0 0 0 2px rgba(218,100,24,.18); }
+.livre-root .calc-dinheiro b { display: grid; place-items: center; padding: 0 10px; background: var(--etiqueta); font-size: 13px; font-weight: 600; color: var(--marrom); white-space: nowrap; }
+.livre-root .calc-dinheiro input {
+  flex: 1; min-width: 0; border: 0; outline: 0; padding: 10px 12px; font-size: 16px; font-variant-numeric: tabular-nums; background: transparent;
+}
+.livre-root .calc-gramas { max-width: 180px; margin-top: 6px; }
+.livre-root .calc-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.livre-root .calc-chips button {
+  min-height: 40px; padding: 8px 12px; border: 1.5px solid var(--linha); border-radius: 999px; font-size: 13.5px; background: #fff;
+}
+.livre-root .calc-chips button:hover { border-color: var(--laranja-claro); }
+.livre-root .calc-chips button.on { border-color: var(--laranja); background: #FFF6F0; font-weight: 600; }
+.livre-root .calc-chips button:focus-visible,
+.livre-root .calc-alternar button:focus-visible,
+.livre-root .calc-mini-alternar button:focus-visible,
+.livre-root .calc-botao:focus-visible,
+.livre-root .calc-link:focus-visible { outline: 2px solid var(--laranja); outline-offset: 2px; }
+.livre-root .calc-aviso { margin-top: 18px; padding: 16px; border-radius: var(--raio); background: var(--bg); color: var(--cinza); font-size: 14px; }
+
+/* ---------- resultado ---------- */
+.livre-root .calc-resultado { margin-top: 22px; border-top: 1px solid var(--linha); padding-top: 18px; }
+.livre-root .calc-resultado-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.livre-root .calc-alternar { display: inline-flex; border: 1px solid var(--linha); border-radius: 999px; padding: 3px; background: var(--bg); }
+.livre-root .calc-alternar button { min-height: 36px; padding: 6px 14px; border-radius: 999px; font-size: 13.5px; }
+.livre-root .calc-alternar button.on { background: var(--marrom); color: #fff; font-weight: 600; }
+.livre-root .calc-legenda { font-size: 13.5px; color: var(--cinza); margin-top: 8px; }
+
+.livre-root .calc-cenario { margin-top: 14px; border-radius: var(--raio); background: var(--bg); padding: 16px; }
+.livre-root .calc-cenario h4 { font-size: 16px; font-weight: 700; }
+.livre-root .calc-cenario h5 { font-size: 14px; font-weight: 700; margin-top: 14px; }
+.livre-root .calc-cenario > p { font-size: 14px; margin-top: 6px; line-height: 1.5; }
+.livre-root .calc-cenario-lados { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.livre-root .calc-cenario-lados > div { background: var(--card); border-radius: 8px; padding: 12px; display: grid; gap: 2px; border: 1px solid var(--linha); }
+.livre-root .calc-cenario-lados > div.livre { border-color: var(--laranja); }
+.livre-root .calc-cenario-lados small { font-size: 12px; color: var(--cinza); }
+.livre-root .calc-cenario-lados b { font-size: 22px; font-variant-numeric: tabular-nums; }
+.livre-root .calc-cenario-lados span { font-size: 12px; color: var(--cinza); }
+.livre-root .calc-economia { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
+.livre-root .calc-economia > div { background: var(--card); border-radius: 8px; padding: 12px; display: grid; gap: 2px; }
+.livre-root .calc-economia small { font-size: 12px; color: var(--cinza); }
+.livre-root .calc-economia b { font-size: 20px; color: var(--verde); font-variant-numeric: tabular-nums; }
+.livre-root .calc-mensalidade { margin-top: 10px; font-size: 13.5px; line-height: 1.55; }
+
+.livre-root .calc-cartoes { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; margin-top: 14px; }
+.livre-root .calc-cartao { border: 1px solid var(--linha); border-radius: var(--raio); padding: 14px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.livre-root .calc-cartao.atual { border-color: var(--marrom); }
+.livre-root .calc-cartao.livre { border: 2px solid var(--laranja); }
+.livre-root .calc-cartao header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.livre-root .calc-cartao header b { display: block; font-size: 16px; }
+.livre-root .calc-cartao header small { font-size: 12px; color: var(--cinza); }
+.livre-root .calc-marca { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; background: var(--etiqueta); color: var(--marrom); padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+.livre-root .calc-marca.livre { background: #FFF6F0; color: var(--laranja); }
+.livre-root .calc-mini-alternar { display: flex; gap: 4px; }
+.livre-root .calc-mini-alternar button { flex: 1; min-height: 34px; border: 1px solid var(--linha); border-radius: 6px; font-size: 12.5px; background: #fff; }
+.livre-root .calc-mini-alternar button.on { border-color: var(--laranja); background: #FFF6F0; font-weight: 600; }
+.livre-root .calc-numeros { display: grid; gap: 4px; }
+.livre-root .calc-numeros > div { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.livre-root .calc-numeros dt { color: var(--cinza); }
+.livre-root .calc-numeros dd { font-variant-numeric: tabular-nums; text-align: right; }
+.livre-root .calc-numeros dd small { color: var(--calc-ambar); font-size: 11px; }
+.livre-root .calc-numeros > div.grande { margin: 4px 0; padding: 8px 0; border-top: 1px solid var(--linha); border-bottom: 1px solid var(--linha); align-items: baseline; }
+.livre-root .calc-numeros > div.grande dt { color: var(--texto); font-weight: 600; }
+.livre-root .calc-numeros > div.grande dd { font-size: 20px; font-weight: 700; }
+.livre-root .calc-barra { display: grid; gap: 4px; }
+.livre-root .calc-barra i { display: block; height: 6px; border-radius: 3px; background: var(--verde); box-shadow: inset 0 0 0 0 transparent; }
+.livre-root .calc-barra { position: relative; }
+.livre-root .calc-barra::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 6px; border-radius: 3px; background: var(--linha); z-index: 0; }
+.livre-root .calc-barra i { position: relative; z-index: 1; }
+.livre-root .calc-barra small { font-size: 12px; color: var(--cinza); }
+.livre-root .calc-nota { font-size: 12px; color: var(--cinza); line-height: 1.5; }
+.livre-root .calc-nota.destaque { color: var(--calc-ambar); background: var(--calc-ambar-fundo); padding: 8px 10px; border-radius: 6px; }
+
+.livre-root .calc-piso { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.livre-root .calc-piso.acima { background: var(--calc-verde-fundo); color: var(--verde); }
+.livre-root .calc-piso.proximo { background: var(--calc-ambar-fundo); color: var(--calc-ambar); }
+.livre-root .calc-piso.abaixo { background: var(--calc-vermelho-fundo); color: var(--calc-vermelho); }
+.livre-root .calc-piso.indeterminado { background: var(--etiqueta); color: var(--cinza); }
+.livre-root .calc-piso-bloco { border-radius: 8px; padding: 10px; display: grid; gap: 4px; font-size: 13px; line-height: 1.45; border-left: 3px solid var(--linha); background: var(--bg); }
+.livre-root .calc-piso-bloco.acima { border-left-color: var(--verde); }
+.livre-root .calc-piso-bloco.proximo { border-left-color: var(--calc-ambar); }
+.livre-root .calc-piso-bloco.abaixo { border-left-color: var(--calc-vermelho); }
+.livre-root .calc-piso-bloco b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Cada trecho "rótulo + valor" quebra inteiro: "R$" nunca fica numa linha e "19,00" na outra. */
+.livre-root .calc-piso-bloco span, .livre-root .calc-impacto span { white-space: nowrap; }
+.livre-root .calc-impacto { font-size: 12.5px; color: var(--cinza); font-variant-numeric: tabular-nums; }
+
+.livre-root .calc-fontes { border-top: 1px dashed var(--linha); padding-top: 8px; display: grid; gap: 8px; }
+.livre-root .calc-fontes ul { display: grid; gap: 10px; }
+.livre-root .calc-fontes li { display: grid; gap: 3px; }
+.livre-root .calc-fontes small { font-size: 11.5px; color: var(--cinza); line-height: 1.45; overflow-wrap: anywhere; }
+.livre-root .calc-fontes a { color: var(--laranja); text-decoration: underline; }
+.livre-root .calc-fonte-linha { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.livre-root .calc-fonte-linha b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.livre-root .calc-confianca { justify-self: start; font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: var(--etiqueta); color: var(--marrom); }
+.livre-root .calc-confianca.verificado, .livre-root .calc-confianca.calculado { background: var(--calc-verde-fundo); color: var(--verde); }
+.livre-root .calc-confianca.fonte_secundaria, .livre-root .calc-confianca.premissa,
+.livre-root .calc-confianca.conflitante, .livre-root .calc-confianca.em_estudo { background: var(--calc-ambar-fundo); color: var(--calc-ambar); }
+.livre-root .calc-confianca.nao_publico, .livre-root .calc-confianca.fora_da_tabela,
+.livre-root .calc-confianca.desatualizado { background: var(--calc-vermelho-fundo); color: var(--calc-vermelho); }
+
+/* ---------- blocos ---------- */
+.livre-root .calc-bloco { margin-top: 18px; border: 1px solid var(--linha); border-radius: var(--raio); padding: 16px; min-width: 0; }
+.livre-root .calc-bloco h4 { font-size: 15.5px; font-weight: 700; text-wrap: balance; }
+.livre-root .calc-lista-precos { margin-top: 10px; display: grid; gap: 6px; }
+.livre-root .calc-lista-precos li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: 13.5px; padding: 8px 0; border-bottom: 1px solid var(--linha); }
+.livre-root .calc-lista-precos li:last-child { border-bottom: 0; }
+.livre-root .calc-lista-precos b { font-variant-numeric: tabular-nums; }
+.livre-root .calc-lista-precos b small, .livre-root .calc-lista-precos span small { font-weight: 400; color: var(--cinza); font-size: 12px; }
+.livre-root .calc-lista-precos em { font-style: normal; color: var(--calc-ambar); font-size: 12.5px; max-width: 42ch; }
+.livre-root .calc-equivalente { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.livre-root .calc-equivalente > div { background: var(--bg); border-radius: 8px; padding: 10px; display: grid; gap: 2px; }
+.livre-root .calc-equivalente small { font-size: 12px; color: var(--cinza); }
+.livre-root .calc-equivalente b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.livre-root .calc-descontos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+
+.livre-root .calc-rolagem { overflow-x: auto; margin-top: 12px; -webkit-overflow-scrolling: touch; }
+.livre-root .calc-escada, .livre-root .calc-tabela { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.livre-root .calc-escada { min-width: 520px; }
+.livre-root .calc-tabela { min-width: 760px; }
+.livre-root .calc-escada th, .livre-root .calc-escada td,
+.livre-root .calc-tabela th, .livre-root .calc-tabela td { padding: 8px 10px; border-bottom: 1px solid var(--linha); text-align: right; white-space: nowrap; }
+.livre-root .calc-escada th:first-child, .livre-root .calc-escada td:first-child,
+.livre-root .calc-tabela th:first-child { text-align: left; }
+.livre-root .calc-escada thead th, .livre-root .calc-tabela thead th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--marrom); background: var(--etiqueta); }
+.livre-root .calc-tabela tbody th { font-weight: 500; color: var(--cinza); }
+.livre-root .calc-tabela tr.forte td, .livre-root .calc-tabela tr.forte th { font-weight: 700; color: var(--texto); }
+.livre-root .calc-tabela.calc-beneficios td { text-align: center; white-space: normal; }
+.livre-root .calc-tabela.calc-beneficios tbody th { white-space: normal; max-width: 260px; color: var(--texto); }
+
+.livre-root .calc-status { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+.livre-root .calc-status.existe { background: var(--calc-verde-fundo); color: var(--verde); }
+.livre-root .calc-status.limitado { background: var(--calc-ambar-fundo); color: var(--calc-ambar); }
+.livre-root .calc-status.nao_encontrado { background: var(--etiqueta); color: var(--cinza); }
+.livre-root .calc-status.planejado { background: #FFF6F0; color: var(--laranja); }
+
+.livre-root .calc-acoes-detalhe { margin-top: 18px; }
+.livre-root .calc-botao {
+  min-height: 44px; padding: 10px 18px; border-radius: 8px; border: 1.5px solid var(--marrom); font-weight: 600; font-size: 14px; background: #fff; color: var(--marrom);
+}
+.livre-root .calc-botao:hover { background: var(--etiqueta); }
+.livre-root .calc-botao.principal { background: var(--laranja); border-color: var(--laranja); color: #fff; }
+.livre-root .calc-botao.principal:hover { background: var(--laranja-hdr); }
+.livre-root .calc-detalhe { margin-top: 12px; }
+.livre-root .calc-so-estreito { display: none; }
+.livre-root .calc-detalhe-cartao { border: 1px solid var(--linha); border-radius: 8px; padding: 12px; margin-top: 10px; }
+.livre-root .calc-detalhe-cartao > b { font-size: 14px; }
+.livre-root .calc-detalhe-cartao dl { display: grid; gap: 4px; margin-top: 6px; }
+.livre-root .calc-detalhe-cartao dl > div { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+.livre-root .calc-detalhe-cartao dt { color: var(--cinza); }
+.livre-root .calc-detalhe-cartao dd { text-align: right; font-variant-numeric: tabular-nums; }
+.livre-root .calc-detalhe-cartao dl > div.forte dt, .livre-root .calc-detalhe-cartao dl > div.forte dd { font-weight: 700; color: var(--texto); }
+
+.livre-root .calc-rodape { margin-top: 20px; border-top: 1px solid var(--linha); padding-top: 14px; }
+.livre-root .calc-rodape > p:first-child { font-size: 12px; color: var(--cinza); line-height: 1.55; max-width: 90ch; }
+.livre-root .calc-frase { margin-top: 12px; font-size: 16px; font-weight: 600; }
+.livre-root .calc-cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+
+@media (max-width: 860px) {
+  .livre-root .calc-passos { grid-template-columns: 1fr; }
+  .livre-root .calc-equivalente, .livre-root .calc-descontos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 640px) {
+  .livre-root .calc { padding: 16px; }
+  .livre-root .calc-topo h2 { font-size: 20px; }
+  .livre-root .calc-so-largo { display: none; }
+  .livre-root .calc-so-estreito { display: block; }
+  .livre-root .calc-cartoes { grid-template-columns: 1fr; }
+  .livre-root .calc-cenario-lados, .livre-root .calc-economia { grid-template-columns: 1fr; }
+  .livre-root .calc-alternar { width: 100%; }
+  .livre-root .calc-alternar button { flex: 1; }
+  .livre-root .calc-cta .calc-botao { flex: 1 1 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .livre-root .calc * { scroll-behavior: auto !important; transition: none !important; }
+}

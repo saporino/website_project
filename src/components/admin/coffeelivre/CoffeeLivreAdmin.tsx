@@ -8,12 +8,14 @@
 // investidor, uma aba vazia parece defeito; uma aba que explica o que vem
 // parece plano.
 import { useState } from 'react';
-import { KeyRound, LayoutDashboard, Image, LayoutGrid, Store, Package, Tags, ShieldCheck } from 'lucide-react';
+import { KeyRound, LayoutDashboard, Image, LayoutGrid, Store, Package, Tags, ShieldCheck, Calculator } from 'lucide-react';
 import LivreAcesso from './LivreAcesso';
 import LivreVendedores from './LivreVendedores';
 import LivreModeracao from './LivreModeracao';
+import LivreTarifas from './LivreTarifas';
 
-type Sub = 'painel' | 'site' | 'vitrine' | 'vendedores' | 'moderacao' | 'lojas' | 'produtos' | 'categorias' | 'acesso';
+type Sub = 'painel' | 'site' | 'vitrine' | 'vendedores' | 'moderacao' | 'tarifas' | 'lojas' | 'produtos' | 'categorias' | 'acesso';
+type Pronta = 'acesso' | 'vendedores' | 'moderacao' | 'tarifas';
 
 const ABAS: { id: Sub; label: string; icon: typeof KeyRound; pronto: boolean }[] = [
   { id: 'painel', label: 'Painel', icon: LayoutDashboard, pronto: false },
@@ -21,13 +23,14 @@ const ABAS: { id: Sub; label: string; icon: typeof KeyRound; pronto: boolean }[]
   { id: 'vitrine', label: 'Vitrine', icon: LayoutGrid, pronto: false },
   { id: 'vendedores', label: 'Vendedores', icon: Store, pronto: true },
   { id: 'moderacao', label: 'Moderação', icon: ShieldCheck, pronto: true },
+  { id: 'tarifas', label: 'Calculadora', icon: Calculator, pronto: true },
   { id: 'lojas', label: 'Lojas', icon: Store, pronto: false },
   { id: 'produtos', label: 'Produtos', icon: Package, pronto: false },
   { id: 'categorias', label: 'Categorias', icon: Tags, pronto: false },
   { id: 'acesso', label: 'Acesso', icon: KeyRound, pronto: true },
 ];
 
-const APRESENTACAO: Record<Exclude<Sub, 'acesso' | 'vendedores' | 'moderacao'>, string> = {
+const APRESENTACAO: Record<Exclude<Sub, Pronta>, string> = {
   painel: 'Vendedores, produtos, visitas e GMV. Os números de demonstração virão marcados como simulação, para nunca serem confundidos com venda real.',
   site: 'Hero, banners e blocos da home: ligar, desligar, reordenar e trocar imagem de desktop e de celular sem publicar código.',
   vitrine: 'Quais cafés entram em Ofertas do dia e em Mais vendidos, quais lojas aparecem em destaque e em que ordem.',
@@ -73,13 +76,15 @@ export default function CoffeeLivreAdmin() {
         <LivreVendedores />
       ) : sub === 'moderacao' ? (
         <LivreModeracao />
+      ) : sub === 'tarifas' ? (
+        <LivreTarifas />
       ) : (
         <div className="rounded-xl border border-gray-200 bg-white p-6">
           <h3 className="flex items-center gap-2 font-bold text-gray-900">
             <atual.icon className="h-4 w-4 text-[#8B2214]" /> {atual.label}
           </h3>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-gray-600">
-            {APRESENTACAO[sub as Exclude<Sub, 'acesso' | 'vendedores' | 'moderacao'>]}
+            {APRESENTACAO[sub as Exclude<Sub, Pronta>]}
           </p>
           <p className="mt-3 text-xs text-gray-400">
             Ainda não construído. A home continua lendo dados de demonstração do próprio código

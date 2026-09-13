@@ -417,6 +417,133 @@ async function fluxoComprador(browser, base, tela, codigo) {
 }
 
 // ---------------------------------------------------------------------
+// Calculadora de Economia LiVRE: café 500 g a R$ 23,90, piso R$ 19,00,
+// 1.000 pacotes/mês, vendendo hoje na Magalu. Os valores esperados foram
+// conferidos à mão contra os estudos de benchmark.
+// ---------------------------------------------------------------------
+async function fluxoCalculadora(browser, base, tela, codigo) {
+  console.log(`\n=== CALCULADORA DE ECONOMIA · ${tela.rotulo} ===`);
+  const { contexto, page, errosDoConsole } = await abrirContexto(browser, tela);
+  const foto = fotografo(page, tela, 'calculadora');
+  const cartao = p => page.locator(`.calc-cartao[data-plataforma="${p}"]`);
+  const porPacote = p => cartao(p).locator('[data-campo="por-pacote"]');
+  const menos = '−';
+
+  try {
+    await passarPeloPortao(page, base, '/coffeelivre/vender', codigo);
+    checar(`[${tela.rotulo}] a calculadora aparece em Venda no Coffee LiVRE`,
+      await visivel(page.getByRole('heading', { name: 'Calculadora de Economia LiVRE' })));
+    const ordem = await page.evaluate(() => {
+      const c = document.getElementById('calculadora'), p = document.getElementById('planos');
+      return !!c && !!p && !!(c.compareDocumentPosition(p) & Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+    checar(`[${tela.rotulo}] a calculadora vem antes dos planos`, ordem);
+    await foto('vazia');
+
+    await page.getByLabel('Preço atual do produto').fill('23,90');
+    await page.getByRole('radiogroup', { name: 'Peso / apresentação' }).getByRole('radio', { name: '500 g' }).click();
+    await page.getByLabel('Piso líquido desejado por unidade').fill('19,00');
+    await page.getByLabel('Pacotes por mês').fill('1.000');
+    await page.getByRole('radiogroup', { name: 'Média de pacotes por pedido' }).getByRole('radio', { name: '1', exact: true }).click();
+    await page.getByRole('radiogroup', { name: 'Plataforma atual' }).getByRole('radio', { name: 'Magalu' }).click();
+
+    checar(`[${tela.rotulo}] compara as cinco plataformas`, await visivel(cartao('coffeelivre')) && await page.locator('.calc-cartao').count() === 5);
+    const esperados = [['mercado_livre', 'R$ 13,40'], ['shopee', 'R$ 15,12'], ['amazon', 'R$ 9,35'], ['magalu', 'R$ 14,60'], ['coffeelivre', 'R$ 18,89']];
+    for (const [p, v] of esperados) {
+      const texto = (await porPacote(p).textContent())?.trim();
+      checar(`[${tela.rotulo}] ${p}: líquido por pacote ${v}`, texto === v, `(veio ${texto})`);
+    }
+    checar(`[${tela.rotulo}] Magalu abaixo do piso com −R$ 4,40 por pacote`,
+      await visivel(cartao('magalu').locator('.calc-piso-bloco.abaixo', { hasText: `${menos}R$ 4,40` })));
+    checar(`[${tela.rotulo}] impacto mensal −R$ 4.400,00 e anual −R$ 52.800,00`,
+      await visivel(cartao('magalu').locator('.calc-impacto', { hasText: `por mês ${menos}R$ 4.400,00` }))
+      && await cartao('magalu').locator('.calc-impacto', { hasText: `por ano ${menos}R$ 52.800,00` }).count() === 1);
+    checar(`[${tela.rotulo}] economia potencial +R$ 4.290,00/mês e +R$ 51.480,00 em 12 meses`,
+      await visivel(page.locator('[data-campo="economia"]', { hasText: '+R$ 4.290,00' }))
+      && await page.locator('[data-campo="economia"]', { hasText: '+R$ 51.480,00' }).count() === 1);
+    await foto('resultado-mes');
+
+    await page.getByRole('radiogroup', { name: 'Período' }).getByRole('radio', { name: 'Por ano' }).click();
+    checar(`[${tela.rotulo}] por ano: Magalu R$ 175.200,00`,
+      (await cartao('magalu').locator('[data-campo="liquido"]').textContent())?.trim() === 'R$ 175.200,00');
+    await page.getByRole('radiogroup', { name: 'Período' }).getByRole('radio', { name: 'Por pedido' }).click();
+    checar(`[${tela.rotulo}] por pedido: Magalu R$ 14,60`,
+      (await cartao('magalu').locator('[data-campo="liquido"]').textContent())?.trim() === 'R$ 14,60');
+
+    checar(`[${tela.rotulo}] preço para preservar o piso na Magalu: R$ 29,27`,
+      await visivel(page.locator('.calc-lista-precos li[data-plataforma="magalu"]', { hasText: 'R$ 29,27' })));
+    checar(`[${tela.rotulo}] preço LiVRE equivalente: R$ 18,73, redução de R$ 5,17`,
+      await visivel(page.locator('[data-campo="equivalente"]', { hasText: 'R$ 18,73' }))
+      && await page.locator('[data-campo="equivalente"]', { hasText: 'R$ 5,17' }).count() === 1);
+    await foto('funcoes-inversas');
+
+    const media = page.getByRole('radiogroup', { name: 'Média de pacotes por pedido' });
+    await media.getByRole('radio', { name: '4', exact: true }).click();
+    checar(`[${tela.rotulo}] 4 pacotes: aviso de frete grátis da Magalu com mais 1 unidade`,
+      await visivel(cartao('magalu').getByText('Com mais 1 unidade')));
+    await media.getByRole('radio', { name: '5', exact: true }).click();
+    checar(`[${tela.rotulo}] 5 pacotes: custo não público vira "até", nunca zero`,
+      ((await porPacote('magalu').textContent()) ?? '').startsWith('até '));
+    checar(`[${tela.rotulo}] 5 pacotes: preço do piso na Magalu não é inventado`,
+      await visivel(page.locator('.calc-lista-precos li[data-plataforma="magalu"]', { hasText: 'Não é possível determinar' })));
+    await foto('cinco-pacotes');
+    await media.getByRole('radio', { name: '1', exact: true }).click();
+
+    await cartao('magalu').getByRole('button', { name: 'Como calculamos' }).click();
+    checar(`[${tela.rotulo}] "Como calculamos" mostra fonte e confiabilidade`,
+      await visivel(cartao('magalu').locator('.calc-confianca', { hasText: 'Fonte secundária' }))
+      && await cartao('magalu').locator('.calc-fontes a').count() > 0);
+
+    await page.getByRole('button', { name: 'Ver cálculo detalhado' }).click();
+    const detalhe = tela.movel ? page.locator('.calc-detalhe .calc-so-estreito') : page.locator('.calc-detalhe .calc-tabela');
+    checar(`[${tela.rotulo}] cálculo detalhado aberto (${tela.movel ? 'cartões' : 'tabela'})`,
+      await visivel(detalhe) && await visivel(detalhe.getByText('Carga efetiva')));
+    await foto('detalhado');
+
+    checar(`[${tela.rotulo}] benefícios não financeiros`, await visivel(page.getByRole('heading', { name: 'Além do dinheiro' })));
+
+    // Recortes em tamanho real: a captura de página inteira reduz demais
+    // para enxergar alinhamento de tabela e números cortados.
+    const recorte = async (seletor, nome) => {
+      const alvo = page.locator(seletor).first();
+      if (await alvo.isVisible()) await alvo.screenshot({ path: path.join(SAIDA, `calculadora-${tela.rotulo}-recorte-${nome}.png`) });
+    };
+    await recorte('.calc-cenario', 'cenario');
+    await recorte('.calc-cartao[data-plataforma="magalu"]', 'cartao-magalu');
+    await recorte('.calc-lista-precos', 'precos-do-piso');
+    await recorte('.calc-bloco[aria-label="Além do dinheiro"]', 'beneficios');
+    await recorte('.calc-rodape', 'rodape');
+    await recorte('.calc-detalhe', 'detalhe');
+
+    await page.getByRole('radiogroup', { name: 'Plano do Coffee LiVRE' }).getByRole('radio', { name: 'LiVRE+ Plus' }).click();
+    await page.getByRole('button', { name: 'Conhecer os planos' }).click();
+    await page.waitForTimeout(900);
+    const planosNaTela = await page.evaluate(() => {
+      const r = document.getElementById('planos')?.getBoundingClientRect();
+      return !!r && r.top < window.innerHeight && r.bottom > 0;
+    });
+    checar(`[${tela.rotulo}] "Conhecer os planos" leva aos planos`, planosNaTela);
+    checar(`[${tela.rotulo}] o plano escolhido na calculadora continua selecionado`,
+      await page.locator('.plano.on', { hasText: 'LiVRE+ Plus' }).count() === 1);
+    await foto('planos');
+
+    await page.getByRole('button', { name: 'Quero vender melhor no Coffee LiVRE' }).click();
+    await page.waitForTimeout(900);
+    const formNaTela = await page.evaluate(() => {
+      const r = document.getElementById('quero-vender')?.getBoundingClientRect();
+      return !!r && r.top < window.innerHeight && r.bottom > 0;
+    });
+    checar(`[${tela.rotulo}] "Quero vender melhor" leva ao formulário`, formNaTela);
+  } catch (e) {
+    erro(`[${tela.rotulo}] fluxo da calculadora interrompido: ${e instanceof Error ? e.message.split('\n')[0] : e}`);
+    await page.screenshot({ path: path.join(SAIDA, `calculadora-${tela.rotulo}-FALHA.png`), fullPage: true }).catch(() => {});
+  } finally {
+    checar(`[${tela.rotulo}] nenhum erro no console da calculadora`, errosDoConsole.length === 0, `(${errosDoConsole.slice(0, 3).join(' | ')})`);
+    await contexto.close();
+  }
+}
+
+// ---------------------------------------------------------------------
 fs.mkdirSync(SAIDA, { recursive: true });
 for (const f of fs.readdirSync(SAIDA)) if (f.endsWith('.png')) fs.unlinkSync(path.join(SAIDA, f));
 
@@ -428,9 +555,12 @@ try {
   const codigo = await criarCodigoDeAcesso();
   browser = await chromium.launch({ channel: 'chrome', headless: !MOSTRAR })
     .catch(() => chromium.launch({ channel: 'msedge', headless: !MOSTRAR }));
+  // --so=vendedor | comprador | calculadora roda só um fluxo.
+  const so = argumento('so')?.split('=')[1];
   for (const tela of TELAS) {
-    await fluxoVendedor(browser, servidor.base, tela, codigo);
-    await fluxoComprador(browser, servidor.base, tela, codigo);
+    if (!so || so === 'vendedor') await fluxoVendedor(browser, servidor.base, tela, codigo);
+    if (!so || so === 'comprador') await fluxoComprador(browser, servidor.base, tela, codigo);
+    if (!so || so === 'calculadora') await fluxoCalculadora(browser, servidor.base, tela, codigo);
   }
 } catch (e) {
   erro('bancada do navegador interrompida: ' + (e instanceof Error ? e.message : e));
