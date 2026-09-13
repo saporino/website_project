@@ -1,0 +1,64 @@
+/* Coffee LiVRE para Empresas — escopado em .livre-root .emp */
+
+.livre-root .emp-grade { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; align-items: start; }
+.livre-root .emp-bloco { background: var(--card); border-radius: var(--raio); box-shadow: var(--sombra); padding: 18px; display: grid; gap: 14px; min-width: 0; border: 0; }
+.livre-root .emp-bloco legend, .livre-root .emp-ofertas h2 { font-size: 16px; font-weight: 700; padding: 0; float: left; width: 100%; margin-bottom: 2px; }
+.livre-root .emp-ofertas, .livre-root .emp-enviar { grid-column: 1 / -1; }
+.livre-root .emp-campo { display: grid; gap: 6px; min-width: 0; }
+.livre-root .emp-campo > span { font-size: 13.5px; font-weight: 600; }
+.livre-root .emp-campo input, .livre-root .emp-campo select, .livre-root .emp-campo textarea {
+  width: 100%; border: 1px solid var(--linha); border-radius: 8px; padding: 10px 12px; font-size: 16px; background: #fff; font-family: inherit;
+}
+.livre-root .emp-campo input:focus, .livre-root .emp-campo select:focus, .livre-root .emp-campo textarea:focus { outline: 2px solid var(--laranja-claro); border-color: var(--laranja); }
+.livre-root .emp-linha { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.livre-root .emp-campo.curto { max-width: 110px; }
+.livre-root .emp-unidade { display: flex; border: 1px solid var(--linha); border-radius: 8px; overflow: hidden; background: #fff; max-width: 220px; }
+.livre-root .emp-unidade input { border: 0; border-radius: 0; }
+.livre-root .emp-unidade b { display: grid; place-items: center; padding: 0 12px; background: var(--etiqueta); font-size: 13px; color: var(--marrom); }
+.livre-root .emp-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.livre-root .emp-chips button { min-height: 40px; padding: 8px 12px; border: 1.5px solid var(--linha); border-radius: 999px; font-size: 13.5px; background: #fff; }
+.livre-root .emp-chips button:hover { border-color: var(--laranja-claro); }
+.livre-root .emp-chips button.on { border-color: var(--laranja); background: #FFF6F0; font-weight: 600; }
+.livre-root .emp-chips button:focus-visible, .livre-root .emp-botao:focus-visible { outline: 2px solid var(--laranja); outline-offset: 2px; }
+.livre-root .emp-resumo { font-size: 14px; font-weight: 600; background: var(--bg); border-radius: 8px; padding: 10px 12px; }
+.livre-root .emp-sub { font-size: 13px; color: var(--cinza); line-height: 1.5; }
+
+.livre-root .emp-lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.livre-root .emp-oferta { border: 1px solid var(--linha); border-radius: var(--raio); padding: 14px; display: grid; gap: 8px; align-content: start; }
+.livre-root .emp-oferta-topo { display: grid; gap: 2px; }
+.livre-root .emp-oferta-topo a { font-size: 14.5px; font-weight: 600; color: var(--texto); }
+.livre-root .emp-oferta-topo a:hover { color: var(--laranja); }
+.livre-root .emp-oferta-topo small { font-size: 12.5px; color: var(--cinza); }
+.livre-root .emp-oferta-selos { display: flex; flex-wrap: wrap; gap: 4px; }
+.livre-root .emp-selo { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--etiqueta); color: var(--marrom); }
+.livre-root .emp-oferta dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; margin: 0; }
+.livre-root .emp-oferta dl > div { display: grid; gap: 1px; }
+.livre-root .emp-oferta dl > div.largo { grid-column: 1 / -1; }
+.livre-root .emp-oferta dt { font-size: 11.5px; color: var(--cinza); }
+.livre-root .emp-oferta dd { font-size: 13.5px; font-weight: 600; font-variant-numeric: tabular-nums; margin: 0; }
+.livre-root .emp-cobertura { font-size: 12.5px; font-weight: 600; padding: 6px 8px; border-radius: 6px; }
+.livre-root .emp-cobertura.ok { background: #E8F5EE; color: var(--verde); }
+.livre-root .emp-cobertura.falta { background: #FFF4E0; color: #9A5B00; }
+
+.livre-root .emp-enviar { display: grid; gap: 8px; justify-items: start; }
+.livre-root .emp-botao {
+  display: inline-block; min-height: 46px; padding: 12px 22px; border-radius: 8px; background: var(--laranja); color: #fff; font-weight: 700; font-size: 15px;
+}
+.livre-root .emp-botao:hover { background: var(--laranja-hdr); }
+.livre-root .emp-botao:disabled { opacity: .6; }
+.livre-root .emp-erro { color: #B3261E; font-size: 13.5px; font-weight: 600; }
+
+.livre-root .emp-ok { margin-top: 18px; background: var(--card); border-radius: var(--raio); box-shadow: var(--sombra); padding: 24px; display: grid; gap: 10px; justify-items: start; max-width: 70ch; }
+.livre-root .emp-ok h1 { font-size: 22px; text-wrap: balance; }
+.livre-root .emp-ok p { font-size: 14.5px; line-height: 1.55; }
+
+@media (max-width: 860px) {
+  .livre-root .emp-grade { grid-template-columns: 1fr; }
+}
+@media (max-width: 480px) {
+  .livre-root .emp-linha { grid-template-columns: 1fr; }
+  .livre-root .emp-campo.curto { max-width: none; }
+  .livre-root .emp-bloco { padding: 14px; }
+  .livre-root .emp-botao { width: 100%; text-align: center; }
+  .livre-root .emp-enviar { justify-items: stretch; }
+}

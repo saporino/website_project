@@ -20,7 +20,8 @@
 
 import { montarEscada, type Faixa } from '../escada';
 
-export type Plataforma = 'coffeelivre' | 'mercado_livre' | 'shopee' | 'amazon' | 'magalu';
+// ifood fica no mesmo modelo como DELIVERY / CONVENIÊNCIA e não entra na Calculadora.
+export type Plataforma = 'coffeelivre' | 'mercado_livre' | 'shopee' | 'amazon' | 'magalu' | 'ifood';
 
 export type Componente =
   | 'comissao' | 'tarifa_fixa_pedido' | 'tarifa_unidade' | 'logistica_pedido'

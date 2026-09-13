@@ -34,6 +34,18 @@ export interface Recomendacao {
   titulo: string;
   explicacao: string;
   acao: { rotulo: string; caminho: string };
+  /** Quando existe, a tela oferece "Aplicar R$ X" — o Copiloto resolve, não só aponta. */
+  aplicarPreco?: { produtoId: string; precoCents: number };
+}
+
+/** Resultado da comparação de mercado de um café do vendedor. */
+export interface SinalDeMercado {
+  produtoId: string;
+  titulo: string;
+  tipo: string;
+  tituloDaRecomendacao: string;
+  explicacao: string;
+  sugestaoCents: number | null;
 }
 
 const ROTULO_DO_CAMPO: Record<string, string> = {
@@ -58,11 +70,28 @@ function sujeito(lista: ProdutoDoVendedor[]): string {
 const editar = (p: ProdutoDoVendedor) => `vendedor/produtos/${p.id}`;
 
 export function recomendacoes(
-  ctx: { lojaAtiva: boolean; produtos: ProdutoDoVendedor[] },
+  ctx: { lojaAtiva: boolean; produtos: ProdutoDoVendedor[]; mercado?: SinalDeMercado[] },
   limite = 3,
 ): Recomendacao[] {
   const r: Recomendacao[] = [];
   const { produtos } = ctx;
+
+  // 35 — Preço fora da mediana de cafés equivalentes, com um preço que o
+  // Copiloto pode aplicar sem furar o piso. "Competitivo" não vira alerta:
+  // o que está bem não disputa espaço com o que precisa de ação.
+  const comSugestao = (ctx.mercado ?? []).filter(m => m.sugestaoCents != null
+    && (m.tipo === 'acima_da_mediana' || m.tipo === 'abaixo_da_mediana'));
+  if (comSugestao.length) {
+    // Acima da mediana primeiro: é onde o comprador compara e desiste.
+    const m = [...comSugestao].sort((a, b) => Number(b.tipo === 'acima_da_mediana') - Number(a.tipo === 'acima_da_mediana'))[0];
+    r.push({
+      tipo: 'preco_mercado', prioridade: 35,
+      titulo: `${m.titulo.split(' — ')[0]}: ${m.tituloDaRecomendacao}`,
+      explicacao: m.explicacao,
+      acao: { rotulo: 'Ver comparação', caminho: `vendedor/produtos/${m.produtoId}` },
+      aplicarPreco: { produtoId: m.produtoId, precoCents: m.sugestaoCents! },
+    });
+  }
 
   // 10 — A loja inteira está fora da vitrine. Nada abaixo importa tanto.
   if (!ctx.lojaAtiva) {

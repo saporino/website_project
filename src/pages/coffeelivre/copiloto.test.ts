@@ -1,6 +1,6 @@
 // O Copiloto é por regra nesta fase, e regra se testa.
 import { describe, it, expect } from 'vitest';
-import { recomendacoes, type ProdutoDoVendedor } from './copiloto';
+import { recomendacoes, type ProdutoDoVendedor, type SinalDeMercado } from './copiloto';
 
 const base = (x: Partial<ProdutoDoVendedor> = {}): ProdutoDoVendedor => ({
   id: 'p1', titulo: 'Café Teste 500g', status: 'ativo', ehCafe: true,
@@ -112,5 +112,43 @@ describe('disciplina da tela', () => {
     const p = r.find(x => x.tipo === 'passport');
     expect(p?.acao.caminho).toBe('vendedor/produtos/ruim');
     expect(p?.titulo).toContain('Café Ruim e mais 1');
+  });
+});
+
+describe('comparação de mercado no Copiloto', () => {
+  const sinal = (x: Partial<SinalDeMercado> = {}): SinalDeMercado => ({
+    produtoId: 'p1', titulo: 'Café Teste 500g', tipo: 'acima_da_mediana',
+    tituloDaRecomendacao: 'Seu preço está 12% acima da mediana de cafés equivalentes.',
+    explicacao: 'Você pode ir para R$ 26,79 e continuar acima do seu piso.', sugestaoCents: 2679, ...x,
+  });
+
+  it('preço acima da mediana vira recomendação com botão de aplicar', () => {
+    const r = recomendacoes({ lojaAtiva: true, produtos: [base()], mercado: [sinal()] });
+    expect(r[0].tipo).toBe('preco_mercado');
+    expect(r[0].aplicarPreco).toEqual({ produtoId: 'p1', precoCents: 2679 });
+    expect(r[0].titulo).toBe('Café Teste 500g: Seu preço está 12% acima da mediana de cafés equivalentes.');
+  });
+
+  it('preço competitivo não ocupa espaço de alerta', () => {
+    const r = recomendacoes({ lojaAtiva: true, produtos: [base()], mercado: [sinal({ tipo: 'competitivo', sugestaoCents: null })] });
+    expect(r).toEqual([]);
+  });
+
+  it('amostra insuficiente não inventa recomendação', () => {
+    const r = recomendacoes({ lojaAtiva: true, produtos: [base()], mercado: [sinal({ tipo: 'amostra_insuficiente', sugestaoCents: null })] });
+    expect(r.find(x => x.tipo === 'preco_mercado')).toBeUndefined();
+  });
+
+  it('acima da mediana tem prioridade sobre abaixo', () => {
+    const r = recomendacoes({
+      lojaAtiva: true, produtos: [base()],
+      mercado: [sinal({ produtoId: 'barato', tipo: 'abaixo_da_mediana', sugestaoCents: 2600 }), sinal({ produtoId: 'caro' })],
+    });
+    expect(r[0].aplicarPreco?.produtoId).toBe('caro');
+  });
+
+  it('loja inativa continua antes do preço', () => {
+    const r = recomendacoes({ lojaAtiva: false, produtos: [base()], mercado: [sinal()] });
+    expect(r.map(x => x.tipo)).toEqual(['loja_inativa', 'preco_mercado']);
   });
 });

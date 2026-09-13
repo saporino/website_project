@@ -1,6 +1,10 @@
 import { LOGO, ALT_LOGO, colunasDoRodape } from './mockData';
 import { encerrarSessao } from './AccessGate';
-import { DEMONSTRACAO_PRIVADA } from './config';
+import { DEMONSTRACAO_PRIVADA, navegar, rota } from './config';
+
+// Itens do rodapé que já têm página. Os outros continuam âncora vazia
+// até existirem.
+const DESTINOS: Record<string, string> = { 'Para empresas': 'empresas', 'Como vender': 'vender' };
 
 export default function MarketplaceFooter() {
   return (
@@ -15,7 +19,13 @@ export default function MarketplaceFooter() {
         {colunasDoRodape.map(([titulo, itens]) => (
           <div key={titulo}>
             <h4>{titulo}</h4>
-            <ul>{itens.map(i => <li key={i}><a href="#">{i}</a></li>)}</ul>
+            <ul>{itens.map(i => (
+              <li key={i}>
+                {DESTINOS[i]
+                  ? <a href={rota(DESTINOS[i])} onClick={e => { e.preventDefault(); navegar(DESTINOS[i]); }}>{i}</a>
+                  : <a href="#">{i}</a>}
+              </li>
+            ))}</ul>
           </div>
         ))}
       </div>

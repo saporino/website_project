@@ -84,6 +84,50 @@
 .livre-root .sc-numero span { font-size: 12px; color: var(--cinza); }
 .livre-root .sc-numero.atencao { box-shadow: inset 4px 0 0 var(--laranja), var(--sombra); }
 
+/* ---------- Comparação de mercado e preço em um clique ---------- */
+.livre-root .sc-mercado { --sc-vermelho: #B3261E; display: grid; gap: 14px; }
+.livre-root .sc-mercado h2 { font-size: 17px; }
+.livre-root .sc-mercado-rec { border-radius: 8px; padding: 12px 14px; background: var(--bg); border-left: 4px solid var(--linha); display: grid; gap: 4px; justify-items: start; }
+.livre-root .sc-mercado-rec small { font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--laranja); }
+.livre-root .sc-mercado-rec b { font-size: 15px; text-wrap: balance; }
+.livre-root .sc-mercado-rec p { font-size: 13.5px; color: var(--cinza); margin-bottom: 4px; }
+.livre-root .sc-mercado-rec.acima_da_mediana, .livre-root .sc-mercado-rec.abaixo_da_mediana { border-left-color: var(--laranja); }
+.livre-root .sc-mercado-rec.competitivo, .livre-root .sc-mercado-rec.acima_com_diferenciais { border-left-color: var(--verde); }
+.livre-root .sc-metricas { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.livre-root .sc-metricas > div { border: 1px solid var(--linha); border-radius: 8px; padding: 10px; display: grid; gap: 1px; }
+.livre-root .sc-metricas dt { font-size: 11.5px; color: var(--cinza); text-transform: uppercase; letter-spacing: .4px; font-weight: 600; }
+.livre-root .sc-metricas dd { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.livre-root .sc-metricas small { font-size: 12px; color: var(--cinza); }
+.livre-root .sc-opcoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.livre-root .sc-opcoes button {
+  display: grid; gap: 1px; text-align: left; min-height: 48px; padding: 8px 12px; border: 1.5px solid var(--linha);
+  border-radius: 8px; background: #fff; font-size: 12.5px;
+}
+.livre-root .sc-opcoes button b { font-size: 15px; font-variant-numeric: tabular-nums; }
+.livre-root .sc-opcoes button small { color: var(--sc-vermelho); font-size: 11px; }
+.livre-root .sc-opcoes button:hover:not(:disabled) { border-color: var(--laranja-claro); }
+.livre-root .sc-opcoes button.on { border-color: var(--laranja); background: #FFF6F0; }
+.livre-root .sc-opcoes button:disabled { opacity: .55; cursor: not-allowed; }
+.livre-root .sc-confirmar { border: 2px solid var(--laranja); border-radius: 10px; padding: 14px; display: grid; gap: 10px; background: #FFFBF8; }
+.livre-root .sc-confirmar > b { font-size: 15px; }
+.livre-root .sc-confirmar-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px 14px; }
+.livre-root .sc-confirmar-grade > div { display: grid; gap: 1px; }
+.livre-root .sc-confirmar-grade dt { font-size: 12px; color: var(--cinza); }
+.livre-root .sc-confirmar-grade dd { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.livre-root .sc-confirmar-escada ul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 2px; font-size: 13px; }
+.livre-root .sc-confirmar-escada li.abaixo { color: var(--sc-vermelho); font-weight: 600; }
+.livre-root .sc-confirmar-escada small, .livre-root .sc-mercado .sc-rotulo { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: var(--marrom); }
+.livre-root .sc-equivalentes ul, .livre-root .sc-historico ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; }
+.livre-root .sc-equivalentes li, .livre-root .sc-historico li {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--linha); font-size: 13px;
+}
+.livre-root .sc-equivalentes li > span:first-child, .livre-root .sc-historico li > span:first-child { display: grid; gap: 1px; min-width: 0; }
+.livre-root .sc-equivalentes li small, .livre-root .sc-historico li small { font-size: 12px; color: var(--cinza); }
+.livre-root .sc-equivalentes li.semelhante b { font-weight: 500; }
+.livre-root .sc-equivalentes .valores { text-align: right; display: grid; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.livre-root .sc-mercado .sc-link { font-size: 13px; font-weight: 600; color: var(--laranja); text-decoration: underline; text-underline-offset: 3px; min-height: 32px; }
+.livre-root .sc-dica-aplicar { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+
 /* ---------- Recebimento ---------- */
 .livre-root .sc-recebimento { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .livre-root .sc-recebimento p { margin-top: 2px; }

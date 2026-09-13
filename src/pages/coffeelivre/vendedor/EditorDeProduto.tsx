@@ -24,6 +24,7 @@ import {
 } from './dados';
 import { paraCentavos, deCentavos, paraBps, deBps } from './dinheiro';
 import { mensagemDePublicacao } from './ProdutosDoVendedor';
+import ComparacaoDeMercado from './ComparacaoDeMercado';
 import type { LojaDoVendedor } from './sessao';
 import type { Avisar } from './SellerCentral';
 
@@ -289,6 +290,12 @@ export default function EditorDeProduto({ produtoId, loja, categorias, avisar }:
           <h1>{titulo.trim() || (id ? 'Produto' : 'Cadastrar produto')}</h1>
           {id && <span className={`sc-situacao ${situacao.classe}`}>{situacao.rotulo}</span>}
         </div>
+        {id && cafe && (
+          <a href="#sc-mercado-titulo" className="sc-botao"
+             onClick={e => { e.preventDefault(); document.getElementById('sc-mercado-titulo')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>
+            Comparação de mercado
+          </a>
+        )}
         {noAr && loja.ativa && slug && (
           <a href={rota(`cafe/${slug}`)} className="sc-botao"
              onClick={e => { e.preventDefault(); navegar(`cafe/${slug}`); }}>
@@ -591,6 +598,16 @@ export default function EditorDeProduto({ produtoId, loja, categorias, avisar }:
           )}
         </div>
       </section>
+
+      {/* Comparação de mercado: só para café já salvo. O preço aplicado por
+          ela volta para o formulário, recarregado do banco. */}
+      {id && cafe && (
+        <ComparacaoDeMercado
+          produtoId={id}
+          avisar={avisar}
+          aoAlterarPreco={async () => { const p = await carregarProduto(id); if (p) aplicar(p); }}
+        />
+      )}
     </div>
   );
 }

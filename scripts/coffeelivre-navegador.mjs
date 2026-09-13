@@ -95,7 +95,8 @@ async function acharUsuario(email) {
 
 async function limpar() {
   await admin.from('lv_demo_access').delete().like('label', `${MARCA}%`);
-  for (const { rotulo } of TELAS) {
+  await admin.from('lv_b2b_empresas').delete().like('nome', `${MARCA}%`);
+  for (const rotulo of TELAS.flatMap(t => [t.rotulo, `${t.rotulo}-mercado`])) {
     const { data: lojas } = await admin.from('lv_stores').select('id').eq('slug', LOJA(rotulo));
     for (const l of lojas ?? []) await admin.from('lv_products').delete().eq('store_id', l.id);
     await admin.from('lv_stores').delete().eq('slug', LOJA(rotulo));
@@ -544,6 +545,174 @@ async function fluxoCalculadora(browser, base, tela, codigo) {
 }
 
 // ---------------------------------------------------------------------
+// Comparação de mercado + preço em um clique (Unidade 7)
+// Café do vendedor: tradicional 500 g a R$ 29,90, piso R$ 24,90, faixas de
+// R$ 1,00 / 1,50 / 3,00. Equivalentes de demonstração: mediana R$ 26,80.
+// ---------------------------------------------------------------------
+async function fluxoMercado(browser, base, tela, codigo) {
+  console.log(`\n=== COMPARAÇÃO E PREÇO EM UM CLIQUE · ${tela.rotulo} ===`);
+  const rotulo = `${tela.rotulo}-mercado`;
+  const v = await criarVendedor(rotulo);
+  const { data: cat } = await admin.from('lv_categories').select('id').eq('slug', 'cafe-torrado-moido').single();
+  const { data: prod, error: ep } = await admin.from('lv_products').insert({
+    store_id: v.lojaId, seller_id: v.sellerId, category_id: cat.id, slug: `${MARCA}-mercado-${tela.rotulo}`,
+    titulo: `Café Navegador Mercado ${tela.rotulo}`, preco_cents: 2990, preco_minimo_cents: 2490, peso_g: 500,
+    venda_por_quantidade: true, status: 'rascunho', is_demo: false,
+  }).select('id').single();
+  if (ep) { erro(`[${tela.rotulo}] produto do fluxo de mercado: ${ep.message}`); return; }
+  const { data: attrs } = await admin.from('lv_attributes').select('id, chave').in('chave', ['classificacao', 'especie', 'torra', 'moagem', 'peso']);
+  const valores = { classificacao: 'Tradicional', especie: 'Blend', torra: 'Média', moagem: 'Média', peso: '500' };
+  await admin.from('lv_product_attributes').insert(attrs.map(x => ({ product_id: prod.id, attribute_id: x.id, valor: valores[x.chave] })));
+  await admin.from('lv_price_tiers').insert([
+    { product_id: prod.id, min_qty: 2, tipo: 'reais', valor: 100 },
+    { product_id: prod.id, min_qty: 3, tipo: 'reais', valor: 150 },
+    { product_id: prod.id, min_qty: 4, tipo: 'reais', valor: 300 },
+  ]);
+
+  const { contexto, page, errosDoConsole } = await abrirContexto(browser, tela);
+  const foto = fotografo(page, tela, 'mercado');
+  const campo = n => page.locator(`[data-campo="${n}"]`).first();
+  const texto = async n => ((await campo(n).textContent()) ?? '').trim();
+  const precoNoBanco = async () => Number((await admin.from('lv_products').select('preco_cents').eq('id', prod.id).single()).data.preco_cents);
+
+  try {
+    await passarPeloPortao(page, base, '/coffeelivre/vendedor', codigo);
+    await page.getByLabel('E-mail').fill(v.email);
+    await page.getByLabel('Senha').fill(v.senha);
+    await page.getByRole('button', { name: 'Entrar' }).click();
+    await visivel(page.getByRole('heading', { name: /^Olá,/ }));
+
+    await page.locator('.sc-menu').getByRole('link', { name: 'Produtos' }).click();
+    await page.getByRole('link', { name: `Café Navegador Mercado ${tela.rotulo}` }).first().click();
+    checar(`[${tela.rotulo}] produto abre com a comparação de mercado`, await visivel(page.getByRole('heading', { name: 'Comparação de mercado' })));
+    await campo('mediana').waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+
+    checar(`[${tela.rotulo}] mediana dos equivalentes R$ 26,80`, (await texto('mediana')) === 'R$ 26,80', `(veio ${await texto('mediana')})`);
+    checar(`[${tela.rotulo}] seu preço R$ 29,90 e R$ 59,80/kg`,
+      (await texto('seu-preco')) === 'R$ 29,90' && await page.locator('.sc-metricas', { hasText: 'R$ 59,80/kg' }).count() === 1);
+    checar(`[${tela.rotulo}] seu piso R$ 24,90 aparece`, (await texto('piso')) === 'R$ 24,90');
+    checar(`[${tela.rotulo}] distância da mediana +11,6%`, (await texto('distancia')) === '+11,6%', `(veio ${await texto('distancia')})`);
+    checar(`[${tela.rotulo}] recomendação: 12% acima, pode ir para R$ 26,79 acima do piso`,
+      (await texto('recomendacao')).includes('Seu preço está 12% acima da mediana de cafés equivalentes.')
+      && (await texto('recomendacao')).includes('Você pode ir para R$ 26,79 e continuar acima do seu piso.'));
+    checar(`[${tela.rotulo}] opções rápidas: igualar mediana, 1% abaixo e manter`,
+      await page.locator('.sc-opcoes button', { hasText: 'Igualar mediana' }).count() === 1
+      && await page.locator('.sc-opcoes button', { hasText: '1% abaixo da mediana' }).count() === 1
+      && await page.locator('.sc-opcoes button', { hasText: 'Manter meu preço' }).count() === 1);
+    checar(`[${tela.rotulo}] semelhantes separados da comparação direta`,
+      await page.getByRole('button', { name: /Ver produtos semelhantes/ }).count() === 1);
+    await foto('comparacao');
+    await page.locator('.sc-mercado').first().screenshot({ path: path.join(SAIDA, `mercado-${tela.rotulo}-recorte-painel.png`) }).catch(() => {});
+
+    await page.getByRole('button', { name: /Aplicar preço sugerido/ }).click();
+    checar(`[${tela.rotulo}] confirmação mostra novo preço e distância do piso`,
+      (await texto('novo-preco')) === 'R$ 26,79' && (await texto('distancia-piso')) === '+R$ 1,89');
+    checar(`[${tela.rotulo}] escada recalculada avisa a faixa que fura o piso`,
+      ((await texto('escada-alerta')) ?? '').includes('faixa de 4 unidades fica abaixo do seu piso'));
+    await foto('confirmacao');
+    await page.locator('.sc-confirmar').first().screenshot({ path: path.join(SAIDA, `mercado-${tela.rotulo}-recorte-confirmacao.png`) }).catch(() => {});
+    await page.getByRole('button', { name: 'Confirmar e aplicar' }).click();
+    checar(`[${tela.rotulo}] aplicado: aviso e novo preço na comparação`,
+      await visivel(page.locator('.sc-aviso', { hasText: 'Preço alterado para R$ 26,79.' }))
+      && await visivel(page.locator('[data-campo="seu-preco"]', { hasText: 'R$ 26,79' })));
+    checar(`[${tela.rotulo}] banco: preço 2679`, (await precoNoBanco()) === 2679);
+    checar(`[${tela.rotulo}] depois de aplicar, o Copiloto considera o preço competitivo`,
+      await visivel(page.locator('[data-campo="recomendacao"]', { hasText: 'Seu preço está competitivo' })));
+
+    await page.reload();
+    await campo('seu-preco').waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+    checar(`[${tela.rotulo}] recarregado, o preço continua R$ 26,79`,
+      (await texto('seu-preco')) === 'R$ 26,79' && (await page.getByLabel('Preço').first().inputValue()) === '26,79');
+    const linha1 = page.locator('[data-campo="historico"] li').first();
+    checar(`[${tela.rotulo}] histórico: R$ 29,90 → R$ 26,79 pelo LiVRE Copiloto`,
+      ((await linha1.textContent()) ?? '').includes('R$ 29,90 → R$ 26,79') && ((await linha1.textContent()) ?? '').includes('LiVRE Copiloto'));
+    const hist = (await admin.from('lv_price_history').select('origem, user_id, recomendacao').eq('product_id', prod.id).order('created_at', { ascending: false }).limit(1).single()).data;
+    checar(`[${tela.rotulo}] banco: histórico com usuário e recomendação`, hist?.origem === 'copiloto' && !!hist?.user_id && hist?.recomendacao?.tipo === 'acima_da_mediana');
+    await foto('historico');
+    await page.locator('[data-campo="historico"]').first().screenshot({ path: path.join(SAIDA, `mercado-${tela.rotulo}-recorte-historico.png`) }).catch(() => {});
+
+    await linha1.getByRole('button', { name: 'Desfazer' }).click();
+    checar(`[${tela.rotulo}] desfazer volta a R$ 29,90`,
+      await visivel(page.locator('.sc-aviso', { hasText: 'Alteração desfeita' }))
+      && await visivel(page.locator('[data-campo="seu-preco"]', { hasText: 'R$ 29,90' })) && (await precoNoBanco()) === 2990);
+
+    await page.locator('.sc-menu').getByRole('link', { name: 'Visão geral' }).click();
+    const dica = page.locator('.sc-dica[data-tipo="preco_mercado"]');
+    checar(`[${tela.rotulo}] Copiloto da visão geral recomenda o preço`, await visivel(dica));
+    await dica.getByRole('button', { name: 'Aplicar R$ 26,79' }).click();
+    await dica.getByRole('button', { name: 'Confirmar R$ 26,79' }).click();
+    await page.waitForTimeout(1500);
+    checar(`[${tela.rotulo}] aplicado em um clique pelo Copiloto`, (await precoNoBanco()) === 2679);
+    await foto('copiloto');
+    await page.locator('.sc-copiloto').first().screenshot({ path: path.join(SAIDA, `mercado-${tela.rotulo}-recorte-copiloto.png`) }).catch(() => {});
+  } catch (e) {
+    erro(`[${tela.rotulo}] fluxo de mercado interrompido: ${e instanceof Error ? e.message.split('\n')[0] : e}`);
+    await page.screenshot({ path: path.join(SAIDA, `mercado-${tela.rotulo}-FALHA.png`), fullPage: true }).catch(() => {});
+  } finally {
+    checar(`[${tela.rotulo}] nenhum erro no console do fluxo de mercado`, errosDoConsole.length === 0, `(${errosDoConsole.slice(0, 3).join(' | ')})`);
+    await contexto.close();
+  }
+}
+
+// ---------------------------------------------------------------------
+// Coffee LiVRE para Empresas (B2B)
+// ---------------------------------------------------------------------
+async function fluxoEmpresas(browser, base, tela, codigo) {
+  console.log(`\n=== EMPRESAS (B2B) · ${tela.rotulo} ===`);
+  const { contexto, page, errosDoConsole } = await abrirContexto(browser, tela);
+  const foto = fotografo(page, tela, 'empresas');
+  const nome = `${MARCA} Cafeteria ${tela.rotulo}`;
+  try {
+    await passarPeloPortao(page, base, '/coffeelivre', codigo);
+    await page.locator('footer').getByRole('link', { name: 'Para empresas' }).click();
+    checar(`[${tela.rotulo}] rodapé leva ao Coffee LiVRE para Empresas`, await visivel(page.getByRole('heading', { name: 'Coffee LiVRE para Empresas' })));
+    await foto('entrada');
+
+    await page.getByLabel('Nome da empresa').fill(nome);
+    await page.getByRole('radiogroup', { name: 'Tipo de negócio' }).getByRole('radio', { name: 'Cafeteria' }).click();
+    await page.getByLabel('Cidade').fill('Campinas');
+    await page.getByLabel('UF').selectOption('SP');
+    await page.getByRole('radiogroup', { name: 'Tipo de café' }).getByRole('radio', { name: 'Tradicional' }).click();
+    await page.getByRole('radiogroup', { name: 'Formato' }).getByRole('radio', { name: '500 g' }).click();
+    await page.getByRole('radiogroup', { name: 'Moagem' }).getByRole('radio', { name: 'Média', exact: true }).click();
+    await page.getByLabel('Quantidade em kg').fill('100');
+    await page.getByRole('radiogroup', { name: 'Frequência' }).getByRole('radio', { name: 'Mensal' }).click();
+
+    checar(`[${tela.rotulo}] resumo: 100 kg todo mês`, await visivel(page.locator('[data-campo="resumo"]', { hasText: 'Você quer receber 100 kg todo mês.' })));
+    const ofertas = page.locator('.emp-oferta');
+    await ofertas.first().waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+    checar(`[${tela.rotulo}] ofertas compatíveis de tradicional 500 g moído`, await ofertas.count() >= 5, `(${await ofertas.count()})`);
+    const ponte = page.locator('.emp-oferta[data-oferta="ponte-velha-tradicional-moido-500g"]');
+    checar(`[${tela.rotulo}] oferta mostra preço, R$/kg, vendedor, estoque e quantidade para a entrega`,
+      await visivel(ponte) && ((await ponte.textContent()) ?? '').includes('R$ 27,90') && ((await ponte.textContent()) ?? '').includes('R$ 55,80')
+      && ((await ponte.textContent()) ?? '').includes('Torrefação Ponte Velha') && ((await ponte.textContent()) ?? '').includes('200 pacotes'));
+    checar(`[${tela.rotulo}] estoque que não cobre a entrega é dito`, ((await ponte.textContent()) ?? '').includes('não cobre esta entrega'));
+    await foto('ofertas');
+    await page.locator('.emp-ofertas').first().screenshot({ path: path.join(SAIDA, `empresas-${tela.rotulo}-recorte-ofertas.png`) }).catch(() => {});
+    await page.locator('.emp-bloco').nth(1).screenshot({ path: path.join(SAIDA, `empresas-${tela.rotulo}-recorte-necessidade.png`) }).catch(() => {});
+
+    await page.getByRole('button', { name: 'Solicitar cotação' }).click();
+    checar(`[${tela.rotulo}] solicitação registrada`, await visivel(page.locator('[data-campo="solicitacao-enviada"]')));
+    await foto('enviada');
+    const { data: s } = await admin.from('lv_b2b_solicitacoes')
+      .select('id, status, frequencia, quantidade_kg, consumo_mensal_kg, classificacao, gramatura_g, moagem, lv_b2b_empresas!inner(nome, tipo_negocio, uf)')
+      .eq('lv_b2b_empresas.nome', nome).single();
+    checar(`[${tela.rotulo}] banco: demanda estruturada, status novo`,
+      s?.status === 'novo' && s?.frequencia === 'mensal' && s?.quantidade_kg === 100 && s?.consumo_mensal_kg === 100
+      && s?.classificacao === 'Tradicional' && s?.gramatura_g === 500 && s?.moagem === 'Média' && s?.lv_b2b_empresas?.uf === 'SP',
+      `(${JSON.stringify(s)})`);
+    const { error: eStatus } = await admin.from('lv_b2b_solicitacoes').update({ status: 'em_analise' }).eq('id', s.id);
+    checar(`[${tela.rotulo}] equipe muda o status (chave de serviço; ver limitação do admin)`, !eStatus);
+  } catch (e) {
+    erro(`[${tela.rotulo}] fluxo de empresas interrompido: ${e instanceof Error ? e.message.split('\n')[0] : e}`);
+    await page.screenshot({ path: path.join(SAIDA, `empresas-${tela.rotulo}-FALHA.png`), fullPage: true }).catch(() => {});
+  } finally {
+    checar(`[${tela.rotulo}] nenhum erro no console de empresas`, errosDoConsole.length === 0, `(${errosDoConsole.slice(0, 3).join(' | ')})`);
+    await contexto.close();
+  }
+}
+
+// ---------------------------------------------------------------------
 fs.mkdirSync(SAIDA, { recursive: true });
 for (const f of fs.readdirSync(SAIDA)) if (f.endsWith('.png')) fs.unlinkSync(path.join(SAIDA, f));
 
@@ -561,6 +730,8 @@ try {
     if (!so || so === 'vendedor') await fluxoVendedor(browser, servidor.base, tela, codigo);
     if (!so || so === 'comprador') await fluxoComprador(browser, servidor.base, tela, codigo);
     if (!so || so === 'calculadora') await fluxoCalculadora(browser, servidor.base, tela, codigo);
+    if (!so || so === 'mercado') await fluxoMercado(browser, servidor.base, tela, codigo);
+    if (!so || so === 'empresas') await fluxoEmpresas(browser, servidor.base, tela, codigo);
   }
 } catch (e) {
   erro('bancada do navegador interrompida: ' + (e instanceof Error ? e.message : e));

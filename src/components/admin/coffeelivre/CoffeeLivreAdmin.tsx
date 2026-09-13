@@ -8,14 +8,16 @@
 // investidor, uma aba vazia parece defeito; uma aba que explica o que vem
 // parece plano.
 import { useState } from 'react';
-import { KeyRound, LayoutDashboard, Image, LayoutGrid, Store, Package, Tags, ShieldCheck, Calculator } from 'lucide-react';
+import { KeyRound, LayoutDashboard, Image, LayoutGrid, Store, Package, Tags, ShieldCheck, Calculator, TrendingUp, Building2 } from 'lucide-react';
 import LivreAcesso from './LivreAcesso';
 import LivreVendedores from './LivreVendedores';
 import LivreModeracao from './LivreModeracao';
 import LivreTarifas from './LivreTarifas';
+import LivrePrecos from './LivrePrecos';
+import LivreB2B from './LivreB2B';
 
-type Sub = 'painel' | 'site' | 'vitrine' | 'vendedores' | 'moderacao' | 'tarifas' | 'lojas' | 'produtos' | 'categorias' | 'acesso';
-type Pronta = 'acesso' | 'vendedores' | 'moderacao' | 'tarifas';
+type Sub = 'painel' | 'site' | 'vitrine' | 'vendedores' | 'moderacao' | 'precos' | 'b2b' | 'tarifas' | 'lojas' | 'produtos' | 'categorias' | 'acesso';
+type Pronta = 'acesso' | 'vendedores' | 'moderacao' | 'precos' | 'b2b' | 'tarifas';
 
 const ABAS: { id: Sub; label: string; icon: typeof KeyRound; pronto: boolean }[] = [
   { id: 'painel', label: 'Painel', icon: LayoutDashboard, pronto: false },
@@ -23,6 +25,8 @@ const ABAS: { id: Sub; label: string; icon: typeof KeyRound; pronto: boolean }[]
   { id: 'vitrine', label: 'Vitrine', icon: LayoutGrid, pronto: false },
   { id: 'vendedores', label: 'Vendedores', icon: Store, pronto: true },
   { id: 'moderacao', label: 'Moderação', icon: ShieldCheck, pronto: true },
+  { id: 'precos', label: 'Preços', icon: TrendingUp, pronto: true },
+  { id: 'b2b', label: 'Empresas (B2B)', icon: Building2, pronto: true },
   { id: 'tarifas', label: 'Calculadora', icon: Calculator, pronto: true },
   { id: 'lojas', label: 'Lojas', icon: Store, pronto: false },
   { id: 'produtos', label: 'Produtos', icon: Package, pronto: false },
@@ -76,6 +80,10 @@ export default function CoffeeLivreAdmin() {
         <LivreVendedores />
       ) : sub === 'moderacao' ? (
         <LivreModeracao />
+      ) : sub === 'precos' ? (
+        <LivrePrecos />
+      ) : sub === 'b2b' ? (
+        <LivreB2B />
       ) : sub === 'tarifas' ? (
         <LivreTarifas />
       ) : (

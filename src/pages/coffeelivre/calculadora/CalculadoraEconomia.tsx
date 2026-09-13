@@ -27,12 +27,12 @@ type Concorrente = Exclude<Plataforma, 'coffeelivre'>;
 type Atual = Concorrente | 'nenhuma';
 
 const NOME: Record<Plataforma, string> = {
-  coffeelivre: 'Coffee LiVRE', mercado_livre: 'Mercado Livre', shopee: 'Shopee', amazon: 'Amazon', magalu: 'Magalu',
+  coffeelivre: 'Coffee LiVRE', mercado_livre: 'Mercado Livre', shopee: 'Shopee', amazon: 'Amazon', magalu: 'Magalu', ifood: 'iFood',
 };
 
 // "na Magalu", "no Mercado Livre": concordância certa em cada frase.
 const EM: Record<Plataforma, string> = {
-  coffeelivre: 'no Coffee LiVRE', mercado_livre: 'no Mercado Livre', shopee: 'na Shopee', amazon: 'na Amazon', magalu: 'na Magalu',
+  coffeelivre: 'no Coffee LiVRE', mercado_livre: 'no Mercado Livre', shopee: 'na Shopee', amazon: 'na Amazon', magalu: 'na Magalu', ifood: 'no iFood',
 };
 
 const SUBTITULO: Record<string, string> = {

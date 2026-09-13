@@ -97,7 +97,7 @@ export default function SellerCentral({ subrota }: { subrota: string }) {
       </div>
     );
   } else if (pagina === '') {
-    conteudo = <VisaoGeral contexto={ctx} categorias={categorias} />;
+    conteudo = <VisaoGeral contexto={ctx} categorias={categorias} avisar={avisar} />;
   } else if (pagina === 'produtos' && !partes[1]) {
     conteudo = <ProdutosDoVendedor contexto={ctx} categorias={categorias} avisar={avisar} />;
   } else if (pagina === 'produtos') {

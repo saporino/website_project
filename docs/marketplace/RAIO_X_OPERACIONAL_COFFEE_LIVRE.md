@@ -692,6 +692,7 @@ _Seção mantida pelo Claude Code: a cada entrega, registrar data, fase, o que f
 | 12/09/2026 | 1 · U6 | Seller Central com login real, cadastro guiado, LiVRE Passport com completude, preço, piso e escada pela tela, moderação no banco, estoque e LiVRE Copiloto | Ambiente de staging; envio de imagens; convite de vendedor por e-mail |
 | 13/09/2026 | 1 · U6 (fechamento) | Produto → variante → lote; estoque por variante; estoque demo controlado limitando escada e carrinho; QR permanente por código; status de recebimento do vendedor; bancada no navegador com vendedor temporário (desktop e 375 px) | Editor de várias variantes; reserva de estoque no checkout; Lot Passport; onboarding de recebimento (fase 2) |
 | 13/09/2026 | 1 · U6.5 | Calculadora de Economia LiVRE em `/coffeelivre/vender`: comparação com Mercado Livre, Shopee, Amazon e Magalu pelos números do vendedor, regras de tarifa em tabela com fonte e confiabilidade, funções inversas, escada, aba Calculadora no admin | Validação financeira das hipóteses do LiVRE; frete real do LiVRE; tarifas do LiVRE Oficial e de 250 g / 1 kg nos planos pagos |
+| 13/09/2026 | 1 · U7 | Comparação de mercado no Seller Central, preço em um clique com piso conferido no servidor, histórico de preço por trigger com desfazer, Copiloto que aplica, Coffee LiVRE para Empresas (B2B) com ofertas compatíveis e solicitação de cotação, abas Preços e Empresas no admin, iFood como benchmark de delivery | Resposta de vendedor à cotação; teste de tela do admin com login (depende de staging); roteador de frete; política de reajuste automático |
 
 ### 17.1 Divergências entre a implementação e a seção 10
 
@@ -941,6 +942,107 @@ Vendendo hoje na Magalu: economia potencial estimada de **+R$ 4.290/mês** e **+
 #### Testes
 - **57 testes do motor** (271 no total do projeto): percentual, tarifa fixa, tarifa por pacote, mensalidade rateada, piso (acima, próximo, abaixo, indeterminado), volume mensal e ano, função inversa, custo desconhecido, zero vendas, preço e quantidade inválidos, arredondamento, quantidade de 1 a 5, e reprodução das simulações de ML, Amazon e Magalu.
 - **Bancada no navegador** (`node scripts/coffeelivre-navegador.mjs --so=calculadora`), desktop e 375 px: calculadora antes dos planos; cinco plataformas; valores do exemplo-base; piso, impacto mensal e anual; economia; período por pedido, mês e ano; preço do piso; preço equivalente; aviso de frete grátis com 4 pacotes; "até" e "não é possível determinar" com 5 pacotes; "Como calculamos" com fonte e confiabilidade; cálculo detalhado (tabela no desktop, cartões no celular); benefícios; plano mantido ao ir aos planos; CTA levando ao formulário; sem rolagem lateral e sem erro de console. Recortes em tamanho real ficam em `test-results/coffeelivre/`.
+
+### 17.1.8 Decisões registradas após a Unidade 6.5 (13/09/2026)
+
+| Tema | Decisão | Como está no sistema |
+|---|---|---|
+| Pagamento | A taxa do processador **não** é absorvida pelo Coffee LiVRE: custo real, transparente, separado da comissão, sem margem. Pix e cartão têm custos diferentes. Sem subsídio agora | Regras `pagamento` com cenário `cartao` e `pix` em `lv_tarifas_simulacao`, editáveis no admin |
+| Frete | Comprador paga o frete real, cotado por API logística; sem margem do LiVRE no início; vendedor não paga frete (exceções futuras: promoção financiada, frete grátis planejado, acordo B2B) | Não implementado. Arquitetura registrada em 17.1.10 |
+| Planos | Zero 12%, LiVRE 10%, LiVRE+ Plus 8% continuam **hipóteses de lançamento** configuráveis. Oficial sem comissão. Tarifas de 250 g e 1 kg não serão inventadas antes de medir o custo do CD | Como na 17.1.7 |
+| Piso | Regra fundamental: o vendedor define; o LiVRE calcula, alerta, recomenda e só executa com autorização. Nunca reduz abaixo do piso em silêncio | `lv_aplicar_preco` recusa preço abaixo do piso (17.1.9) |
+| "Próximo do piso" (5%) | Parâmetro de interface, não regra comercial | `lv_simulacao_premissas.margem_proximo_piso_bps` |
+| Embalagem de 14 g | Premissa técnica de demonstração, não padrão para todos os cafés | `lv_simulacao_premissas.peso_embalagem_g` |
+
+### 17.1.9 Unidade 7 — Comparação de mercado, preço em um clique, B2B e admin
+
+**Princípio:** DADO → CONTEXTO → RECOMENDAÇÃO → AÇÃO. "O seller define os limites. O Coffee LiVRE faz o trabalho."
+
+**Migration:** `20260913140000_comparacao_preco_b2b.sql`. **Motor:** `src/pages/coffeelivre/comparacao.ts` (funções puras).
+
+#### Comparação de mercado (Seller Central › produto)
+- **Comparação direta:** outro café no ar, de **outra loja**, com a mesma **gramatura** e os mesmos **classificação, espécie, torra e moagem**. Se o café do vendedor tem **ABIC**, o equivalente também precisa ter.
+- **Semelhantes:** mesma classificação, ou mesma gramatura e moagem, com alguma diferença. Aparecem com a diferença escrita ("torra Escura", "gramatura 250 g") e **não entram na mediana**. Um especial de 250 g nunca entra na comparação direta de um tradicional de 500 g.
+- **Métricas:** seu preço e R$/kg, mediana, menor e maior equivalente (pacote e R$/kg), distância percentual da mediana, posição na faixa, quantidade de equivalentes e seu piso.
+- **Amostra mínima:** 3 equivalentes. Abaixo disso a tela diz que a amostra é insuficiente e não mostra mediana nem recomendação. Se falta atributo no café do vendedor, diz qual completar.
+- **Fonte:** só a vitrine pública (preço, gramatura, atributos de produto no ar). O vendedor nunca vê piso, estoque por lote ou histórico de concorrente — a RLS não entrega.
+
+#### Recomendação do Copiloto
+| Situação | O que diz | Sugestão |
+|---|---|---|
+| Até 5% da mediana | "Seu preço está competitivo. Não recomendamos alteração." | nenhuma |
+| Acima, com diferenciais (2+ de pontuação, certificação, região, variedade, fazenda, processo, e 2 a mais que a mediana dos equivalentes) | "Você possui diferenciais que justificam preço acima da mediana." | nenhuma |
+| Acima, sem diferenciais | "Seu preço está X% acima da mediana… Você pode ir para R$ Y e continuar acima do seu piso." | mediana − R$ 0,01; se isso furar o piso, o próprio piso |
+| Acima, mas já no piso | Não recomenda reduzir | nenhuma |
+| Abaixo da mediana | Há espaço para subir; manter também é estratégia | mediana − R$ 0,01 |
+
+**Opções rápidas:** preço recomendado pelo LiVRE, igualar mediana, 1% abaixo da mediana, manter meu preço. Opção abaixo do piso aparece **desabilitada**. Nenhuma frase do tipo "seja o mais barato"; a lista de equivalentes não é ranking de quem cobra menos.
+
+**Na Visão geral:** o Copiloto ganhou o tipo `preco_mercado` (prioridade 35), com botão **"Aplicar R$ X"** e confirmação no próprio cartão. "Competitivo" não vira alerta.
+
+#### Preço em um clique
+1. O vendedor escolhe a opção; a tela mostra **novo preço, líquido estimado** (LiVRE Zero, cartão, sem frete), **distância do piso, impacto por pacote** e a **escada recalculada** com o novo preço, avisando a faixa que ficar abaixo do piso.
+2. Confirmar chama `lv_aplicar_preco(produto, preço, origem, motivo, recomendação)`, que no servidor: confere que o produto é do vendedor, **recusa preço abaixo do piso**, recusa origem `automatico`, recusa preço igual, grava o contexto e altera o preço. A guarda do produto continua valendo: queda acima de 50% volta para moderação.
+3. A tela recarrega do banco: comparação, formulário do editor e histórico.
+
+**Desfazer** (`lv_desfazer_preco`) só quando é seguro: é a última troca daquele produto, o preço ainda é o que ela colocou, não foi desfeita, tem menos de 24 horas e o preço anterior não fura o piso atual. O desfazer também entra no histórico, ligado à troca original.
+
+#### Histórico de preço (`lv_price_history`)
+- Gravado por **trigger** em toda troca de `preco_cents`, por qualquer caminho: preço anterior, novo, origem, motivo, recomendação (tipo, opção, sugestão, mediana, equivalentes, distância), usuário e data.
+- **Origens:** `manual` (editor), `copiloto`, `promocao`, `automatico` (reservado, recusado nesta fase), `desfazer`, `admin` (equipe ou chave de serviço).
+- O vendedor **lê** o próprio histórico e **não escreve**: não há policy de escrita. Admin lê tudo.
+
+#### B2B — Coffee LiVRE para Empresas (`/coffeelivre/empresas`, link no rodapé)
+- **Entrada:** empresa, tipo de negócio (cafeteria, hotel, restaurante, padaria, escritório, cozinha industrial, mercado, distribuidor), cidade/UF, CNPJ opcional, responsável, e-mail; tipo de café, formato, moagem, quantidade por entrega (kg) e **compra única, semanal, quinzenal ou mensal**.
+- **Ofertas compatíveis ao vivo:** cafés no ar com a mesma classificação, gramatura e moagem. Cada oferta mostra preço, R$/kg, vendedor, origem, ABIC e certificações, estoque (pacotes e kg), pacotes por entrega, valor da entrega a preço de vitrine, e se o estoque atual cobre a entrega. Quantidade mínima e prazo: "a combinar na cotação". Ordem: primeiro quem tem estoque para a entrega, depois R$/kg.
+- **Solicitar cotação:** `lv_b2b_solicitar` (pública, SECURITY DEFINER) valida e grava `lv_b2b_empresas` + `lv_b2b_solicitacoes`, devolvendo só o número. Status nasce `novo`. Visitante e vendedor não leem nada dessas tabelas; só admin.
+- **Recorrência é intenção**, não cobrança. Não há crédito, leilão reverso nem resposta de vendedor nesta unidade.
+- **Piso no B2B:** o comprador nunca vê o piso. O preço por volume do vendedor continua sendo a escada, com o alerta de piso na tela dele (Unidade 5/6). Condição B2B abaixo do piso alerta; não bloqueia.
+
+#### Admin
+- **Preços:** regras da comparação e histórico de alterações com produto, loja, origem, motivo e a recomendação por trás. Somente leitura — preço é do vendedor.
+- **Empresas (B2B):** empresas interessadas, solicitações abertas, volume recorrente aberto (kg/mês), filtro por status e troca de status (novo, em análise, atendido, encerrado).
+
+#### iFood como benchmark de DELIVERY / CONVENIÊNCIA
+Entrou em `lv_tarifas_simulacao` com a nova coluna **`modelo = delivery_conveniencia`** (os marketplaces são `marketplace`) e **não aparece na Calculadora**. Regras, de fonte secundária (seção 10.3 do relatório "Café no iFood", valores públicos de 2026, não medidos): plano Básico 12% + pagamento 3,2% + R$ 110/mês; plano Entrega 23% + 3,5% + R$ 150/mês; mensalidades só acima de R$ 1.800 de venda mensal.
+
+O que o estudo ensinou e fica como contexto, não como regra: conveniência sustenta preço mais alto (tradicional mediano R$ 67,43/kg, contra R$ 46–56/kg nas lojas mais baratas do mesmo raio); o mesmo SKU varia até 2,7× no mesmo dia; frete de entrega mediano R$ 17,99 decide o pedido de ticket baixo; café é item de cesta; promoção de loja (−20%) muda o preço do dia. Taxa de serviço de R$ 0,99 e pedido mínimo **não confirmados** no checkout.
+
+#### Dados de demonstração
+- Quatro tradicionais 500 g moídos (Torra Viva R$ 25,90, Grão Norte R$ 26,80, Ponte Velha R$ 27,90, Alto Horizonte R$ 28,90) + o da Serra Clara (R$ 24,90): mediana **R$ 26,80**. Um Extra Forte 500 g da Torra Viva aparece como semelhante. Todos `is_demo`, com estoque demo.
+- Três empresas B2B fictícias, marcadas "(demonstração)", com solicitações em status diferentes.
+
+#### Limitações
+- **Tela do admin não validada com login.** O painel reconhece admin por `user_profiles.is_admin`, que abre o admin inteiro da Saporino (pedidos, clientes, dados pessoais). Criar um admin temporário no único banco de produção seria escalar privilégio, mesmo por minutos. A troca de status B2B e a leitura restrita a admin foram provadas pela bancada da API; a tela do admin, por typecheck e build. Resolve com staging (17.2.1).
+- Comparação só com o catálogo de demonstração, portanto amostra pequena e fictícia. Não considera escada, promoções, frete, reputação nem frescor.
+- Recomendação por regra, sem histórico de conversão (não há pedidos).
+- Entrada B2B pública sem proteção anti-spam além da validação; aceitável na demonstração privada atrás do código de acesso.
+- O editor recarrega o formulário depois de aplicar preço: edição não salva no formulário se perde.
+
+#### Testes
+- **Unitários:** 21 da comparação (equivalência direta e semelhante, ABIC, própria loja fora, R$/kg, mediana par e ímpar, amostra insuficiente, recomendação competitiva, acima, abaixo, com diferenciais, limitada pelo piso, piso impede, opções rápidas, linguagem sem guerra de preço) e 5 do Copiloto com sinal de mercado. Total do projeto: 297.
+- **Bancada da API:** 106 critérios no ciclo (88 do vendedor), com 24 novos: aplicar preço e histórico completo; abaixo do piso recusado; origem automática recusada; B não altera nem lê preço e histórico de A; histórico não aceita escrita à mão; desfazer registrado e ligado; não desfaz duas vezes nem com alteração posterior; alteração da equipe como `admin`; solicitação B2B pública devolvendo só o número; visitante e vendedor sem leitura de B2B; validações de quantidade, frequência e status; mudança de status pela equipe; mediana de demonstração R$ 26,80; iFood como delivery/conveniência.
+- **Bancada no navegador, desktop e 375 px:** fluxo de mercado com vendedor temporário (mediana, R$/kg, piso, distância, recomendação, opções rápidas, semelhantes, confirmação com escada recalculada e alerta de piso, aplicar, banco, competitivo depois, recarregar, histórico com usuário e recomendação, desfazer, aplicar pelo Copiloto da visão geral) e fluxo de empresas (rodapé, necessidade, resumo, ofertas compatíveis com preço, R$/kg, vendedor, estoque e cobertura, solicitação registrada, demanda estruturada no banco, mudança de status). Junto com vendedor, comprador e calculadora: todos os critérios passaram, sem rolagem lateral e sem erro de console.
+- Typecheck, build e verificador de fidelidade da home sem diferenças.
+
+#### Pendências
+1. Resposta de vendedores compatíveis à cotação, com proposta de preço por volume (conferindo o piso).
+2. Política opcional de reajuste automático ("até 1% abaixo da mediana, nunca abaixo de R$ X") — só com decisão explícita e trilha de auditoria já existente.
+3. Critérios não financeiros no ranking de oferta: reputação, Passport, avaliação, frescor, logística, conversão.
+4. Staging para testar o admin com login.
+5. Roteador Inteligente de Frete (17.1.10).
+
+### 17.1.10 ROTEADOR INTELIGENTE DE FRETE LiVRE (arquitetura futura — não implementado)
+
+**Objetivo:** para cada carrinho, cotar todas as transportadoras elegíveis e recomendar a melhor entrega, sem margem do Coffee LiVRE no lançamento.
+
+**Entradas:** CEP do CD, CEP do comprador, peso e dimensões por variante (já existem gramatura e o lote; dimensões entram no recebimento do CD), quantidade.
+
+**Como decide:** para cada quantidade relevante (1, 2, 3, 4, 5…) cota cada transportadora e classifica **MAIS ECONÔMICO**, **MAIS RÁPIDO** e **MELHOR CUSTO-BENEFÍCIO**. A escolha pode trocar com a quantidade: com 1 pacote a transportadora A é mais barata; com 4, a B. O sistema troca a recomendação sozinho.
+
+**Mensagens:** "Nós comparamos as opções de entrega para encontrar o melhor frete para você." e, só quando houver economia real, "Com esta quantidade encontramos uma opção de envio R$ X mais econômica." **Nunca empurrar mais quantidade sem benefício real** — a mesma regra que a calculadora já segue no aviso de frete grátis.
+
+**Onde encaixa:** unidade de logística/checkout. O motor de cálculo da escada e o carrinho por variante já separam quantidade, preço e estoque; a cotação entra como mais uma linha de custo do pedido, do lado do comprador.
 
 ### 17.2 Achados de segurança durante a construção
 

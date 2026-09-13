@@ -240,6 +240,8 @@ async function limparVendedores(silencioso = false) {
     const u = await acharUsuarioPorEmail(v.email);
     if (u) await admin.auth.admin.deleteUser(u.id);
   }
+  // Empresas B2B criadas pela bancada levam o prefixo; as solicitações caem junto.
+  await admin.from('lv_b2b_empresas').delete().like('nome', 'teste-bancada%');
   if (!silencioso) ok('usuários, vendedores, lojas e produtos da bancada removidos');
 }
 
@@ -510,6 +512,79 @@ async function aceiteVendedor() {
   const escadaDo2 = await visitante.from('lv_price_tiers').select('min_qty')
     .eq('product_id', (await visitante.from('vw_lv_vitrine').select('id').eq('slug', 'serra-clara-especial-graos-250g').single()).data.id);
   checar('estoque baixo NÃO apaga a escada do vendedor (3 faixas seguem gravadas)', (escadaDo2.data ?? []).length === 3);
+
+  console.log('\n=== PREÇO EM UM CLIQUE E HISTÓRICO ===');
+  const precoDe = async () => Number((await admin.from('lv_products').select('preco_cents').eq('id', idA).single()).data.preco_cents);
+  const antes = await precoDe();
+  const aplicado = await a.rpc('lv_aplicar_preco', {
+    p_product: idA, p_preco_cents: antes - 40, p_origem: 'copiloto', p_motivo: 'teste da bancada',
+    p_recomendacao: { tipo: 'acima_da_mediana', mediana_pacote_cents: 2360 },
+  });
+  checar('A aplica preço sugerido pela função do Copiloto', !aplicado.error && (await precoDe()) === antes - 40, aplicado.error?.message);
+  const ultima = async () => (await admin.from('lv_price_history').select('*').eq('product_id', idA).order('created_at', { ascending: false }).limit(1).single()).data;
+  const h1 = await ultima();
+  checar('histórico registra anterior, novo, origem, motivo, recomendação e usuário',
+    h1?.preco_anterior_cents === antes && h1?.preco_novo_cents === antes - 40 && h1?.origem === 'copiloto'
+    && h1?.motivo === 'teste da bancada' && h1?.recomendacao?.tipo === 'acima_da_mediana' && !!h1?.user_id,
+    `(${JSON.stringify(h1)})`);
+
+  const abaixoPiso = await a.rpc('lv_aplicar_preco', { p_product: idA, p_preco_cents: 100, p_origem: 'copiloto' });
+  checar('preço abaixo do piso é recusado pelo servidor', !!abaixoPiso.error && (await precoDe()) === antes - 40, abaixoPiso.error ? '' : '(passou)');
+  const autonomo = await a.rpc('lv_aplicar_preco', { p_product: idA, p_preco_cents: antes, p_origem: 'automatico' });
+  checar('reajuste automático autônomo não é aceito nesta fase', !!autonomo.error);
+  const alheio = await b.rpc('lv_aplicar_preco', { p_product: idA, p_preco_cents: antes, p_origem: 'copiloto' });
+  checar('B NÃO altera o preço de A pela função', !!alheio.error && (await precoDe()) === antes - 40);
+  const histB = await b.from('lv_price_history').select('id').eq('product_id', idA);
+  checar('B NÃO lê o histórico de preço de A', (histB.data ?? []).length === 0);
+  const histA = await a.from('lv_price_history').select('id').eq('product_id', idA);
+  checar('A lê o próprio histórico', (histA.data ?? []).length >= 1);
+  const forjado = await a.from('lv_price_history').insert({ product_id: idA, seller_id: A.sellerId, preco_novo_cents: 1, origem: 'copiloto' });
+  checar('ninguém escreve histórico à mão: só o banco grava', !!forjado.error);
+
+  const desfeito = await a.rpc('lv_desfazer_preco', { p_history: h1.id });
+  checar('A desfaz a última alteração', !desfeito.error && (await precoDe()) === antes, desfeito.error?.message);
+  const hDesfazer = await ultima();
+  checar('desfazer também fica no histórico, ligado à alteração', hDesfazer?.origem === 'desfazer' && hDesfazer?.desfaz_id === h1.id);
+  const deNovo = await a.rpc('lv_desfazer_preco', { p_history: h1.id });
+  checar('a mesma alteração não se desfaz duas vezes', !!deNovo.error);
+
+  await admin.from('lv_products').update({ preco_cents: antes + 10 }).eq('id', idA);
+  checar('alteração pela equipe entra como origem admin', (await ultima())?.origem === 'admin');
+  const velha = await a.rpc('lv_desfazer_preco', { p_history: h1.id });
+  checar('não desfaz alteração que já tem outra depois', !!velha.error);
+  await admin.from('lv_products').update({ preco_cents: antes }).eq('id', idA);
+
+  console.log('\n=== B2B ===');
+  const pedidoB2B = await visitante.rpc('lv_b2b_solicitar', { p: {
+    nome: 'teste-bancada Cafeteria', tipo_negocio: 'cafeteria', cidade: 'Bancada', uf: 'sp',
+    classificacao: 'Tradicional', gramatura_g: 500, moagem: 'Média', quantidade_kg: 100, frequencia: 'mensal',
+  } });
+  checar('visitante registra solicitação B2B e recebe só o número', !pedidoB2B.error && Object.keys(pedidoB2B.data ?? {}).join() === 'id', pedidoB2B.error?.message);
+  const lidoPeloVisitante = await visitante.from('lv_b2b_solicitacoes').select('id');
+  checar('visitante NÃO lê solicitações B2B', (lidoPeloVisitante.data ?? []).length === 0);
+  const lidoPorA = await a.from('lv_b2b_empresas').select('id');
+  checar('vendedor NÃO lê empresas B2B', (lidoPorA.data ?? []).length === 0);
+  const invalido = await visitante.rpc('lv_b2b_solicitar', { p: { nome: 'teste-bancada Inválida', tipo_negocio: 'cafeteria', quantidade_kg: 0, frequencia: 'mensal' } });
+  checar('solicitação sem quantidade é recusada', !!invalido.error);
+  const semFreq = await visitante.rpc('lv_b2b_solicitar', { p: { nome: 'teste-bancada Inválida', tipo_negocio: 'cafeteria', quantidade_kg: 5, frequencia: 'diaria' } });
+  checar('frequência fora de única/semanal/quinzenal/mensal é recusada', !!semFreq.error);
+  const gravada = (await admin.from('lv_b2b_solicitacoes').select('status, frequencia, quantidade_kg, lv_b2b_empresas(uf)').eq('id', pedidoB2B.data.id).single()).data;
+  checar('solicitação nasce "novo", com frequência, volume e UF normalizada',
+    gravada?.status === 'novo' && gravada?.frequencia === 'mensal' && gravada?.quantidade_kg === 100 && gravada?.lv_b2b_empresas?.uf === 'SP',
+    `(${JSON.stringify(gravada)})`);
+  const mudou = await admin.from('lv_b2b_solicitacoes').update({ status: 'em_analise' }).eq('id', pedidoB2B.data.id);
+  checar('equipe muda o status para "em análise"', !mudou.error);
+  const statusRuim = await admin.from('lv_b2b_solicitacoes').update({ status: 'aprovado' }).eq('id', pedidoB2B.data.id);
+  checar('status fora de novo/em análise/atendido/encerrado é recusado', !!statusRuim.error);
+
+  console.log('\n=== MERCADO DE DEMONSTRAÇÃO E iFOOD ===');
+  const equivalentes = ((await visitante.from('vw_lv_vitrine').select('preco_cents')
+    .in('slug', ['serra-clara-tradicional-moido-500g', 'torra-viva-tradicional-moido-500g', 'grao-norte-tradicional-moido-500g',
+                 'ponte-velha-tradicional-moido-500g', 'alto-horizonte-tradicional-moido-500g'])).data ?? []).map(x => Number(x.preco_cents)).sort((x, y) => x - y);
+  checar('cinco tradicionais 500 g equivalentes no ar, mediana R$ 26,80', equivalentes.length === 5 && equivalentes[2] === 2680, `(${equivalentes})`);
+  const ifood = await visitante.from('lv_tarifas_simulacao').select('modelo').eq('plataforma', 'ifood');
+  checar('iFood no modelo como delivery/conveniência, separado dos marketplaces',
+    (ifood.data ?? []).length === 6 && (ifood.data ?? []).every(r => r.modelo === 'delivery_conveniencia'));
 
   console.log('\n=== APAGAR ===');
   await a.from('lv_products').delete().eq('id', idA);

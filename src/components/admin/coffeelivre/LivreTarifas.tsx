@@ -39,7 +39,7 @@ interface Linha {
 interface Premissa { chave: string; valor: number; rotulo: string; unidade: string | null }
 
 const PLATAFORMAS: [string, string][] = [
-  ['mercado_livre', 'Mercado Livre'], ['shopee', 'Shopee'], ['amazon', 'Amazon'], ['magalu', 'Magalu'], ['coffeelivre', 'Coffee LiVRE'],
+  ['mercado_livre', 'Mercado Livre'], ['shopee', 'Shopee'], ['amazon', 'Amazon'], ['magalu', 'Magalu'], ['ifood', 'iFood (delivery)'], ['coffeelivre', 'Coffee LiVRE'],
 ];
 
 const CONFIABILIDADES: [string, string][] = [

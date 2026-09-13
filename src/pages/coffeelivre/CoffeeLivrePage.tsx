@@ -29,6 +29,7 @@ import Carrinho from './Carrinho';
 import { useCarrinho, type LinhaNova } from './usarCarrinho';
 import PaginaProduto from './PaginaProduto';
 import ResolverQr from './ResolverQr';
+import PaginaEmpresas from './empresas/PaginaEmpresas';
 import PaginaCategoria from './PaginaCategoria';
 import PaginaBusca from './PaginaBusca';
 import PaginaLoja from './PaginaLoja';
@@ -50,6 +51,7 @@ type Rota =
   | { nome: 'loja'; slug: string }
   | { nome: 'busca'; termo: string }
   | { nome: 'vender' }
+  | { nome: 'empresas' }
   | { nome: 'vendedor'; subrota: string }
   | { nome: 'nada' };
 
@@ -59,6 +61,7 @@ function lerRota(): Rota {
   if (!caminho) return { nome: 'home' };
   const [secao, resto] = [caminho.split('/')[0], caminho.split('/').slice(1).join('/')];
   if (secao === 'vender') return { nome: 'vender' };
+  if (secao === 'empresas') return { nome: 'empresas' };
   // Seller Central. Vem antes da regra "sem resto e pagina inexistente",
   // porque /vendedor sozinho e a visao geral.
   if (secao === 'vendedor') return { nome: 'vendedor', subrota: resto };
@@ -236,6 +239,7 @@ function Experiencia() {
       {rotaAtual.nome === 'loja' && <PaginaLoja slug={rotaAtual.slug} aoAdicionar={adicionar} />}
       {rotaAtual.nome === 'busca' && <PaginaBusca termo={rotaAtual.termo} aoAdicionar={adicionar} />}
       {rotaAtual.nome === 'vender' && <PaginaVender />}
+      {rotaAtual.nome === 'empresas' && <PaginaEmpresas />}
       {rotaAtual.nome === 'nada' && <NaoEncontrado oQue="O endereço não corresponde a nenhuma página do Coffee LiVRE." />}
 
       <Newsletter aoAvisar={avisar} />
