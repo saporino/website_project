@@ -8,6 +8,7 @@
 // o piso, que é privado.
 import { supabase } from '../../../lib/supabase';
 import { atributosDosProdutos } from '../catalogo';
+import { registrarFalha } from '../observabilidade';
 import type { Faixa } from '../escada';
 import {
   compararComMercado, recomendarPreco,
@@ -119,14 +120,14 @@ export async function aplicarPreco(
   const { data, error } = await supabase.rpc('lv_aplicar_preco', {
     p_product: produtoId, p_preco_cents: precoCents, p_origem: 'copiloto', p_motivo: motivo, p_recomendacao: recomendacao,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(registrarFalha('aplicar-preco', error, 'Não foi possível aplicar o preço.'));
   const r = data as { history_id: string; status: string };
   return { historyId: r.history_id, status: r.status };
 }
 
 export async function desfazerPreco(historyId: string): Promise<void> {
   const { error } = await supabase.rpc('lv_desfazer_preco', { p_history: historyId });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(registrarFalha('desfazer-preco', error, 'Não foi possível desfazer.'));
 }
 
 /** Resumo gravado junto do histórico: o que o Copiloto viu ao recomendar. */

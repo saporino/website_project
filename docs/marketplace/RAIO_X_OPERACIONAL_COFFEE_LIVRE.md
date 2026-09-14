@@ -1013,11 +1013,11 @@ O que o estudo ensinou e fica como contexto, não como regra: conveniência sust
 - Três empresas B2B fictícias, marcadas "(demonstração)", com solicitações em status diferentes.
 
 #### Limitações
-- **Tela do admin não validada com login.** O painel reconhece admin por `user_profiles.is_admin`, que abre o admin inteiro da Saporino (pedidos, clientes, dados pessoais). Criar um admin temporário no único banco de produção seria escalar privilégio, mesmo por minutos. A troca de status B2B e a leitura restrita a admin foram provadas pela bancada da API; a tela do admin, por typecheck e build. Resolve com staging (17.2.1).
+- ~~Tela do admin não validada com login.~~ **Resolvido na U7.1 (17.1.11):** admin temporário no staging, abas percorridas na tela e status B2B alterado, recarregado e persistido.
 - Comparação só com o catálogo de demonstração, portanto amostra pequena e fictícia. Não considera escada, promoções, frete, reputação nem frescor.
 - Recomendação por regra, sem histórico de conversão (não há pedidos).
 - Entrada B2B pública sem proteção anti-spam além da validação; aceitável na demonstração privada atrás do código de acesso.
-- O editor recarrega o formulário depois de aplicar preço: edição não salva no formulário se perde.
+- ~~O editor recarrega o formulário depois de aplicar preço: edição não salva se perde.~~ **Corrigido na U7.1 (17.1.11):** mescla em três vias.
 
 #### Testes
 - **Unitários:** 21 da comparação (equivalência direta e semelhante, ABIC, própria loja fora, R$/kg, mediana par e ímpar, amostra insuficiente, recomendação competitiva, acima, abaixo, com diferenciais, limitada pelo piso, piso impede, opções rápidas, linguagem sem guerra de preço) e 5 do Copiloto com sinal de mercado. Total do projeto: 297.
@@ -1029,7 +1029,7 @@ O que o estudo ensinou e fica como contexto, não como regra: conveniência sust
 1. Resposta de vendedores compatíveis à cotação, com proposta de preço por volume (conferindo o piso).
 2. Política opcional de reajuste automático ("até 1% abaixo da mediana, nunca abaixo de R$ X") — só com decisão explícita e trilha de auditoria já existente.
 3. Critérios não financeiros no ranking de oferta: reputação, Passport, avaliação, frescor, logística, conversão.
-4. Staging para testar o admin com login.
+4. ~~Staging para testar o admin com login.~~ Feito na U7.1.
 5. Roteador Inteligente de Frete (17.1.10).
 
 ### 17.1.10 ROTEADOR INTELIGENTE DE FRETE LiVRE (arquitetura futura — não implementado)
@@ -1043,6 +1043,147 @@ O que o estudo ensinou e fica como contexto, não como regra: conveniência sust
 **Mensagens:** "Nós comparamos as opções de entrega para encontrar o melhor frete para você." e, só quando houver economia real, "Com esta quantidade encontramos uma opção de envio R$ X mais econômica." **Nunca empurrar mais quantidade sem benefício real** — a mesma regra que a calculadora já segue no aviso de frete grátis.
 
 **Onde encaixa:** unidade de logística/checkout. O motor de cálculo da escada e o carrinho por variante já separam quantidade, preço e estoque; a cotação entra como mais uma linha de custo do pedido, do lado do comprador.
+
+### 17.1.11 Unidade 7.1 — Staging e hardening operacional (13/09/2026)
+
+#### Ambientes
+| | Produção | Staging |
+|---|---|---|
+| Projeto Supabase | "Saporino's Project" · `rsvoazrkxtdrcjnatzcm` | `coffeelivre-staging` · `mzfnhljphcjpqtuesjci` (mesma organização, São Paulo) |
+| Arquivo de variáveis | `.env` | `.env.staging` (gitignored; URL, anon, service role, senha do banco, host do pooler) |
+| Marca no próprio banco (`ambiente_do_banco`) | `producao` | `staging` |
+| Site | `vite` / `npm run build` | `vite --mode staging` (lê `.env.staging`, sai com `noindex, nofollow`, cabeçalho `X-Robots-Tag` e a faixa "STAGING · dados de teste") |
+| Dados | reais + demonstração | só seed de referência + seed de demonstração + dado temporário das bancadas |
+
+**Como saber em qual ambiente se está:** toda bancada imprime a primeira linha `ambiente: staging · projeto … · .env.staging` (ou `█ PRODUÇÃO █`). No navegador, a faixa roxa no canto só existe em staging.
+
+**Como alternar:** não existe "trocar o .env". Staging é o padrão de todo script. Produção exige `--producao` **e** `COFFEELIVRE_CONFIRMO_PRODUCAO=rsvoazrkxtdrcjnatzcm`, e só nos comandos que permitem (hoje: `coffeelivre-demo.mjs acesso-demo` e `coffeelivre-staging.mjs marcar-producao`).
+
+**Service role:** só em scripts locais. Nenhuma variável `VITE_` carrega chave de serviço; o Vite não expõe o que não começa com `VITE_`.
+
+#### Trava de ambiente (`scripts/_ambiente.mjs`)
+Roda antes de qualquer escrita. Não confia no nome do projeto. Aborta quando:
+1. o ref da URL, o `SUPABASE_PROJECT_REF` e o ref gravado **dentro** das chaves (JWT anon e service role) não coincidem;
+2. o comando é destrutivo e o ref é o de produção, com ou sem flag;
+3. o arquivo diz staging, mas o próprio banco não tem a marca `staging` com o mesmo ref.
+
+A marca `ambiente_do_banco` tem RLS sem acesso para o site e um gatilho que recusa trocar `producao` por `staging` (ou o contrário).
+
+Provado: `ciclo --producao` aborta; navegador com `--producao` e a variável de confirmação aborta; staging sem marca aborta; `acesso-demo --producao` sem a variável aborta.
+
+#### Staging reconstruível
+As 143 migrations históricas **não** reconstroem um banco vazio. A segunda já altera `orders`, que só nasce depois, e 44 tabelas e 33 funções de produção foram criadas por `exec_migration` sem arquivo. Reescrever o passado mudaria o que produção registrou como aplicado. A solução foi uma **baseline de estrutura**:
+
+```
+banco vazio → supabase/baseline/20260913150000_estrutura_de_producao.sql
+            → supabase/migrations posteriores (≥ 20260913160000)
+            → marca de ambiente → seeds de referência e de demonstração
+```
+
+- **Baseline** gerada por `scripts/staging/gerar-baseline.mjs`, só leitura em produção. Inclui extensões, sequências, tabelas, funções, views, constraints, índices, triggers (inclusive `auth.users`), RLS, policies (public e storage), comentários, permissões por tabela, coluna e função, realtime e configuração dos buckets. **Não inclui** dados, jobs do `pg_cron` (todos chamam funções de produção por URL), segredos do vault nem arquivos do storage.
+- **Comando único:** `node scripts/coffeelivre-staging.mjs reconstruir` apaga e refaz. Termina com `verificar`, que compara 12 impressões com produção: tabelas, colunas com tipo, views, funções (com `security definer`), constraints, índices, triggers, policies com papéis, RLS, permissões de anon e authenticated, execução de funções e buckets. **Resultado: 12 de 12 iguais** (142 tabelas, 2.104 colunas, 121 funções, 335 policies, 2.832 permissões).
+- **Histórico de produção alinhado:** 30 migrations aplicadas por `exec_migration` entre 09 e 13/09 estavam fora de `schema_migrations`. Foram registradas com `migration repair --status applied`, sem reexecutar SQL. `db push --linked` voltou a aplicar só o que é novo.
+- **Regra permanente:** mudança de banco é migration em `supabase/migrations/`, aplicada em staging (`coffeelivre-staging.mjs migrar`), testada e depois em produção (`db push --linked`). Nada feito à mão no painel de um só banco.
+
+#### Seeds
+| Arquivo | Conteúdo | Natureza |
+|---|---|---|
+| `supabase/seeds/coffeelivre_referencia.sql` | 21 atributos, 11 categorias, 101 vínculos, 4 planos, configuração, 2 premissas, 147 tarifas | parâmetros do sistema |
+| `supabase/seeds/coffeelivre_demo.sql` | 6 vendedores, 6 lojas, 16 produtos, 16 variantes, 106 atributos, 6 faixas, 16 lotes, 15 QR, 3 empresas e 3 solicitações B2B | demonstração estável, `is_demo` |
+
+Os dois são gerados de produção por `scripts/staging/gerar-seeds.mjs`, idempotentes (`on conflict do nothing`), com ids fixos. **Dado de teste não é seed:** as bancadas criam com marca `teste-` / `teste-navegador` / `@coffeelivre.test` e apagam só o que casa com a marca.
+
+**Nunca dado pessoal:** a geração aborta se um vendedor, loja ou empresa tiver CNPJ, telefone, e-mail fora de domínio reservado (`.test`, `.teste`, `example.*`) ou não for `is_demo`. Ficam fora códigos de acesso, candidaturas, vínculos de usuário, histórico de preço e toda tabela da Saporino. No staging reconstruído: 0 pedidos, 0 clientes, 0 vendedores não-demo, 0 perfis de usuário.
+
+**Correção de dado encontrada no caminho:** "Torrefação Ponte Velha", vendedor fictício da comparação de mercado, nasceu fora de migration com `is_demo = false` (e e-mail `@pontevelha.teste`). Migrations `20260913170000` e `20260913180000` marcam vendedor e loja como demonstração, e só se não houver CNPJ, telefone ou e-mail entregável.
+
+#### Admin temporário (só staging)
+Script do navegador, fluxo `--so=admin`:
+1. Cria `teste-navegador-admin@coffeelivre.test` no Auth do staging com senha aleatória nunca impressa e liga `is_admin` pela chave de serviço. Recusa se o ambiente não for staging.
+2. Faz login por senha e abre `/admin`.
+3. Segue Plataformas → Coffee LiVRE e percorre Vendedores, Moderação, Calculadora, Preços e Empresas (B2B), conferindo título e conteúdo.
+4. Muda o status de uma solicitação criada pelo próprio teste para "em análise". Confere no banco, recarrega a página e confere de novo na tela.
+5. Abre `/admin` em 375 px com a mesma sessão, só para registro.
+6. Sai, confirma "Acesso Negado" e apaga o usuário. O perfil cai em cascata.
+
+A conta real nunca é usada.
+
+#### Edição não salva preservada (preço em um clique)
+Causa: depois de aplicar ou desfazer preço, o editor recarregava o produto e **substituía o formulário inteiro**.
+
+Correção, com a regra "ação rápida nunca destrói trabalho não salvo":
+- **Mescla em três vias** (`vendedor/mesclarEdicao.ts`, com 6 testes). O editor guarda a **base**, que é o que veio do banco na última carga.
+- Depois da ação rápida, campo que o vendedor não mexeu recebe o valor do banco; campo que ele mexeu fica como está.
+- **Preço** é o campo que a ação alterou de propósito e sempre vem do banco. Se havia um preço digitado e diferente, a tela avisa que ele foi trocado; nunca some em silêncio.
+- Situação, aprovação e nota de moderação vêm sempre do banco.
+- A confirmação do preço avisa: "Você tem N alterações não salvas… Aplicar este preço grava só o preço; o resto continua na tela para você salvar."
+- Salvar continua recarregando tudo, porque nesse momento tudo foi gravado.
+
+Provado no navegador, em desktop e 375 px:
+1. o vendedor digita a descrição sem salvar;
+2. aplica o preço sugerido e vê o aviso;
+3. o preço vai para R$ 26,79 no banco e no campo;
+4. a descrição continua na tela e ainda não está no banco;
+5. ao salvar, os dois ficam gravados;
+6. depois de recarregar, os dois continuam.
+
+#### Backup e recuperação
+| O quê | Onde está a cópia | Como recuperar |
+|---|---|---|
+| Estrutura do banco | `supabase/baseline` + `supabase/migrations` (git) | `coffeelivre-staging.mjs reconstruir` num projeto vazio; `verificar` compara com produção |
+| Parâmetros e demonstração | `supabase/seeds/*.sql` (git) | vêm junto no `reconstruir`, ou `coffeelivre-staging.mjs semear` |
+| Dados reais de produção (pedidos, clientes, reps, usuários, arquivos) | **backup diário do Supabase** (plano do projeto) | restauração pelo painel do Supabase, **ação humana**; recuperação a um instante (PITR) só em plano pago |
+| Jobs do `pg_cron`, segredos do vault, secrets das edge functions | fora do git, de propósito | recriar pelo painel/CLI a partir de `supabase/functions` e da memória operacional; **não entram no staging** |
+| Senha do banco de staging | `.env.staging` local | redefinível no painel do projeto de staging |
+
+**Riscos de recuperação que continuam:** o staging prova que a estrutura se reconstrói, mas os dados reais dependem só do backup do provedor. Nenhum dump lógico periódico fora do Supabase foi implantado, porque exportar dado pessoal para outro lugar é decisão de guarda de dados. A baseline precisa ser regenerada se alguém voltar a mudar produção fora de migration; o `verificar` acusa essa divergência.
+
+#### Observabilidade (padrão)
+Nenhuma falha silenciosa. O padrão é `src/pages/coffeelivre/observabilidade.ts`:
+- `registrarFalha(operacao, erro)` classifica o erro como `autenticacao`, `permissao` (RLS/42501/403), `validacao` (regra do banco, como piso ou origem), `rede` ou `banco`;
+- escreve um evento estruturado no console (`[coffeelivre] {operacao, tipo, codigo, mensagem, momento}`);
+- devolve a mensagem para a tela, que sempre mostra algo ao usuário.
+
+| Evento | Registro no servidor | Registro no cliente |
+|---|---|---|
+| Alteração de preço | `lv_price_history` (quem, origem, motivo, recomendação, desfeito) | `registrarFalha('aplicar-preco' / 'desfazer-preco')` |
+| Solicitação B2B | `lv_b2b_solicitacoes` (status, datas) | `registrarFalha('b2b-solicitar')` |
+| Falha de banco, autenticação ou permissão | erro do PostgREST | classificação no mesmo evento |
+| Checkout (futuro) | tabela de pedido e webhook do Mercado Pago | mesmo padrão, `operacao: 'checkout'` |
+
+**Ainda não existe** coleta central (Sentry, Logflare ou tabela de eventos): o evento fica no console de quem usa. Decidir o destino antes do checkout real.
+
+#### Domínios
+| Ambiente | Endereço | Situação |
+|---|---|---|
+| Produção futura | `coffeelivre.com.br` → projeto Vercel próprio, build padrão, Supabase de produção | não trocado agora |
+| Staging | `staging.coffeelivre.com.br` ou URL técnica de preview da Vercel, build `--mode staging` com as variáveis do staging | hoje roda local (`vite --mode staging`); na hospedagem, ativar a proteção de deployment da Vercel além do portão |
+| Demonstração atual | `/coffeelivre` no site da Saporino | inalterada |
+
+**Staging fechado ao público:** todo o Coffee LiVRE passa pelo portão de código de acesso (hash no banco, expiração); o staging usa o mesmo portão com banco próprio, e os códigos da bancada vivem 1 hora. `noindex, nofollow` em meta e cabeçalho, verificado no build de staging e ausente no de produção.
+
+#### Testes da U7.1 (tudo no staging)
+- **Reconstrução:** `coffeelivre-staging.mjs reconstruir` do zero, com baseline, 3 migrations posteriores, marca e dois seeds. `verificar` deu 12 de 12 impressões iguais a produção.
+- **Unitários:** 311. Novos: 6 da mescla em três vias e 8 da observabilidade.
+- **Bancada da API:** 114 critérios, todos aprovados, sobre um banco construído só a partir do git. Inclui RLS, isolamento do vendedor A em relação ao B, piso, histórico, desfazer, B2B e mediana de demonstração R$ 26,80.
+- **Bancada no navegador, desktop e 375 px:** 311 critérios, todos aprovados. Cobre portão, Seller Central logada, cadastro, Passport, escada, estoque por variante, QR, carrinho, calculadora, comparação, preço em um clique, **edição não salva preservada**, histórico, desfazer, Copiloto e B2B. O Chrome só chamou o Supabase do staging.
+- **Admin temporário:** 24 critérios, todos aprovados. Cobre criação, login, abas, mudança e persistência do status B2B, logout, "Acesso Negado" e remoção.
+- **Trava de ambiente:** 4 cenários de abortar, todos confirmados.
+- **Typecheck, build** (produção sem `noindex`; build de staging com `noindex, nofollow`) e **verificador de fidelidade** sem diferenças.
+- **Varredura de segredos** nos arquivos do commit: nenhum JWT, `Bearer`, `sb_secret` ou senha.
+
+#### Riscos técnicos que continuam
+1. **Defeito conhecido do painel da Saporino, fora do Coffee LiVRE:**
+   - o Dashboard filtra `user_profiles.account_type`, coluna que não existe, e recebe 400 **também em produção**; os contadores PF/PJ ficam em 0;
+   - ao abrir `/admin` como admin aparece ainda `400 GET /rest/v1/orders`.
+   - A bancada tolera só esses dois, com justificativa; qualquer outro erro reprova. A correção está numa tarefa separada.
+2. **Admin em 375 px** tem documento de 496 px, com rolagem lateral: o painel administrativo é de desktop.
+3. **Baseline x produção:** se alguém voltar a mudar produção fora de migration, o staging diverge. O `verificar` acusa; a correção é regenerar a baseline.
+4. **Dados reais só no backup do Supabase.** Não há dump lógico externo nem PITR.
+5. **Sem coleta central de erros.** O evento estruturado fica no console de quem usa.
+6. **Staging hospedado ainda não existe.** Hoje roda local (`vite --mode staging`); domínio e proteção de deployment na Vercel ficam para quando for publicado.
+7. **Jobs do `pg_cron` e secrets das edge functions** não existem no staging. Automação agendada não é testável lá sem recriá-los apontando para o próprio staging.
+8. **Custo:** o segundo projeto Supabase está na mesma organização; conferir no painel se o plano cobra por projeto adicional.
 
 ### 17.2 Achados de segurança durante a construção
 
@@ -1058,11 +1199,9 @@ Percorrido o critério de aceite inteiro: home com 15 produtos e 5 lojas do banc
 
 Celular em 375 px: botão de menu aparece, gaveta abre com 13 destinos, fecha ao navegar, e nenhuma tela tem rolagem lateral. Tablet em 800 px: grade em duas colunas, gaveta ativa. Fora do Coffee LiVRE, `/coficobrasil` continua intacta e o CSS não vazou.
 
-### 17.2.1 PENDÊNCIA: ambiente de staging
+### 17.2.1 ~~PENDÊNCIA: ambiente de staging~~ — RESOLVIDA na U7.1
 
-**O projeto Supabase é um só.** A bancada de teste escreve no mesmo banco da demonstração e, a partir da Unidade 6, cria e apaga usuários no Supabase Auth. A proteção hoje é de **marcação**, não de ambiente: tudo leva prefixo `teste-` ou e-mail `@coffeelivre.test`, e a limpeza só remove o que casa com isso.
-
-Isso é aceitável enquanto não houver vendedor real nem comprador real. **Antes de operação real, ou antes de a bancada poder colocar dado real em risco, criar um projeto de staging separado** e apontar a bancada para ele.
+Existe um projeto Supabase de staging separado, e as bancadas destrutivas só rodam nele. Ver 17.1.11.
 
 ### 17.3 Decisões tomadas em 13/09/2026
 

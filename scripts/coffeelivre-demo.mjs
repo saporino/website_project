@@ -9,11 +9,11 @@
 // ao pacote publicado, e nenhum botão de "aprovar sem análise" passa a
 // existir para ninguém.
 //
-// LIMITE HONESTO: o projeto Supabase é um só, então este script escreve
-// no MESMO banco da demonstração. A proteção não é de ambiente, é de
-// marcação: tudo o que ele cria leva o prefixo `teste-` e `is_demo`, e o
-// comando `limpar` só apaga o que casa com esse prefixo. Ele não tem como
-// remover vendedor, loja ou produto que não tenha criado.
+// AMBIENTE: roda no STAGING por padrão (`.env.staging`). A trava de
+// `_ambiente.mjs` aborta antes de escrever se o arquivo, as chaves ou a marca
+// gravada no próprio banco não disserem "staging". E tudo o que ele cria leva
+// o prefixo `teste-`; o `limpar` só apaga o que casa com esse prefixo — a
+// demonstração estável (seed) nunca é tocada.
 //
 // Uso:
 //   node scripts/coffeelivre-demo.mjs semear      cria vendedor, loja e produto com escada
@@ -22,22 +22,24 @@
 //   node scripts/coffeelivre-demo.mjs aceite      roda os critérios de aceite
 //   node scripts/coffeelivre-demo.mjs limpar      apaga tudo o que criou
 //   node scripts/coffeelivre-demo.mjs ciclo       semear + aceite + limpar
+//
+// Único comando permitido em produção (login para apresentação ao vivo):
+//   COFFEELIVRE_CONFIRMO_PRODUCAO=<ref> node scripts/coffeelivre-demo.mjs acesso-demo <email> <loja> --producao
 
-import fs from 'node:fs';
-import path from 'node:path';
 import { createClient } from '@supabase/supabase-js';
+import { escolherAmbiente, confirmarNoBanco, anunciar } from './_ambiente.mjs';
 
-const RAIZ = path.resolve(import.meta.dirname, '..');
-const env = Object.fromEntries(
-  fs.readFileSync(path.join(RAIZ, '.env'), 'utf8').split(/\r?\n/)
-    .filter(l => l.includes('=') && !l.startsWith('#'))
-    .map(l => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i + 1).trim()]; })
-);
+const COMANDO = process.argv[2] ?? 'ciclo';
+const DESTRUTIVO = COMANDO !== 'acesso-demo';
+const ambiente = escolherAmbiente({ destrutivo: DESTRUTIVO });
+const env = ambiente.env;
+anunciar(ambiente);
 
 // Service role escreve; anon lê. Os dois clientes existem porque metade
 // dos critérios de aceite é justamente "o visitante consegue ver isto?".
 const admin = createClient(env.VITE_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 const visitante = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY);
+await confirmarNoBanco(admin, ambiente, { destrutivo: DESTRUTIVO });
 
 // A marca de tudo que este script cria. Mudar isto quebra o `limpar`.
 const PREFIXO = 'teste-';
@@ -634,7 +636,7 @@ async function acessoDemo(email, slugDaLoja) {
   console.log('');
 }
 
-const comando = process.argv[2] ?? 'ciclo';
+const comando = COMANDO;
 if (comando === 'semear') await semear();
 else if (comando === 'publicar') await publicar(true);
 else if (comando === 'despublicar') await publicar(false);

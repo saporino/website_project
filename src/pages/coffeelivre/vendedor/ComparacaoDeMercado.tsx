@@ -41,11 +41,13 @@ const ORIGEM: Record<string, string> = {
   desfazer: 'Desfeito', admin: 'Equipe Coffee LiVRE',
 };
 
-export default function ComparacaoDeMercado({ produtoId, avisar, aoAlterarPreco }: {
+export default function ComparacaoDeMercado({ produtoId, avisar, aoAlterarPreco, alteracoesNaoSalvas = 0 }: {
   produtoId: string;
   avisar: Avisar;
-  /** Chamado depois de aplicar ou desfazer, para o editor recarregar o preço. */
-  aoAlterarPreco: () => void;
+  /** Chamado depois de aplicar ou desfazer, para o editor trazer o preço sem perder o que não foi salvo. */
+  aoAlterarPreco: () => void | Promise<void>;
+  /** Quantos campos o vendedor editou e ainda não salvou no formulário. */
+  alteracoesNaoSalvas?: number;
 }) {
   const [meu, setMeu] = useState<MeuProdutoNoMercado | null>(null);
   const [mercado, setMercado] = useState<ProdutoDeMercado[] | null>(null);
@@ -225,6 +227,12 @@ export default function ComparacaoDeMercado({ produtoId, avisar, aoAlterarPreco 
               </div>
             </dl>
             <p className="sc-sub">Líquido estimado no LiVRE Zero, pagamento no cartão, sem frete. Valores ilustrativos da fase de apresentação.</p>
+            {alteracoesNaoSalvas > 0 && (
+              <p className="sc-sub" data-campo="aviso-nao-salvo">
+                Você tem {alteracoesNaoSalvas === 1 ? '1 alteração' : `${alteracoesNaoSalvas} alterações`} não salva{alteracoesNaoSalvas === 1 ? '' : 's'} no formulário.
+                Aplicar este preço grava só o preço; o resto continua na tela para você salvar.
+              </p>
+            )}
             {escada.length > 0 && (
               <div className="sc-confirmar-escada">
                 <small>Sua escada de quantidade com o novo preço</small>

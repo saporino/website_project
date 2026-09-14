@@ -36,3 +36,8 @@ q.mjs
 sec.mjs
 audit.mjs
 apl.mjs
+
+# Ambientes separados: segredos de staging nunca entram no git
+.env.staging
+.env.staging.local
+.env.producao

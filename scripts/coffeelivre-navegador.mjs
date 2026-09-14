@@ -30,16 +30,17 @@ import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { createClient } from '@supabase/supabase-js';
 import { chromium } from 'playwright-core';
+import { escolherAmbiente, confirmarNoBanco, anunciar } from './_ambiente.mjs';
 
 const RAIZ = path.resolve(import.meta.dirname, '..');
-const env = Object.fromEntries(
-  fs.readFileSync(path.join(RAIZ, '.env'), 'utf8').split(/\r?\n/)
-    .filter(l => l.includes('=') && !l.startsWith('#'))
-    .map(l => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i + 1).trim()]; })
-);
+// Sempre destrutivo (cria e apaga usuários): só roda em staging, nunca em produção.
+const ambiente = escolherAmbiente({ destrutivo: true });
+const env = ambiente.env;
+anunciar(ambiente);
 const admin = createClient(env.VITE_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
+await confirmarNoBanco(admin, ambiente, { destrutivo: true });
 
 const argumento = nome => process.argv.find(a => a.startsWith(`--${nome}`));
 const MOSTRAR = !!argumento('mostrar');
@@ -57,6 +58,9 @@ const TELAS = [
   { rotulo: '375', viewport: { width: 375, height: 812 }, movel: true },
 ];
 
+// Todo host do Supabase que o Chrome chamou. No fim, todos precisam ser do staging.
+const HOSTS = new Set();
+
 let falhas = 0;
 const ok = t => console.log('  ok  ' + t);
 const erro = t => { falhas++; console.log('  !!  ' + t); };
@@ -68,7 +72,9 @@ const checar = (rotulo, condicao, detalhe = '') => condicao ? ok(rotulo) : erro(
 async function subirServidor() {
   const dado = argumento('url');
   if (dado) return { base: dado.split('=')[1].replace(/\/$/, ''), parar: () => {} };
-  const vite = spawn(process.execPath, [path.join(RAIZ, 'node_modules/vite/bin/vite.js'), '--port', String(PORTA), '--strictPort'], {
+  // `--mode staging`: o Vite lê `.env.staging`, então o site aberto no Chrome
+  // fala com o mesmo banco que a bancada preparou (e sai com noindex).
+  const vite = spawn(process.execPath, [path.join(RAIZ, 'node_modules/vite/bin/vite.js'), '--port', String(PORTA), '--strictPort', '--mode', 'staging'], {
     cwd: RAIZ, stdio: 'ignore',
   });
   const base = `http://localhost:${PORTA}`;
@@ -96,6 +102,7 @@ async function acharUsuario(email) {
 async function limpar() {
   await admin.from('lv_demo_access').delete().like('label', `${MARCA}%`);
   await admin.from('lv_b2b_empresas').delete().like('nome', `${MARCA}%`);
+  await admin.from('lv_seller_applications').delete().like('nome_marca', `${MARCA}%`);
   for (const rotulo of TELAS.flatMap(t => [t.rotulo, `${t.rotulo}-mercado`])) {
     const { data: lojas } = await admin.from('lv_stores').select('id').eq('slug', LOJA(rotulo));
     for (const l of lojas ?? []) await admin.from('lv_products').delete().eq('store_id', l.id);
@@ -104,6 +111,28 @@ async function limpar() {
     const u = await acharUsuario(EMAIL(rotulo));
     if (u) await admin.auth.admin.deleteUser(u.id);
   }
+  // Admin temporário: o perfil sai junto (user_profiles → auth.users on delete cascade).
+  const adm = await acharUsuario(EMAIL('admin'));
+  if (adm) await admin.auth.admin.deleteUser(adm.id);
+}
+
+/**
+ * Administrador TEMPORÁRIO, só no staging. Usuário real do Supabase Auth com
+ * senha aleatória nunca impressa; `is_admin` ligado no perfil pela chave de
+ * serviço — nunca por rota ou função do site. Apagado no fim do fluxo e na limpeza.
+ */
+async function criarAdminTemporario() {
+  if (ambiente.nome !== 'staging') throw new Error('admin temporário só existe no staging');
+  const email = EMAIL('admin');
+  const senha = crypto.randomBytes(24).toString('base64url') + 'Aa1!';
+  const { data: u, error } = await admin.auth.admin.createUser({
+    email, password: senha, email_confirm: true, user_metadata: { full_name: 'Admin Temporário (teste)' },
+  });
+  if (error) throw new Error('admin temporário: ' + error.message);
+  const { error: ep } = await admin.from('user_profiles')
+    .upsert({ id: u.user.id, full_name: 'Admin Temporário (teste)', is_admin: true });
+  if (ep) { await admin.auth.admin.deleteUser(u.user.id); throw new Error('perfil do admin temporário: ' + ep.message); }
+  return { id: u.user.id, email, senha };
 }
 
 async function criarCodigoDeAcesso() {
@@ -147,6 +176,7 @@ async function abrirContexto(browser, tela) {
   });
   const page = await contexto.newPage();
   page.setDefaultTimeout(20000);
+  page.on('request', r => { const u = r.url(); if (u.includes('.supabase.co')) HOSTS.add(new URL(u).hostname); });
   const errosDoConsole = [];
   page.on('console', m => { if (m.type() === 'error') errosDoConsole.push(m.text()); });
   page.on('pageerror', e => errosDoConsole.push(e.message));
@@ -604,9 +634,16 @@ async function fluxoMercado(browser, base, tela, codigo) {
     await foto('comparacao');
     await page.locator('.sc-mercado').first().screenshot({ path: path.join(SAIDA, `mercado-${tela.rotulo}-recorte-painel.png`) }).catch(() => {});
 
+    // Trabalho não salvo: a ação rápida de preço não pode apagar o que o vendedor digitou.
+    const DESCRICAO = `Descrição digitada e ainda não salva (${tela.rotulo}).`;
+    const campoDescricao = page.getByLabel('Descrição');
+    await campoDescricao.fill(DESCRICAO);
+
     await page.getByRole('button', { name: /Aplicar preço sugerido/ }).click();
     checar(`[${tela.rotulo}] confirmação mostra novo preço e distância do piso`,
       (await texto('novo-preco')) === 'R$ 26,79' && (await texto('distancia-piso')) === '+R$ 1,89');
+    checar(`[${tela.rotulo}] confirmação avisa que há alteração não salva e que ela fica na tela`,
+      (await texto('aviso-nao-salvo')).includes('1 alteração não salva'));
     checar(`[${tela.rotulo}] escada recalculada avisa a faixa que fura o piso`,
       ((await texto('escada-alerta')) ?? '').includes('faixa de 4 unidades fica abaixo do seu piso'));
     await foto('confirmacao');
@@ -618,11 +655,24 @@ async function fluxoMercado(browser, base, tela, codigo) {
     checar(`[${tela.rotulo}] banco: preço 2679`, (await precoNoBanco()) === 2679);
     checar(`[${tela.rotulo}] depois de aplicar, o Copiloto considera o preço competitivo`,
       await visivel(page.locator('[data-campo="recomendacao"]', { hasText: 'Seu preço está competitivo' })));
+    checar(`[${tela.rotulo}] a descrição não salva continua no formulário depois do preço aplicado`,
+      (await campoDescricao.inputValue()) === DESCRICAO, `(veio "${await campoDescricao.inputValue()}")`);
+    checar(`[${tela.rotulo}] o campo Preço do formulário já mostra R$ 26,79`,
+      (await page.getByLabel('Preço').first().inputValue()) === '26,79');
+    const descricaoNoBanco = async () => (await admin.from('lv_products').select('descricao').eq('id', prod.id).single()).data.descricao;
+    checar(`[${tela.rotulo}] banco: a ação gravou só o preço; a descrição ainda não`, (await descricaoNoBanco()) !== DESCRICAO);
+    await foto('edicao-preservada');
+
+    await page.getByRole('button', { name: 'Salvar', exact: true }).click();
+    await visivel(page.locator('.sc-aviso', { hasText: 'Salvo.' }));
+    checar(`[${tela.rotulo}] ao salvar, descrição e preço ficam gravados juntos`,
+      (await descricaoNoBanco()) === DESCRICAO && (await precoNoBanco()) === 2679);
 
     await page.reload();
     await campo('seu-preco').waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
     checar(`[${tela.rotulo}] recarregado, o preço continua R$ 26,79`,
       (await texto('seu-preco')) === 'R$ 26,79' && (await page.getByLabel('Preço').first().inputValue()) === '26,79');
+    checar(`[${tela.rotulo}] recarregado, a descrição salva continua`, (await page.getByLabel('Descrição').inputValue()) === DESCRICAO);
     const linha1 = page.locator('[data-campo="historico"] li').first();
     checar(`[${tela.rotulo}] histórico: R$ 29,90 → R$ 26,79 pelo LiVRE Copiloto`,
       ((await linha1.textContent()) ?? '').includes('R$ 29,90 → R$ 26,79') && ((await linha1.textContent()) ?? '').includes('LiVRE Copiloto'));
@@ -713,6 +763,158 @@ async function fluxoEmpresas(browser, base, tela, codigo) {
 }
 
 // ---------------------------------------------------------------------
+// Admin temporário (só staging)
+// ---------------------------------------------------------------------
+async function fluxoAdmin(browser, base, codigo) {
+  console.log('\n=== ADMIN TEMPORÁRIO · staging ===');
+  const tela = TELAS[0];
+  let adm;
+  try { adm = await criarAdminTemporario(); } catch (e) { erro(e.message); return; }
+  checar('admin temporário criado no staging, com e-mail de teste', adm.email.endsWith('@coffeelivre.test'));
+
+  // Solicitação B2B criada pelo próprio teste, pelo mesmo caminho público do site:
+  // a demonstração estável não é alterada.
+  const empresa = `${MARCA} Admin B2B`;
+  const { data: sol, error: es } = await admin.rpc('lv_b2b_solicitar', { p: {
+    nome: empresa, tipo_negocio: 'cafeteria', cidade: 'Campinas', uf: 'SP', classificacao: 'Tradicional',
+    gramatura_g: 500, moagem: 'Média', quantidade_kg: 40, consumo_mensal_kg: 40, frequencia: 'mensal',
+  } });
+  if (es || !sol?.id) erro('solicitação B2B do teste do admin: ' + (es?.message ?? JSON.stringify(sol)));
+  const statusNoBanco = async () => (await admin.from('lv_b2b_solicitacoes').select('status').eq('id', sol?.id).single()).data?.status;
+
+  // A aba Vendedores é a fila de CANDIDATURAS. O staging não recebe candidaturas
+  // no seed (podem ter dado pessoal), então o teste cria uma, marcada.
+  const marcaCandidata = `${MARCA} Candidata`;
+  const { error: ec } = await admin.from('lv_seller_applications').insert({
+    nome_marca: marcaCandidata, tipo: 'torrefacao', responsavel: 'Responsável fictício',
+    email: EMAIL('candidata'), cidade: 'Campinas', uf: 'SP', status: 'interessado',
+  });
+  if (ec) erro('candidatura do teste do admin: ' + ec.message);
+
+  const { contexto, page, errosDoConsole } = await abrirContexto(browser, tela);
+  // Toda resposta com erro vira linha no relatório: o console só diz "status 400".
+  const respostasComErro = [];
+  page.on('response', r => {
+    if (r.status() >= 400) respostasComErro.push(`${r.status()} ${r.request().method()} ${r.url().replace(/^https?:\/\/[^/]+/, '').split('?')[0]}`);
+  });
+  const foto = fotografo(page, tela, 'admin');
+  const irParaCoffeeLivre = async (p) => {
+    // Com o deep-link a aba já está aberta; o clique é idempotente.
+    await p.getByRole('button', { name: 'Plataformas', exact: true }).click();
+    await p.getByRole('button', { name: /Coffee LiVRE/ }).first().click();
+    return visivel(p.getByRole('heading', { name: 'Coffee LiVRE', exact: true }));
+  };
+  const linhaDaEmpresa = p => p.locator('div, li, tr').filter({ hasText: empresa })
+    .filter({ has: p.getByLabel('Status da solicitação') }).last();
+
+  try {
+    // Login por senha no formulário real do Coffee LiVRE (mesmo cliente Supabase do site).
+    // A home da Saporino abre no HERO, cuja entrada depende da animação de rolagem.
+    await passarPeloPortao(page, base, '/coffeelivre/vendedor', codigo);
+    await page.getByLabel('E-mail').fill(adm.email);
+    await page.getByLabel('Senha').fill(adm.senha);
+    await page.getByRole('button', { name: 'Entrar' }).click();
+    const logou = await page.waitForFunction(
+      () => Object.keys(localStorage).some(k => k.startsWith('sb-') && k.endsWith('-auth-token')), null, { timeout: 20000 },
+    ).then(() => true, () => false);
+    checar('admin temporário autenticou por senha (Supabase Auth)', logou);
+
+    // Abre direto em Plataformas pelo deep-link do próprio painel. A aba inicial
+    // (Dashboard da Saporino) tem um 400 conhecido — filtro por
+    // user_profiles.account_type, coluna que não existe nem em produção — e não
+    // faz parte do Coffee LiVRE.
+    const abrirNoCoffeeLivre = async () => page.evaluate(() => localStorage.setItem('admin-initial-tab', 'coffee_network'));
+    await abrirNoCoffeeLivre();
+    await abrir(page, base + '/admin');
+    checar('/admin abre o Painel Administrativo', await visivel(page.getByRole('heading', { name: 'Painel Administrativo' })));
+    checar('papel exibido: Administrador', await visivel(page.getByText('Administrador', { exact: true })));
+    checar('Plataformas → Coffee LiVRE', await irParaCoffeeLivre(page));
+
+    const aba = async (nome, titulo, conteudo) => {
+      await page.getByRole('button', { name: nome, exact: true }).click();
+      const ok = await visivel(page.getByRole('heading', { name: titulo, exact: true }))
+        && (!conteudo || await visivel(page.getByText(conteudo).first()));
+      checar(`aba ${nome}: "${titulo}"${conteudo ? ` mostra "${conteudo}"` : ''}`, ok);
+      await foto(nome);
+    };
+    await aba('Vendedores', 'Vendedores', marcaCandidata);
+    await aba('Moderação', 'Moderação');
+    await aba('Calculadora', 'Calculadora de Economia', 'Mercado Livre');
+    await aba('Preços', 'Preços e comparação');
+    await aba('Empresas (B2B)', 'Empresas (B2B)', empresa);
+
+    await linhaDaEmpresa(page).getByLabel('Status da solicitação').selectOption('em_analise');
+    let status = null;
+    for (let i = 0; i < 20 && status !== 'em_analise'; i++) { await page.waitForTimeout(500); status = await statusNoBanco(); }
+    checar('admin muda o status da solicitação B2B na tela → banco "em_analise"', status === 'em_analise', `(veio ${status})`);
+
+    await abrirNoCoffeeLivre();
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await visivel(page.getByRole('heading', { name: 'Painel Administrativo' }));
+    await irParaCoffeeLivre(page);
+    await page.getByRole('button', { name: 'Empresas (B2B)', exact: true }).click();
+    await visivel(page.getByText(empresa).first());
+    checar('recarregado, o status continua "em análise" na tela',
+      (await linhaDaEmpresa(page).getByLabel('Status da solicitação').inputValue()) === 'em_analise');
+    await foto('b2b-status-persistido');
+    await linhaDaEmpresa(page).screenshot({ path: path.join(SAIDA, 'admin-desktop-recorte-b2b-status.png') }).catch(() => {});
+
+    // 375 px com a MESMA sessão (copiada do login real acima). O painel administrativo
+    // não foi desenhado para celular: registra como fica, não reprova.
+    const movel = await browser.newContext({
+      viewport: TELAS[1].viewport, isMobile: true, hasTouch: true, locale: 'pt-BR', storageState: await contexto.storageState(),
+    });
+    try {
+      const pm = await movel.newPage();
+      pm.on('request', r => { const u = r.url(); if (u.includes('.supabase.co')) HOSTS.add(new URL(u).hostname); });
+      await abrir(pm, base + '/');
+      await pm.evaluate(() => localStorage.setItem('admin-initial-tab', 'coffee_network'));
+      await abrir(pm, base + '/admin');
+      const abriu = await visivel(pm.getByRole('heading', { name: 'Painel Administrativo' }));
+      checar('[375] /admin abre com a sessão do admin', abriu);
+      await irParaCoffeeLivre(pm).catch(() => false);
+      await pm.getByRole('button', { name: 'Empresas (B2B)', exact: true }).click().catch(() => {});
+      await pm.waitForTimeout(1500);
+      await pm.screenshot({ path: path.join(SAIDA, 'admin-375-empresas.png'), fullPage: true });
+      const largura = await pm.evaluate(() => document.documentElement.scrollWidth);
+      console.log(`  --  [375] admin: documento com ${largura}px de largura (informativo; painel administrativo é de desktop)`);
+    } catch (e) {
+      console.log(`  --  [375] admin não navegável no celular: ${e instanceof Error ? e.message.split('\n')[0] : e}`);
+    } finally {
+      await movel.close();
+    }
+
+    await page.getByTitle('Sair').click();
+    await page.waitForTimeout(1500);
+    await abrir(page, base + '/admin');
+    checar('depois de sair, /admin nega o acesso', await visivel(page.getByRole('heading', { name: 'Acesso Negado' })));
+  } catch (e) {
+    erro(`fluxo do admin interrompido: ${e instanceof Error ? e.message.split('\n')[0] : e}`);
+    await page.screenshot({ path: path.join(SAIDA, 'admin-desktop-FALHA.png'), fullPage: true }).catch(() => {});
+  } finally {
+    // Defeito CONHECIDO e anterior do painel da Saporino (não do Coffee LiVRE nem do
+    // staging): o casco do /admin conta clientes por user_profiles.account_type,
+    // coluna que não existe — 400 reproduzido também em PRODUÇÃO em 13/09/2026 —
+    // e dispara uma leitura de orders que também volta 400. Tarefa separada.
+    // Só esses dois são tolerados; qualquer outro erro reprova.
+    const CONHECIDOS = new Set(['400 GET /rest/v1/orders', '400 HEAD /rest/v1/user_profiles', '400 GET /rest/v1/user_profiles']);
+    const respostas = [...new Set(respostasComErro)];
+    const desconhecidas = respostas.filter(r => !CONHECIDOS.has(r));
+    const errosNao400 = errosDoConsole.filter(t => !/status of 400/.test(t));
+    for (const r of respostas) console.log(`  --  resposta com erro no admin: ${r}${CONHECIDOS.has(r) ? ' (conhecido, Dashboard da Saporino, existe em produção)' : ''}`);
+    checar('nenhum erro no console do admin além do defeito conhecido do Dashboard da Saporino',
+      desconhecidas.length === 0 && errosNao400.length === 0 && (errosDoConsole.length - errosNao400.length) <= respostasComErro.length,
+      `(${[...desconhecidas, ...errosNao400].slice(0, 3).join(' | ')})`);
+    await contexto.close();
+    await admin.from('lv_b2b_empresas').delete().eq('nome', empresa);
+    await admin.from('lv_seller_applications').delete().eq('nome_marca', marcaCandidata);
+    await admin.auth.admin.deleteUser(adm.id);
+    const { data: perfil } = await admin.from('user_profiles').select('id').eq('id', adm.id).maybeSingle();
+    checar('admin temporário removido (usuário e perfil)', !(await acharUsuario(adm.email)) && !perfil);
+  }
+}
+
+// ---------------------------------------------------------------------
 fs.mkdirSync(SAIDA, { recursive: true });
 for (const f of fs.readdirSync(SAIDA)) if (f.endsWith('.png')) fs.unlinkSync(path.join(SAIDA, f));
 
@@ -733,6 +935,7 @@ try {
     if (!so || so === 'mercado') await fluxoMercado(browser, servidor.base, tela, codigo);
     if (!so || so === 'empresas') await fluxoEmpresas(browser, servidor.base, tela, codigo);
   }
+  if (!so || so === 'admin') await fluxoAdmin(browser, servidor.base, codigo);
 } catch (e) {
   erro('bancada do navegador interrompida: ' + (e instanceof Error ? e.message : e));
 } finally {
@@ -742,6 +945,8 @@ try {
   const { data: sobras } = await admin.from('lv_stores').select('slug').like('slug', `${MARCA}%`);
   const { data: codigos } = await admin.from('lv_demo_access').select('id').like('label', `${MARCA}%`);
   checar('limpeza: nenhuma loja, vendedor ou código de teste sobrou', !sobras?.length && !codigos?.length);
+  checar(`o Chrome só falou com o Supabase do staging (${ambiente.ref})`,
+    HOSTS.size > 0 && [...HOSTS].every(h => h.startsWith(ambiente.ref + '.')), `(${[...HOSTS].join(', ')})`);
   console.log(`\nCapturas em ${path.relative(RAIZ, SAIDA)}`);
   console.log(`\n${falhas === 0 ? 'TODOS OS CRITÉRIOS PASSARAM' : falhas + ' CRITÉRIO(S) FALHARAM'}\n`);
   if (falhas) process.exitCode = 1;

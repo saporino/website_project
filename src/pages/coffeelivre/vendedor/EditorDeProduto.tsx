@@ -12,7 +12,7 @@
 //
 // E o banco confere de novo: `lv_salvar_produto` só grava atributo que a
 // categoria admite, mesmo que alguém mande outro pela API.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { navegar, rota } from '../config';
 import { montarEscada, type Faixa, type TipoDeFaixa } from '../escada';
 import { completudeDoPassport } from '../passaporte';
@@ -25,8 +25,24 @@ import {
 import { paraCentavos, deCentavos, paraBps, deBps } from './dinheiro';
 import { mensagemDePublicacao } from './ProdutosDoVendedor';
 import ComparacaoDeMercado from './ComparacaoDeMercado';
+import { camposAlterados, mesclarComBanco } from './mesclarEdicao';
 import type { LojaDoVendedor } from './sessao';
 import type { Avisar } from './SellerCentral';
+
+type ProdutoCarregado = NonNullable<Awaited<ReturnType<typeof carregarProduto>>>;
+
+/** Tudo o que o vendedor edita no formulário (o resto, o banco decide). */
+type CamposDoFormulario = {
+  raiz: string | null;
+  categoriaId: string | null;
+  titulo: string; marca: string; descricao: string; sku: string;
+  peso: string; preco: string; piso: string;
+  atributos: Record<string, string>;
+  vendaPorQuantidade: boolean;
+  tipoDesconto: TipoDeFaixa;
+  valoresFaixa: Record<number, string>;
+  faixasExtras: Faixa[];
+};
 
 const PASSOS = ['O que vende', 'Categoria', 'Básico', 'Características', 'Preço e quantidade'];
 
@@ -138,21 +154,68 @@ export default function EditorDeProduto({ produtoId, loja, categorias, avisar }:
   // pode apagar em silêncio o que alguém configurou por outro caminho.
   const [faixasExtras, setFaixasExtras] = useState<Faixa[]>([]);
 
-  function aplicar(p: NonNullable<Awaited<ReturnType<typeof carregarProduto>>>) {
+  // O que o banco tinha na última carga. Tudo o que difere disto na tela é
+  // trabalho não salvo do vendedor.
+  const base = useRef<CamposDoFormulario | null>(null);
+
+  function camposDoProduto(p: ProdutoCarregado): CamposDoFormulario {
     const cat = categorias.find(c => c.id === p.categoryId);
-    setId(p.id); setSlug(p.slug); setStatus(p.status); setAprovado(p.aprovado); setNotaModeracao(p.notaModeracao);
-    setRaiz(cat?.raizSlug ?? null); setCategoriaId(p.categoryId);
-    setTitulo(p.titulo); setMarca(p.marca); setDescricao(p.descricao); setSku(p.sku);
-    setPeso(p.pesoG ? String(p.pesoG) : ''); setPreco(deCentavos(p.precoCents)); setPiso(deCentavos(p.pisoCents));
-    setAtributos(p.atributos);
-    setVendaPorQuantidade(p.vendaPorQuantidade);
     const ate4 = p.faixas.filter(f => f.min_qty <= 4);
-    const tipo = (ate4[0]?.tipo ?? 'reais') as TipoDeFaixa;
-    setTipoDesconto(tipo);
     const valores: Record<number, string> = { 2: '', 3: '', 4: '' };
     for (const f of ate4) valores[f.min_qty] = f.tipo === 'percentual' ? deBps(f.valor) : deCentavos(f.valor);
-    setValoresFaixa(valores);
-    setFaixasExtras(p.faixas.filter(f => f.min_qty > 4));
+    return {
+      raiz: cat?.raizSlug ?? null, categoriaId: p.categoryId,
+      titulo: p.titulo, marca: p.marca, descricao: p.descricao, sku: p.sku,
+      peso: p.pesoG ? String(p.pesoG) : '', preco: deCentavos(p.precoCents), piso: deCentavos(p.pisoCents),
+      atributos: p.atributos, vendaPorQuantidade: p.vendaPorQuantidade,
+      tipoDesconto: (ate4[0]?.tipo ?? 'reais') as TipoDeFaixa, valoresFaixa: valores,
+      faixasExtras: p.faixas.filter(f => f.min_qty > 4),
+    };
+  }
+
+  function porNaTela(c: CamposDoFormulario) {
+    setRaiz(c.raiz); setCategoriaId(c.categoriaId);
+    setTitulo(c.titulo); setMarca(c.marca); setDescricao(c.descricao); setSku(c.sku);
+    setPeso(c.peso); setPreco(c.preco); setPiso(c.piso);
+    setAtributos(c.atributos); setVendaPorQuantidade(c.vendaPorQuantidade);
+    setTipoDesconto(c.tipoDesconto); setValoresFaixa(c.valoresFaixa); setFaixasExtras(c.faixasExtras);
+  }
+
+  // Campos que só o banco decide: nunca são "edição do vendedor".
+  function aplicarSituacao(p: ProdutoCarregado) {
+    setId(p.id); setSlug(p.slug); setStatus(p.status); setAprovado(p.aprovado); setNotaModeracao(p.notaModeracao);
+  }
+
+  /** Carga completa: abrir o produto ou depois de salvar (tudo já está gravado). */
+  function aplicar(p: ProdutoCarregado) {
+    aplicarSituacao(p);
+    const c = camposDoProduto(p);
+    base.current = c;
+    porNaTela(c);
+  }
+
+  const camposNaTela: CamposDoFormulario = {
+    raiz, categoriaId, titulo, marca, descricao, sku, peso, preco, piso, atributos,
+    vendaPorQuantidade, tipoDesconto, valoresFaixa, faixasExtras,
+  };
+  const naoSalvos = base.current ? camposAlterados(camposNaTela, base.current) : [];
+
+  /**
+   * Depois de uma ação rápida que grava no banco (aplicar ou desfazer preço):
+   * traz o que mudou lá sem apagar o que o vendedor está editando.
+   */
+  async function reconciliarComBanco() {
+    if (!id) return;
+    const p = await carregarProduto(id);
+    if (!p || !base.current) { if (p) aplicar(p); return; }
+    const banco = camposDoProduto(p);
+    const r = mesclarComBanco(camposNaTela, base.current, banco, ['preco']);
+    aplicarSituacao(p);
+    base.current = banco;
+    porNaTela(r.campos);
+    if (r.substituidos.includes('preco')) {
+      avisar({ tipo: 'ok', texto: `O preço que você tinha digitado foi trocado pelo aplicado (R$ ${banco.preco}). As outras alterações continuam na tela, ainda não salvas.` });
+    }
   }
 
   useEffect(() => {
@@ -600,12 +663,14 @@ export default function EditorDeProduto({ produtoId, loja, categorias, avisar }:
       </section>
 
       {/* Comparação de mercado: só para café já salvo. O preço aplicado por
-          ela volta para o formulário, recarregado do banco. */}
+          ela volta para o formulário por mescla — o que o vendedor está
+          editando e ainda não salvou continua na tela. */}
       {id && cafe && (
         <ComparacaoDeMercado
           produtoId={id}
           avisar={avisar}
-          aoAlterarPreco={async () => { const p = await carregarProduto(id); if (p) aplicar(p); }}
+          alteracoesNaoSalvas={naoSalvos.length}
+          aoAlterarPreco={reconciliarComBanco}
         />
       )}
     </div>

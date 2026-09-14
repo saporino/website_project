@@ -15,6 +15,7 @@ import { supabase } from '../../../lib/supabase';
 import { navegar, rota } from '../config';
 import { carregarMercadoPublico } from '../vendedor/mercado';
 import { precoPorKg, temAbic, type ProdutoDeMercado } from '../comparacao';
+import { registrarFalha } from '../observabilidade';
 import './empresas.css';
 
 const TIPOS: [string, string][] = [
@@ -118,9 +119,9 @@ export default function PaginaEmpresas() {
         consumo_mensal_kg: frequencia === 'unica' ? null : quantidadeKg * ENTREGAS_NO_MES[frequencia],
         quantidade_kg: quantidadeKg, frequencia, observacao,
       },
-    });
+    }).then(r => r, e => ({ data: null, error: e }));
     setEnviando(false);
-    if (error) { setErro(error.message); return; }
+    if (error) { setErro(registrarFalha('b2b-solicitar', error, 'Não foi possível registrar a solicitação.')); return; }
     setEnviado((data as { id: string }).id);
     window.scrollTo(0, 0);
   }
