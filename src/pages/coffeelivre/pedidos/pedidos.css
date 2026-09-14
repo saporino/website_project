@@ -1,0 +1,32 @@
+/* Coffee LiVRE — área do comprador. Usa a base do checkout (ck-*) e acrescenta o que é de pedido. */
+.livre-root .pd-lista { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.livre-root .pd-cartao {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center;
+  background: var(--card); border: 1px solid var(--linha); border-radius: 12px; padding: 14px 16px; color: var(--texto); text-decoration: none;
+}
+.livre-root .pd-cartao:hover { border-color: var(--laranja); }
+.livre-root .pd-cartao small { grid-column: 1; color: var(--cinza); font-size: 12.5px; min-width: 0; }
+.livre-root .pd-total { grid-column: 2; grid-row: 1 / span 2; font-size: 16px; white-space: nowrap; }
+.livre-root .pd-cartao-topo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.livre-root .pd-cartao-topo h2 { margin: 0; }
+.livre-root .pd-cabeca { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 10px; }
+.livre-root .pd-cabeca h1 { margin: 0; }
+.livre-root .pd-status {
+  font-style: normal; font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 3px 10px;
+  background: #EEE8E1; color: var(--marrom-esc); white-space: nowrap;
+}
+.livre-root .pd-status.s-aguardando_pagamento { background: #FFF1D6; color: #6B4A00; }
+.livre-root .pd-status.s-pago, .livre-root .pd-status.s-confirmado { background: #E4EEF9; color: #1F4E7A; }
+.livre-root .pd-status.s-em_processamento, .livre-root .pd-status.s-separacao, .livre-root .pd-status.s-pronto_para_envio { background: #EFE6F7; color: #5B2A86; }
+.livre-root .pd-status.s-enviado, .livre-root .pd-status.s-parcialmente_enviado { background: #E2F2F1; color: #1C5E59; }
+.livre-root .pd-status.s-entregue { background: #EAF5EC; color: #256B34; }
+.livre-root .pd-status.s-cancelado, .livre-root .pd-status.s-reembolsado { background: #F4E4E4; color: #8A1414; }
+.livre-root .pd-loja { margin-bottom: 12px; }
+.livre-root .pd-historico { list-style: none; padding: 0; margin: 0; border-left: 2px solid var(--linha); }
+.livre-root .pd-historico li { padding: 4px 0 8px 12px; display: flex; flex-direction: column; font-size: 13px; }
+.livre-root .pd-historico small { color: var(--cinza); font-size: 12px; }
+.livre-root .pd-cancelar { margin-top: 10px; }
+@media (max-width: 560px) {
+  .livre-root .pd-cartao { grid-template-columns: minmax(0, 1fr); }
+  .livre-root .pd-total { grid-column: 1; grid-row: auto; }
+}

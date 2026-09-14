@@ -103,6 +103,20 @@ async function limpar() {
   await admin.from('lv_demo_access').delete().like('label', `${MARCA}%`);
   await admin.from('lv_b2b_empresas').delete().like('nome', `${MARCA}%`);
   await admin.from('lv_seller_applications').delete().like('nome_marca', `${MARCA}%`);
+  // Fluxo de compra: pedidos (cascata para subpedidos, itens, reservas, eventos),
+  // depois lojas e produtos de teste, depois os usuários.
+  const { data: pedidosTeste } = await admin.from('lv_orders').select('id').like('comprador_email', `${MARCA}%`);
+  if (pedidosTeste?.length) await admin.from('lv_orders').delete().in('id', pedidosTeste.map(p => p.id));
+  const { data: lojasCompra } = await admin.from('lv_stores').select('id, seller_id').like('slug', `${MARCA}-pedido-%`);
+  for (const l of lojasCompra ?? []) {
+    await admin.from('lv_products').delete().eq('store_id', l.id);
+    await admin.from('lv_stores').delete().eq('id', l.id);
+    await admin.from('lv_sellers').delete().eq('id', l.seller_id);
+  }
+  for (const rotulo of TELAS.flatMap(t => [`comprador-${t.rotulo}`, `pedido-a-${t.rotulo}`, `pedido-b-${t.rotulo}`])) {
+    const u = await acharUsuario(EMAIL(rotulo));
+    if (u) await admin.auth.admin.deleteUser(u.id);
+  }
   for (const rotulo of TELAS.flatMap(t => [t.rotulo, `${t.rotulo}-mercado`])) {
     const { data: lojas } = await admin.from('lv_stores').select('id').eq('slug', LOJA(rotulo));
     for (const l of lojas ?? []) await admin.from('lv_products').delete().eq('store_id', l.id);
@@ -763,6 +777,215 @@ async function fluxoEmpresas(browser, base, tela, codigo) {
 }
 
 // ---------------------------------------------------------------------
+// Compra multiloja: carrinho → checkout → pedido → Meus pedidos → vendedores
+// ---------------------------------------------------------------------
+// Números de pedido criados na tela: o fluxo do admin procura por eles.
+const PEDIDOS_CRIADOS = [];
+
+async function criarLojaDeCompra(letra, rotulo, produto) {
+  const { data: s, error: es } = await admin.from('lv_sellers').insert({
+    nome_fantasia: `Navegador Pedido ${letra} ${rotulo}`, tipo: 'torrefacao', status: 'aprovado', is_demo: true,
+  }).select('id').single();
+  if (es) throw new Error('vendedor da compra: ' + es.message);
+  // Loja ATIVA: o comprador precisa conseguir comprar. É staging e tudo sai na limpeza.
+  const { data: l, error: el } = await admin.from('lv_stores').insert({
+    seller_id: s.id, slug: `${MARCA}-pedido-${letra.toLowerCase()}-${rotulo}`, nome: `Torrefação Navegador ${letra}`,
+    cor: letra === 'A' ? '#8B4A2B' : '#35506B', iniciais: 'N' + letra, ativa: true, is_demo: true,
+  }).select('id').single();
+  if (el) throw new Error('loja da compra: ' + el.message);
+  const { data: cat } = await admin.from('lv_categories').select('id').eq('slug', 'cafe-torrado-moido').single();
+  const slug = `${MARCA}-pedido-${letra.toLowerCase()}-${rotulo}-cafe`;
+  const { data: p, error: ep } = await admin.from('lv_products').insert({
+    store_id: l.id, seller_id: s.id, category_id: cat.id, slug, titulo: produto.titulo, marca: 'Navegador',
+    preco_cents: produto.preco, preco_minimo_cents: produto.piso, peso_g: produto.peso, venda_por_quantidade: true,
+    status: 'ativo', is_demo: true,
+  }).select('id').single();
+  if (ep) throw new Error('produto da compra: ' + ep.message);
+  await admin.from('lv_price_tiers').insert(produto.faixas.map(f => ({ product_id: p.id, ...f })));
+  const { data: v } = await admin.from('lv_product_variants').select('id').eq('product_id', p.id).eq('padrao', true).single();
+  await admin.from('lv_product_variants').update({ gramatura_g: produto.peso }).eq('id', v.id);
+  const validade = new Date(Date.now() + 120 * 86400000).toISOString().slice(0, 10);
+  const { data: lote } = await admin.from('lv_inventory_lots').insert({
+    variant_id: v.id, lote: `NAV-${letra}`, validade, qtd_disponivel: produto.estoque, is_demo: true,
+  }).select('id').single();
+  const senha = crypto.randomBytes(24).toString('base64url') + 'Aa1!';
+  const email = EMAIL(`pedido-${letra.toLowerCase()}-${rotulo}`);
+  const { data: u, error: eu } = await admin.auth.admin.createUser({ email, password: senha, email_confirm: true });
+  if (eu) throw new Error('usuário do vendedor da compra: ' + eu.message);
+  await admin.from('lv_seller_users').insert({ seller_id: s.id, user_id: u.user.id });
+  return { sellerId: s.id, slug, varianteId: v.id, loteId: lote.id, email, senha };
+}
+
+async function fluxoCompra(browser, base, tela, codigo) {
+  console.log(`\n=== COMPRA MULTILOJA E PEDIDOS · ${tela.rotulo} ===`);
+  let A, B, comprador;
+  try {
+    A = await criarLojaDeCompra('A', tela.rotulo, { titulo: 'Café Tradicional 500 g', preco: 2490, piso: 2000, peso: 500, estoque: 10,
+      faixas: [{ min_qty: 2, tipo: 'reais', valor: 100 }, { min_qty: 3, tipo: 'reais', valor: 150 }] });
+    B = await criarLojaDeCompra('B', tela.rotulo, { titulo: 'Café Especial 250 g', preco: 3990, piso: 3000, peso: 250, estoque: 20,
+      faixas: [{ min_qty: 3, tipo: 'percentual', valor: 500 }] });
+    const senha = crypto.randomBytes(24).toString('base64url') + 'Aa1!';
+    const email = EMAIL(`comprador-${tela.rotulo}`);
+    const { data: u, error } = await admin.auth.admin.createUser({ email, password: senha, email_confirm: true, user_metadata: { full_name: 'Comprador Navegador' } });
+    if (error) throw new Error('comprador: ' + error.message);
+    comprador = { id: u.user.id, email, senha };
+  } catch (e) {
+    erro(`[${tela.rotulo}] preparar a compra: ${e.message}`);
+    return;
+  }
+
+  const { contexto, page, errosDoConsole } = await abrirContexto(browser, tela);
+  const foto = fotografo(page, tela, 'compra');
+  const campo = n => page.locator(`[data-campo="${n}"]`).first();
+  const texto = async n => ((await campo(n).textContent()) ?? '').trim();
+  const degrau = n => page.locator('.degrau').nth(n - 1);
+  const botaoAdicionar = page.locator('.produto-compra .ao-carrinho');
+  let numero = null;
+
+  try {
+    // --- carrinho com duas lojas ---
+    await passarPeloPortao(page, base, `/coffeelivre/cafe/${A.slug}`, codigo);
+    await degrau(2).waitFor({ state: 'visible', timeout: 30000 });
+    await degrau(2).click();
+    await botaoAdicionar.click();
+    await navegarPorDentro(page, `/coffeelivre/cafe/${B.slug}`);
+    await degrau(3).waitFor({ state: 'visible', timeout: 30000 });
+    await degrau(3).click();
+    await botaoAdicionar.click();
+    await page.getByRole('link', { name: 'Carrinho' }).first().click();
+    const blocos = page.locator('.carrinho-loja');
+    checar(`[${tela.rotulo}] carrinho com um bloco por loja (2)`, await visivel(blocos) && await blocos.count() === 2);
+    const subtotais = await page.locator('[data-campo="subtotal-loja"] b').allTextContents();
+    checar(`[${tela.rotulo}] subtotal por loja com a escada: R$ 47,80 (2 × 23,90) e R$ 113,70 (3 × 37,90)`,
+      subtotais.includes('R$ 47,80') && subtotais.includes('R$ 113,70'), `(${subtotais})`);
+    checar(`[${tela.rotulo}] economia da escada por loja e total dos produtos R$ 161,50`,
+      await page.locator('.carrinho-loja-economia').count() === 2 && (await texto('total-carrinho')).includes('R$ 161,50'));
+    await foto('carrinho-multiloja');
+    await page.locator('.carrinho').screenshot({ path: path.join(SAIDA, `compra-${tela.rotulo}-recorte-carrinho.png`) }).catch(() => {});
+
+    // --- checkout: identificação ---
+    await page.getByRole('button', { name: 'Fechar pedido' }).click();
+    checar(`[${tela.rotulo}] checkout abre na identificação`, await visivel(page.getByRole('heading', { name: 'Identificação' })));
+    await page.getByLabel('E-mail').fill(comprador.email);
+    await page.getByLabel('Senha').fill(comprador.senha);
+    await page.getByRole('button', { name: 'Entrar', exact: true }).click();
+    await page.getByRole('button', { name: 'Continuar', exact: true }).click();
+
+    // --- endereço ---
+    checar(`[${tela.rotulo}] estoque reservado no banco ao sair da identificação`,
+      await visivel(page.getByRole('heading', { name: 'Endereço de entrega' }))
+      && (await admin.from('lv_inventory_lots').select('qtd_reservada').eq('id', A.loteId).single()).data.qtd_reservada === 2);
+    await page.getByLabel('Nome completo').fill('Comprador Navegador');
+    await page.getByLabel('CEP').fill('01310100');
+    await page.getByLabel('Rua').fill('Avenida Paulista');
+    await page.getByLabel('Número', { exact: true }).fill('1000');
+    await page.getByLabel('Bairro').fill('Bela Vista');
+    await page.getByLabel('Cidade').fill('São Paulo');
+    await page.getByLabel('UF').selectOption('SP');
+    await foto('endereco');
+    await page.getByRole('button', { name: 'Continuar para entrega' }).click();
+
+    // --- entrega ---
+    const opcoes = page.locator('.ck-opcao');
+    checar(`[${tela.rotulo}] entrega: 3 opções classificadas (econômico, rápido, custo-benefício)`,
+      await visivel(opcoes) && await opcoes.count() === 3
+      && await page.locator('.ck-etiqueta', { hasText: 'Mais econômico' }).count() === 1
+      && await page.locator('.ck-etiqueta', { hasText: 'Mais rápido' }).count() === 1
+      && await page.locator('.ck-etiqueta', { hasText: 'Melhor custo-benefício' }).count() === 1);
+    await page.locator('.ck-opcao[data-frete="demo_padrao"]').click();
+    await foto('entrega');
+    await page.getByRole('button', { name: 'Continuar para pagamento' }).click();
+
+    // --- pagamento e revisão ---
+    checar(`[${tela.rotulo}] pagamento simulado: Pix e cartão, sem pedir dados de cartão`,
+      await visivel(page.getByRole('radiogroup', { name: 'Forma de pagamento' })) && await page.locator('input[autocomplete="cc-number"]').count() === 0);
+    await page.getByRole('button', { name: 'Revisar pedido' }).click();
+    checar(`[${tela.rotulo}] revisão: duas lojas, cada uma com frete, e o tempo de reserva`,
+      await visivel(page.locator('.ck-loja[data-loja]')) && await page.locator('.ck-loja[data-loja]').count() === 2 && await visivel(campo('tempo')));
+    await foto('revisao');
+
+    const { data: sim } = await admin.rpc('lv_checkout_expirar'); // não deve afetar este checkout (dentro do prazo)
+    checar(`[${tela.rotulo}] job de expiração não mexe em checkout dentro do prazo`, sim != null
+      && (await admin.from('lv_inventory_lots').select('qtd_reservada').eq('id', B.loteId).single()).data.qtd_reservada === 3);
+
+    await page.getByRole('button', { name: /^Confirmar pedido/ }).click();
+    await campo('numero-pedido').waitFor({ state: 'visible', timeout: 30000 });
+    numero = await texto('numero-pedido');
+    checar(`[${tela.rotulo}] pedido gerado com número público`, /^LV-\d{6}$/.test(numero), `(${numero})`);
+    PEDIDOS_CRIADOS.push(numero);
+    const { data: pedido } = await admin.from('lv_orders').select('id, status, total_cents, lv_seller_orders(id, seller_id, numero, status)').eq('numero', numero).single();
+    checar(`[${tela.rotulo}] banco: 1 pedido pai e 2 subpedidos, aguardando pagamento`,
+      pedido?.status === 'aguardando_pagamento' && pedido.lv_seller_orders.length === 2);
+    checar(`[${tela.rotulo}] carrinho esvaziado depois de confirmar`, await page.locator('.cart').first().textContent().then(t => !/[1-9]/.test(t ?? '')).catch(() => true));
+    await foto('confirmacao');
+
+    await page.getByRole('button', { name: 'Simular pagamento aprovado' }).click();
+    checar(`[${tela.rotulo}] pagamento simulado aprovado: pedido pago`, await visivel(page.locator('[data-campo="status-pedido"]', { hasText: 'Pago' })));
+    checar(`[${tela.rotulo}] banco: reserva virou baixa (A 10 → 8, reservado 0)`,
+      (await admin.from('lv_inventory_lots').select('qtd_disponivel, qtd_reservada').eq('id', A.loteId).single()).data?.qtd_disponivel === 8
+      && (await admin.from('lv_inventory_lots').select('qtd_reservada').eq('id', A.loteId).single()).data?.qtd_reservada === 0);
+
+    // --- detalhe e Meus pedidos ---
+    await page.getByRole('link', { name: 'Ver pedido' }).click();
+    checar(`[${tela.rotulo}] detalhe do pedido: pago, 2 lojas, total e endereço`,
+      await visivel(page.locator('[data-campo="status-pedido"]', { hasText: 'Pago' }))
+      && await page.locator('[data-subpedido]').count() === 2 && (await texto('total-pedido')).includes('R$'));
+    await foto('detalhe-pedido');
+    await navegarPorDentro(page, '/coffeelivre/conta/pedidos');
+    checar(`[${tela.rotulo}] Meus pedidos lista a compra consolidada`, await visivel(page.locator(`[data-pedido="${numero}"]`)));
+    await foto('meus-pedidos');
+  } catch (e) {
+    erro(`[${tela.rotulo}] fluxo de compra interrompido: ${e instanceof Error ? e.message.split('\n')[0] : e}`);
+    await page.screenshot({ path: path.join(SAIDA, `compra-${tela.rotulo}-FALHA.png`), fullPage: true }).catch(() => {});
+  } finally {
+    checar(`[${tela.rotulo}] nenhum erro no console da compra`, errosDoConsole.length === 0, `(${errosDoConsole.slice(0, 3).join(' | ')})`);
+    await contexto.close();
+  }
+  if (!numero) return;
+
+  // --- Seller Central: cada vendedor vê só o seu subpedido ---
+  for (const [letra, v, outro] of [['A', A, B], ['B', B, A]]) {
+    const { contexto: cv, page: pv, errosDoConsole: ev } = await abrirContexto(browser, tela);
+    const fotoV = fotografo(pv, tela, `pedidos-vendedor-${letra.toLowerCase()}`);
+    try {
+      await passarPeloPortao(pv, base, '/coffeelivre/vendedor', codigo);
+      await pv.getByLabel('E-mail').fill(v.email);
+      await pv.getByLabel('Senha').fill(v.senha);
+      await pv.getByRole('button', { name: 'Entrar' }).click();
+      await visivel(pv.getByRole('heading', { name: /^Olá,/ }));
+      await pv.locator('.sc-menu').getByRole('link', { name: 'Pedidos' }).click();
+      const cartoes = pv.locator('[data-subpedido]');
+      await cartoes.first().waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+      const { data: subs } = await admin.from('lv_seller_orders').select('id, numero, seller_id').eq('order_id',
+        (await admin.from('lv_orders').select('id').eq('numero', numero).single()).data.id);
+      const meu = subs.find(s => s.seller_id === v.sellerId);
+      const dele = subs.find(s => s.seller_id === outro.sellerId);
+      checar(`[${tela.rotulo}] vendedor ${letra} vê só o próprio subpedido (${meu?.numero})`,
+        await cartoes.count() === 1 && await pv.locator(`[data-subpedido="${meu?.numero}"]`).count() === 1
+        && await pv.locator(`[data-subpedido="${dele?.numero}"]`).count() === 0);
+      await fotoV('lista');
+      if (letra === 'A') {
+        await pv.locator(`[data-subpedido="${meu.numero}"]`).click();
+        checar(`[${tela.rotulo}] vendedor A: detalhe com valores congelados e repasse`,
+          await visivel(pv.locator('[data-campo="valores"]')) && ((await pv.locator('[data-campo="repasse"]').textContent()) ?? '').includes('R$'));
+        await pv.getByRole('button', { name: 'Iniciar separação' }).click();
+        checar(`[${tela.rotulo}] vendedor A inicia separação e o status muda na tela`,
+          await visivel(pv.locator('[data-campo="status-subpedido"]', { hasText: 'Em separação' })));
+        const { data: depois } = await admin.from('lv_orders').select('status').eq('numero', numero).single();
+        checar(`[${tela.rotulo}] banco: pedido pai em processamento`, depois.status === 'em_processamento');
+        await fotoV('detalhe');
+      }
+    } catch (e) {
+      erro(`[${tela.rotulo}] pedidos do vendedor ${letra} interrompido: ${e instanceof Error ? e.message.split('\n')[0] : e}`);
+      await pv.screenshot({ path: path.join(SAIDA, `pedidos-vendedor-${letra.toLowerCase()}-${tela.rotulo}-FALHA.png`), fullPage: true }).catch(() => {});
+    } finally {
+      checar(`[${tela.rotulo}] nenhum erro no console do vendedor ${letra}`, ev.length === 0, `(${ev.slice(0, 3).join(' | ')})`);
+      await cv.close();
+    }
+  }
+}
+
+// ---------------------------------------------------------------------
 // Admin temporário (só staging)
 // ---------------------------------------------------------------------
 async function fluxoAdmin(browser, base, codigo) {
@@ -831,7 +1054,8 @@ async function fluxoAdmin(browser, base, codigo) {
     checar('Plataformas → Coffee LiVRE', await irParaCoffeeLivre(page));
 
     const aba = async (nome, titulo, conteudo) => {
-      await page.getByRole('button', { name: nome, exact: true }).click();
+      // .last(): o painel da Saporino também tem um botão "Pedidos"; a subaba do Coffee LiVRE vem depois.
+      await page.getByRole('button', { name: nome, exact: true }).last().click();
       const ok = await visivel(page.getByRole('heading', { name: titulo, exact: true }))
         && (!conteudo || await visivel(page.getByText(conteudo).first()));
       checar(`aba ${nome}: "${titulo}"${conteudo ? ` mostra "${conteudo}"` : ''}`, ok);
@@ -841,6 +1065,13 @@ async function fluxoAdmin(browser, base, codigo) {
     await aba('Moderação', 'Moderação');
     await aba('Calculadora', 'Calculadora de Economia', 'Mercado Livre');
     await aba('Preços', 'Preços e comparação');
+    if (PEDIDOS_CRIADOS.length) {
+      await aba('Pedidos', 'Pedidos', PEDIDOS_CRIADOS[0]);
+      await page.locator(`[data-pedido="${PEDIDOS_CRIADOS[0]}"] button`).first().click();
+      checar('admin abre o pedido: subpedidos, reservas por lote e eventos',
+        await visivel(page.getByRole('heading', { name: 'Estoque reservado' })) && await visivel(page.getByRole('heading', { name: 'Eventos' }))
+        && await visivel(page.getByText('pagamento aprovado').first()));
+    }
     await aba('Empresas (B2B)', 'Empresas (B2B)', empresa);
 
     await linhaDaEmpresa(page).getByLabel('Status da solicitação').selectOption('em_analise');
@@ -934,6 +1165,7 @@ try {
     if (!so || so === 'calculadora') await fluxoCalculadora(browser, servidor.base, tela, codigo);
     if (!so || so === 'mercado') await fluxoMercado(browser, servidor.base, tela, codigo);
     if (!so || so === 'empresas') await fluxoEmpresas(browser, servidor.base, tela, codigo);
+    if (!so || so === 'compra' || so === 'admin') await fluxoCompra(browser, servidor.base, tela, codigo);
   }
   if (!so || so === 'admin') await fluxoAdmin(browser, servidor.base, codigo);
 } catch (e) {

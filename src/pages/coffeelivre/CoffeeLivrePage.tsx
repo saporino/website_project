@@ -30,6 +30,10 @@ import { useCarrinho, type LinhaNova } from './usarCarrinho';
 import PaginaProduto from './PaginaProduto';
 import ResolverQr from './ResolverQr';
 import PaginaEmpresas from './empresas/PaginaEmpresas';
+import PaginaCheckout from './checkout/PaginaCheckout';
+import MeusPedidos from './pedidos/MeusPedidos';
+import DetalheDoPedido from './pedidos/DetalheDoPedido';
+import type { Faixa } from './escada';
 import PaginaCategoria from './PaginaCategoria';
 import PaginaBusca from './PaginaBusca';
 import PaginaLoja from './PaginaLoja';
@@ -38,7 +42,7 @@ import SellerCentral from './vendedor/SellerCentral';
 import NaoEncontrado from './NaoEncontrado';
 import { BASE, rota } from './config';
 import {
-  listarVitrine, listarLojas, listarCategorias,
+  listarVitrine, listarLojas, listarCategorias, escadaDoProduto,
   type ItemDaVitrine, type Loja, type Categoria, type VarianteAVenda,
 } from './catalogo';
 import type { MensagemToast } from './tipos';
@@ -52,6 +56,8 @@ type Rota =
   | { nome: 'busca'; termo: string }
   | { nome: 'vender' }
   | { nome: 'empresas' }
+  | { nome: 'checkout' }
+  | { nome: 'pedidos'; numero: string | null }
   | { nome: 'vendedor'; subrota: string }
   | { nome: 'nada' };
 
@@ -62,6 +68,12 @@ function lerRota(): Rota {
   const [secao, resto] = [caminho.split('/')[0], caminho.split('/').slice(1).join('/')];
   if (secao === 'vender') return { nome: 'vender' };
   if (secao === 'empresas') return { nome: 'empresas' };
+  if (secao === 'checkout') return { nome: 'checkout' };
+  // Área do comprador: /conta/pedidos e /conta/pedidos/LV-001234.
+  if (secao === 'conta') {
+    const numero = resto.startsWith('pedidos/') ? decodeURIComponent(resto.slice('pedidos/'.length)) : null;
+    return { nome: 'pedidos', numero };
+  }
   // Seller Central. Vem antes da regra "sem resto e pagina inexistente",
   // porque /vendedor sozinho e a visao geral.
   if (secao === 'vendedor') return { nome: 'vendedor', subrota: resto };
@@ -131,7 +143,7 @@ function Experiencia() {
    * O preço é congelado aqui: o que o comprador viu na página é o que ele
    * encontra no carrinho. A quantidade, não: o carrinho corta no estoque.
    */
-  const adicionar = useCallback((item: ItemDaVitrine, quantidade = 1, unitario_cents?: number, variante?: VarianteAVenda) => {
+  const adicionar = useCallback((item: ItemDaVitrine, quantidade = 1, unitario_cents?: number, variante?: VarianteAVenda, faixas?: Faixa[]) => {
     const varianteId = variante?.id ?? item.variante_padrao_id;
     const nome = item.titulo.split(' — ')[0];
     if (!varianteId) {
@@ -149,11 +161,16 @@ function Experiencia() {
       lojaCor: item.loja_cor,
       disponivel: variante?.disponivel ?? item.disponivel,
       cheio_cents: variante?.preco_cents ?? item.preco_cents ?? 0,
+      // Do cartão da vitrine a escada ainda não veio: nulo até carregar.
+      faixas: faixas ?? (item.venda_por_quantidade ? null : []),
     };
     const entrou = carrinho.adicionar(linha, quantidade, unitario_cents ?? linha.cheio_cents);
     if (entrou === 0) {
       avisar({ antes: 'Não há estoque para mais unidades de ', forte: nome });
       return;
+    }
+    if (linha.faixas === null) {
+      escadaDoProduto(item.id).then(e => carrinho.definirFaixas(item.id, e.faixas)).catch(() => { /* o checkout recalcula no banco */ });
     }
     setPulsando(true);
     setTimeout(() => setPulsando(false), 220);
@@ -230,7 +247,7 @@ function Experiencia() {
           slug={rotaAtual.slug}
           varianteInicial={rotaAtual.variante}
           noCarrinho={carrinho.quantidadeNoCarrinho}
-          aoAdicionar={(item, quantidade, unitario, variante) => adicionar(item, quantidade, unitario, variante)}
+          aoAdicionar={(item, quantidade, unitario, variante, faixas) => adicionar(item, quantidade, unitario, variante, faixas)}
           aoAdicionarDoCartao={adicionar}
         />
       )}
@@ -240,6 +257,10 @@ function Experiencia() {
       {rotaAtual.nome === 'busca' && <PaginaBusca termo={rotaAtual.termo} aoAdicionar={adicionar} />}
       {rotaAtual.nome === 'vender' && <PaginaVender />}
       {rotaAtual.nome === 'empresas' && <PaginaEmpresas />}
+      {rotaAtual.nome === 'checkout' && <PaginaCheckout carrinho={carrinho} />}
+      {rotaAtual.nome === 'pedidos' && (rotaAtual.numero
+        ? <DetalheDoPedido numero={rotaAtual.numero} />
+        : <MeusPedidos />)}
       {rotaAtual.nome === 'nada' && <NaoEncontrado oQue="O endereço não corresponde a nenhuma página do Coffee LiVRE." />}
 
       <Newsletter aoAvisar={avisar} />

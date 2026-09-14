@@ -14,7 +14,10 @@ export type TipoDeFalha = 'autenticacao' | 'permissao' | 'validacao' | 'rede' | 
 
 export type Operacao =
   | 'aplicar-preco' | 'desfazer-preco' | 'b2b-solicitar' | 'salvar-produto'
-  | 'publicar-produto' | 'login' | 'checkout' | 'carregar';
+  | 'publicar-produto' | 'login' | 'checkout' | 'carregar'
+  // Unidade 8
+  | 'checkout-iniciar' | 'reservar-estoque' | 'checkout-resumo' | 'frete-cotar' | 'checkout-confirmar'
+  | 'pagamento-simular' | 'pedido-status' | 'pedido-cancelar' | 'pedidos-carregar' | 'idempotencia' | 'calculo';
 
 export interface EventoDeFalha {
   operacao: Operacao;

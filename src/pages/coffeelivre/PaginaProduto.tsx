@@ -18,7 +18,7 @@ import {
   buscarProduto, passaporteDoProduto, atributosDoProduto, listarVitrine, escadaDoProduto, variantesDoProduto,
   type ItemDaVitrine, type CampoDoPassport, type EscadaDoProduto, type VarianteAVenda,
 } from './catalogo';
-import { montarEscada } from './escada';
+import { montarEscada, type Faixa } from './escada';
 import { aindaCabe, situacaoDoEstoque } from './estoque';
 import { pacoteDoProduto, partesDoPreco, reais, porcentagemOff, parcelas, ehCafe } from './visual';
 
@@ -27,8 +27,11 @@ export default function PaginaProduto({ slug, varianteInicial, noCarrinho, aoAdi
   varianteInicial: string | null;
   /** Unidades desta variante que já estão no carrinho. */
   noCarrinho: (varianteId: string) => number;
-  /** Recebe a quantidade escolhida, o unitário JÁ com a faixa e a variante. */
-  aoAdicionar: (item: ItemDaVitrine, quantidade: number, unitario_cents: number, variante: VarianteAVenda) => void;
+  /**
+   * Recebe a quantidade escolhida, o unitário JÁ com a faixa, a variante e as
+   * faixas — para o carrinho recalcular com a mesma escada quando a quantidade mudar.
+   */
+  aoAdicionar: (item: ItemDaVitrine, quantidade: number, unitario_cents: number, variante: VarianteAVenda, faixas: Faixa[]) => void;
   aoAdicionarDoCartao: (item: ItemDaVitrine) => void;
 }) {
   const [item, setItem] = useState<ItemDaVitrine | null>(null);
@@ -127,7 +130,8 @@ export default function PaginaProduto({ slug, varianteInicial, noCarrinho, aoAdi
 
   function comprar() {
     if (!podeComprar || !variante) return;
-    aoAdicionar(item!, qtd, unitarioAtual, variante);
+    // Sem escada configurada, a lista vazia diz ao carrinho "não há faixa", não "não sei".
+    aoAdicionar(item!, qtd, unitarioAtual, variante, escada?.faixas ?? []);
   }
 
   return (

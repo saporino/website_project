@@ -4,9 +4,9 @@
 // comprando. O cabeçalho da loja, com busca, carrinho e categorias, seria
 // ruído aqui. A ponte para a vitrine continua a um clique, em "Ver loja".
 //
-// Pedidos e Financeiro aparecem na navegação como "em breve", sem tela
-// vazia por trás: esconder daria a impressão de que não estão no plano;
-// abrir uma tela vazia daria a impressão de defeito.
+// Financeiro aparece na navegação como "em breve", sem tela vazia por trás:
+// esconder daria a impressão de que não está no plano; abrir uma tela vazia
+// daria a impressão de defeito. Pedidos existe desde a Unidade 8.
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { MARCA, navegar, rota } from '../config';
@@ -18,6 +18,7 @@ import ProdutosDoVendedor from './ProdutosDoVendedor';
 import EditorDeProduto from './EditorDeProduto';
 import EstoqueDoVendedor from './EstoqueDoVendedor';
 import MinhaLoja from './MinhaLoja';
+import PedidosDoVendedor from './PedidosDoVendedor';
 import './vendedor.css';
 
 export interface Aviso { tipo: 'ok' | 'erro'; texto: string }
@@ -28,7 +29,7 @@ const MENU: { chave: string; rotulo: string; caminho: string | null }[] = [
   { chave: 'produtos', rotulo: 'Produtos', caminho: 'vendedor/produtos' },
   { chave: 'estoque', rotulo: 'Estoque', caminho: 'vendedor/estoque' },
   { chave: 'loja', rotulo: 'Minha loja', caminho: 'vendedor/loja' },
-  { chave: 'pedidos', rotulo: 'Pedidos', caminho: null },
+  { chave: 'pedidos', rotulo: 'Pedidos', caminho: 'vendedor/pedidos' },
   { chave: 'financeiro', rotulo: 'Financeiro', caminho: null },
 ];
 
@@ -113,6 +114,8 @@ export default function SellerCentral({ subrota }: { subrota: string }) {
     );
   } else if (pagina === 'estoque') {
     conteudo = <EstoqueDoVendedor contexto={ctx} />;
+  } else if (pagina === 'pedidos') {
+    conteudo = <PedidosDoVendedor contexto={ctx} avisar={avisar} pedidoId={partes[1] ?? null} />;
   } else if (pagina === 'loja') {
     conteudo = <MinhaLoja loja={ctx.loja} avisar={avisar} aoSalvar={recarregar} />;
   } else {

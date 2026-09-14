@@ -1185,6 +1185,138 @@ Nenhuma falha silenciosa. O padrão é `src/pages/coffeelivre/observabilidade.ts
 7. **Jobs do `pg_cron` e secrets das edge functions** não existem no staging. Automação agendada não é testável lá sem recriá-los apontando para o próprio staging.
 8. **Custo:** o segundo projeto Supabase está na mesma organização; conferir no painel se o plano cobra por projeto adicional.
 
+### 17.1.12 Unidade 8 — Carrinho multiloja, checkout e pedido (14/09/2026)
+
+Base transacional real, sem dinheiro real: nenhum Mercado Pago, Pix, cartão, webhook ou transportadora. A arquitetura já recebe esses provedores nas Unidades 9 e 10 sem refazer o checkout.
+
+#### Modelo
+```
+carrinho (lv_carts, lv_cart_items)
+  → checkout (lv_checkouts)            reserva de estoque com prazo
+    → pedido pai (lv_orders)           1 número público LV-00xxxx, 1 total, 1 pagamento, 1 endereço
+      → subpedido por vendedor (lv_seller_orders)   LV-00xxxx-1, -2 … itens, frete, repasse, política
+        → itens (lv_order_items)       snapshot de produto, variante, preço, escada, política e piso
+      → pagamento (lv_payments)        estrutura; provedor "simulado"
+      → entrega (lv_shipments)         uma por subpedido; provedor "demo"
+      → reembolso (lv_refunds)         só modelagem
+      → eventos (lv_order_events)      histórico para suporte
+  reservas (lv_stock_reservations)     quanto de qual lote, até quando
+  idempotência de pagamento (lv_payment_events)
+```
+Na tela é uma compra só. No banco, cada vendedor opera o próprio subpedido, e o pagamento carrega o `split` conceitual (total, frete, comissão e repasse por subpedido).
+
+#### Snapshot e dinheiro
+- Tudo em centavos inteiros. Custo que a política não define fica **nulo**, nunca zero; o repasse também fica nulo nesse caso (`politica_completa = false`).
+- O item guarda título, marca, variante, gramatura, SKU, EAN, loja, preço cheio, unitário, desconto, faixa aplicada, comissão (bps e centavos), tarifa operacional, taxa de pagamento, líquido estimado, piso, distância do piso, lotes usados e `fiscal` (vazio, reservado para a nota fiscal).
+- O subpedido congela a política comercial: plano (`lv_sellers.plan_id` ou `plano_padrao`), comissão, forma de pagamento e taxa, com a observação de que a mensalidade não entra por pedido. Escolha de regra idêntica à da Calculadora.
+- Trigger `lv_guarda_financeiro`: nenhum valor do pedido muda depois de criado, nem pela chave de serviço.
+- Piso não bloqueia o comprador; fica registrado para auditoria.
+
+#### Escada e preço
+- `lv_unitario_na_quantidade` (SQL) é a mesma regra de `escada.ts`. A página do produto, o carrinho (`contasDoCarrinho.ts`), o checkout e o pedido usam a mesma conta. A bancada compara as duas de 1 a 6 unidades, com faixa em reais e percentual.
+- Ao abrir o checkout, o banco recalcula o preço. Diferença entre o que a tela mostrou e o preço atual volta em `divergencias_de_tela`, aparece para o comprador e exige aceite. Se o vendedor muda o preço com o checkout aberto, a confirmação é recusada (`PRECO_MUDOU`). Nada muda em silêncio.
+
+#### Estoque
+- **Reserva no banco**, não no navegador: `lv_checkout_iniciar` move `qtd_disponivel` para `qtd_reservada` no lote, com `SELECT … FOR UPDATE`, tudo ou nada. Itens ordenados por variante para travas concorrentes não se cruzarem. O `CHECK >= 0` do lote torna overselling impossível.
+- **FEFO**: sai primeiro o lote com validade mais próxima; lote vencido nunca entra. O item registra quais lotes usou. O comprador não vê lote.
+- **Prazos configuráveis** em `lv_settings.checkout`: `reserva_minutos` 15 (checkout aberto), `pagamento_minutos` 30 (pedido aguardando pagamento), `carrinho_dias` 7 (abandono).
+- **Pagamento aprovado**: a reserva vira baixa definitiva. **Expiração** (`lv_checkout_expirar`, job `pg_cron` a cada minuto e chamada oportunista ao abrir checkout): checkout vencido libera a reserva; pedido sem pagamento no prazo é cancelado e devolve o estoque.
+- **Cancelamento**: o comprador cancela antes de pagar (estoque volta). O admin cancela depois de pago e antes do envio (estoque volta ao lote e nasce reembolso pendente). Pagamento que chega depois do cancelamento gera reembolso pendente e não baixa estoque.
+
+#### Estados
+| Pedido pai | Subpedido | Pagamento |
+|---|---|---|
+| aguardando_pagamento → pago → em_processamento → parcialmente_enviado / enviado → entregue; cancelado; reembolsado | aguardando_pagamento → confirmado → separacao → pronto_para_envio → enviado → entregue; cancelado | pendente → aguardando_pagamento → aprovado / recusado / cancelado; aprovado → (parcialmente_)reembolsado |
+
+- Tabela única em `checkout/estados.ts` e em `lv_transicao_*_valida`. A bancada confere os 162 pares; a trigger `lv_guarda_status` recusa transição inválida para qualquer papel.
+- O pedido pai é derivado dos subpedidos (`lv_derivar_status_pedido`).
+- O vendedor só avança o próprio subpedido, um passo por vez (separação, pronto, enviado, entregue). Não cancela, não mexe em dinheiro nem em pagamento.
+- "Carrinho" e "checkout" são estados das tabelas de carrinho e checkout, não do pedido.
+
+#### Eventos e idempotência
+- Eventos: `pedido_criado`, `subpedido_criado`, `estoque_reservado`, `pagamento_pendente`, `pagamento_aprovado`, `pagamento_recusado`, `seller_notificado`, `em_separacao`, `pronto_para_envio`, `enviado`, `entregue`, `cancelado`, `estoque_liberado`, `reembolso_solicitado`, `pagamento_evento_duplicado`, `pagamento_apos_cancelamento`. Cada um grava origem, usuário, data e metadata.
+- Mesma chave ao abrir checkout devolve o mesmo checkout sem reservar de novo. Confirmar duas vezes devolve o mesmo pedido (`checkout_id` único). Evento de pagamento com mesmo (provedor, chave) é gravado uma vez e não produz segundo efeito.
+- `lv_pagamento_processar` é a porta do webhook futuro, só para a service role. `lv_pagamento_simular` só funciona em banco marcado como **staging** (`ambiente_do_banco`); em produção recusa para qualquer papel. Os botões de simulação só aparecem no build de staging.
+
+#### Segurança (RLS)
+- Nenhuma tabela de pedido aceita escrita direta de `anon` ou `authenticated`: só SELECT. Toda escrita passa por função `SECURITY DEFINER` que confere quem chama.
+- Comprador: os próprios carrinhos, checkouts e pedidos, com subpedidos, itens, pagamento, endereço, entrega e eventos.
+- Vendedor: só subpedidos, itens, entregas, reservas e eventos do próprio subpedido. Não lê pedido pai, pagamento nem dados do comprador. O endereço aparece só depois do pagamento aprovado.
+- Admin: tudo. Anônimo: nada.
+
+#### Provedores
+- `checkout/provedores.ts`: `FreteProvider` (hoje `lv_frete_cotar` sobre a tabela fictícia `lv_settings.frete_demo`, uma entrega por vendedor saindo do CD Coffee LiVRE), `PagamentoProvider` (Pix e cartão simulados, sem pedir dado de cartão; campos `external_payment_id`, `preference_id` e `split` já existem) e `CepProvider` (manual).
+- `checkout/roteadorDeFrete.ts` classifica mais econômico, mais rápido e melhor custo-benefício. A cotação é refeita por carrinho, então a escolha muda com a quantidade (1 pacote: transportadora A; 8 pacotes: C). Não empurra quantidade.
+
+#### Telas
+- **Carrinho**: um bloco por loja com subtotal, economia da escada e estoque; rodapé com produtos, descontos, "frete calculado no checkout" e total; persiste no navegador.
+- **Checkout** (`/coffeelivre/checkout`): Identificação (entrar ou criar conta, e-mail e senha) → Endereço (nome; telefone e CPF opcionais; CEP, rua, número, complemento, bairro, cidade, UF, referência) → Entrega → Pagamento → Revisão (por loja, tempo de reserva, aceite de divergência) → Confirmação. Estoque insuficiente diz o que falta e oferece ajustar o carrinho.
+- **Meus pedidos** (`/coffeelivre/conta/pedidos`) e detalhe por número: itens por loja, status, total, endereço, pagamento, entrega, histórico e cancelamento antes do pagamento.
+- **Seller Central › Pedidos**: deixa de ser "em breve". Cartões com filtro (novos, em separação, prontos, enviados, entregues, cancelados, aguardando pagamento); detalhe com itens e lotes, valores congelados só para leitura, entrega, endereço (após pagamento), histórico e botão do próximo passo.
+- **Admin › Coffee LiVRE › Pedidos**: pedido pai, subpedidos, comprador, pagamento, itens, reservas por lote, reembolsos, eventos e cancelar com motivo.
+
+#### Observabilidade
+`registrarFalha` com as operações novas: `checkout-iniciar`, `reservar-estoque`, `checkout-resumo`, `frete-cotar`, `checkout-confirmar`, `pagamento-simular`, `pedido-status`, `pedido-cancelar`, `pedidos-carregar`. Erro do banco chega com código de negócio (`hint`: `ESTOQUE_INSUFICIENTE`, `PRECO_MUDOU`, `CHECKOUT_EXPIRADO`, `STATUS_INVALIDO`, `FINANCEIRO_CONGELADO`…) e detalhe estruturado.
+
+#### Dados de demonstração no staging
+`node scripts/coffeelivre-pedidos.mjs cenarios` cria, com catálogo e comprador fictícios (`teste-cenario`):
+- pedido de 1 vendedor;
+- pedido multiloja pago;
+- pedido com 2 variantes (cartão, expresso);
+- pedido cancelado;
+- pedido entregue;
+- checkout expirado;
+- tentativa com estoque insuficiente.
+
+As lojas do cenário saem da vitrine; os pedidos ficam visíveis pelo snapshot. `limpar` remove tudo.
+
+#### Migrations
+- `20260914100000_carrinho_checkout_pedido`: modelo, cálculo, reservas, estados, RLS e job de expiração.
+- `20260914110000_pagamento_depois_do_cancelamento`: pagamento tardio vira reembolso pendente em vez de reabrir um pagamento cancelado.
+- `20260914120000_status_pela_operacao`: a chave de serviço (operação e, na Unidade 10, o aviso da transportadora) também avança subpedidos, com origem "sistema".
+
+Aplicadas primeiro no staging e depois em produção. Seeds regenerados. `verificar`: staging confere com produção nas 12 impressões (155 tabelas, 149 funções, 348 policies).
+
+#### Testes da Unidade 8 (tudo no staging)
+- **Bancada de pedidos (`scripts/coffeelivre-pedidos.mjs`): 83 critérios, todos aprovados.**
+  - Regras idênticas ao front: escada do SQL = `escada.ts` e os 162 pares de status = `estados.ts`.
+  - Multiloja A 2 × Tradicional 500 g + B 3 × Especial 250 g: 1 checkout, 1 pedido pai, 2 subpedidos, 2 repasses, estoque reservado por vendedor, snapshot e política congelada.
+  - RLS pela API com JWT real: A só vê o A, B só o B, comprador vê a compra consolidada, outro comprador e anônimo não veem nada, admin vê tudo, ninguém escreve direto, porta do webhook fechada.
+  - Idempotência de checkout, confirmação e evento de pagamento.
+  - Status permitido anda; transição absurda e mudança de valor recusadas até para a chave de serviço.
+  - Preço que muda no caminho; estoque 4 (3 reservados, pedido de 2 recusado, nunca −1); expiração do checkout e do pedido sem pagamento; pagamento após cancelamento.
+  - Cancelamento antes e depois do pagamento; FEFO com lote vencido; 8 rodadas de concorrência (estoque 2, A pede 2 e B pede 1 ao mesmo tempo), sempre só um passa.
+- **Bancada da API existente:** 114 critérios, todos aprovados.
+- **Navegador, desktop e 375 px: 382 critérios aprovados na regressão completa**, com o Chrome falando só com o Supabase do staging.
+  - Compra multiloja: blocos por loja com subtotal e escada, checkout nas 6 etapas, reserva no banco ao sair da identificação, 3 fretes classificados, revisão com tempo de reserva, número LV-, pagamento simulado, baixa do estoque, detalhe do pedido, Meus pedidos.
+  - Seller Central: A e B veem só o próprio subpedido; A abre o detalhe com valores congelados e inicia a separação (pedido pai em processamento).
+  - Admin: aba Pedidos com subpedidos, reservas por lote e eventos.
+  - Um critério antigo do vendedor ("sair volta ao login", desktop) falhou uma vez por tempo. A captura mostra a tela de login, e o fluxo do vendedor repetido passou inteiro (100 critérios).
+- **Cenários de demonstração:** 7 criados e conferidos.
+- **Unitários:** 329 (novos: estados, roteador de frete, validação de endereço e CPF, contas do carrinho multiloja).
+- **Typecheck, build e verificador de fidelidade** sem diferenças.
+
+Correções encontradas pelos testes antes do commit:
+- A entrega é 1:1 com o subpedido, e o PostgREST a devolve como objeto. As telas de pedido passaram a normalizar para lista.
+- `carrinho.ts` colidia com `Carrinho.tsx` no Windows e virou `contasDoCarrinho.ts`.
+
+#### Limitações
+- Pagamento e frete são simulados. Nenhum dinheiro se move, nenhuma transportadora é consultada.
+- O frete é cobrado por vendedor (cada um despacha a sua parte); consolidação de volumes no CD fica para a logística real.
+- Taxa de pagamento calculada sobre os produtos do vendedor; a taxa sobre o frete fica com a plataforma e ainda não é registrada.
+- Cadastro de comprador depende da confirmação de e-mail do Supabase Auth. Não há recuperação de senha dentro do Coffee LiVRE nem endereço salvo para a próxima compra.
+- CPF opcional; nenhum dado fiscal é calculado (`fiscal` vazio). Sem nota fiscal.
+- Reembolso só nasce como pendente; ninguém o conclui ainda.
+- Uma forma de entrega por pedido, aplicada a todos os vendedores.
+- Carrinho vive no navegador até abrir o checkout; carrinho abandonado é só estado, sem automação.
+
+#### Pendências (Unidades 9 e 10)
+1. Mercado Pago real: preferência/Pix, webhook em `lv_pagamento_processar`, split e conclusão de reembolso.
+2. Transportadoras reais no `FreteProvider` e rastreio.
+3. E-mail transacional de pedido criado, pago e enviado.
+4. Endereços salvos do comprador e recuperação de senha no Coffee LiVRE.
+5. Nota fiscal (preencher `fiscal` do pedido e do item).
+
 ### 17.2 Achados de segurança durante a construção
 
 | Data | Achado | Situação |
