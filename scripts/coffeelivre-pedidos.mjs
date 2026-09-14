@@ -481,7 +481,7 @@ async function ciclo() {
   checar('pedido cancelado pelo sistema e estoque devolvido', expirado.status === 'cancelado' && (await lote(loteQ)).qtd_disponivel === 4);
   const pagouTarde = await simular(c2.cliente, novo.pedido.order_id, 'aprovado');
   checar('pagamento que chega depois do cancelamento gera reembolso pendente, sem baixar estoque',
-    !pagouTarde.error && (await admin.from('lv_refunds').select('status').eq('order_id', novo.pedido.order_id)).data?.[0]?.status === 'pendente'
+    !pagouTarde.error && (await admin.from('lv_refunds').select('status').eq('order_id', novo.pedido.order_id)).data?.[0]?.status === 'refund_pending'
     && (await lote(loteQ)).qtd_disponivel === 4);
 
   // ------------------------------------------------------------------
@@ -501,7 +501,7 @@ async function ciclo() {
   checar('depois de pago, comprador não cancela', !!(await c2.cliente.rpc('lv_pedido_cancelar', { p_order: pago.pedido.order_id, p_motivo: 'desisti' })).error);
   const cancAdm = await adm.cliente.rpc('lv_pedido_cancelar', { p_order: pago.pedido.order_id, p_motivo: 'cliente pediu por telefone' });
   checar('admin cancela pedido pago antes do envio: estoque devolvido ao lote e reembolso pendente',
-    !cancAdm.error && (await admin.from('lv_refunds').select('status, tipo').eq('order_id', pago.pedido.order_id)).data?.[0]?.status === 'pendente'
+    !cancAdm.error && (await admin.from('lv_refunds').select('status, tipo').eq('order_id', pago.pedido.order_id)).data?.[0]?.status === 'refund_pending'
     && (await lote(cat.tradicional.lotes['A-PERTO'])).qtd_disponivel + (await lote(cat.tradicional.lotes['A-LONGE'])).qtd_disponivel
        === antesPerto2.qtd_disponivel + antesLonge2.qtd_disponivel, `(${cancAdm.error?.message})`);
 

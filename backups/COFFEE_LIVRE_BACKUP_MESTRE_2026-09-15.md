@@ -1,3 +1,5 @@
+> Snapshot congelado de 15/09/2026 (execução da Unidade 9.1). Não editar: a versão viva é `COFFEE_LIVRE_BACKUP_MESTRE.md`.
+
 # COFFEE LiVRE — BACKUP MESTRE
 
 > **Instrução de recuperação.** Se o chat original do Coffee LiVRE estiver indisponível ou incompleto, leia integralmente este documento e o `docs/marketplace/RAIO_X_OPERACIONAL_COFFEE_LIVRE.md` antes de continuar. Confirme o estado atual no Git e no staging. Não reinicie unidades aprovadas. ChatGPT atua como PM/QG e Claude Code como executor. Decisões técnicas reversíveis seguem sem necessidade de autorização repetitiva do usuário.

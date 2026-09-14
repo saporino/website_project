@@ -4,9 +4,7 @@
 // comprando. O cabeçalho da loja, com busca, carrinho e categorias, seria
 // ruído aqui. A ponte para a vitrine continua a um clique, em "Ver loja".
 //
-// Financeiro aparece na navegação como "em breve", sem tela vazia por trás:
-// esconder daria a impressão de que não está no plano; abrir uma tela vazia
-// daria a impressão de defeito. Pedidos existe desde a Unidade 8.
+// Pedidos existe desde a Unidade 8; Financeiro / Mercado Pago, desde a 9.1.
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../../../lib/supabase';
 import { MARCA, navegar, rota } from '../config';
@@ -19,6 +17,7 @@ import EditorDeProduto from './EditorDeProduto';
 import EstoqueDoVendedor from './EstoqueDoVendedor';
 import MinhaLoja from './MinhaLoja';
 import PedidosDoVendedor from './PedidosDoVendedor';
+import FinanceiroDoVendedor from './FinanceiroDoVendedor';
 import './vendedor.css';
 
 export interface Aviso { tipo: 'ok' | 'erro'; texto: string }
@@ -30,7 +29,7 @@ const MENU: { chave: string; rotulo: string; caminho: string | null }[] = [
   { chave: 'estoque', rotulo: 'Estoque', caminho: 'vendedor/estoque' },
   { chave: 'loja', rotulo: 'Minha loja', caminho: 'vendedor/loja' },
   { chave: 'pedidos', rotulo: 'Pedidos', caminho: 'vendedor/pedidos' },
-  { chave: 'financeiro', rotulo: 'Financeiro', caminho: null },
+  { chave: 'financeiro', rotulo: 'Financeiro', caminho: 'vendedor/financeiro' },
 ];
 
 export default function SellerCentral({ subrota }: { subrota: string }) {
@@ -114,6 +113,8 @@ export default function SellerCentral({ subrota }: { subrota: string }) {
     );
   } else if (pagina === 'estoque') {
     conteudo = <EstoqueDoVendedor contexto={ctx} />;
+  } else if (pagina === 'financeiro') {
+    conteudo = <FinanceiroDoVendedor contexto={ctx} avisar={avisar} />;
   } else if (pagina === 'pedidos') {
     conteudo = <PedidosDoVendedor contexto={ctx} avisar={avisar} pedidoId={partes[1] ?? null} />;
   } else if (pagina === 'loja') {

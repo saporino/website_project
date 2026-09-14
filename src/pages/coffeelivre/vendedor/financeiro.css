@@ -1,0 +1,19 @@
+/* Seller Central — Financeiro / Mercado Pago. Cartões, sem tabela larga. */
+.livre-root .fin { display: flex; flex-direction: column; gap: 12px; }
+.livre-root .fin-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.livre-root .fin-topo h2 { margin: 0; }
+.livre-root .fin-teste { background: #F3E8FF; color: #5B21B6; font-size: 11.5px; font-weight: 700; border-radius: 6px; padding: 5px 8px; margin: 8px 0 0; }
+.livre-root .fin-status { font-style: normal; font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 3px 10px; background: #EEE8E1; color: var(--marrom-esc); white-space: nowrap; }
+.livre-root .fin-status.s-conectado, .livre-root .fin-status.s-aprovado { background: #EAF5EC; color: #256B34; }
+.livre-root .fin-status.s-atencao, .livre-root .fin-status.s-expirado, .livre-root .fin-status.s-aguardando_pagamento, .livre-root .fin-status.s-em_analise { background: #FFF1D6; color: #6B4A00; }
+.livre-root .fin-status.s-recusado, .livre-root .fin-status.s-cancelado, .livre-root .fin-status.s-expirado, .livre-root .fin-status.s-erro { background: #F4E4E4; color: #8A1414; }
+.livre-root .fin-status.s-reembolsado, .livre-root .fin-status.s-parcialmente_reembolsado, .livre-root .fin-status.s-contestado { background: #E4EEF9; color: #1F4E7A; }
+.livre-root .fin-dados, .livre-root .fin-valores { margin: 8px 0 0; display: flex; flex-direction: column; }
+.livre-root .fin-dados div, .livre-root .fin-valores div { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: 13.5px; border-bottom: 1px dashed var(--linha); }
+.livre-root .fin-dados dt, .livre-root .fin-valores dt { color: var(--cinza); }
+.livre-root .fin-dados dd, .livre-root .fin-valores dd { margin: 0; white-space: nowrap; overflow-wrap: anywhere; }
+.livre-root .fin-valores .forte dt, .livre-root .fin-valores .forte dd { color: var(--texto); font-weight: 700; }
+.livre-root .fin-acoes { margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+.livre-root .fin-lista { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.livre-root .fin-cobranca { border: 1px solid var(--linha); border-radius: 10px; padding: 10px 12px; background: #fff; display: flex; flex-direction: column; gap: 3px; }
+.livre-root .fin-cobranca > small { color: var(--cinza); font-size: 12px; }

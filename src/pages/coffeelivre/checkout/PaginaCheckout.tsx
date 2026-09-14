@@ -27,6 +27,7 @@ import {
   UFS, formatarCep, semErros, validarComprador, validarEndereco,
   type Comprador, type Endereco, type ErrosDe,
 } from './validacao';
+import PainelDePagamento from '../pagamento/PainelDePagamento';
 import './checkout.css';
 
 type Etapa = 'identificacao' | 'endereco' | 'entrega' | 'pagamento' | 'revisao' | 'confirmacao';
@@ -39,9 +40,6 @@ const ETAPAS: { chave: Etapa; rotulo: string }[] = [
   { chave: 'revisao', rotulo: 'Revisão' },
   { chave: 'confirmacao', rotulo: 'Confirmação' },
 ];
-
-/** Botões de simulação de pagamento só existem no build de staging; o banco recusa fora dele. */
-const STAGING = import.meta.env.VITE_COFFEELIVRE_AMBIENTE === 'staging';
 
 const R = (c: number | null | undefined) => `R$ ${reais(c ?? 0)}`;
 const novaChave = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -71,7 +69,6 @@ export default function PaginaCheckout({ carrinho }: { carrinho: Carrinho }) {
   const [statusPedido, setStatusPedido] = useState<StatusDoPedido>('aguardando_pagamento');
   const [agora, setAgora] = useState(() => Date.now());
   const chave = useRef(novaChave());
-  const chavePagamento = useRef(novaChave());
 
   async function carregarUsuario() {
     const { data } = await supabase.auth.getUser();
@@ -164,21 +161,6 @@ export default function PaginaCheckout({ carrinho }: { carrinho: Carrinho }) {
     } catch (err) {
       if (err instanceof ErroDoCheckout && (err.codigo === 'PRECO_MUDOU' || err.codigo === 'CHECKOUT_EXPIRADO')) recomecar(err.message);
       else setErro(err instanceof Error ? err.message : 'Não foi possível confirmar o pedido.');
-    } finally {
-      setOcupado(false);
-    }
-  }
-
-  async function simularPagamento(resultado: 'aprovado' | 'recusado') {
-    if (!pedido || !PROVEDORES.pagamento.simular) return;
-    setOcupado(true);
-    setErro(null);
-    try {
-      const r = await PROVEDORES.pagamento.simular(pedido.order_id, resultado, chavePagamento.current);
-      setStatusPedido(r.statusPedido as StatusDoPedido);
-      if (resultado === 'recusado') chavePagamento.current = novaChave();
-    } catch (err) {
-      setErro(err instanceof Error ? err.message : 'Não foi possível simular o pagamento.');
     } finally {
       setOcupado(false);
     }
@@ -409,15 +391,13 @@ export default function PaginaCheckout({ carrinho }: { carrinho: Carrinho }) {
                 Cada loja recebe a sua parte do pedido e envia separadamente. O estoque fica reservado enquanto o pagamento
                 não é confirmado; se não for, o pedido é cancelado e o estoque volta.
               </p>
-              {STAGING && statusPedido === 'aguardando_pagamento' && PROVEDORES.pagamento.simular && (
-                <div className="ck-simular">
-                  <b>Ambiente de testes</b>
-                  <small>Simule o que o provedor de pagamento responderia. Não existe em produção.</small>
-                  <div className="ck-acoes">
-                    <button type="button" className="ck-botao principal" onClick={() => simularPagamento('aprovado')} disabled={ocupado}>Simular pagamento aprovado</button>
-                    <button type="button" className="ck-botao" onClick={() => simularPagamento('recusado')} disabled={ocupado}>Simular recusa</button>
-                  </div>
-                </div>
+              {(statusPedido === 'aguardando_pagamento' || statusPedido === 'pago') && (
+                <PainelDePagamento
+                  orderId={pedido.order_id}
+                  metodoInicial={metodo}
+                  valorTotalCents={resumo?.totais.total_cents ?? 0}
+                  aoMudarStatus={s => setStatusPedido(s as StatusDoPedido)}
+                />
               )}
               <div className="ck-acoes">
                 <a className="ck-botao principal" href={rota(`conta/pedidos/${pedido.numero}`)}

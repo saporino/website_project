@@ -17,7 +17,9 @@ export type Operacao =
   | 'publicar-produto' | 'login' | 'checkout' | 'carregar'
   // Unidade 8
   | 'checkout-iniciar' | 'reservar-estoque' | 'checkout-resumo' | 'frete-cotar' | 'checkout-confirmar'
-  | 'pagamento-simular' | 'pedido-status' | 'pedido-cancelar' | 'pedidos-carregar' | 'idempotencia' | 'calculo';
+  | 'pagamento-simular' | 'pedido-status' | 'pedido-cancelar' | 'pedidos-carregar' | 'idempotencia' | 'calculo'
+  // Unidade 9.1
+  | 'pagamento-criar' | 'pagamento-status';
 
 export interface EventoDeFalha {
   operacao: Operacao;

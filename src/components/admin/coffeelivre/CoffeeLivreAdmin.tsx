@@ -8,23 +8,25 @@
 // investidor, uma aba vazia parece defeito; uma aba que explica o que vem
 // parece plano.
 import { useState } from 'react';
-import { KeyRound, LayoutDashboard, Image, LayoutGrid, Store, Package, Tags, ShieldCheck, Calculator, TrendingUp, Building2, ShoppingBag } from 'lucide-react';
+import { KeyRound, LayoutDashboard, Image, LayoutGrid, Store, Package, Tags, ShieldCheck, Calculator, TrendingUp, Building2, ShoppingBag, Wallet } from 'lucide-react';
 import LivreAcesso from './LivreAcesso';
 import LivrePedidos from './LivrePedidos';
+import LivrePagamentos from './LivrePagamentos';
 import LivreVendedores from './LivreVendedores';
 import LivreModeracao from './LivreModeracao';
 import LivreTarifas from './LivreTarifas';
 import LivrePrecos from './LivrePrecos';
 import LivreB2B from './LivreB2B';
 
-type Sub = 'painel' | 'site' | 'vitrine' | 'pedidos' | 'vendedores' | 'moderacao' | 'precos' | 'b2b' | 'tarifas' | 'lojas' | 'produtos' | 'categorias' | 'acesso';
-type Pronta = 'acesso' | 'pedidos' | 'vendedores' | 'moderacao' | 'precos' | 'b2b' | 'tarifas';
+type Sub = 'painel' | 'site' | 'vitrine' | 'pedidos' | 'pagamentos' | 'vendedores' | 'moderacao' | 'precos' | 'b2b' | 'tarifas' | 'lojas' | 'produtos' | 'categorias' | 'acesso';
+type Pronta = 'acesso' | 'pedidos' | 'pagamentos' | 'vendedores' | 'moderacao' | 'precos' | 'b2b' | 'tarifas';
 
 const ABAS: { id: Sub; label: string; icon: typeof KeyRound; pronto: boolean }[] = [
   { id: 'painel', label: 'Painel', icon: LayoutDashboard, pronto: false },
   { id: 'site', label: 'Site', icon: Image, pronto: false },
   { id: 'vitrine', label: 'Vitrine', icon: LayoutGrid, pronto: false },
   { id: 'pedidos', label: 'Pedidos', icon: ShoppingBag, pronto: true },
+  { id: 'pagamentos', label: 'Pagamentos', icon: Wallet, pronto: true },
   { id: 'vendedores', label: 'Vendedores', icon: Store, pronto: true },
   { id: 'moderacao', label: 'Moderação', icon: ShieldCheck, pronto: true },
   { id: 'precos', label: 'Preços', icon: TrendingUp, pronto: true },
@@ -80,6 +82,8 @@ export default function CoffeeLivreAdmin() {
         <LivreAcesso />
       ) : sub === 'pedidos' ? (
         <LivrePedidos />
+      ) : sub === 'pagamentos' ? (
+        <LivrePagamentos />
       ) : sub === 'vendedores' ? (
         <LivreVendedores />
       ) : sub === 'moderacao' ? (

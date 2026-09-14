@@ -1,0 +1,25 @@
+/* Coffee LiVRE — painel de pagamento. Base visual do checkout (ck-*) + o que é de pagamento. */
+.livre-root .pg-painel { border: 1px solid var(--linha); border-radius: 12px; padding: 14px; background: #fff; margin: 12px 0; display: flex; flex-direction: column; gap: 8px; }
+.livre-root .pg-painel h3 { margin: 0; font-size: 16px; }
+.livre-root .pg-teste { margin: 0; background: #F3E8FF; color: #5B21B6; font-size: 11.5px; font-weight: 700; letter-spacing: .03em; border-radius: 6px; padding: 5px 8px; }
+.livre-root .pg-teste-inline { color: #5B21B6; font-weight: 700; }
+.livre-root .pg-ok { margin: 0; background: #EAF5EC; color: #256B34; border-radius: 8px; padding: 8px 10px; font-size: 13.5px; font-weight: 600; }
+.livre-root .pg-ruim { color: #8A1414; }
+.livre-root .pg-metodos { display: flex; gap: 8px; flex-wrap: wrap; }
+.livre-root .pg-metodos label { display: flex; gap: 6px; align-items: center; border: 1px solid var(--linha); border-radius: 8px; padding: 8px 12px; font-size: 13.5px; cursor: pointer; }
+.livre-root .pg-metodos label.on { border-color: var(--laranja); box-shadow: 0 0 0 1px var(--laranja) inset; }
+.livre-root .pg-cartao-teste { display: flex; flex-direction: column; gap: 4px; }
+.livre-root .pg-cartao-teste small { color: var(--cinza); font-size: 12px; }
+.livre-root .pg-cobrancas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.livre-root .pg-cobranca { border: 1px solid var(--linha); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.livre-root .pg-cobranca > small { color: var(--cinza); }
+.livre-root .pg-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.livre-root .pg-status { font-style: normal; font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 2px 9px; background: #EEE8E1; color: var(--marrom-esc); }
+.livre-root .pg-status.s-aguardando_pagamento, .livre-root .pg-status.s-criando, .livre-root .pg-status.s-em_analise { background: #FFF1D6; color: #6B4A00; }
+.livre-root .pg-status.s-aprovado { background: #EAF5EC; color: #256B34; }
+.livre-root .pg-status.s-recusado, .livre-root .pg-status.s-expirado, .livre-root .pg-status.s-cancelado, .livre-root .pg-status.s-erro { background: #F4E4E4; color: #8A1414; }
+.livre-root .pg-status.s-reembolsado, .livre-root .pg-status.s-parcialmente_reembolsado, .livre-root .pg-status.s-contestado { background: #E4EEF9; color: #1F4E7A; }
+.livre-root .pg-pix { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.livre-root .pg-pix img { align-self: center; }
+.livre-root .pg-pix textarea { width: 100%; font-family: ui-monospace, monospace; font-size: 12px; border: 1px solid var(--linha); border-radius: 8px; padding: 8px; resize: none; overflow-wrap: anywhere; }
+.livre-root .pg-brick { min-height: 120px; }

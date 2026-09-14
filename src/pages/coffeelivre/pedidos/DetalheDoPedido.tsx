@@ -1,16 +1,15 @@
 // Coffee LiVRE — um pedido do comprador: itens por loja, status, entrega, pagamento e histórico.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { navegar, rota } from '../config';
 import { reais } from '../visual';
 import { cancelarPedido, pedidoDoComprador, type PedidoDoComprador } from '../checkout/dados';
 import { ROTULO_DO_PAGAMENTO, ROTULO_DO_PEDIDO, ROTULO_DO_SUBPEDIDO } from '../checkout/estados';
 import { dataHora, rotuloDaOrigem, rotuloDoEvento } from '../checkout/eventos';
-import { PROVEDORES } from '../checkout/provedores';
+import PainelDePagamento from '../pagamento/PainelDePagamento';
 import { formatarCep } from '../checkout/validacao';
 import '../checkout/checkout.css';
 import './pedidos.css';
 
-const STAGING = import.meta.env.VITE_COFFEELIVRE_AMBIENTE === 'staging';
 const R = (c: number) => `R$ ${reais(c)}`;
 
 export default function DetalheDoPedido({ numero }: { numero: string }) {
@@ -19,7 +18,6 @@ export default function DetalheDoPedido({ numero }: { numero: string }) {
   const [cancelando, setCancelando] = useState(false);
   const [motivo, setMotivo] = useState('');
   const [ocupado, setOcupado] = useState(false);
-  const chavePagamento = useRef(crypto.randomUUID());
 
   async function carregar() {
     try { setPedido(await pedidoDoComprador(numero)); } catch (e) { setErro(e instanceof Error ? e.message : 'Falhou.'); setPedido(null); }
@@ -31,14 +29,6 @@ export default function DetalheDoPedido({ numero }: { numero: string }) {
     setOcupado(true); setErro(null);
     try { await cancelarPedido(pedido.id, motivo.trim()); setCancelando(false); await carregar(); }
     catch (e) { setErro(e instanceof Error ? e.message : 'Não foi possível cancelar.'); }
-    finally { setOcupado(false); }
-  }
-
-  async function simular() {
-    if (!pedido || !PROVEDORES.pagamento.simular) return;
-    setOcupado(true); setErro(null);
-    try { await PROVEDORES.pagamento.simular(pedido.id, 'aprovado', chavePagamento.current); await carregar(); }
-    catch (e) { setErro(e instanceof Error ? e.message : 'Falhou.'); }
     finally { setOcupado(false); }
   }
 
@@ -114,11 +104,13 @@ export default function DetalheDoPedido({ numero }: { numero: string }) {
               <p className="ck-sub">{e.destinatario}<br />{e.logradouro}, {e.numero}{e.complemento ? ` — ${e.complemento}` : ''}<br />{e.bairro} · {e.cidade}/{e.uf} · CEP {formatarCep(e.cep)}</p>
             </>
           )}
-          {STAGING && pedido.status === 'aguardando_pagamento' && (
-            <div className="ck-simular">
-              <b>Ambiente de testes</b>
-              <button type="button" className="ck-botao principal" onClick={simular} disabled={ocupado}>Simular pagamento aprovado</button>
-            </div>
+          {pedido.status === 'aguardando_pagamento' && (
+            <PainelDePagamento
+              orderId={pedido.id}
+              metodoInicial={pedido.pagamento_metodo === 'cartao' ? 'cartao' : 'pix'}
+              valorTotalCents={pedido.total_cents}
+              aoMudarStatus={s => { if (s !== pedido.status) carregar(); }}
+            />
           )}
           {pedido.status === 'aguardando_pagamento' && !cancelando && (
             <button type="button" className="ck-link" onClick={() => setCancelando(true)}>Cancelar pedido</button>

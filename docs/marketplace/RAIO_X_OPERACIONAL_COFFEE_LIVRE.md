@@ -1317,6 +1317,173 @@ Correções encontradas pelos testes antes do commit:
 4. Endereços salvos do comprador e recuperação de senha no Coffee LiVRE.
 5. Nota fiscal (preencher `fiscal` do pedido e do item).
 
+### 17.1.13 Unidade 9.1 — Mercado Pago marketplace em ambiente de teste (15/09/2026)
+
+Nenhum dinheiro real, nenhuma conta Mercado Pago real, nenhuma credencial usada. **Em produção o pagamento online segue DESATIVADO** até a U9.2.
+
+#### Documentação oficial consultada (em 14/09/2026)
+| Tema | Fato confirmado | Não confirmado | Fonte |
+|---|---|---|---|
+| Modelo de split | **Split 1:1** disponível no Brasil (Checkout Pro e Checkout Transparente). 1:N só para "carteira assessorada", via comercial. Pré-requisitos: vendedor com KYC nível 6, aplicação, OAuth, contas de teste | Split com Bricks/Orders API citado explicitamente; nome "split avançado" | mercadopago.com.br/developers/pt/docs/split-payments/split-1-1/overview · …/prerequisites · …/integration-configuration/integrate-marketplace |
+| OAuth | `auth.mercadopago.com.br/authorization` com client_id, response_type=code, platform_id=mp, redirect_uri, `state`, PKCE (S256). Code vale 10 min. `POST /oauth/token` devolve access_token, refresh_token, user_id, public_key, expires_in, scope. **Access token de 180 dias.** Renovação com grant_type=refresh_token, que **também renova o refresh_token**. `test_token=true` gera credencial de teste. Invalidado por revogação, troca de senha, exclusão da aplicação | Validade exata do refresh_token; endpoint de API para o marketplace revogar | …/docs/security/oauth/creation · …/oauth/renewal · …/oauth/management |
+| Comissão | Checkout Pro: `marketplace_fee`. Transparente: **`application_fee`** em `POST /v1/payments`, com o **access token do vendedor**; valor absoluto. **A taxa do Mercado Pago é descontada primeiro do pagamento do vendedor; a comissão do marketplace sai do restante** | Se taxa e comissão incidem sobre frete; base exata da taxa | …/split-1-1/integration-configuration/integrate-marketplace |
+| Pix | `payment_method_id: "pix"`, `X-Idempotency-Key`; resposta pending com `point_of_interaction.transaction_data` (qr_code, qr_code_base64, ticket_url). Expiração padrão 24 h, configurável de 30 min a 30 dias (`date_of_expiration`) | Aprovação automática de Pix de teste em /v1/payments (confirmada só na Orders API) | …/docs/checkout-api-payments/integration-configuration/integrate-pix · …/checkout-api-orders/integration-test/pix |
+| Cartão | Card Payment Brick coleta os dados em campos PCI e entrega **token**. Cartões de teste oficiais; o nome do titular força o status (APRO, OTHE, CONT, CALL, FUND, SECU, EXPI, FORM) | Lista exata dos campos do callback do Brick | …/docs/checkout-bricks/card-payment-brick/introduction · …/docs/your-integrations/test/cards |
+| Contas de teste | Tipos Vendedor, Comprador e Integrador (marketplace). Limite de 15. **"Integrações com Checkout Bricks não suportam contas de teste".** O token de teste também começa com `APP_USR` | Se o prefixo `TEST-` ainda existe; OAuth completo com conta de teste vendedora | …/docs/your-integrations/test/accounts |
+| Webhook | `x-signature` (ts, v1) e manifest `id:[data.id];request-id:[x-request-id];ts:[ts];` com HMAC-SHA256 hex. data.id alfanumérico em minúsculas. Responder 200/201 em até **22 s**; retentativas a cada 15 min. Consultar `GET /v1/payments/{id}`. **Pagamentos criados com credencial de teste não enviam notificação** | Página genérica de webhooks do Transparente deu 404 (texto obtido da cópia oficial Adobe Commerce) | …/docs/adobe-commerce/resources/notifications/webhooks |
+| Idempotência | `X-Idempotency-Key` obrigatório em `POST /v1/payments` e em reembolsos | — | …/reference/online-payments/checkout-api-payments/create-payment/post · …/create-refund/post |
+| Status | pending, approved, authorized, in_process, in_mediation, rejected, cancelled, refunded, charged_back. `external_reference` existe e filtra a busca | Tamanho máximo do external_reference; lista completa de status_detail de /v1/payments; detalhe `partially_refunded` | …/get-payment/get · …/search-payments/get |
+| Reembolso | `POST /v1/payments/{id}/refunds` (total sem amount, parcial com amount), até 180 dias, exige saldo. **No 1:1 é proporcional entre vendedor e marketplace**; sem saldo do vendedor, o marketplace devolve só a parte dele | Devolução da taxa do Mercado Pago | …/create-refund/post · …/split-1-1/…/integrate-marketplace |
+| Chargeback | `GET /v1/chargebacks/{id}` e search por payment_id (`X-Caller-Id`); documentação uma única vez; valor retido até 6 meses | — | …/docs/checkout-api-orders/payment-management/chargebacks/management |
+| Reconciliação | `GET /v1/payments/{id}` e search (12 meses) com `transaction_details.net_received_amount`, `total_paid_amount`, `fee_details`. Relatório de split `marketplace_sellers_sales` (MARKETPLACE_FEE_AMOUNT, MERCADOPAGO_FEE_AMOUNT) | Valores de `type` em fee_details | …/split-1-1/additional-content/reports/sales-report/introduction |
+| Frete | Checkout Pro: `shipments.cost` | Como o frete entra no Transparente e o efeito na taxa | …/docs/checkout-pro-preferences/additional-settings/shipping-cost |
+
+#### Arquitetura final
+```
+PEDIDO DO COMPRADOR (lv_orders)                      um checkout, uma compra
+  → SUBPEDIDOS (lv_seller_orders)                    um por vendedor (U8)
+    → PAGAMENTOS MP (lv_cobrancas)                   UM por subpedido — Split 1:1
+      → SELLER: POST /v1/payments com o access token OAuth do vendedor
+      → MARKETPLACE FEE: application_fee = comissão + tarifa operacional + frete do CD (configurável)
+      → RECONCILIAÇÃO (lv_mp_reconciliacoes): estado oficial via GET /v1/payments/{id}
+```
+- **Por que não um pagamento só:** o split disponível é 1:1 (um coletor por pagamento), e o 1:N depende de contrato comercial. O comprador vê um checkout e **uma cobrança por loja** (dois Pix, por exemplo).
+- **Pedido pai pago** quando nenhum subpedido ativo aguarda pagamento. Na expiração, só o subpedido que não pagou é cancelado e devolve estoque; quem pagou segue.
+- **Evolução:** a cobrança tem o subpedido como referência. Um futuro 1:N pode agrupar cobranças sem reescrever pedidos.
+
+#### Taxa do processador e frete (dívida da U8)
+- **Confirmado:** a taxa do Mercado Pago sai do pagamento recebido pelo vendedor. **Não confirmado:** a base exata e a incidência sobre o frete.
+- Como o frete precisa ser cobrado na mesma transação, o valor cobrado é **produtos + frete**. A **estimativa** da taxa usa esse valor total (`processor_fee_base = 'valor_total_estimado'`, bps da tabela de hipóteses), e **o vendedor suporta a taxa inclusive sobre o frete**, porque é assim que o Split 1:1 desconta.
+- O frete do CD entra na `application_fee` (`frete_no_application_fee`, ajustável em `lv_settings.pagamentos`).
+- **Valor real** = `total_paid − net_received − application_fee`, preenchido pela reconciliação. Estimada e real ficam em colunas separadas; **desconhecida é nulo, nunca zero**.
+- **Decisão comercial pendente (PM):** se o Coffee LiVRE compensa o vendedor pela taxa sobre o frete, por exemplo reduzindo a application_fee. Hoje não compensa.
+
+#### OAuth do vendedor
+- Seller Central › **Financeiro / Mercado Pago**, com estados não conectado, conectando, conectado, atenção necessária, reautorização necessária e desconectado.
+- Fluxo com `state` de uso único (hash no banco, 10 min, amarrado ao usuário) e PKCE S256.
+- **Tokens no Supabase Vault**: `lv_mp_credenciais` guarda só os ids dos segredos e não tem nenhuma permissão para o site; a leitura é `lv_mp_credencial_ler`, só pela chave de serviço.
+- Registra conta (user_id), escopos, conectado_em, renovado_em, expira_em (180 dias), live_mode e último erro seguro. Renovação (`acao: renovar`) grava o novo refresh_token; falha vira "atenção".
+- Desconectar apaga os segredos do Vault.
+
+#### Ambientes e segredos
+- Namespace **`LV_MP_TESTE_*`** e **`LV_MP_PRODUCAO_*`** (CLIENT_ID, CLIENT_SECRET, REDIRECT_URI, WEBHOOK_SECRET, WEBHOOK_URL, PUBLIC_KEY). Cada função lê só o prefixo do ambiente; **não há fallback**.
+- Ambiente vem do banco (`ambiente_do_banco`) e precisa bater com `LV_MP_AMBIENTE` declarado na função.
+- O prefixo do token não distingue ambientes (a documentação diz que o token de teste também é `APP_USR`). A guarda usa o nome do segredo, a marca do banco e o **`live_mode`** devolvido pelo Mercado Pago: pagamento real em teste é recusado, e pagamento de teste em produção também.
+- Provedor por `lv_pagamentos_config()`:
+  - staging = `mock` (ou `mercadopago` quando houver credencial de teste);
+  - produção = **`desativado`**, e mock é impossível por construção.
+- `lv_pagamento_processar` (porta da U8) passou a só funcionar no staging.
+- Integração sem credencial fica bloqueada com mensagem administrativa que lista os nomes dos segredos que faltam, nunca valores.
+
+#### Provedores
+`supabase/functions/_shared/lvMp/provedor.ts`: interface `criar`, `consultar`, `reembolsar`.
+- **Mercado Pago:** HTTP oficial com o token do vendedor, `X-Idempotency-Key`, `application_fee` e `external_reference = lv:<cobrança>`.
+- **Mock (só teste):** estado remoto em `lv_mp_mock_remoto`.
+  - Pix nasce pendente com código `TESTE-SEM-VALOR`.
+  - Tokens de cartão de teste: `mock_aprovar`, `mock_recusar`, `mock_analise`.
+  - A taxa "real" difere de propósito da estimada, e o reembolso é idempotente pela chave.
+
+Edge Functions:
+- `lv-mp-conexao`, `lv-mp-pagamento`, `lv-mp-reconciliar` e `lv-mp-reembolso`;
+- `lv-mp-webhook`, **sempre publicado com `--no-verify-jwt`**.
+
+#### Webhook
+- Confere `x-signature`: aceita o manifest com e sem o ";" final e recusa se não bater (fail closed).
+- Grava o evento em `lv_mp_webhook_eventos`, deduplicado por (provedor, x-request-id); assinatura inválida também é registrada.
+- **Não confia no corpo:** busca o pagamento no provedor e aplica pela função `lv_cobranca_aplicar`, idempotente e **sem regressão** (só avança; contestação ganha volta a aprovado).
+- Responde 200 bem abaixo de 22 s; em falha responde 500 para o Mercado Pago tentar de novo. Log sem segredo e sem corpo do pagamento.
+
+#### Reconciliação
+`lv-mp-reconciliar` (rotina ou admin) confere:
+- pendentes e em análise;
+- os que precisam de atenção;
+- aprovados sem taxa real;
+- os não conferidos há 6 h.
+
+Grava status local antes e depois, status remoto, divergência, ação (aplicado, sem mudança, regressão recusada, erro) e erro. O painel do comprador também consulta os pagamentos pendentes a cada 5 s, porque **pagamento de teste não gera webhook**.
+
+#### Reembolso e cancelamento
+- Estados `refund_pending`, `refund_processing`, `refunded`, `refund_failed`, `manual_review`; os antigos da U8 foram migrados. Há no máximo um reembolso aberto por cobrança, com `idempotency_key` própria.
+- **Antes do pagamento:** cancelar libera a reserva e cancela as cobranças.
+- **Depois do pagamento (admin, antes do envio):** cancelar abre reembolso pendente por cobrança aprovada e devolve estoque. `lv-mp-reembolso` executa no provedor; se falhar (ex.: vendedor sem saldo), vai para `manual_review` e marca atenção.
+- **Pagamento tardio** (subpedido já cancelado): registra o pagamento, abre reembolso, **não baixa estoque** e marca atenção.
+
+#### Telas
+- **Comprador:** painel de pagamento na confirmação do checkout e no detalhe do pedido. Uma cobrança por loja, Pix com copia e cola, QR (quando o provedor envia), link e prazo, e status atualizado sozinho. Cartão pelo Card Payment Brick oficial, que ainda não foi exercitado por falta de credencial.
+  - Staging: faixa "AMBIENTE DE TESTE · nenhum valor é cobrado" e cartões de teste do mock pelo mesmo caminho do servidor.
+  - Produção: "pagamento online ainda não disponível".
+  - Os botões "simular pagamento" da U8 foram removidos da interface.
+- **Seller Central › Financeiro:** conexão Mercado Pago e pagamentos só da própria loja (valor, comissão, tarifa, frete, taxa estimada ou real, líquido estimado ou recebido, reembolsado).
+- **Admin › Coffee LiVRE › Pagamentos:** uma linha por cobrança com vendedor, pedido e subpedido, provedor, id no Mercado Pago, referência, valores, taxa estimada e real, líquido, status local e remoto, última reconciliação, divergência, reembolso, filtro "precisa de atenção", "Reconciliar" (por linha e pendentes) e "Processar reembolsos".
+
+#### Migration
+`20260915100000_mercado_pago_marketplace`:
+- configuração e conexões OAuth (Vault);
+- cobranças, mock remoto, eventos de webhook e reconciliações;
+- estados de reembolso, confirmação de estoque por subpedido e expiração por subpedido;
+- cancelamento com reembolso pelo provedor;
+- RLS e permissões.
+
+#### Testes da U9.1 (tudo no staging, provedor mock e webhooks assinados)
+- **Bancada de pagamentos (`scripts/coffeelivre-pagamentos.mjs`): 47 critérios, todos aprovados.**
+  - **OAuth:** state de uso único e amarrado ao usuário; B não usa o state de A; tokens só no Vault; nenhum vendedor lê credencial.
+  - **Segredos:** nenhum segredo nas respostas das funções.
+  - **Cobranças:** 2 cobranças separadas por pedido multiloja; criação idempotente; valor = produtos + frete; application_fee = comissão + tarifa + frete; taxa estimada sobre o valor total; líquido estimado.
+  - **RLS:** vendedor, comprador, anônimo e admin; vendedor e comprador sem reconciliar ou reembolsar.
+  - **Webhook:**
+    - assinatura inválida (401 e registro);
+    - aprovado com taxa real diferente da estimada;
+    - duplicado pelo mesmo request-id;
+    - reenvio com outro request-id;
+    - fora de ordem, sem regressão e com divergência marcada.
+  - **Reconciliação:** converge (webhook perdido), sem mudança na segunda vez e com histórico só para o admin.
+  - **Estados do pagamento:** cartão recusado e nova tentativa aprovada; reembolso pelo provedor e reembolso duplicado.
+  - **Expiração e cancelamento:**
+    - expiração só do vendedor que não pagou, com pedido pago para quem pagou;
+    - pagamento tardio com reembolso e sem baixar estoque;
+    - cancelamento antes e depois do pagamento;
+    - vendedor desconectado bloqueia a cobrança dele.
+  - **Estoque** baixa uma vez e volta corretamente.
+- **Bancada de pedidos da U8:** 83 critérios, todos aprovados. Continua compatível; o pagamento agora passa pelas cobranças.
+- **Navegador, desktop e 375 px: 398 critérios, todos aprovados na regressão completa.** O Chrome só falou com o Supabase do staging. Critérios novos da U9.1:
+  - painel "AMBIENTE DE TESTE";
+  - um Pix por loja com copia e cola de teste e prazo;
+  - 2 cobranças no banco;
+  - aprovação aparece sozinha na tela;
+  - Financeiro do vendedor com Mercado Pago conectado, só o próprio pagamento e líquido, sem token na página;
+  - admin › Pagamentos com taxa estimada/real e Reconciliar.
+- **Unitários:** 347. Novos: 18 dos módulos compartilhados, cobrindo:
+  - estados e regressão;
+  - taxas;
+  - assinatura conferida contra HMAC independente;
+  - guarda de ambiente (produção recusa mock e pagamento de teste; teste recusa pagamento real);
+  - OAuth/PKCE;
+  - formato do Mercado Pago;
+  - mock idempotente.
+- **Typecheck, build e fidelidade:** sem erro e sem diferenças. **Pacote do site sem `LV_MP_`, `client_secret`, token ou chave de serviço.**
+- **Produção (só leitura, depois da migration):**
+  - `lv_pagamentos_config` = ambiente produção, provedor **desativado**;
+  - porta da U8 recusa com `USE_COBRANCAS`;
+  - 0 cobranças;
+  - nenhuma Edge Function `lv-mp-*` e nenhum secret `LV_MP_*` publicados.
+- Seeds regenerados; staging confere com produção (162 tabelas, 173 funções, 352 policies).
+
+#### Limitações
+- Mercado Pago **real** não exercitado: sem aplicação nem credenciais de teste. OAuth real, `POST /v1/payments`, Brick, assinatura real e reembolso real seguem a documentação, mas não foram validados.
+- Com mais de uma loja, cartão exige um token por pagamento; nesta versão a tela orienta Pix para multiloja.
+- `partially_refunded` e a fórmula da taxa real (`total − net − application_fee`) precisam ser conferidos com um pagamento de teste real.
+- Não há job agendado de reconciliação nem de renovação de token; as funções existem e são chamadas pelo painel e pelo admin.
+- Chargeback: só o estado `contestado` e atenção; o fluxo de documentação não foi implementado.
+- Vendedor sem Mercado Pago conectado não recebe pagamento: a cobrança dele falha e fica sinalizada.
+
+#### Ações humanas necessárias para a U9.2
+1. No painel do Mercado Pago (conta da empresa operadora), criar a **aplicação do Coffee LiVRE** do tipo marketplace, com produto de pagamentos online e split. Anotar CLIENT_ID e CLIENT_SECRET.
+2. Cadastrar a **Redirect URI** do OAuth (`https://<domínio>/coffeelivre/vendedor/financeiro`) e a **URL de notificação** (`https://<projeto>.supabase.co/functions/v1/lv-mp-webhook`). Gerar a **chave secreta do webhook**.
+3. Criar **contas de teste** (Integrador, Vendedor, Comprador) e, se o Mercado Pago exigir, ativar o split 1:1 na aplicação.
+4. Entregar os valores **fora do Git** para gravar como secrets `LV_MP_TESTE_*` no staging e trocar `provedor_staging` para `mercadopago`.
+5. Para produção (depois do teste): KYC nível 6 dos vendedores, secrets `LV_MP_PRODUCAO_*`, e só então `provedor_producao = mercadopago`, com decisão do PM.
+6. **Decisão comercial:** taxa do Mercado Pago sobre o frete, hoje suportada pelo vendedor.
+
 ### 17.2 Achados de segurança durante a construção
 
 | Data | Achado | Situação |

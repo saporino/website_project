@@ -813,6 +813,13 @@ async function criarLojaDeCompra(letra, rotulo, produto) {
   const { data: u, error: eu } = await admin.auth.admin.createUser({ email, password: senha, email_confirm: true });
   if (eu) throw new Error('usuário do vendedor da compra: ' + eu.message);
   await admin.from('lv_seller_users').insert({ seller_id: s.id, user_id: u.user.id });
+  // Conta Mercado Pago do vendedor no provedor MOCK (só staging): sem ela não há cobrança.
+  const { error: emp } = await admin.rpc('lv_mp_credencial_gravar', {
+    p_seller: s.id, p_provedor: 'mock', p_access: `mock_access_${crypto.randomBytes(8).toString('hex')}`, p_refresh: null,
+    p_mp_user_id: `mock-${s.id.slice(0, 8)}`, p_public_key: 'TEST-MOCK-PUBLIC-KEY', p_escopos: ['offline_access', 'read', 'write'],
+    p_expira_em: new Date(Date.now() + 180 * 86400000).toISOString(), p_live_mode: false, p_renovacao: false,
+  });
+  if (emp) throw new Error('conexão mock do vendedor: ' + emp.message);
   return { sellerId: s.id, slug, varianteId: v.id, loteId: lote.id, email, senha };
 }
 
@@ -919,8 +926,28 @@ async function fluxoCompra(browser, base, tela, codigo) {
     checar(`[${tela.rotulo}] carrinho esvaziado depois de confirmar`, await page.locator('.cart').first().textContent().then(t => !/[1-9]/.test(t ?? '')).catch(() => true));
     await foto('confirmacao');
 
-    await page.getByRole('button', { name: 'Simular pagamento aprovado' }).click();
-    checar(`[${tela.rotulo}] pagamento simulado aprovado: pedido pago`, await visivel(page.locator('[data-campo="status-pedido"]', { hasText: 'Pago' })));
+    // --- pagamento (U9.1): Pix por loja pelo provedor mock do staging ---
+    checar(`[${tela.rotulo}] painel de pagamento marcado como AMBIENTE DE TESTE`, await visivel(campo('pagamento-teste')));
+    await page.getByRole('button', { name: /^Gerar Pix/ }).click();
+    const copiaCola = page.locator('[data-campo="pix-copia-cola"]');
+    await copiaCola.first().waitFor({ state: 'visible', timeout: 30000 }).catch(() => {});
+    checar(`[${tela.rotulo}] um Pix por loja (2), com copia e cola de TESTE e prazo`,
+      await copiaCola.count() === 2 && (await copiaCola.first().inputValue()).startsWith('TESTE-SEM-VALOR')
+      && await page.getByText(/^Pague até/).count() === 2);
+    await foto('pix-por-loja');
+    await page.locator('[data-campo="painel-pagamento"]').screenshot({ path: path.join(SAIDA, `compra-${tela.rotulo}-recorte-pix.png`) }).catch(() => {});
+    const { data: pedPix } = await admin.from('lv_orders').select('id').eq('numero', numero).single();
+    const { data: cobsPix } = await admin.from('lv_cobrancas').select('mp_payment_id, valor_cents, application_fee_cents').eq('order_id', pedPix.id);
+    checar(`[${tela.rotulo}] banco: 2 cobranças separadas (Split 1:1), aguardando`, cobsPix?.length === 2 && new Set(cobsPix.map(c => c.mp_payment_id)).size === 2);
+    // O comprador "paga" no provedor mock; a tela descobre sozinha pela conferência periódica.
+    for (const c of cobsPix ?? []) {
+      const fee = Math.floor((Number(c.valor_cents) * 99 + 5000) / 10000) + 3;
+      await admin.from('lv_mp_mock_remoto').update({ status: 'approved', status_detail: 'accredited', processor_fee_cents: fee,
+        net_received_cents: Number(c.valor_cents) - fee - Number(c.application_fee_cents) }).eq('mp_payment_id', c.mp_payment_id);
+    }
+    await campo('pagamento-aprovado').waitFor({ state: 'visible', timeout: 45000 }).catch(() => {});
+    checar(`[${tela.rotulo}] pagamento aprovado aparece sozinho na tela: pedido pago`,
+      await visivel(page.locator('[data-campo="status-pedido"]', { hasText: 'Pago' })) && await visivel(campo('pagamento-aprovado')));
     checar(`[${tela.rotulo}] banco: reserva virou baixa (A 10 → 8, reservado 0)`,
       (await admin.from('lv_inventory_lots').select('qtd_disponivel, qtd_reservada').eq('id', A.loteId).single()).data?.qtd_disponivel === 8
       && (await admin.from('lv_inventory_lots').select('qtd_reservada').eq('id', A.loteId).single()).data?.qtd_reservada === 0);
@@ -965,6 +992,18 @@ async function fluxoCompra(browser, base, tela, codigo) {
         && await pv.locator(`[data-subpedido="${dele?.numero}"]`).count() === 0);
       await fotoV('lista');
       if (letra === 'A') {
+        // Financeiro / Mercado Pago (U9.1): conexão e pagamentos só da própria loja.
+        await pv.locator('.sc-menu').getByRole('link', { name: 'Financeiro' }).click();
+        await pv.locator('[data-campo="status-mercado-pago"]').waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+        const cobrancasVend = pv.locator('[data-cobranca]');
+        await cobrancasVend.first().waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
+        checar(`[${tela.rotulo}] vendedor A: Mercado Pago conectado (teste) e só o pagamento dele, com líquido`,
+          await visivel(pv.locator('[data-campo="status-mercado-pago"]', { hasText: 'Conectado' }))
+          && await cobrancasVend.count() === 1 && ((await pv.locator('[data-campo="liquido"]').first().textContent()) ?? '').includes('R$')
+          && !/mock_access_|access_token/.test(await pv.content()));
+        await fotoV('financeiro');
+        await pv.locator('.sc-menu').getByRole('link', { name: 'Pedidos' }).click();
+        await cartoes.first().waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
         await pv.locator(`[data-subpedido="${meu.numero}"]`).click();
         checar(`[${tela.rotulo}] vendedor A: detalhe com valores congelados e repasse`,
           await visivel(pv.locator('[data-campo="valores"]')) && ((await pv.locator('[data-campo="repasse"]').textContent()) ?? '').includes('R$'));
@@ -1066,6 +1105,9 @@ async function fluxoAdmin(browser, base, codigo) {
     await aba('Calculadora', 'Calculadora de Economia', 'Mercado Livre');
     await aba('Preços', 'Preços e comparação');
     if (PEDIDOS_CRIADOS.length) {
+      await aba('Pagamentos', 'Pagamentos');
+      checar('admin vê os pagamentos por subpedido com taxa estimada/real e ação de reconciliar',
+        await visivel(page.getByText('Taxa MP estimada / real').first()) && await page.getByRole('button', { name: 'Reconciliar', exact: true }).count() >= 2);
       await aba('Pedidos', 'Pedidos', PEDIDOS_CRIADOS[0]);
       await page.locator(`[data-pedido="${PEDIDOS_CRIADOS[0]}"] button`).first().click();
       checar('admin abre o pedido: subpedidos, reservas por lote e eventos',
