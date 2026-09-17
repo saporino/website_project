@@ -222,6 +222,22 @@ const visivel = async (localizador) => {
   try { await localizador.first().waitFor({ state: 'visible', timeout: 15000 }); return true; } catch { return false; }
 };
 
+/**
+ * Valor de um campo de formulário, esperando até ele chegar ao esperado.
+ * O React repõe o formulário depois de recarregar o produto do banco; ler no
+ * mesmo instante do clique testa a corrida, não o comportamento.
+ */
+const valorDoCampo = async (localizador, esperado, ms = 15000) => {
+  const fim = Date.now() + ms;
+  let atual = '';
+  do {
+    atual = await localizador.first().inputValue().catch(() => '');
+    if (atual === esperado) return atual;
+    await new Promise(r => setTimeout(r, 250));
+  } while (Date.now() < fim);
+  return atual;
+};
+
 /** Navegação interna do site, sem recarregar: o carrinho vive na memória. */
 const navegarPorDentro = (page, caminho) => page.evaluate(c => {
   window.history.pushState({}, '', c);
@@ -672,7 +688,8 @@ async function fluxoMercado(browser, base, tela, codigo) {
     checar(`[${tela.rotulo}] a descrição não salva continua no formulário depois do preço aplicado`,
       (await campoDescricao.inputValue()) === DESCRICAO, `(veio "${await campoDescricao.inputValue()}")`);
     checar(`[${tela.rotulo}] o campo Preço do formulário já mostra R$ 26,79`,
-      (await page.getByLabel('Preço').first().inputValue()) === '26,79');
+      (await valorDoCampo(page.getByLabel('Preço'), '26,79')) === '26,79',
+      `(veio "${await page.getByLabel('Preço').first().inputValue()}")`);
     const descricaoNoBanco = async () => (await admin.from('lv_products').select('descricao').eq('id', prod.id).single()).data.descricao;
     checar(`[${tela.rotulo}] banco: a ação gravou só o preço; a descrição ainda não`, (await descricaoNoBanco()) !== DESCRICAO);
     await foto('edicao-preservada');

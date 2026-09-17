@@ -4,8 +4,8 @@
 
 | | |
 |---|---|
-| Atualizado em | 15/09/2026 (execução da Unidade 9.1) |
-| Último commit de unidade aprovada | `ef85672` — Unidade 8 (U9.1 concluída na execução, aguardando aprovação do PM) |
+| Atualizado em | 17/09/2026 (execução da Unidade 9.2) |
+| Último commit de unidade aprovada | `ef85672` — Unidade 8 (U9.1 concluída na execução, aguardando aprovação do PM; U9.2 em execução) |
 | Snapshots datados | `backups/COFFEE_LIVRE_BACKUP_MESTRE_2026-09-14.md` (U8) · `backups/COFFEE_LIVRE_BACKUP_MESTRE_2026-09-15.md` (U9.1) |
 
 ---
@@ -174,6 +174,34 @@ Comprador → carrinho multiloja → checkout → pedido pai → subpedidos → 
 
 **Ações humanas para a U9.2:** criar a aplicação marketplace do Coffee LiVRE no Mercado Pago, com Redirect URI, URL e chave do webhook; criar contas de teste; entregar credenciais fora do Git; decidir a taxa sobre o frete.
 
+### Unidade 9.2 — Mercado Pago real em ambiente controlado
+**STATUS: EM EXECUÇÃO** · Detalhe técnico: RAIO-X §17.1.14 · Configuração: `docs/marketplace/MERCADO_PAGO_COFFEE_LIVRE_CONFIGURACAO.md`
+
+**Identidade corporativa (fonte da verdade):**
+- Razão social: **V. MEDEIROS DE SANTI LTDA** (CNPJ 66.006.929/0001-36).
+- Nome fantasia: **COFICO BRASIL**.
+- **CASA COFICO** é o nome da operação/loja comercial, não razão social.
+- **Coffee LiVRE** é o marketplace próprio, não uma loja dentro do Mercado Livre.
+
+**Conta e aplicação:**
+- **Mesma conta empresarial** do Mercado Pago, sem conta nova. Isolamento é técnico, por aplicação e por segredo.
+- Aplicação **COFFEE LIVRE MARKETPLACE**, App ID público `1253195083115612`, criada em 17/09/2026: Pagamentos online, Checkout Transparente, modelo marketplace, PKCE, escopos read/write/offline_access.
+- A aplicação **COFICO - CASA COFICO E-COMMERCE** (`3313462574827587`) permanece intacta, e as credenciais dela não são reutilizadas.
+- Rota canônica do OAuth: `https://coficobrasil.com.br/coffeelivre/vendedor/mp/callback`.
+
+**Pendente:** Client Secret e Public Key de teste, webhook cadastrado no portal, contas de teste, e só então o provedor `mercadopago` no staging. Produção segue desativada.
+
+---
+
+## 5.1 Decisões estratégicas registradas (U9.2)
+
+**RepCo é o brain central de inteligência e orquestração dos marketplaces.** O módulo futuro concentra Mercado Livre, Amazon, Shopee, TikTok Shop, Magalu e os próximos canais, com Raio-X de mercado, snapshots, concorrência, preços, tendências, visitas, anúncios, inventário, campanhas, promoções, status das APIs, logs, alertas, recomendações e automações controladas.
+- **E-CoHub** continua como camada operacional e transacional: catálogo, estoque, pedidos, logística e sincronizações.
+- **Coffee LiVRE consome** essas capacidades e **não duplica** o brain.
+- Nesta unidade a decisão só fica registrada. Nada do módulo foi construído.
+
+**Mercado Livre — trabalho existente preservado.** A aplicação oficial **COFICO Commerce Hub** (Client ID público `2640237926792746`) é a integração da COFICO com a API do Mercado Livre. Não tem relação com o Mercado Pago nem com o Coffee LiVRE. O Raio-X de café no Mercado Livre continua como fonte de inteligência e, no futuro, entra no RepCo com interface por botões, sem exigir linha de comando do usuário.
+
 ---
 
 ## 6. Roadmap atual
@@ -182,7 +210,7 @@ Comprador → carrinho multiloja → checkout → pedido pai → subpedidos → 
 |---|---|---|
 | U8 | Carrinho multiloja, checkout e pedido | **APROVADA** (`ef85672`) |
 | U9.1 | Mercado Pago marketplace em ambiente seguro de teste | **CONCLUÍDA, aguardando aprovação** |
-| **U9.2** | **Primeira validação financeira real controlada** | **PRÓXIMA**, só após aprovação do PM e ações humanas |
+| **U9.2** | **Mercado Pago real em ambiente controlado** | **EM EXECUÇÃO** — aplicação criada, PKCE e callback prontos; falta credencial de teste |
 | U10 | LiVRE Entrega / CD / transportadoras | depois da U9 |
 | U11 | Primeiro ciclo real ponta a ponta, controlado | depois da U10 |
 | — | Growth / creators / LiVRE LiVE | depois da U11 |

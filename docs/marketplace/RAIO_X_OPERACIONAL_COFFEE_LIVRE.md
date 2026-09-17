@@ -1484,6 +1484,53 @@ Grava status local antes e depois, status remoto, divergência, ação (aplicado
 5. Para produção (depois do teste): KYC nível 6 dos vendedores, secrets `LV_MP_PRODUCAO_*`, e só então `provedor_producao = mercadopago`, com decisão do PM.
 6. **Decisão comercial:** taxa do Mercado Pago sobre o frete, hoje suportada pelo vendedor.
 
+### 17.1.14 Unidade 9.2 — Mercado Pago real em ambiente controlado (17/09/2026)
+
+**EM EXECUÇÃO.** Nenhum dinheiro real movimentado. Produção continua com pagamento online desativado, sem segredo `LV_MP_*` e sem função `lv-mp-*`.
+
+#### Identidade corporativa
+Razão social **V. MEDEIROS DE SANTI LTDA** (CNPJ 66.006.929/0001-36); nome fantasia **COFICO BRASIL**; **CASA COFICO** é a operação/loja comercial, não razão social; **Coffee LiVRE** é o marketplace próprio, não uma loja dentro do Mercado Livre. O repositório já usava a razão social correta em código, banco, políticas e JSON-LD; o único desvio era `Proprietário: COFICO BRASIL LTDA` no documento-fonte do Motor de Governança, corrigido, com a pendência do addendum encerrada. "COFICO BRASIL" continua correto como marca e não foi substituído em lugar nenhum.
+
+#### Aplicação Mercado Pago
+- **Mesma conta empresarial**, sem conta nova. O isolamento do Coffee LiVRE é por **aplicação** e por **segredo**.
+- **COFFEE LIVRE MARKETPLACE**, App ID público `1253195083115612`: Pagamentos online · Checkout Transparente · API de Pagamentos · modelo marketplace · **PKCE ativo** · escopos `read`, `write`, `offline_access` · Redirect URL `https://coficobrasil.com.br/coffeelivre/vendedor/mp/callback`.
+- **COFICO - CASA COFICO E-COMMERCE** (`3313462574827587`) intacta; credenciais dela não são reutilizadas e o código não tem fallback para `MERCADO_PAGO_COFICO_*`.
+- Detalhe operacional e nomes de segredos: `docs/marketplace/MERCADO_PAGO_COFFEE_LIVRE_CONFIGURACAO.md`.
+
+#### OAuth e PKCE (auditado, não reescrito)
+O fluxo da U9.1 já atendia a exigência de PKCE da aplicação nova. O que foi conferido e mantido:
+- `code_verifier` de 48 bytes aleatórios do `crypto` (base64url, 64 caracteres, dentro dos 43–128 do RFC 7636); `code_challenge` = SHA-256 do verifier em base64url, com `code_challenge_method=S256`;
+- verifier guardado **no Vault**, referenciado pelo estado; nunca vai para o frontend, para log ou para resposta de função;
+- `state` aleatório, gravado **só como hash SHA-256**, amarrado ao vendedor, ao usuário e ao ambiente, com validade de 10 minutos;
+- consumo do estado sob `for update`, de **uso único**, apagando o verifier do Vault no mesmo passo;
+- troca do `code` no servidor, com `client_secret` do ambiente e `test_token=true` no ambiente de teste;
+- renovação por `refresh_token` gravando o refresh novo; desconexão apaga os segredos do Vault.
+
+**O que a U9.2 acrescentou:**
+- `ROTA_CALLBACK` e `redirectUriValida()` em `_shared/lvMp/oauth.ts`: a Redirect URL precisa ser https (ou localhost), sem query nem fragmento, e terminar exatamente em `/coffeelivre/vendedor/mp/callback`;
+- `lv-mp-conexao` recusa iniciar a conexão com `REDIRECT_URI_INVALIDA` quando a configuração não bate, em vez de mandar o vendedor para uma autorização que o Mercado Pago recusaria.
+
+#### Callback canônico
+- Nova tela `src/pages/coffeelivre/vendedor/RetornoDoMercadoPago.tsx`, na rota `vendedor/mp/callback` do Seller Central: limpa o `code` da barra de endereço antes de qualquer coisa, entrega `code` e `state` ao servidor e volta ao Financeiro com o resultado.
+- `Financeiro` passa a pedir a conexão com a rota canônica e continua aceitando o retorno antigo em `vendedor/financeiro`, para não quebrar link já existente.
+
+#### Webhook (confirmado no código, ainda não cadastrado no portal)
+- URL definitiva no staging: `https://mzfnhljphcjpqtuesjci.supabase.co/functions/v1/lv-mp-webhook`, publicada com `--no-verify-jwt`.
+- Assinatura `x-signature` (ts, v1) conferida contra HMAC-SHA256 do manifest `id:…;request-id:…;ts:…;`, aceitando as duas grafias e recusando o que não bate. Evento deduplicado por `x-request-id`; o corpo não é fonte da verdade.
+
+#### Testes da U9.2
+- **Unitários: 351**, com 4 novos no módulo compartilhado: vetor oficial do RFC 7636 para o `code_challenge`, tamanho e unicidade do verifier, troca sem verifier e sem `test_token` fora do teste, e a Redirect URL canônica aceita/recusada em 7 formas.
+- **Bancada de pagamentos: 51 critérios, todos aprovados** (eram 47). Novos: retorno na rota canônica, `state` expirado recusado e `state` forjado recusado.
+- **Bancada de pedidos (U8): 83 critérios, todos aprovados.**
+- **Typecheck e build:** limpos.
+
+#### Pendências reais da U9.2
+1. Client Secret e Public Key **de teste** da aplicação nova, gravados como `LV_MP_TESTE_*` (nunca no Git nem no chat).
+2. Webhook cadastrado no portal, com chave secreta.
+3. `provedor_staging = mercadopago` e contas de teste (Vendedor, Comprador) para o multi-seller real.
+4. Limitações oficiais que continuam valendo: pagamento com credencial de teste **não** envia notificação, e contas de teste não funcionam com Checkout Bricks.
+5. Produção: KYC nível 6, decisão do PM, e só então `LV_MP_PRODUCAO_*`.
+
 ### 17.2 Achados de segurança durante a construção
 
 | Data | Achado | Situação |

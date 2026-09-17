@@ -40,7 +40,15 @@ export default function FinanceiroDoVendedor({ contexto, avisar }: { contexto: C
   }, [contexto.sellerId]);
 
   useEffect(() => {
-    // Volta do Mercado Pago (ou do mock no staging): ?code=…&state=…
+    // Recado deixado pela rota canônica de callback (vendedor/mp/callback).
+    const recado = sessionStorage.getItem('lv_mp_conexao');
+    if (recado) {
+      sessionStorage.removeItem('lv_mp_conexao');
+      avisar(recado === 'ok'
+        ? { tipo: 'ok', texto: 'Mercado Pago conectado.' }
+        : { tipo: 'erro', texto: recado });
+    }
+    // Compatibilidade: links antigos voltavam com ?code=…&state=… nesta própria tela.
     const q = new URLSearchParams(window.location.search);
     const code = q.get('code');
     const state = q.get('state');
@@ -62,7 +70,7 @@ export default function FinanceiroDoVendedor({ contexto, avisar }: { contexto: C
   async function conectar() {
     setOcupado(true);
     try {
-      const { url } = await iniciarConexao(`${window.location.origin}${rota('vendedor/financeiro')}`);
+      const { url } = await iniciarConexao(`${window.location.origin}${rota('vendedor/mp/callback')}`);
       window.location.assign(url);
     } catch (err) {
       avisar({ tipo: 'erro', texto: err instanceof Error ? err.message : 'Não foi possível iniciar a conexão.' });

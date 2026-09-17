@@ -11,8 +11,8 @@ import {
 } from '../_shared/lvMp/servico.ts';
 import { conferirLiveMode, faltandoParaMercadoPago } from '../_shared/lvMp/ambiente.ts';
 import {
-  URL_TOKEN, corpoDaRenovacao, corpoDaTroca, gerarAleatorio, normalizarTokens, sha256Base64Url, sha256Hex, urlDeAutorizacao,
-  type TokensDoVendedor,
+  ROTA_CALLBACK, URL_TOKEN, corpoDaRenovacao, corpoDaTroca, gerarAleatorio, normalizarTokens, redirectUriValida,
+  sha256Base64Url, sha256Hex, urlDeAutorizacao, type TokensDoVendedor,
 } from '../_shared/lvMp/oauth.ts';
 
 const FN = 'lv-mp-conexao';
@@ -94,6 +94,11 @@ Deno.serve(async req => {
         const retorno = (corpo.retorno ?? '').startsWith('http') ? corpo.retorno : '';
         const url = `${retorno}?mp_mock=1&code=mockcode_${gerarAleatorio(8)}&state=${encodeURIComponent(state)}`;
         return json({ url, mock: true });
+      }
+      // O Mercado Pago só aceita o redirect_uri idêntico ao cadastrado na aplicação.
+      // Erro de configuração para aqui, antes de mandar o vendedor para o portal.
+      if (!redirectUriValida(ctx.segredos.redirectUri)) {
+        return json({ erro: `A Redirect URL configurada precisa terminar em ${ROTA_CALLBACK}.`, codigo: 'REDIRECT_URI_INVALIDA' }, 503);
       }
       const verifier = gerarAleatorio(48);
       await rpc(servico, 'lv_mp_oauth_estado_gravar', { p_state_hash: stateHash, p_seller: seller_id, p_user: usuario.id, p_verifier: verifier, p_minutos: 10 });

@@ -4,7 +4,7 @@
 
 **Versão:** 1.0\
 **Data-base:** Agosto/2026\
-**Proprietário:** COFICO BRASIL LTDA\
+**Proprietário:** V. MEDEIROS DE SANTI LTDA (nome fantasia COFICO BRASIL)\
 **Classificação:** ADMIN ONLY
 
 ## 1. VISÃO

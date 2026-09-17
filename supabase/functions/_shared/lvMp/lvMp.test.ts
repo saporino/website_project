@@ -6,7 +6,7 @@ import { assinar, assinaturaValida, manifestos } from './assinatura.ts';
 import {
   BloqueioDeAmbiente, conferirAmbiente, conferirLiveMode, conferirProvedor, faltandoParaMercadoPago, lerSegredos,
 } from './ambiente.ts';
-import { corpoDaTroca, normalizarTokens, sha256Base64Url, urlDeAutorizacao } from './oauth.ts';
+import { ROTA_CALLBACK, corpoDaTroca, gerarAleatorio, normalizarTokens, redirectUriValida, sha256Base64Url, urlDeAutorizacao } from './oauth.ts';
 import { corpoDoPagamentoMp, normalizarPagamentoMp, provedorMock, type ArmazemMock, type PagamentoRemoto } from './provedor.ts';
 
 describe('status da cobrança', () => {
@@ -100,6 +100,35 @@ describe('OAuth do vendedor', () => {
     expect(Object.fromEntries(u.searchParams)).toMatchObject({ client_id: '123', response_type: 'code', platform_id: 'mp', state: 'st', code_challenge_method: 'S256' });
     expect(corpoDaTroca({ clientId: '1', clientSecret: 's', code: 'c', redirectUri: 'r', verifier: 'v', teste: true }))
       .toMatchObject({ grant_type: 'authorization_code', code_verifier: 'v', test_token: 'true' });
+  });
+  it('deriva o code_challenge como manda o RFC 7636 (exemplo oficial)', async () => {
+    // Vetor do RFC 7636, apêndice B: verifier conhecido → challenge S256 conhecido.
+    expect(await sha256Base64Url('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'))
+      .toBe('E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
+  });
+  it('gera verifier aleatório dentro do tamanho permitido (43 a 128) e nunca repetido', () => {
+    const v = Array.from({ length: 50 }, () => gerarAleatorio(48));
+    for (const x of v) {
+      expect(x.length).toBeGreaterThanOrEqual(43);
+      expect(x.length).toBeLessThanOrEqual(128);
+      expect(x).toMatch(/^[A-Za-z0-9\-_]+$/);
+    }
+    expect(new Set(v).size).toBe(50);
+  });
+  it('sem verifier não manda code_verifier, e fora do teste não manda test_token', () => {
+    const c = corpoDaTroca({ clientId: '1', clientSecret: 's', code: 'c', redirectUri: 'r', verifier: null, teste: false });
+    expect(c.code_verifier).toBeUndefined();
+    expect(c.test_token).toBeUndefined();
+  });
+  it('aceita só a Redirect URL canônica da aplicação', () => {
+    expect(ROTA_CALLBACK).toBe('/coffeelivre/vendedor/mp/callback');
+    expect(redirectUriValida(`https://coficobrasil.com.br${ROTA_CALLBACK}`)).toBe(true);
+    expect(redirectUriValida(`http://localhost:5173${ROTA_CALLBACK}`)).toBe(true);
+    expect(redirectUriValida('https://coficobrasil.com.br/coffeelivre/vendedor/financeiro')).toBe(false);
+    expect(redirectUriValida(`http://coficobrasil.com.br${ROTA_CALLBACK}`)).toBe(false);
+    expect(redirectUriValida(`https://coficobrasil.com.br${ROTA_CALLBACK}?x=1`)).toBe(false);
+    expect(redirectUriValida(undefined)).toBe(false);
+    expect(redirectUriValida('nem-url')).toBe(false);
   });
   it('normaliza tokens e calcula a expiração', () => {
     const t = normalizarTokens({ access_token: 'APP_USR-a', refresh_token: 'TG-r', user_id: 42, public_key: 'APP_USR-pk', expires_in: 15552000, scope: 'offline_access read write', live_mode: false }, 0);

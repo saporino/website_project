@@ -152,6 +152,14 @@ async function ciclo() {
   checar('callback conecta A, e o state usado por B antes não foi consumido indevidamente', cbA.json.status === 'conectado', `(${cbA.texto})`);
   const repete = await fn('lv-mp-conexao', { acao: 'callback', code: urlA.searchParams.get('code'), state: urlA.searchParams.get('state') }, uA.token);
   checar('state é de uso único', repete.json.codigo === 'OAUTH_ESTADO_INVALIDO');
+  const iniCb = await fn('lv-mp-conexao', { acao: 'iniciar', retorno: 'https://staging.coffeelivre.test/coffeelivre/vendedor/mp/callback' }, uA.token);
+  const urlCb = new URL(iniCb.json.url ?? 'https://x.test');
+  checar('retorno usa a rota canônica /coffeelivre/vendedor/mp/callback', urlCb.pathname === '/coffeelivre/vendedor/mp/callback', `(${iniCb.texto})`);
+  await admin.from('lv_mp_oauth_estados').update({ expira_em: new Date(Date.now() - 60000).toISOString() }).is('usado_em', null);
+  const expirado = await fn('lv-mp-conexao', { acao: 'callback', code: urlCb.searchParams.get('code'), state: urlCb.searchParams.get('state') }, uA.token);
+  checar('state expirado é recusado', expirado.json.codigo === 'OAUTH_ESTADO_INVALIDO', `(${expirado.texto})`);
+  const semEstado = await fn('lv-mp-conexao', { acao: 'callback', code: 'mockcode_inventado', state: 'state-inventado' }, uA.token);
+  checar('state inventado (replay/forja) é recusado', semEstado.json.codigo === 'OAUTH_ESTADO_INVALIDO', `(${semEstado.texto})`);
   const iniB = await fn('lv-mp-conexao', { acao: 'iniciar', retorno: 'https://staging.coffeelivre.test/cb' }, uB.token);
   const urlB = new URL(iniB.json.url);
   await fn('lv-mp-conexao', { acao: 'callback', code: urlB.searchParams.get('code'), state: urlB.searchParams.get('state') }, uB.token);

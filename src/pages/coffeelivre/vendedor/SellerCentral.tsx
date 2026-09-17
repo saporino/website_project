@@ -18,6 +18,7 @@ import EstoqueDoVendedor from './EstoqueDoVendedor';
 import MinhaLoja from './MinhaLoja';
 import PedidosDoVendedor from './PedidosDoVendedor';
 import FinanceiroDoVendedor from './FinanceiroDoVendedor';
+import RetornoDoMercadoPago from './RetornoDoMercadoPago';
 import './vendedor.css';
 
 export interface Aviso { tipo: 'ok' | 'erro'; texto: string }
@@ -115,6 +116,8 @@ export default function SellerCentral({ subrota }: { subrota: string }) {
     conteudo = <EstoqueDoVendedor contexto={ctx} />;
   } else if (pagina === 'financeiro') {
     conteudo = <FinanceiroDoVendedor contexto={ctx} avisar={avisar} />;
+  } else if (pagina === 'mp' && partes[1] === 'callback') {
+    conteudo = <RetornoDoMercadoPago />;
   } else if (pagina === 'pedidos') {
     conteudo = <PedidosDoVendedor contexto={ctx} avisar={avisar} pedidoId={partes[1] ?? null} />;
   } else if (pagina === 'loja') {

@@ -12,6 +12,23 @@
 export const URL_AUTORIZACAO = 'https://auth.mercadopago.com.br/authorization';
 export const URL_TOKEN = 'https://api.mercadopago.com/oauth/token';
 
+/**
+ * Caminho canônico do retorno do OAuth, igual ao Redirect URL cadastrado na aplicação
+ * COFFEE LIVRE MARKETPLACE. O Mercado Pago recusa a autorização se o redirect_uri
+ * enviado não for exatamente o cadastrado, então a função confere antes de mandar
+ * o vendedor para lá — erro de configuração aparece aqui, não na tela do vendedor.
+ */
+export const ROTA_CALLBACK = '/coffeelivre/vendedor/mp/callback';
+
+export function redirectUriValida(uri: string | undefined): boolean {
+  if (!uri) return false;
+  let u: URL;
+  try { u = new URL(uri); } catch { return false; }
+  const local = u.hostname === 'localhost' || u.hostname === '127.0.0.1';
+  if (u.protocol !== 'https:' && !(local && u.protocol === 'http:')) return false;
+  return u.pathname === ROTA_CALLBACK && !u.search && !u.hash;
+}
+
 const b64url = (bytes: Uint8Array) =>
   btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 

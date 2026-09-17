@@ -34,7 +34,7 @@ A planilha é **BENCHMARK / referência metodológica**. **NÃO é**: tabela con
 ## Discrepâncias registradas (NÃO resolvidas silenciosamente)
 1. **Material "consolidado/unificado" não localizado como arquivo distinto.** O complemento lista um "documento consolidado/unificado de Governança + Logística" (material #4 da mensagem), mas os anexos recebidos são os **dois Motores separados** (#2 e #3) + o **briefing** (#5). → **Confirmar** se existe um 3º documento consolidado a enviar, ou se "consolidado" = os dois Motores tratados em conjunto. Nada foi escolhido/assumido.
 2. **Renome de arquivos (documentado):** `Texto colado.txt` → `Briefing_Auditoria_Arquitetural_Governanca_Logistica.txt` (o nome original é artefato de colagem, sem significado); `TABELA_COMERCIAL_TEX_SP(2).xlsx` → `TABELA_COMERCIAL_TEX_SP.xlsx` (o `(2)` é artefato de download). Conteúdo intacto.
-3. **Razão social no Motor de Governança:** o doc declara `Proprietário: COFICO BRASIL LTDA`, enquanto a entidade legal COFICO usada no site é **V. Medeiros de Santi Ltda** (CNPJ 66.006.929/0001-36 — marca "COFICO Brasil"). Provável nuance marca × razão social; registrar para conferência na TASK de Governança.
+3. ~~**Razão social no Motor de Governança:** o doc declarava `Proprietário: COFICO BRASIL LTDA`.~~ **RESOLVIDO em 15/09/2026 (U9.2):** razão social = **V. MEDEIROS DE SANTI LTDA** (CNPJ 66.006.929/0001-36); nome fantasia = **COFICO BRASIL**; CASA COFICO = operação/loja comercial, não razão social. Fonte corrigida.
 4. **`PRE_CLAUDE` no Motor Logístico V1.1:** sufixo indica rascunho **pré-revisão**. Tratar como entrada a ser auditada, não como especificação final homologada.
 
 ## Não-ações (limites deste addendum)
