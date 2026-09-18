@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Clapperboard, Download, Loader2, Search, Check, Heart, PlayCircle, MessageCircle, ArrowDownWideNarrow, ChevronRight, ChevronDown, Trash2, X, Megaphone } from 'lucide-react';
+import { Clapperboard, Download, Loader2, Search, Check, Heart, PlayCircle, MessageCircle, ArrowDownWideNarrow, ChevronRight, ChevronDown, Trash2, X, Megaphone, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
@@ -98,6 +98,7 @@ export default function StudioPage() {
   const [igHistory, setIgHistory] = useState<{ handle: string; followers: number | null }[]>([]);
   const [growthTick, setGrowthTick] = useState(0);
   const [checkingGroup, setCheckingGroup] = useState<number | null>(null);
+  const [rescanningGroup, setRescanningGroup] = useState<number | null>(null);
   const [checkingAll, setCheckingAll] = useState(false);
 
   const COST_PER_POST = 0.066; // ~US$ por post analisado (Claude + Whisper)
@@ -108,6 +109,20 @@ export default function StudioPage() {
 
   // miniatura via proxy (o CDN do IG bloqueia hotlink direto)
   const thumbUrl = (t: string | null) => t ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/studio-ig-thumb?url=${encodeURIComponent(t)}` : '';
+  // O CDN do IG assina cada link com `oe` = validade em segundos (hexadecimal). Não custa
+  // chamada nenhuma: a data sai do próprio link salvo. O grupo vence quando vence a 1ª foto.
+  const expiraEm = (url: string | null): number | null => {
+    if (!url) return null;
+    try {
+      const oe = new URL(url).searchParams.get('oe');
+      return oe && /^[0-9a-f]+$/i.test(oe) ? parseInt(oe, 16) * 1000 : null;
+    } catch { return null; }
+  };
+  const vencimentoDasFotos = (s: IgSearch): number | null => {
+    const datas = s.posts.map(p => expiraEm(p.thumb)).filter((n): n is number => n != null);
+    return datas.length ? Math.min(...datas) : null;
+  };
+  const dataHora = (ms: number) => new Date(ms).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   const persist = (arr: IgSearch[]) => { try { localStorage.setItem(SCAN_CACHE_KEY, JSON.stringify(arr)); } catch { /* quota */ } };
 
   // restaura buscas salvas ao abrir/atualizar → refresh NÃO gasta raspagem de novo
@@ -177,6 +192,35 @@ export default function StudioPage() {
     const postsProfile = (data as any)?.postsCount ?? null;
     setIgSearches(prev => { const next = prev.map(x => x.id === s.id ? { ...x, followers, postsProfile } : x); persist(next); return next; });
     setGrowthTick(t => t + 1);
+  }
+  // refaz a busca completa de um grupo no mesmo lugar (posts e fotos novos). Gasta raspagem.
+  async function rescanGroup(s: IgSearch) {
+    if (rescanningGroup != null) return;
+    if (!window.confirm(`Fazer nova busca de ${s.handle}? Isso raspa os posts de novo (até ${igDepth}) e gasta Apify.`)) return;
+    setRescanningGroup(s.id);
+    const t = toast.loading(`Buscando de novo os posts de ${s.handle}… (pode levar 1-2 min)`);
+    const { data, error } = await supabase.functions.invoke('studio-import-instagram', {
+      body: { handle: s.handle, mediaFilter: s.type, scanLimit: igDepth, company_id: activeCompanyId },
+    });
+    toast.dismiss(t);
+    setRescanningGroup(null);
+    if (error || (data as any)?.error) {
+      toast.error((data as any)?.message || (data as any)?.error || error?.message || 'Não consegui buscar os posts.');
+      return;
+    }
+    const ts = Date.now();
+    const posts = (((data as any)?.posts as IgPost[]) || []).map((p, i) => ({ ...p, uid: `${ts}_${i}` }));
+    if (!posts.length) { toast.error('A busca não trouxe posts; a busca anterior foi mantida.'); return; }
+    setIgSel(sel => { const n = new Set(sel); s.posts.forEach(p => n.delete(p.uid)); return n; });
+    setIgSearches(prev => {
+      const next = prev.map(x => x.id === s.id ? {
+        ...x, posts, ts, collapsed: false,
+        followers: (data as any)?.followers ?? x.followers, postsProfile: (data as any)?.postsCount ?? x.postsProfile,
+      } : x);
+      persist(next); return next;
+    });
+    setGrowthTick(v => v + 1);
+    toast.success(`${s.handle} atualizado: ${posts.length} posts com fotos novas.`);
   }
   function setGroupSort(id: number, sort: IgSort) {
     setIgSearches(prev => { const next = prev.map(s => s.id === id ? { ...s, sort } : s); persist(next); return next; });
@@ -521,6 +565,8 @@ export default function StudioPage() {
               const selInGroup = s.posts.filter(p => igSel.has(p.uid)).length;
               const nVid = s.posts.filter(p => p.isVideo).length;
               const nImg = s.posts.length - nVid;
+              const vence = vencimentoDasFotos(s);
+              const faltaMs = vence != null ? vence - Date.now() : null;
               return (
                 <div key={s.id} className="border border-gray-200 rounded-xl overflow-hidden">
                   <div className="flex items-center gap-2 px-3 py-2 bg-[#f8f7f5] border-b border-gray-200">
@@ -534,6 +580,14 @@ export default function StudioPage() {
                         {nVid > 0 && <> · {nVid} reels</>}{nImg > 0 && <> · {nImg} fotos</>}
                         {s.postsProfile != null && <> · {s.postsProfile.toLocaleString('pt-BR')} no perfil</>}
                         {selInGroup ? ` · ${selInGroup} sel.` : ''}
+                        {vence != null && faltaMs != null && (
+                          faltaMs <= 0
+                            ? <span className="text-red-600 font-semibold" title="O Instagram só libera a foto até essa data. Números continuam válidos; para ver as fotos, faça uma busca nova.">
+                                {' '}· fotos vencidas em {dataHora(vence)}</span>
+                            : <span className={faltaMs < 24 * 3600 * 1000 ? 'text-amber-600 font-semibold' : 'text-gray-500'}
+                                title="O Instagram só libera a foto até essa data. Depois disso, os números continuam; as fotos pedem uma busca nova.">
+                                {' '}· fotos valem até {dataHora(vence)}</span>
+                        )}
                       </div>
                       {(s.followers != null || growth[s.handle]?.day != null) && (
                         <div className="text-xs text-gray-500 flex items-center gap-2 flex-wrap font-semibold">
@@ -551,6 +605,11 @@ export default function StudioPage() {
                         title="Atualizar seguidores/posts deste perfil (barato, sem raspar posts)"
                         className="inline-flex items-center gap-1 text-xs font-semibold text-[#8B2214] hover:underline disabled:opacity-50">
                         {checkingGroup === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />} Verificar
+                      </button>
+                      <button onClick={() => rescanGroup(s)} disabled={rescanningGroup != null}
+                        title="Refazer a busca completa deste perfil: posts e fotos novos (gasta Apify)"
+                        className={`inline-flex items-center gap-1 text-xs font-semibold hover:underline disabled:opacity-50 ${faltaMs != null && faltaMs <= 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                        {rescanningGroup === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />} Nova busca
                       </button>
                       <button onClick={() => deleteSearch(s.id)} title="Apagar esta busca" className="text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                     </div>
