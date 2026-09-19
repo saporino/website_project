@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Loader2, ChevronDown, ChevronUp, UserPlus, Mail, Phone, Globe, MapPin } from 'lucide-react';
+import B2BProspeccao from './b2b/B2BProspeccao';
 
 const STATUS: [string, string][] = [
   ['novo', 'Novo'], ['em_contato', 'Em contato'], ['em_negociacao', 'Em negociação'], ['ativo', 'Ativo'], ['perdido', 'Perdido'],
@@ -33,6 +34,7 @@ export default function B2BLeadsManagement() {
   const [cv, setCv] = useState({ company: '', rep: '' });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ t: 'ok' | 'err'; m: string } | null>(null);
+  const [secao, setSecao] = useState<'formulario' | 'prospeccao'>('formulario');
 
   async function load() {
     setLoading(true);
@@ -78,8 +80,23 @@ export default function B2BLeadsManagement() {
     <div className="min-h-screen bg-[#f8f7f5] p-6">
       <div className="mb-5">
         <h2 className="text-2xl font-bold text-gray-900">Leads B2B</h2>
-        <p className="text-sm text-gray-500">Contatos do formulário "Para Seu Negócio". Acompanhe o funil e converta em cliente.</p>
+        <p className="text-sm text-gray-500">
+          {secao === 'formulario'
+            ? 'Contatos do formulário "Para Seu Negócio". Acompanhe o funil e converta em cliente.'
+            : 'Cadastro único das empresas do café: uma ficha por CNPJ, por estado e tipo. Converte em cliente sem sair daqui.'}
+        </p>
       </div>
+
+      <div className="flex gap-1 mb-5 border-b border-gray-200">
+        {([['formulario', 'Formulário do site'], ['prospeccao', 'B2B Prospecção']] as const).map(([k, l]) => (
+          <button key={k} onClick={() => setSecao(k)}
+            className={`px-4 py-2 text-sm font-semibold -mb-px border-b-2 ${secao === k ? 'border-saporino text-saporino' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {secao === 'prospeccao' ? <B2BProspeccao /> : <>
 
       <div className="flex flex-wrap gap-2 mb-4">
         <button onClick={() => setFilter('all')} className={`px-3 py-1.5 rounded-lg text-sm font-semibold border ${filter === 'all' ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-200'}`}>Todos ({leads.length})</button>
@@ -167,6 +184,7 @@ export default function B2BLeadsManagement() {
           ))}
         </div>
       )}
+      </>}
     </div>
   );
 }
