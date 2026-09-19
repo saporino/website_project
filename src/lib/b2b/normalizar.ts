@@ -82,7 +82,11 @@ export function normalizarTelefone(v: unknown): string | null {
   let d = digitos(v);
   if (d.startsWith('55') && d.length >= 12) d = d.slice(2);
   d = d.replace(/^0+/, '');
+  // Celular antigo sem o 9 (Anatel): número local começando com 6, 7, 8 ou 9 é celular e ganhou o 9 na frente.
+  // Fixo começa com 2, 3, 4 ou 5 e continua com 8 dígitos.
+  if (d.length === 10 && /[6-9]/.test(d[2])) d = `${d.slice(0, 2)}9${d.slice(2)}`;
   if (d.length !== 10 && d.length !== 11) return null;
+  if (d.length === 11 && d[2] !== '9') return null;
   return telefoneSuspeito(d) ? null : d;
 }
 

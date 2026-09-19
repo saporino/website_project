@@ -32,12 +32,19 @@ describe('UF, telefone e tipo', () => {
     expect(normalizarTelefone('3266-1113')).toBeNull();
     expect(normalizarTelefone('1732671744')).toBe('1732671744');
   });
+  it('fixo tem 8 dígitos; celular tem 9 e começa com 9; celular antigo ganha o 9', () => {
+    expect(normalizarTelefone('(11) 2897-8993')).toBe('1128978993');     // fixo
+    expect(normalizarTelefone('(11) 91234-5670')).toBe('11912345670');   // celular
+    expect(normalizarTelefone('(17) 9615-2432')).toBe('17996152432');    // celular antigo sem o 9
+    expect(normalizarTelefone('(21) 8765-4320')).toBe('21987654320');
+    expect(normalizarTelefone('(11) 31234-5678')).toBeNull();            // 11 dígitos sem o 9: inválido
+  });
   it('telefone de enchimento da Receita é descartado', () => {
     expect(normalizarTelefone('(11) 1111-1111')).toBeNull();
     expect(normalizarTelefone('(11) 0000-0000')).toBeNull();
     expect(normalizarTelefone('(11) 91111-1111')).toBeNull();
     expect(normalizarTelefone('(11) 1234-5678')).toBeNull();
-    expect(normalizarTelefone('(11) 6565-0365')).toBe('1165650365');
+    expect(normalizarTelefone('(11) 2897-8993')).toBe('1128978993');
   });
   it('tipo pelo CNAE e por texto livre', () => {
     expect(tipoPorCnae('1081302')).toBe('torrefacao');
