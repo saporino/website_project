@@ -209,6 +209,38 @@ export function sugerirMapeamento(cabecalhos: string[]): Record<string, Campo | 
   return out;
 }
 
+/**
+ * Completa o mapeamento olhando o CONTEÚDO das colunas que o cabeçalho não explicou
+ * (listas sem cabeçalho viram "Coluna 1, 2…"). Só aceita quando 60%+ das amostras batem,
+ * e nunca repete um campo já usado.
+ */
+export function sugerirPorValores(
+  mapa: Record<string, Campo | null>, linhas: Record<string, unknown>[],
+): Record<string, Campo | null> {
+  const out = { ...mapa };
+  const usados = new Set(Object.values(out).filter(Boolean) as Campo[]);
+  const amostra = linhas.slice(0, 200);
+  const testes: [Campo, (v: string) => boolean][] = [
+    ['cnpj', v => !!normalizarCnpj(v)],
+    ['email', v => !!normalizarEmail(v)],
+    ['uf', v => /^[A-Za-z]{2}$/.test(v) && !!normalizarUf(v)],
+    ['cep', v => /^\d{5}-?\d{3}$/.test(v)],
+    ['instagram', v => /instagram\.com\/|^@[a-z0-9._]{2,30}$/i.test(v)],
+    ['site', v => /^(https?:\/\/)?(www\.)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(v) && !v.includes('@')],
+    ['telefone', v => v.split(/[·,;/]/).some(p => !!normalizarTelefone(p))],
+  ];
+  for (const col of Object.keys(out)) {
+    if (out[col]) continue;
+    const valores = amostra.map(l => String(l[col] ?? '').trim()).filter(Boolean);
+    if (valores.length < 2) continue;
+    for (const [campo, bate] of testes) {
+      if (usados.has(campo)) continue;
+      if (valores.filter(bate).length / valores.length >= 0.6) { out[col] = campo; usados.add(campo); break; }
+    }
+  }
+  return out;
+}
+
 export interface LinhaB2B {
   cnpj: string | null; chave_nome: string | null; razao_social: string | null; nome_fantasia: string | null; tipo: Tipo;
   cnae_principal: string | null; cnae_descricao: string | null; inscricao_estadual: string | null; situacao_cadastral: string | null;
@@ -227,8 +259,10 @@ export function normalizarLinha(bruta: Partial<Record<Campo, unknown>>): { linha
   const uf = normalizarUf(bruta.uf);
   const municipio = texto(bruta.municipio)?.toUpperCase() ?? null;
   const cnae = digitos(bruta.cnae_principal) ? digitos(bruta.cnae_principal).padStart(7, '0') : null;
-  const whatsInformado = normalizarTelefone(bruta.whatsapp);
-  const tel = normalizarTelefone(bruta.telefone) ?? whatsInformado;
+  // Célula com vários telefones ("1732671744 · 1733334444"): fica o primeiro válido.
+  const primeiroTelefone = (v: unknown) => String(v ?? '').split(/[·,;/|]/).map(normalizarTelefone).find(Boolean) ?? null;
+  const whatsInformado = primeiroTelefone(bruta.whatsapp);
+  const tel = primeiroTelefone(bruta.telefone) ?? whatsInformado;
   const whats = whatsInformado ?? (ehCelular(tel) ? tel : null);
   const situacao = texto(bruta.situacao_cadastral);
   const marcas = String(bruta.marcas ?? '').split(/[·;|,\n]/).map(m => m.trim()).filter(m => m && m.length <= 80);

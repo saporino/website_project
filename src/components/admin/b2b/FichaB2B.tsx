@@ -4,12 +4,19 @@ import { useEffect, useState } from 'react';
 import { Loader2, X, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../../lib/supabase';
-import { TIPOS, formatarCnpj, normalizarTelefone, type Tipo } from '../../../lib/b2b/normalizar';
+import { TIPOS, formatarCnpj, formatarTelefone, normalizarTelefone, type Tipo } from '../../../lib/b2b/normalizar';
 
 type Empresa = Record<string, any> & { id: string; tipo: Tipo; marcas: string[]; fontes: string[]; proveniencia: Record<string, { fonte: string; em: string }> };
 interface Contato { id: string; funcao: string; nome: string | null; cargo: string | null; email: string | null; telefone: string | null; whatsapp: string | null }
 interface Vinculo { id: string; destino: string; company_id: string | null; etapa: string; proxima_acao: string | null; proxima_acao_em: string | null; responsavel: string | null }
 interface Company { id: string; name: string; fantasia: string | null }
+interface Divergencia { id: string; campo: string; valor_atual: string | null; valor_novo: string; fonte: string; created_at: string }
+
+const ROTULO_DO_CAMPO: Record<string, string> = {
+  razao_social: 'Razão social', nome_fantasia: 'Nome fantasia', cnae_principal: 'CNAE', inscricao_estadual: 'Inscrição estadual',
+  situacao_cadastral: 'Situação na Receita', porte: 'Porte', uf: 'UF', municipio: 'Município', cep: 'CEP', logradouro: 'Endereço',
+  numero: 'Número', bairro: 'Bairro', telefone: 'Telefone', whatsapp: 'WhatsApp', email: 'E-mail', site: 'Site', instagram: 'Instagram', facebook: 'Facebook',
+};
 
 const FUNCOES: [string, string][] = [
   ['comprador', 'Comprador'], ['comercial', 'Comercial'], ['gerente_comercial', 'Gerente comercial'], ['vendedor', 'Vendedor'],
@@ -31,6 +38,9 @@ const GRUPOS: { titulo: string; campos: [string, string, string?][] }[] = [
   { titulo: 'Canais', campos: [['telefone', 'Telefone'], ['whatsapp', 'WhatsApp'], ['email', 'E-mail'], ['site', 'Site'], ['instagram', 'Instagram'], ['facebook', 'Facebook']] },
 ];
 
+const mostrar = (campo: string, v: string | null) =>
+  v && (campo === 'telefone' || campo === 'whatsapp') ? formatarTelefone(v) : v;
+
 const inp = 'w-full px-2.5 py-1.5 rounded-lg border border-gray-300 bg-white text-sm';
 const lbl = 'block text-[11px] font-semibold text-gray-500 mb-0.5';
 
@@ -40,19 +50,22 @@ export default function FichaB2B({ id, aoFechar, aoSalvar }: { id: string; aoFec
   const [contatos, setContatos] = useState<Contato[]>([]);
   const [vinculos, setVinculos] = useState<Vinculo[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [divergencias, setDivergencias] = useState<Divergencia[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [novoContato, setNovoContato] = useState({ funcao: 'comprador', nome: '', cargo: '', email: '', telefone: '' });
   const [novoVinculo, setNovoVinculo] = useState({ destino: 'cliente_empresa', company_id: '', etapa: 'prospeccao' });
 
   async function carregar() {
-    const [a, c, v, co] = await Promise.all([
+    const [a, c, v, co, d] = await Promise.all([
       supabase.from('b2b_empresas').select('*').eq('id', id).single(),
       supabase.from('b2b_contatos').select('*').eq('empresa_id', id).order('created_at'),
       supabase.from('b2b_vinculos').select('*').eq('empresa_id', id).order('created_at'),
       supabase.from('companies').select('id,name,fantasia').eq('is_active', true).order('sort_order'),
+      supabase.from('b2b_divergencias').select('id,campo,valor_atual,valor_novo,fonte,created_at').eq('empresa_id', id).eq('status', 'aberta').order('created_at'),
     ]);
     setE(a.data as Empresa); setOriginal(a.data as Empresa);
     setContatos((c.data as Contato[]) ?? []); setVinculos((v.data as Vinculo[]) ?? []); setCompanies((co.data as Company[]) ?? []);
+    setDivergencias((d.data as Divergencia[]) ?? []);
   }
   useEffect(() => { carregar(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
 
@@ -128,6 +141,13 @@ export default function FichaB2B({ id, aoFechar, aoSalvar }: { id: string; aoFec
     await carregar(); aoSalvar();
   }
 
+  async function resolver(d: Divergencia, acao: 'mantido' | 'trocar' | 'virou_contato') {
+    const { error } = await supabase.rpc('b2b_divergencia_resolver', { p_divergencia: d.id, p_acao: acao });
+    if (error) { toast.error(error.message); return; }
+    toast.success(acao === 'trocar' ? 'Valor trocado.' : acao === 'virou_contato' ? 'Guardado como contato.' : 'Mantido o valor atual.');
+    await carregar(); aoSalvar();
+  }
+
   const nomeEmpresa = (cid: string | null) => { const c = companies.find(x => x.id === cid); return c ? (c.fantasia || c.name) : ''; };
   const origem = (k: string) => e?.proveniencia?.[k] ? `${e.proveniencia[k].fonte} · ${e.proveniencia[k].em}` : undefined;
 
@@ -149,6 +169,31 @@ export default function FichaB2B({ id, aoFechar, aoSalvar }: { id: string; aoFec
               </div>
               <button onClick={aoFechar} aria-label="Fechar" className="p-1.5 rounded-lg hover:bg-gray-200"><X className="w-5 h-5" /></button>
             </div>
+
+            {divergencias.length > 0 && (
+              <section className="bg-amber-50 border border-amber-200 rounded-xl p-4" data-campo="divergencias">
+                <h4 className="text-sm font-bold text-amber-900 mb-1">Divergências entre fontes ({divergencias.length})</h4>
+                <p className="text-xs text-amber-800 mb-3">Uma lista trouxe um valor diferente do que a ficha tem. Nada foi trocado sozinho: escolha o que vale.</p>
+                <div className="space-y-2">
+                  {divergencias.map(d => (
+                    <div key={d.id} className="bg-white border border-amber-100 rounded-lg p-2.5 text-sm">
+                      <div className="font-semibold text-gray-800">{ROTULO_DO_CAMPO[d.campo] ?? d.campo}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-xs my-1.5">
+                        <div><span className="text-gray-500">Na ficha:</span> <b className="text-gray-900 break-all">{mostrar(d.campo, d.valor_atual) || '—'}</b></div>
+                        <div><span className="text-gray-500">Em "{d.fonte}":</span> <b className="text-gray-900 break-all">{mostrar(d.campo, d.valor_novo)}</b></div>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button onClick={() => resolver(d, 'mantido')} className="px-2.5 py-1 rounded border border-gray-300 text-xs font-semibold hover:bg-gray-50">Manter o da ficha</button>
+                        <button onClick={() => resolver(d, 'trocar')} className="px-2.5 py-1 rounded border border-saporino/40 text-saporino text-xs font-semibold hover:bg-[#f5f0ef]">Usar o novo</button>
+                        {['telefone', 'whatsapp', 'email'].includes(d.campo) && (
+                          <button onClick={() => resolver(d, 'virou_contato')} className="px-2.5 py-1 rounded border border-gray-300 text-xs font-semibold hover:bg-gray-50">Guardar os dois (vira contato)</button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             <section className="bg-white border border-gray-200 rounded-xl p-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

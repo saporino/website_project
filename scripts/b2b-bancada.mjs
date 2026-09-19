@@ -42,8 +42,8 @@ async function usuario(rotulo, ehAdmin) {
 }
 
 async function limpar() {
-  await admin.from('b2b_empresas').delete().or(`cnpj.in.(${CNPJ_A},${CNPJ_B}),chave_nome.like.%${MARCA}%,fontes.cs.{${MARCA}-1}`);
-  await admin.from('b2b_importacoes').delete().like('fonte', `${MARCA}%`);
+  await admin.from('b2b_empresas').delete().or(`cnpj.in.(${CNPJ_A},${CNPJ_B},19131243000197),chave_nome.like.%${MARCA}%,fontes.cs.{${MARCA}-1}`);
+  await admin.from('b2b_importacoes').delete().or(`fonte.like.${MARCA}%,fonte.eq.x`);
   for (let p = 1; p <= 20; p++) {
     const { data } = await admin.auth.admin.listUsers({ page: p, perPage: 200 });
     for (const u of (data?.users ?? []).filter(x => x.email?.startsWith(MARCA))) await admin.auth.admin.deleteUser(u.id);
@@ -107,16 +107,66 @@ try {
   checar('contato com função cadastrado', !ec, ec?.message ?? '');
 
   secao('CONTAGEM POR UF');
+  await adm.cliente.rpc('b2b_mesclar', { p_fonte: `${MARCA}-1`, p_linhas: [linha({ cnpj: CNPJ_B, razao_social: `OUTRA ${MARCA} SA`, uf: 'SP', municipio: 'Santos' })] });
   const { data: cont } = await adm.cliente.rpc('b2b_contagem', { p_busca: 'Café Teste' });
-  checar('contagem por estado com filtro de busca', cont?.some(c => c.uf === 'SP' && Number(c.n) >= 1), JSON.stringify(cont));
+  const sp = Number(cont?.find(c => c.uf === 'SP')?.n ?? 0);
+  checar('contagem por estado com busca de texto conta só quem casa (não todo CNPJ)', sp === 1, JSON.stringify(cont));
+
+  secao('IMPORTAÇÃO POR ARQUIVO');
+  const { data: imp, error: eimp } = await adm.cliente.rpc('b2b_importacao_iniciar', {
+    p_fonte: `${MARCA}-arquivo`, p_arquivo: `${MARCA}.csv`, p_hash: 'abc123', p_tamanho: 1234, p_linhas: 2,
+  });
+  checar('importação aberta para o arquivo', !eimp && !!imp, eimp?.message ?? '');
+  await adm.cliente.rpc('b2b_mesclar', { p_fonte: `${MARCA}-arquivo`, p_linhas: [linha({ cnpj: CNPJ_A, instagram: '@cafeteste' })], p_importacao: imp });
+  await adm.cliente.rpc('b2b_mesclar', { p_fonte: `${MARCA}-arquivo`, p_linhas: [linha({ cnpj: CNPJ_A, bairro: 'Centro' })], p_importacao: imp });
+  await adm.cliente.rpc('b2b_importacao_concluir', { p_importacao: imp });
+  const { data: regs } = await admin.from('b2b_importacoes').select('*').eq('arquivo_hash', 'abc123');
+  checar('dois lotes somam numa única linha de importação, com impressão digital e data de conclusão',
+    regs?.length === 1 && regs[0].completadas === 2 && !!regs[0].concluida_em && regs[0].arquivo === `${MARCA}.csv`, JSON.stringify(regs));
+
+  secao('DIVERGÊNCIAS');
+  a = await ficha(CNPJ_A);
+  const { data: anteriores } = await admin.from('b2b_divergencias').select('campo, valor_novo').eq('empresa_id', a.id).eq('status', 'aberta');
+  checar('o nome fantasia diferente da fonte 2 já tinha ficado registrado como divergência',
+    anteriores?.some(d => d.campo === 'nome_fantasia' && d.valor_novo.includes('OUTRO NOME')), JSON.stringify(anteriores));
+  const antes = a.divergencias_abertas;
+  const d1 = await adm.cliente.rpc('b2b_mesclar', { p_fonte: `${MARCA}-abic`, p_linhas: [linha({ cnpj: CNPJ_A, telefone: '(19) 3333-4444', email: 'outro@teste.com.br', razao_social: 'Torrefação Teste B2B Ltda.' })] });
+  a = await ficha(CNPJ_A);
+  checar('valor diferente não sobrescreve e vira divergência (telefone e e-mail)',
+    d1.data?.divergencias === 2 && a?.telefone === '19999990000' && a?.email === 'compras@teste.com.br' && a?.divergencias_abertas === antes + 2,
+    JSON.stringify({ r: d1.data, telefone: a?.telefone, email: a?.email, abertas: a?.divergencias_abertas }));
+  checar('mesma razão social escrita de outro jeito (acento, ponto, caixa) não é divergência', d1.data?.divergencias === 2);
+  const d2 = await adm.cliente.rpc('b2b_mesclar', { p_fonte: `${MARCA}-abic`, p_linhas: [linha({ cnpj: CNPJ_A, telefone: '(19) 3333-4444' })] });
+  checar('a mesma divergência não se repete', d2.data?.divergencias === 0);
+  const { data: divs } = await adm.cliente.from('b2b_divergencias').select('id, campo').eq('empresa_id', a.id).eq('status', 'aberta');
+  const divTel = divs.find(d => d.campo === 'telefone');
+  const divEmail = divs.find(d => d.campo === 'email');
+  const lidoDivComum = await comum.cliente.from('b2b_divergencias').select('id').eq('empresa_id', a.id);
+  checar('usuário comum não enxerga divergências', (lidoDivComum.data ?? []).length === 0);
+  const resolveComum = await comum.cliente.rpc('b2b_divergencia_resolver', { p_divergencia: divTel.id, p_acao: 'trocar' });
+  checar('usuário comum não resolve divergência', !!resolveComum.error);
+  await adm.cliente.rpc('b2b_divergencia_resolver', { p_divergencia: divTel.id, p_acao: 'virou_contato' });
+  const { data: contatoNovo } = await admin.from('b2b_contatos').select('telefone, observacao').eq('empresa_id', a.id).eq('telefone', '1933334444');
+  a = await ficha(CNPJ_A);
+  checar('"guardar os dois": telefone novo virou contato, o da ficha ficou', contatoNovo?.length === 1 && a.telefone === '19999990000');
+  await adm.cliente.rpc('b2b_divergencia_resolver', { p_divergencia: divEmail.id, p_acao: 'trocar' });
+  a = await ficha(CNPJ_A);
+  checar('"usar o novo": e-mail trocado, com a fonte registrada, e sem divergência aberta',
+    a.email === 'outro@teste.com.br' && a.proveniencia?.email?.fonte === `${MARCA}-abic` && a.divergencias_abertas === antes,
+    JSON.stringify({ email: a.email, prov: a.proveniencia?.email, abertas: a.divergencias_abertas }));
+  const repetir = await adm.cliente.rpc('b2b_divergencia_resolver', { p_divergencia: divEmail.id, p_acao: 'mantido' });
+  checar('divergência já resolvida não é resolvida de novo', !!repetir.error);
 
   secao('ACESSO');
   const lidoComum = await comum.cliente.from('b2b_empresas').select('id').eq('cnpj', CNPJ_A);
   checar('usuário comum não enxerga nenhuma ficha', (lidoComum.data ?? []).length === 0);
-  const mescComum = await comum.cliente.rpc('b2b_mesclar', { p_fonte: `${MARCA}-x`, p_linhas: [linha({ cnpj: CNPJ_B, razao_social: 'X', uf: 'SP', municipio: 'X' })] });
-  checar('usuário comum não consegue importar', !!mescComum.error && !(await ficha(CNPJ_B)));
-  const insComum = await comum.cliente.from('b2b_empresas').insert({ cnpj: CNPJ_B, razao_social: 'X' });
-  checar('usuário comum não consegue inserir', !!insComum.error && !(await ficha(CNPJ_B)));
+  const CNPJ_C = '19131243000197';
+  const mescComum = await comum.cliente.rpc('b2b_mesclar', { p_fonte: `${MARCA}-x`, p_linhas: [linha({ cnpj: CNPJ_C, razao_social: 'X', uf: 'SP', municipio: 'X' })] });
+  checar('usuário comum não consegue importar', !!mescComum.error && !(await ficha(CNPJ_C)));
+  const insComum = await comum.cliente.from('b2b_empresas').insert({ cnpj: CNPJ_C, razao_social: 'X' });
+  checar('usuário comum não consegue inserir', !!insComum.error && !(await ficha(CNPJ_C)));
+  const impComum = await comum.cliente.rpc('b2b_importacao_iniciar', { p_fonte: 'x', p_arquivo: 'x', p_hash: 'x', p_tamanho: 1, p_linhas: 1 });
+  checar('usuário comum não abre importação', !!impComum.error);
   const lidoAnon = await anonimo.from('b2b_empresas').select('id').limit(1);
   checar('anônimo não enxerga nada', !!lidoAnon.error || (lidoAnon.data ?? []).length === 0);
   const contatosComum = await comum.cliente.from('b2b_contatos').select('id');

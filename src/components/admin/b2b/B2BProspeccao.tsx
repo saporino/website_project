@@ -16,10 +16,10 @@ interface Linha {
   id: string; cnpj: string | null; razao_social: string | null; nome_fantasia: string | null; tipo: Tipo;
   uf: string | null; municipio: string | null; telefone: string | null; whatsapp: string | null; email: string | null;
   site: string | null; marcas: string[]; trabalhado: boolean; ativo: boolean; fontes: string[]; pessoa_fisica: boolean;
-  situacao_cadastral: string | null; porte: string | null;
+  situacao_cadastral: string | null; porte: string | null; divergencias_abertas: number;
 }
 
-const COLUNAS = 'id,cnpj,razao_social,nome_fantasia,tipo,uf,municipio,telefone,whatsapp,email,site,marcas,trabalhado,ativo,fontes,pessoa_fisica,situacao_cadastral,porte';
+const COLUNAS = 'id,cnpj,razao_social,nome_fantasia,tipo,uf,municipio,telefone,whatsapp,email,site,marcas,trabalhado,ativo,fontes,pessoa_fisica,situacao_cadastral,porte,divergencias_abertas';
 
 export default function B2BProspeccao() {
   const [busca, setBusca] = useState('');
@@ -29,6 +29,7 @@ export default function B2BProspeccao() {
   const [aba, setAba] = useState<'nao_ativos' | 'ativos'>('nao_ativos');
   const [soTelefone, setSoTelefone] = useState(false);
   const [naoTrabalhadas, setNaoTrabalhadas] = useState(false);
+  const [comDivergencias, setComDivergencias] = useState(false);
   const [pagina, setPagina] = useState(0);
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [total, setTotal] = useState(0);
@@ -39,7 +40,7 @@ export default function B2BProspeccao() {
   const [importando, setImportando] = useState(false);
 
   useEffect(() => { const t = setTimeout(() => setBuscaEfetiva(busca.trim()), 350); return () => clearTimeout(t); }, [busca]);
-  useEffect(() => { setPagina(0); }, [buscaEfetiva, uf, tipo, aba, soTelefone, naoTrabalhadas]);
+  useEffect(() => { setPagina(0); }, [buscaEfetiva, uf, tipo, aba, soTelefone, naoTrabalhadas, comDivergencias]);
 
   const aplicarFiltros = useCallback(<Q extends { eq: Function; or: Function; is: Function; not: Function }>(q: Q, comUf: boolean): Q => {
     let r: any = q;
@@ -48,6 +49,7 @@ export default function B2BProspeccao() {
     // O padronizador sempre preenche telefone quando há WhatsApp; um filtro simples basta.
     if (soTelefone) r = r.not('telefone', 'is', null);
     if (naoTrabalhadas) r = r.eq('trabalhado', false);
+    if (comDivergencias) r = r.gt('divergencias_abertas', 0);
     if (buscaEfetiva) {
       const b = buscaEfetiva.replace(/[,()%*]/g, ' ').trim();
       const d = b.replace(/\D/g, '');
@@ -56,7 +58,7 @@ export default function B2BProspeccao() {
       r = r.or(partes.join(','));
     }
     return r;
-  }, [uf, tipo, soTelefone, naoTrabalhadas, buscaEfetiva]);
+  }, [uf, tipo, soTelefone, naoTrabalhadas, comDivergencias, buscaEfetiva]);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -69,7 +71,7 @@ export default function B2BProspeccao() {
     const naoAtivos = aplicarFiltros(base().select('id', { count: 'exact', head: true }) as any, true).eq('ativo', false);
     const contagem = supabase.rpc('b2b_contagem', {
       p_busca: buscaEfetiva || null, p_tipo: tipo || null, p_ativo: aba === 'ativos',
-      p_so_telefone: soTelefone, p_nao_trabalhadas: naoTrabalhadas,
+      p_so_telefone: soTelefone, p_nao_trabalhadas: naoTrabalhadas, p_com_divergencias: comDivergencias,
     });
     const [l, a, n, c] = await Promise.all([lista, ativos, naoAtivos, contagem]);
     setLinhas((l.data as Linha[]) ?? []);
@@ -77,7 +79,7 @@ export default function B2BProspeccao() {
     setTotais({ ativos: a.count ?? 0, naoAtivos: n.count ?? 0 });
     setPorUf(((c.data as { uf: string; n: number }[]) ?? []).map(x => ({ uf: x.uf, n: Number(x.n) })));
     setCarregando(false);
-  }, [aplicarFiltros, aba, pagina, buscaEfetiva, tipo, soTelefone, naoTrabalhadas]);
+  }, [aplicarFiltros, aba, pagina, buscaEfetiva, tipo, soTelefone, naoTrabalhadas, comDivergencias]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -98,6 +100,7 @@ export default function B2BProspeccao() {
         </select>
         <button onClick={() => setSoTelefone(v => !v)} className={chip(soTelefone)}>Só com telefone</button>
         <button onClick={() => setNaoTrabalhadas(v => !v)} className={chip(naoTrabalhadas)}>Só não trabalhadas</button>
+        <button onClick={() => setComDivergencias(v => !v)} className={chip(comDivergencias)}>Com divergências</button>
         <button onClick={() => setImportando(true)}
           className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-saporino text-white text-sm font-semibold hover:bg-saporino-deep">
           <Upload className="w-4 h-4" /> Importar lista
@@ -145,6 +148,11 @@ export default function B2BProspeccao() {
                     {l.trabalhado
                       ? <span className="text-[11px] px-2 py-0.5 rounded bg-green-50 text-green-700 font-medium">Trabalhada</span>
                       : <span className="text-[11px] px-2 py-0.5 rounded border border-gray-200 text-gray-500">Não trabalhada</span>}
+                    {l.divergencias_abertas > 0 && (
+                      <span className="text-[11px] px-2 py-0.5 rounded bg-amber-50 text-amber-800 font-semibold" data-campo="badge-divergencias">
+                        {l.divergencias_abertas} {l.divergencias_abertas === 1 ? 'divergência' : 'divergências'}
+                      </span>
+                    )}
                     {l.situacao_cadastral && l.situacao_cadastral !== 'Ativa' && (
                       <span className="text-[11px] px-2 py-0.5 rounded bg-amber-50 text-amber-700 font-medium">Receita: {l.situacao_cadastral}</span>
                     )}

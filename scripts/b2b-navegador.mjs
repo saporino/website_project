@@ -83,6 +83,15 @@ fs.writeFileSync(csv, [
   `12.345.678/0001-00;CNPJ ERRADO ${MARCA};;Santos;SP;;;`,
 ].join('\n'), 'utf8');
 
+const html = path.join(SAIDA, 'lista-teste.html');
+fs.writeFileSync(html, `<html><body><h2>Associados teste</h2><table>
+<tr><th>CNPJ</th><th>Empresa</th><th>Cidade</th><th>UF</th><th>Telefone</th></tr>
+<tr><td>${CNPJ_1}</td><td>TORREFACAO ${MARCA} UM LTDA</td><td>Campinas</td><td>SP</td><td>(19) 3333-0000</td></tr>
+<tr><td>${CNPJ_2}</td><td>SUPERMERCADO ${MARCA} DOIS LTDA</td><td>Belo Horizonte</td><td>MG</td><td></td></tr>
+</table><script>window.TORREF=[["${CNPJ_1}","TORREFACAO ${MARCA} UM LTDA","X",[],"","","13000000","CAMPINAS","SP",1994,1,1,0],
+["${CNPJ_2}","SUPERMERCADO ${MARCA} DOIS LTDA","Y",[],"","","30000000","BELO HORIZONTE","MG",1990,1,0,0],
+["${CNPJ_2}","SUPERMERCADO ${MARCA} DOIS LTDA","Y",[],"","","30000000","BELO HORIZONTE","MG",1990,1,0,0]];</script></body></html>`, 'utf8');
+
 const servidor = await subirVite();
 const browser = await chromium.launch({ channel: 'chrome', headless: !process.argv.includes('--mostrar') })
   .catch(() => chromium.launch({ channel: 'msedge', headless: !process.argv.includes('--mostrar') }));
@@ -142,6 +151,33 @@ try {
       checar('banco: a linha com CNPJ errado não entrou nem pelo nome', errada === 0);
       await foto('importador-concluido');
       await page.getByRole('button', { name: 'Fechar', exact: true }).last().click();
+
+      // O mesmo arquivo de novo: o sistema reconhece pelo conteúdo e avisa antes de gravar.
+      await page.getByRole('button', { name: 'Importar lista' }).click();
+      checar('tela inicial mostra o histórico de importações', await visivel(page.getByText('Importações anteriores')) && await visivel(page.getByText('lista-teste.csv').first()));
+      await page.locator('input[type="file"]').setInputFiles(csv);
+      checar('mesmo arquivo: aviso "já foi importado" com data e fonte',
+        await visivel(page.locator('[data-campo="aviso-repetido"]', { hasText: 'Este arquivo já foi importado' })));
+      await foto('aviso-repetido');
+      await page.getByRole('button', { name: 'Fechar' }).first().click();
+
+      // HTML com tabela + lista embutida; a tabela traz outro telefone para uma empresa que já existe.
+      await page.getByRole('button', { name: 'Importar lista' }).click();
+      await page.locator('input[type="file"]').setInputFiles(html);
+      checar('HTML com tabela e dados embutidos: pede para escolher a tabela',
+        await visivel(page.getByRole('button', { name: /Associados teste/ })) && await visivel(page.getByRole('button', { name: /Dados embutidos: TORREF/ })));
+      await foto('escolher-tabela');
+      await page.getByRole('button', { name: /Associados teste/ }).click();
+      checar('colunas do HTML reconhecidas (Empresa → razão social)',
+        (await page.locator('tr', { has: page.getByRole('cell', { name: 'Empresa', exact: true }) }).locator('select').inputValue()) === 'razao_social');
+      await page.getByRole('button', { name: 'Ver prévia' }).click();
+      await page.locator('[data-campo="fonte"]').fill(`${FONTE}-html`);
+      await page.getByRole('button', { name: /^Importar \d/ }).click();
+      checar('importação do HTML concluída com 1 divergência para decidir',
+        await visivel(page.getByText('Importação concluída'), 60000) && await visivel(page.getByText('1 divergências para decidir')));
+      await page.getByRole('button', { name: 'Fechar', exact: true }).last().click();
+      const { data: umDepois } = await admin.from('b2b_empresas').select('telefone, divergencias_abertas').eq('cnpj', CNPJ_1).single();
+      checar('banco: telefone da ficha NÃO foi trocado; divergência aberta', umDepois.telefone === '19999990001' && umDepois.divergencias_abertas === 1);
     }
 
     await page.getByPlaceholder('Buscar por nome, cidade ou CNPJ…').fill(MARCA);
@@ -161,10 +197,21 @@ try {
       await page.getByRole('button', { name: 'Todos', exact: true }).click();
       await visivel(page.getByText(`Café ${MARCA} Um`));
 
+      await page.getByRole('button', { name: 'Com divergências' }).click();
+      checar('filtro "Com divergências" mostra a empresa com o selo',
+        await visivel(page.locator('[data-linha-b2b]', { hasText: `Café ${MARCA} Um` }).locator('[data-campo="badge-divergencias"]')));
+      await page.getByRole('button', { name: 'Com divergências' }).click();
+
       await page.locator('[data-linha-b2b]', { hasText: `Café ${MARCA} Um` }).getByRole('button', { name: 'Ficha' }).click();
       const ficha = page.getByRole('dialog', { name: 'Ficha da empresa' });
-      checar('ficha abre com fonte e CNPJ formatado', await visivel(ficha.getByText(FONTE)) && await visivel(ficha.getByText(/98\.765\.001/)));
+      checar('ficha abre com fonte e CNPJ formatado', await visivel(ficha.getByText(FONTE).first()) && await visivel(ficha.getByText(/98\.765\.001/)));
+      checar('ficha mostra a divergência: valor da ficha × valor da lista',
+        await visivel(ficha.locator('[data-campo="divergencias"]', { hasText: '19999990001' })) && await visivel(ficha.locator('[data-campo="divergencias"]', { hasText: '1933330000' })));
       await foto('ficha');
+      await ficha.getByRole('button', { name: 'Usar o novo' }).click();
+      await ficha.locator('[data-campo="divergencias"]').waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
+      const { data: trocado } = await admin.from('b2b_empresas').select('telefone, divergencias_abertas').eq('cnpj', CNPJ_1).single();
+      checar('"Usar o novo": telefone trocado e divergência resolvida', trocado.telefone === '1933330000' && trocado.divergencias_abertas === 0);
       await ficha.locator('select').filter({ hasText: 'Coffee LiVRE — comprador' }).selectOption('coffeelivre_comprador');
       await ficha.locator('select').filter({ hasText: 'Negociação' }).last().selectOption('ativo');
       await ficha.getByRole('button', { name: 'Adicionar vínculo' }).click();
@@ -187,6 +234,7 @@ try {
   servidor.parar();
   await limpar();
   fs.rmSync(csv, { force: true });
+  fs.rmSync(html, { force: true });
   const { count } = await admin.from('b2b_empresas').select('id', { count: 'exact', head: true }).ilike('razao_social', `%${MARCA}%`);
   checar('limpeza: nenhuma empresa, importação ou usuário de teste sobrou', count === 0);
   console.log(`\n${criterios} critérios · ${falhas ? `${falhas} FALHARAM` : 'TODOS OS CRITÉRIOS PASSARAM'}\nCapturas em ${path.relative(RAIZ, SAIDA)}`);
