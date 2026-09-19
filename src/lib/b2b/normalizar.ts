@@ -11,6 +11,16 @@ export const TIPOS = [
 export type Tipo = typeof TIPOS[number][0];
 export const ROTULO_DO_TIPO = Object.fromEntries(TIPOS) as Record<Tipo, string>;
 
+/** O que se vende/compra no café B2B. Lista aberta: a ficha também aceita item novo. */
+export const TIPOS_DE_CAFE = [
+  'Tradicional', 'Extra Forte', 'Superior', 'Gourmet', 'Especial', 'Premium', '100% Arábica', 'Conilon / Robusta',
+  'Em grão', 'Moído', 'Solúvel', 'Cápsula', 'Drip / sachê', 'Descafeinado', 'Aromatizado', 'Café verde (cru)',
+] as const;
+export const EMBALAGENS = [
+  '250 g', '500 g', '1 kg', '2 kg', '5 kg', 'Fardo', 'Pouch / stand-up', 'Vácuo (tijolinho)', 'Almofada',
+  'Lata', 'Saca 60 kg', 'Granel', 'Private label',
+] as const;
+
 export const UFS = ['AC', 'AL', 'AM', 'AP', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MG', 'MS', 'MT', 'PA', 'PB', 'PE', 'PI', 'PR',
   'RJ', 'RN', 'RO', 'RR', 'RS', 'SC', 'SE', 'SP', 'TO'] as const;
 const NOME_DA_UF: Record<string, string> = {
@@ -72,7 +82,14 @@ export function normalizarTelefone(v: unknown): string | null {
   let d = digitos(v);
   if (d.startsWith('55') && d.length >= 12) d = d.slice(2);
   d = d.replace(/^0+/, '');
-  return d.length === 10 || d.length === 11 ? d : null;
+  if (d.length !== 10 && d.length !== 11) return null;
+  return telefoneSuspeito(d) ? null : d;
+}
+
+/** Número de enchimento ("1111-1111", "0000-0000", "1234-5678"): comum na Receita, não é telefone de verdade. */
+export function telefoneSuspeito(t: string | null | undefined): boolean {
+  const n = String(t ?? '').replace(/\D/g, '').slice(2).replace(/^9(?=\d{8}$)/, '');
+  return n.length >= 8 && (/^(\d)\1+$/.test(n) || '0123456789'.includes(n) || '9876543210'.includes(n));
 }
 export const ehCelular = (t: string | null) => !!t && t.length === 11 && t[2] === '9';
 export function formatarTelefone(t: string | null | undefined): string {

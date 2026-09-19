@@ -4,7 +4,32 @@ import { useEffect, useState } from 'react';
 import { Loader2, X, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../../lib/supabase';
-import { TIPOS, formatarCnpj, formatarTelefone, normalizarTelefone, type Tipo } from '../../../lib/b2b/normalizar';
+import { EMBALAGENS, TIPOS, TIPOS_DE_CAFE, formatarCnpj, formatarTelefone, normalizarTelefone, type Tipo } from '../../../lib/b2b/normalizar';
+
+/** Marca/desmarca itens de uma lista; aceita item novo digitado (lista aberta). */
+function SeletorDeItens({ titulo, opcoes, valores, aoMudar, dado }: {
+  titulo: string; opcoes: readonly string[]; valores: string[]; aoMudar: (v: string[]) => void; dado: string;
+}) {
+  const [novo, setNovo] = useState('');
+  const todas = [...opcoes, ...valores.filter(v => !opcoes.includes(v))];
+  const alternar = (item: string) => aoMudar(valores.includes(item) ? valores.filter(v => v !== item) : [...valores, item]);
+  return (
+    <div data-seletor={dado}>
+      <div className="text-[11px] font-semibold text-gray-500 mb-1">{titulo}</div>
+      <div className="flex flex-wrap gap-1.5">
+        {todas.map(item => (
+          <button key={item} type="button" onClick={() => alternar(item)} aria-pressed={valores.includes(item)}
+            className={`px-2 py-1 rounded-lg text-xs font-semibold border ${valores.includes(item) ? 'bg-saporino text-white border-saporino' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'}`}>
+            {item}
+          </button>
+        ))}
+        <input value={novo} onChange={e => setNovo(e.target.value)} placeholder="outro…" aria-label={`Outro item em ${titulo}`}
+          onKeyDown={e => { if (e.key === 'Enter' && novo.trim()) { e.preventDefault(); aoMudar([...valores, novo.trim()]); setNovo(''); } }}
+          className="px-2 py-1 rounded-lg border border-gray-200 text-xs w-24" />
+      </div>
+    </div>
+  );
+}
 
 type Empresa = Record<string, any> & { id: string; tipo: Tipo; marcas: string[]; fontes: string[]; proveniencia: Record<string, { fonte: string; em: string }> };
 interface Contato { id: string; funcao: string; nome: string | null; cargo: string | null; email: string | null; telefone: string | null; whatsapp: string | null }
@@ -80,7 +105,7 @@ export default function FichaB2B({ id, aoFechar, aoSalvar }: { id: string; aoFec
   async function salvar() {
     if (!e || !original) return;
     setSalvando(true);
-    const editaveis = [...GRUPOS.flatMap(g => g.campos.map(c => c[0])), 'tipo', 'notas', 'trabalhado', 'abic_certificada'];
+    const editaveis = [...GRUPOS.flatMap(g => g.campos.map(c => c[0])), 'tipo', 'notas', 'trabalhado', 'abic_certificada', 'volume_mensal'];
     const mudou: Record<string, unknown> = {};
     for (const k of editaveis) {
       let v = e[k];
@@ -91,11 +116,18 @@ export default function FichaB2B({ id, aoFechar, aoSalvar }: { id: string; aoFec
     }
     const marcas = (Array.isArray(e.marcas) ? e.marcas : String(e.marcas ?? '').split(',')).map((m: string) => m.trim()).filter(Boolean);
     if (JSON.stringify(marcas) !== JSON.stringify(original.marcas)) mudou.marcas = marcas;
+    for (const k of ['produtos_vende', 'produtos_compra', 'embalagens']) {
+      if (JSON.stringify(e[k] ?? []) !== JSON.stringify(original[k] ?? [])) mudou[k] = e[k] ?? [];
+    }
     if (!Object.keys(mudou).length) { setSalvando(false); toast.info('Nada mudou.'); return; }
     const hoje = new Date().toISOString().slice(0, 10);
     const prov = { ...original.proveniencia };
     for (const k of Object.keys(mudou)) if (!['trabalhado', 'notas'].includes(k)) prov[k] = { fonte: 'edição manual', em: hoje };
-    const { error } = await supabase.from('b2b_empresas').update({ ...mudou, proveniencia: prov }).eq('id', e.id);
+    const { data: eu } = await supabase.auth.getUser();
+    // Salvar pela tela = ficha auditada (importação não conta).
+    const { error } = await supabase.from('b2b_empresas').update({
+      ...mudou, proveniencia: prov, auditado_em: new Date().toISOString(), auditado_por: eu.user?.id ?? null,
+    }).eq('id', e.id);
     setSalvando(false);
     if (error) { toast.error('Não foi possível salvar: ' + error.message); return; }
     toast.success('Ficha salva.');
@@ -112,12 +144,18 @@ export default function FichaB2B({ id, aoFechar, aoSalvar }: { id: string; aoFec
     });
     if (error) { toast.error(error.message); return; }
     setNovoContato({ funcao: 'comprador', nome: '', cargo: '', email: '', telefone: '' });
-    carregar();
+    await auditar();
   }
   async function removerContato(c: Contato) {
     if (!window.confirm(`Remover o contato ${c.nome ?? c.email ?? ''}?`)) return;
     await supabase.from('b2b_contatos').delete().eq('id', c.id);
-    carregar();
+    await auditar();
+  }
+
+  /** Mexeu em contato, vínculo ou divergência: a ficha conta como auditada. */
+  async function auditar() {
+    await supabase.rpc('b2b_marcar_auditada', { p_empresa: id });
+    await carregar(); aoSalvar();
   }
 
   async function adicionarVinculo() {
@@ -128,24 +166,24 @@ export default function FichaB2B({ id, aoFechar, aoSalvar }: { id: string; aoFec
     });
     if (error) { toast.error(error.message.includes('duplicate') ? 'Esse vínculo já existe.' : error.message); return; }
     setNovoVinculo({ destino: 'cliente_empresa', company_id: '', etapa: 'prospeccao' });
-    await carregar(); aoSalvar();
+    await auditar();
   }
   async function atualizarVinculo(v: Vinculo, patch: Partial<Vinculo>) {
     const { error } = await supabase.from('b2b_vinculos').update(patch).eq('id', v.id);
     if (error) { toast.error(error.message); return; }
-    await carregar(); aoSalvar();
+    await auditar();
   }
   async function removerVinculo(v: Vinculo) {
     if (!window.confirm('Remover este vínculo? A empresa continua no B2B.')) return;
     await supabase.from('b2b_vinculos').delete().eq('id', v.id);
-    await carregar(); aoSalvar();
+    await auditar();
   }
 
   async function resolver(d: Divergencia, acao: 'mantido' | 'trocar' | 'virou_contato') {
     const { error } = await supabase.rpc('b2b_divergencia_resolver', { p_divergencia: d.id, p_acao: acao });
     if (error) { toast.error(error.message); return; }
     toast.success(acao === 'trocar' ? 'Valor trocado.' : acao === 'virou_contato' ? 'Guardado como contato.' : 'Mantido o valor atual.');
-    await carregar(); aoSalvar();
+    await auditar();
   }
 
   const nomeEmpresa = (cid: string | null) => { const c = companies.find(x => x.id === cid); return c ? (c.fantasia || c.name) : ''; };
@@ -166,6 +204,14 @@ export default function FichaB2B({ id, aoFechar, aoSalvar }: { id: string; aoFec
                     e.ativo ? 'Ativa' : 'Não ativa', e.pessoa_fisica ? 'MEI / pessoa física' : null].filter(Boolean).join(' · ')}
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">Fontes: {e.fontes.join(', ') || '—'}</p>
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {e.completa
+                    ? <span className="text-[11px] px-2 py-0.5 rounded bg-green-50 text-green-700 font-semibold">Ficha completa</span>
+                    : <span className="text-[11px] px-2 py-0.5 rounded border border-dashed border-gray-300 text-gray-500">Incompleta: falta CNPJ, razão social, tipo, UF, cidade, endereço, telefone ou e-mail</span>}
+                  {e.auditado_em
+                    ? <span className="text-[11px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold">Auditada em {new Date(e.auditado_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                    : <span className="text-[11px] px-2 py-0.5 rounded border border-gray-200 text-gray-500">Ainda não auditada</span>}
+                </div>
               </div>
               <button onClick={aoFechar} aria-label="Fechar" className="p-1.5 rounded-lg hover:bg-gray-200"><X className="w-5 h-5" /></button>
             </div>
@@ -225,6 +271,19 @@ export default function FichaB2B({ id, aoFechar, aoSalvar }: { id: string; aoFec
                 </div>
               </section>
             ))}
+
+            <section className="bg-white border border-gray-200 rounded-xl p-4">
+              <h4 className="text-sm font-bold text-gray-800 mb-3">O que vende e o que compra</h4>
+              <div className="space-y-3" data-campo="comercial">
+                <SeletorDeItens titulo="Vende" dado="vende" opcoes={TIPOS_DE_CAFE} valores={e.produtos_vende ?? []} aoMudar={v => set('produtos_vende', v)} />
+                <SeletorDeItens titulo="Compra" dado="compra" opcoes={TIPOS_DE_CAFE} valores={e.produtos_compra ?? []} aoMudar={v => set('produtos_compra', v)} />
+                <SeletorDeItens titulo="Embalagens" dado="embalagens" opcoes={EMBALAGENS} valores={e.embalagens ?? []} aoMudar={v => set('embalagens', v)} />
+                <div className="max-w-xs">
+                  <label className={lbl}>Volume por mês (ex.: 500 kg, 2 t, 300 fardos)</label>
+                  <input value={e.volume_mensal ?? ''} onChange={ev => set('volume_mensal', ev.target.value)} className={inp} aria-label="Volume por mês" />
+                </div>
+              </div>
+            </section>
 
             <section className="bg-white border border-gray-200 rounded-xl p-4">
               <h4 className="text-sm font-bold text-gray-800 mb-3">Café e observações</h4>

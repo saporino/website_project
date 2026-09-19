@@ -206,12 +206,25 @@ try {
       const ficha = page.getByRole('dialog', { name: 'Ficha da empresa' });
       checar('ficha abre com fonte e CNPJ formatado', await visivel(ficha.getByText(FONTE).first()) && await visivel(ficha.getByText(/98\.765\.001/)));
       checar('ficha mostra a divergência: valor da ficha × valor da lista',
-        await visivel(ficha.locator('[data-campo="divergencias"]', { hasText: '19999990001' })) && await visivel(ficha.locator('[data-campo="divergencias"]', { hasText: '1933330000' })));
+        await visivel(ficha.locator('[data-campo="divergencias"]', { hasText: '(19) 99999-0001' })) && await visivel(ficha.locator('[data-campo="divergencias"]', { hasText: '(19) 3333-0000' })));
       await foto('ficha');
       await ficha.getByRole('button', { name: 'Usar o novo' }).click();
       await ficha.locator('[data-campo="divergencias"]').waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
       const { data: trocado } = await admin.from('b2b_empresas').select('telefone, divergencias_abertas').eq('cnpj', CNPJ_1).single();
       checar('"Usar o novo": telefone trocado e divergência resolvida', trocado.telefone === '1933330000' && trocado.divergencias_abertas === 0);
+
+      // O que vende / compra, e salvar pela tela marca a ficha como auditada.
+      await ficha.locator('[data-seletor="vende"]').getByRole('button', { name: 'Tradicional', exact: true }).click();
+      await ficha.locator('[data-seletor="compra"]').getByRole('button', { name: 'Em grão', exact: true }).click();
+      await ficha.locator('[data-seletor="embalagens"]').getByRole('button', { name: '500 g', exact: true }).click();
+      await ficha.getByLabel('Volume por mês').fill('500 kg');
+      await ficha.getByRole('button', { name: 'Salvar ficha' }).click();
+      await visivel(page.getByText('Ficha salva.'));
+      const { data: comercial } = await admin.from('b2b_empresas').select('produtos_vende, produtos_compra, embalagens, volume_mensal, auditado_em').eq('cnpj', CNPJ_1).single();
+      checar('banco: vende, compra, embalagens e volume gravados, e ficha auditada',
+        comercial.produtos_vende.includes('Tradicional') && comercial.produtos_compra.includes('Em grão')
+        && comercial.embalagens.includes('500 g') && comercial.volume_mensal === '500 kg' && !!comercial.auditado_em, JSON.stringify(comercial));
+      checar('ficha mostra "Auditada em"', await visivel(ficha.getByText(/Auditada em/)));
       await ficha.locator('select').filter({ hasText: 'Coffee LiVRE — comprador' }).selectOption('coffeelivre_comprador');
       await ficha.locator('select').filter({ hasText: 'Negociação' }).last().selectOption('ativo');
       await ficha.getByRole('button', { name: 'Adicionar vínculo' }).click();
@@ -219,7 +232,13 @@ try {
       const { data: um } = await admin.from('b2b_empresas').select('ativo').eq('cnpj', CNPJ_1).single();
       checar('banco: empresa passou a ativa', um.ativo === true);
       await ficha.getByRole('button', { name: 'Fechar' }).click();
+      const linhaUm = page.locator('[data-linha-b2b]', { hasText: `Café ${MARCA} Um` });
       await page.getByRole('button', { name: /^Ativos/ }).click();
+      checar('linha mostra contatos à vista (telefone e e-mail clicáveis)',
+        await visivel(linhaUm.locator('[data-campo="contatos-linha"] a[href^="tel:"]')) && await visivel(linhaUm.locator('[data-campo="contatos-linha"] a[href^="mailto:"]')));
+      checar('linha mostra selo "Auditada" e "Vende: Tradicional · Compra: Em grão"',
+        await visivel(linhaUm.locator('[data-campo="selo-auditada"]')) && await visivel(linhaUm.locator('[data-campo="comercial-linha"]', { hasText: 'Vende: Tradicional' })));
+      checar('linha incompleta mostra quanto falta (sem endereço)', await visivel(linhaUm.locator('[data-campo="selo-incompleta"]')));
       checar('aba Ativos mostra a empresa; Não ativos deixou de mostrar',
         await visivel(page.getByText(`Café ${MARCA} Um`)) && !(await page.getByText(`Super ${MARCA} Dois`).isVisible()));
       await foto('ativos');

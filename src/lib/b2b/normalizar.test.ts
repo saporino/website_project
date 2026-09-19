@@ -32,6 +32,13 @@ describe('UF, telefone e tipo', () => {
     expect(normalizarTelefone('3266-1113')).toBeNull();
     expect(normalizarTelefone('1732671744')).toBe('1732671744');
   });
+  it('telefone de enchimento da Receita é descartado', () => {
+    expect(normalizarTelefone('(11) 1111-1111')).toBeNull();
+    expect(normalizarTelefone('(11) 0000-0000')).toBeNull();
+    expect(normalizarTelefone('(11) 91111-1111')).toBeNull();
+    expect(normalizarTelefone('(11) 1234-5678')).toBeNull();
+    expect(normalizarTelefone('(11) 6565-0365')).toBe('1165650365');
+  });
   it('tipo pelo CNAE e por texto livre', () => {
     expect(tipoPorCnae('1081302')).toBe('torrefacao');
     expect(tipoPorCnae('4711302')).toBe('supermercado');

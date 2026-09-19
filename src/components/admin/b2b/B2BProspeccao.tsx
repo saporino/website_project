@@ -4,9 +4,9 @@
 // quando a empresa ganha um vínculo ativo com algum negócio nosso, passa para "Ativos",
 // e nunca sai do B2B. Só admin enxerga (RLS).
 import { useCallback, useEffect, useState } from 'react';
-import { Loader2, Search, Upload, MessageCircle, MapPin, FileText, Phone } from 'lucide-react';
+import { Loader2, Search, Upload, MessageCircle, MapPin, FileText, Phone, Mail, Instagram, Facebook, Globe, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
-import { ROTULO_DO_TIPO, TIPOS, formatarCnpj, formatarTelefone, type Tipo } from '../../../lib/b2b/normalizar';
+import { ROTULO_DO_TIPO, TIPOS, formatarCnpj, formatarTelefone, telefoneSuspeito, type Tipo } from '../../../lib/b2b/normalizar';
 import FichaB2B from './FichaB2B';
 import ImportadorB2B from './ImportadorB2B';
 
@@ -17,9 +17,29 @@ interface Linha {
   uf: string | null; municipio: string | null; telefone: string | null; whatsapp: string | null; email: string | null;
   site: string | null; marcas: string[]; trabalhado: boolean; ativo: boolean; fontes: string[]; pessoa_fisica: boolean;
   situacao_cadastral: string | null; porte: string | null; divergencias_abertas: number;
+  instagram: string | null; facebook: string | null; logradouro: string | null; auditado_em: string | null; completa: boolean;
+  produtos_vende: string[]; produtos_compra: string[]; embalagens: string[]; volume_mensal: string | null;
 }
 
-const COLUNAS = 'id,cnpj,razao_social,nome_fantasia,tipo,uf,municipio,telefone,whatsapp,email,site,marcas,trabalhado,ativo,fontes,pessoa_fisica,situacao_cadastral,porte,divergencias_abertas';
+const COLUNAS = 'id,cnpj,razao_social,nome_fantasia,tipo,uf,municipio,telefone,whatsapp,email,site,marcas,trabalhado,ativo,fontes,pessoa_fisica,situacao_cadastral,porte,divergencias_abertas,instagram,facebook,logradouro,auditado_em,completa,produtos_vende,produtos_compra,embalagens,volume_mensal';
+
+/** O que falta para a ficha ficar completa (mesma regra da coluna `completa` do banco). */
+function faltando(l: Linha): string[] {
+  const f: string[] = [];
+  if (!l.cnpj) f.push('CNPJ');
+  if (!l.razao_social) f.push('razão social');
+  if (l.tipo === 'outro') f.push('tipo');
+  if (!l.uf) f.push('UF');
+  if (!l.municipio) f.push('cidade');
+  if (!l.logradouro) f.push('endereço');
+  if (!l.telefone) f.push('telefone');
+  if (!l.email) f.push('e-mail');
+  return f;
+}
+
+const linkRede = (v: string, rede: 'instagram' | 'facebook') =>
+  /^https?:\/\//i.test(v) ? v : rede === 'instagram' ? `https://instagram.com/${v.replace(/^@/, '')}` : `https://facebook.com/${v.replace(/^@/, '')}`;
+const pilula = 'inline-flex items-center gap-1 px-2 py-0.5 rounded border text-xs max-w-full';
 
 export default function B2BProspeccao() {
   const [busca, setBusca] = useState('');
@@ -30,6 +50,8 @@ export default function B2BProspeccao() {
   const [soTelefone, setSoTelefone] = useState(false);
   const [naoTrabalhadas, setNaoTrabalhadas] = useState(false);
   const [comDivergencias, setComDivergencias] = useState(false);
+  const [naoAuditadas, setNaoAuditadas] = useState(false);
+  const [incompletas, setIncompletas] = useState(false);
   const [pagina, setPagina] = useState(0);
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [total, setTotal] = useState(0);
@@ -40,7 +62,7 @@ export default function B2BProspeccao() {
   const [importando, setImportando] = useState(false);
 
   useEffect(() => { const t = setTimeout(() => setBuscaEfetiva(busca.trim()), 350); return () => clearTimeout(t); }, [busca]);
-  useEffect(() => { setPagina(0); }, [buscaEfetiva, uf, tipo, aba, soTelefone, naoTrabalhadas, comDivergencias]);
+  useEffect(() => { setPagina(0); }, [buscaEfetiva, uf, tipo, aba, soTelefone, naoTrabalhadas, comDivergencias, naoAuditadas, incompletas]);
 
   const aplicarFiltros = useCallback(<Q extends { eq: Function; or: Function; is: Function; not: Function }>(q: Q, comUf: boolean): Q => {
     let r: any = q;
@@ -50,6 +72,8 @@ export default function B2BProspeccao() {
     if (soTelefone) r = r.not('telefone', 'is', null);
     if (naoTrabalhadas) r = r.eq('trabalhado', false);
     if (comDivergencias) r = r.gt('divergencias_abertas', 0);
+    if (naoAuditadas) r = r.is('auditado_em', null);
+    if (incompletas) r = r.eq('completa', false);
     if (buscaEfetiva) {
       const b = buscaEfetiva.replace(/[,()%*]/g, ' ').trim();
       const d = b.replace(/\D/g, '');
@@ -58,7 +82,7 @@ export default function B2BProspeccao() {
       r = r.or(partes.join(','));
     }
     return r;
-  }, [uf, tipo, soTelefone, naoTrabalhadas, comDivergencias, buscaEfetiva]);
+  }, [uf, tipo, soTelefone, naoTrabalhadas, comDivergencias, naoAuditadas, incompletas, buscaEfetiva]);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -72,6 +96,7 @@ export default function B2BProspeccao() {
     const contagem = supabase.rpc('b2b_contagem', {
       p_busca: buscaEfetiva || null, p_tipo: tipo || null, p_ativo: aba === 'ativos',
       p_so_telefone: soTelefone, p_nao_trabalhadas: naoTrabalhadas, p_com_divergencias: comDivergencias,
+      p_nao_auditadas: naoAuditadas, p_incompletas: incompletas,
     });
     const [l, a, n, c] = await Promise.all([lista, ativos, naoAtivos, contagem]);
     setLinhas((l.data as Linha[]) ?? []);
@@ -79,7 +104,7 @@ export default function B2BProspeccao() {
     setTotais({ ativos: a.count ?? 0, naoAtivos: n.count ?? 0 });
     setPorUf(((c.data as { uf: string; n: number }[]) ?? []).map(x => ({ uf: x.uf, n: Number(x.n) })));
     setCarregando(false);
-  }, [aplicarFiltros, aba, pagina, buscaEfetiva, tipo, soTelefone, naoTrabalhadas, comDivergencias]);
+  }, [aplicarFiltros, aba, pagina, buscaEfetiva, tipo, soTelefone, naoTrabalhadas, comDivergencias, naoAuditadas, incompletas]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -101,6 +126,8 @@ export default function B2BProspeccao() {
         <button onClick={() => setSoTelefone(v => !v)} className={chip(soTelefone)}>Só com telefone</button>
         <button onClick={() => setNaoTrabalhadas(v => !v)} className={chip(naoTrabalhadas)}>Só não trabalhadas</button>
         <button onClick={() => setComDivergencias(v => !v)} className={chip(comDivergencias)}>Com divergências</button>
+        <button onClick={() => setNaoAuditadas(v => !v)} className={chip(naoAuditadas)}>Não auditadas</button>
+        <button onClick={() => setIncompletas(v => !v)} className={chip(incompletas)}>Incompletas</button>
         <button onClick={() => setImportando(true)}
           className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-saporino text-white text-sm font-semibold hover:bg-saporino-deep">
           <Upload className="w-4 h-4" /> Importar lista
@@ -137,14 +164,24 @@ export default function B2BProspeccao() {
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
           {linhas.map(l => {
-            const tel = l.whatsapp ?? l.telefone;
             const nome = l.nome_fantasia || l.razao_social || '—';
+            const falta = faltando(l);
+            const suspeito = telefoneSuspeito(l.telefone);
             return (
-              <div key={l.id} data-linha-b2b={l.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                <button onClick={() => setFichaId(l.id)} className="min-w-0 flex-1 text-left">
+              <div key={l.id} data-linha-b2b={l.id} className="flex flex-wrap items-start gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                <button onClick={() => setFichaId(l.id)} className="w-full text-left">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-gray-900 truncate">{nome}</span>
                     <span className="text-[11px] px-2 py-0.5 rounded bg-[#f5f0ef] text-saporino font-semibold">{ROTULO_DO_TIPO[l.tipo]}</span>
+                    {l.completa
+                      ? <span className="text-[11px] px-2 py-0.5 rounded bg-green-50 text-green-700 font-semibold inline-flex items-center gap-1" data-campo="selo-completa"><CheckCircle2 className="w-3 h-3" />Ficha completa</span>
+                      : <span className="text-[11px] px-2 py-0.5 rounded border border-dashed border-gray-300 text-gray-500" title={`Falta: ${falta.join(', ')}`} data-campo="selo-incompleta">Incompleta · falta {falta.length}</span>}
+                    {l.auditado_em && (
+                      <span className="text-[11px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold inline-flex items-center gap-1" data-campo="selo-auditada">
+                        <ShieldCheck className="w-3 h-3" />Auditada {new Date(l.auditado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                      </span>
+                    )}
                     {l.trabalhado
                       ? <span className="text-[11px] px-2 py-0.5 rounded bg-green-50 text-green-700 font-medium">Trabalhada</span>
                       : <span className="text-[11px] px-2 py-0.5 rounded border border-gray-200 text-gray-500">Não trabalhada</span>}
@@ -165,14 +202,54 @@ export default function B2BProspeccao() {
                       `${l.fontes.length} ${l.fontes.length === 1 ? 'fonte' : 'fontes'}`].filter(Boolean).join(' · ')}
                   </p>
                 </button>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {tel && <span className="text-sm text-gray-700 tabular-nums mr-1 inline-flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-gray-400" />{formatarTelefone(tel)}</span>}
-                  {l.whatsapp && (
-                    <a href={`https://wa.me/55${l.whatsapp}`} target="_blank" rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded border border-green-200 text-green-700 text-xs font-semibold hover:bg-green-50">
-                      <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
+                {(l.produtos_vende.length > 0 || l.produtos_compra.length > 0 || l.embalagens.length > 0 || l.volume_mensal) && (
+                  <p className="text-xs text-gray-600 mt-1" data-campo="comercial-linha">
+                    {[l.produtos_vende.length ? <span key="v"><b className="text-gray-800">Vende:</b> {l.produtos_vende.join(', ')}</span> : null,
+                      l.produtos_compra.length ? <span key="c"><b className="text-gray-800">Compra:</b> {l.produtos_compra.join(', ')}</span> : null,
+                      l.embalagens.length ? <span key="e"><b className="text-gray-800">Embalagens:</b> {l.embalagens.join(', ')}</span> : null,
+                      l.volume_mensal ? <span key="m"><b className="text-gray-800">Volume:</b> {l.volume_mensal}</span> : null,
+                    ].filter(Boolean).reduce<React.ReactNode[]>((acc, el, i) => (i ? [...acc, ' · ', el] : [el]), [])}
+                  </p>
+                )}
+                {/* Contatos à vista: dá para abordar sem abrir a ficha. */}
+                <div className="flex flex-wrap items-center gap-1.5 mt-1.5" data-campo="contatos-linha">
+                  {l.telefone && (
+                    <a href={`tel:+55${l.telefone}`} title={suspeito ? 'Número com cara de enchimento (ex.: 1111-1111). Confira antes de ligar.' : 'Ligar'}
+                      className={`${pilula} tabular-nums ${suspeito ? 'border-amber-300 text-amber-800 bg-amber-50' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                      <Phone className="w-3 h-3" />{formatarTelefone(l.telefone)}{suspeito && ' · suspeito'}
                     </a>
                   )}
+                  {l.whatsapp && (
+                    <a href={`https://wa.me/55${l.whatsapp}`} target="_blank" rel="noopener noreferrer" className={`${pilula} border-green-200 text-green-700 hover:bg-green-50`}>
+                      <MessageCircle className="w-3 h-3" />WhatsApp
+                    </a>
+                  )}
+                  {l.email && (
+                    <a href={`mailto:${l.email}`} className={`${pilula} border-gray-200 text-gray-700 hover:bg-gray-50`}>
+                      <Mail className="w-3 h-3 shrink-0" /><span className="truncate">{l.email}</span>
+                    </a>
+                  )}
+                  {l.instagram && (
+                    <a href={linkRede(l.instagram, 'instagram')} target="_blank" rel="noopener noreferrer" className={`${pilula} border-pink-200 text-pink-700 hover:bg-pink-50`}>
+                      <Instagram className="w-3 h-3" />{l.instagram.startsWith('@') ? l.instagram : 'Instagram'}
+                    </a>
+                  )}
+                  {l.facebook && (
+                    <a href={linkRede(l.facebook, 'facebook')} target="_blank" rel="noopener noreferrer" className={`${pilula} border-blue-200 text-blue-700 hover:bg-blue-50`}>
+                      <Facebook className="w-3 h-3" />Facebook
+                    </a>
+                  )}
+                  {l.site && (
+                    <a href={l.site} target="_blank" rel="noopener noreferrer" className={`${pilula} border-gray-200 text-gray-700 hover:bg-gray-50`}>
+                      <Globe className="w-3 h-3 shrink-0" /><span className="truncate">{l.site.replace(/^https?:\/\/(www\.)?/, '')}</span>
+                    </a>
+                  )}
+                  {!l.telefone && !l.whatsapp && !l.email && !l.instagram && !l.facebook && !l.site && (
+                    <span className="text-xs text-gray-400">Sem contato cadastrado</span>
+                  )}
+                </div>
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
                   {l.municipio && (
                     <a href={`https://www.google.com/maps/search/${encodeURIComponent(`${nome} ${l.municipio} ${l.uf ?? ''}`)}`} target="_blank" rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 px-2 py-1 rounded border border-gray-200 text-gray-600 text-xs font-semibold hover:bg-gray-50">
