@@ -214,7 +214,8 @@ const abrir = (page, url) => page.goto(url, { waitUntil: 'domcontentloaded', tim
 
 async function passarPeloPortao(page, base, caminho, codigo) {
   await abrir(page, base + caminho);
-  await page.getByPlaceholder('Código de acesso').fill(codigo);
+  // O portão agora chama o campo de "Código de convite"; os códigos antigos (multiuso) entram no mesmo campo.
+  await page.getByPlaceholder('Código de convite').fill(codigo, { timeout: 60000 });
   await page.getByRole('button', { name: 'Entrar' }).click();
 }
 

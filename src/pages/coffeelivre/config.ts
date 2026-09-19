@@ -65,3 +65,7 @@ export const DEMONSTRACAO_PRIVADA = true;
 
 /** Chave da sessão de demonstração no navegador. */
 export const CHAVE_SESSAO = 'livre_access';
+
+/** O rodapé da COFICO deixa aqui o código digitado (sem pôr o código na URL) e o modo do portão. */
+export const CHAVE_CODIGO_PENDENTE = 'lv_convite_codigo';
+export const CHAVE_MODO_PENDENTE = 'lv_portao_modo';
