@@ -12,36 +12,27 @@ import CampaignCreator from '../studio/CampaignCreator';
 import SocialConnections from '../studio/SocialConnections';
 import BrandProfile from '../studio/BrandProfile';
 import ImageStudio from '../studio/ImageStudio';
+import { useStudioMarcas } from '../studio/marcas';
 
 // Saporino Studio — engenharia reversa de vídeos com IA.
 // PASSO 2: upload + salvar no Storage + listar com status (realtime).
 // Análise (Claude/Whisper) e campanhas entram nos próximos passos.
 type Filtro = 'todos' | 'processando' | 'concluidos';
 
-// Nome de exibição da marca (título padrão das campanhas). Normaliza o fantasia da empresa
-// pros nomes bonitos que o Vlademir quer; siglas (ex.: COFICO) ficam em maiúsculo; fallback title-case.
-function brandTitleOf(fantasia?: string | null): string {
-  const raw = (fantasia || '').trim();
-  if (!raw) return 'Café Saporino';
-  const norm = raw.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  const MAP: Record<string, string> = {
-    'cafe saporino': 'Café Saporino',
-    'cafe fazendinha': 'Café Fazendinha',
-    'cofico brasil': 'COFICO Brasil',
-  };
-  if (MAP[norm]) return MAP[norm];
-  return raw.split(/\s+/).map(w => (w.length > 1 && w === w.toUpperCase()) ? w : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-}
-
 export default function StudioPage() {
   const { activeCompanyId: salesCompanyId } = useCompany();
   const { user } = useAuth();
-  // O Studio tem seu PRÓPRIO seletor de marca — inclui a COFICO (operadora logística, que NÃO entra no
-  // switcher de vendas do topo). Assim o conteúdo/campanhas/conexões da COFICO ficam separados, sem misturar
-  // com vendas. Default = empresa de vendas ativa; o usuário troca no seletor do Studio.
-  const [studioCompanyId, setStudioCompanyId] = useState<string | null>(null);
-  const [studioBrands, setStudioBrands] = useState<{ id: string; label: string; logo: string | null }[]>([]);
-  const activeCompanyId = studioCompanyId ?? salesCompanyId;
+  // O Studio tem seu PRÓPRIO seletor: uma ABA POR MARCA (studio_brand_profiles) — Saporino e as
+  // submarcas dela (Tropeiro Paulista, Café Serrão, Café do Amor), COFICO e Coffee LiVRE. Cada aba
+  // tem seus guardrails, suas contas (Instagram/TikTok), suas campanhas e seus vídeos.
+  // A empresa dona (company_id) vem da marca. Default = marca principal da empresa de vendas ativa.
+  const { marcas: studioMarcas, recarregar: recarregarMarcas } = useStudioMarcas();
+  const [studioBrandId, setStudioBrandId] = useState<string | null>(null);
+  const activeMarca = studioMarcas.find(m => m.id === studioBrandId)
+    ?? studioMarcas.find(m => m.company_id === salesCompanyId && m.is_primary)
+    ?? studioMarcas[0] ?? null;
+  const activeBrandId = activeMarca?.id ?? null;
+  const activeCompanyId = activeMarca?.company_id ?? salesCompanyId;
   // MARCA LIVRE é um contexto administrativo de criação, não uma empresa.
   // Ela aparece junto no seletor e por baixo NÃO troca company nem
   // organization: a empresa continua sendo a dona do arquivo, da sessão e da
@@ -55,7 +46,7 @@ export default function StudioPage() {
   const [uploadingOwn, setUploadingOwn] = useState(false);
 
   async function createOwnPost(file: File) {
-    if (!activeCompanyId) { toast.error('Selecione a marca no topo (Saporino/COFICO).'); return; }
+    if (!activeCompanyId || !activeBrandId) { toast.error('Escolha a marca no topo do Studio.'); return; }
     const isVid = file.type.startsWith('video/') || /\.(mp4|mov|m4v)$/i.test(file.name);
     const isImg = file.type.startsWith('image/') || /\.(jpe?g|png|webp)$/i.test(file.name);
     if (!isVid && !isImg) { toast.error('Envie uma imagem (JPG/PNG) ou vídeo (MP4).'); return; }
@@ -68,12 +59,8 @@ export default function StudioPage() {
     setUploadingOwn(false);
     setOwnPost({ mediaPath: path, mediaType: isVid ? 'video' : 'image', thumbUrl: signed?.signedUrl || null });
   }
-  // Contas que a gente publica no Studio (studio_enabled=true): Saporino e COFICO. A Fazendinha tem IG próprio
+  // Só entram marcas de empresas com studio_enabled (Saporino e COFICO). A Fazendinha tem IG próprio
   // que não gerenciamos — o conteúdo dela sai pela conta da COFICO, então ela NÃO entra no seletor.
-  useEffect(() => {
-    supabase.from('companies').select('id,name,fantasia,logo_url,sort_order').eq('is_active', true).eq('studio_enabled', true).order('sort_order')
-      .then(({ data }) => setStudioBrands((data || []).map((c: any) => ({ id: c.id, label: c.fantasia || c.name, logo: c.logo_url }))));
-  }, []);
   const [videos, setVideos] = useState<StudioVideo[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<Filtro>('todos');
@@ -273,7 +260,7 @@ export default function StudioPage() {
     setImporting(true);
     const t = toast.loading(`Baixando e analisando ${chosen.length} post(s)…`);
     const { data, error } = await supabase.functions.invoke('studio-import-instagram', {
-      body: { action: 'import', company_id: activeCompanyId, created_by: user?.id, posts: chosen },
+      body: { action: 'import', company_id: activeCompanyId, brand_id: activeBrandId, created_by: user?.id, posts: chosen },
     });
     toast.dismiss(t);
     setImporting(false);
@@ -367,11 +354,11 @@ export default function StudioPage() {
   };
 
   const load = useCallback(async () => {
-    if (!activeCompanyId) return;
+    if (!activeBrandId) return;
     const { data } = await supabase
       .from('studio_videos')
       .select('id,filename,storage_path,status,duration,brand_detected,created_at,error_text,source_url,media_type')
-      .eq('company_id', activeCompanyId)
+      .eq('brand_id', activeBrandId)
       .order('created_at', { ascending: false });
     let list = (data as StudioVideo[]) || [];
     // miniaturas: bucket studio-videos é privado → signed URLs (1h) pra mostrar a arte no card
@@ -383,7 +370,7 @@ export default function StudioPage() {
     }
     setVideos(list);
     setLoading(false);
-  }, [activeCompanyId]);
+  }, [activeBrandId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -443,16 +430,22 @@ export default function StudioPage() {
         </div>
       </div>
 
-      {/* Marca do Studio — separa conteúdo/campanhas/conexões por empresa (inclui a COFICO, que não vende). */}
-      {studioBrands.length > 1 && (
+      {/* Marca do Studio — uma aba por marca: guardrails, contas, campanhas e vídeos separados. */}
+      {studioMarcas.length > 1 && (
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-semibold text-gray-500">Publicando pela marca:</span>
-          {studioBrands.map(b => (
-            <button key={b.id} onClick={() => { setStudioCompanyId(b.id); setMarcaLivre(false); }}
-              className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium border ${!marcaLivre && activeCompanyId === b.id ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
-              {b.label}
-            </button>
-          ))}
+          {studioMarcas.map(b => {
+            const ativa = !marcaLivre && activeBrandId === b.id;
+            const arroba = b.contas.instagram;
+            return (
+              <button key={b.id} onClick={() => { setStudioBrandId(b.id); setMarcaLivre(false); }}
+                title={arroba ? `Publica em ${arroba}` : 'Instagram ainda não conectado (aba Conexões)'}
+                className={`inline-flex flex-col items-start px-3 py-1 rounded-lg text-sm font-medium border leading-tight ${ativa ? 'bg-saporino text-white border-saporino' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
+                <span>{b.name}</span>
+                <span className={`text-[10px] font-normal ${ativa ? 'text-white/80' : arroba ? 'text-gray-400' : 'text-amber-600'}`}>{arroba || 'sem Instagram'}</span>
+              </button>
+            );
+          })}
           {/* Só na criação de imagem, e só no admin. Nas outras visões (Marca,
               Conexões, Campanhas) marca livre não significa nada: elas operam
               sobre dados cadastrados de uma empresa real. */}
@@ -479,20 +472,20 @@ export default function StudioPage() {
       )}
 
       {/* Visão: Vídeos, Campanhas ou Conexões */}
-      <div className="flex bg-white border border-gray-200 rounded-xl text-sm font-semibold overflow-hidden w-fit">
+      <div className="flex bg-white border border-gray-200 rounded-xl text-sm font-semibold overflow-x-auto w-fit max-w-full">
         {([['videos', 'Vídeos'], ['imagem', 'Criar imagem'], ['campanhas', 'Campanhas'], ['marca', 'Marca'], ['conexoes', 'Conexões']] as const).map(([k, l]) => (
-          <button key={k} onClick={() => setView(k)} className={`px-5 py-2 ${view === k ? 'bg-[#8B2214] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>{l}</button>
+          <button key={k} onClick={() => setView(k)} className={`px-4 sm:px-5 py-2 whitespace-nowrap flex-shrink-0 ${view === k ? 'bg-[#8B2214] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>{l}</button>
         ))}
       </div>
 
       {view === 'imagem' ? (
-        <ImageStudio companyId={activeCompanyId} avancado marcaLivre={marcaLivre} nomeLivre={nomeLivre} />
+        <ImageStudio companyId={activeCompanyId} marcaId={activeBrandId} avancado marcaLivre={marcaLivre} nomeLivre={nomeLivre} />
       ) : view === 'marca' ? (
-        <BrandProfile companyId={activeCompanyId} />
+        <BrandProfile key={activeBrandId ?? ''} brandId={activeBrandId} />
       ) : view === 'conexoes' ? (
-        <SocialConnections companyId={activeCompanyId} />
+        <SocialConnections key={activeBrandId ?? ''} companyId={activeCompanyId} marca={activeMarca} onChange={recarregarMarcas} />
       ) : view === 'campanhas' ? (
-        <CampaignsPanel companyId={activeCompanyId} />
+        <CampaignsPanel key={activeBrandId ?? ''} companyId={activeCompanyId} marca={activeMarca} />
       ) : (
         <>
           {/* Importar do Instagram do concorrente: buscar → escolher miniaturas → analisar só os escolhidos */}
@@ -683,11 +676,11 @@ export default function StudioPage() {
             <span className="text-xs text-gray-500">Já tem a arte? Anexe aqui e vá direto pra <strong>legenda + publicar</strong> — sem análise de concorrente.</span>
           </div>
 
-          <VideoDropzone companyId={activeCompanyId} userId={user?.id} onUploaded={load} />
+          <VideoDropzone companyId={activeCompanyId} brandId={activeBrandId} userId={user?.id} onUploaded={load} />
 
-          <div className="flex bg-white border border-gray-200 rounded-xl text-sm font-semibold overflow-hidden w-fit">
+          <div className="flex bg-white border border-gray-200 rounded-xl text-sm font-semibold overflow-x-auto w-fit max-w-full">
             {([['todos', `Todos (${videos.length})`], ['processando', `Processando (${processando.length})`], ['concluidos', `Concluídos (${concluidos.length})`]] as const).map(([k, l]) => (
-              <button key={k} onClick={() => setFiltro(k)} className={`px-4 py-2 ${filtro === k ? 'bg-[#8B2214] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>{l}</button>
+              <button key={k} onClick={() => setFiltro(k)} className={`px-4 py-2 whitespace-nowrap flex-shrink-0 ${filtro === k ? 'bg-[#8B2214] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>{l}</button>
             ))}
           </div>
 
@@ -714,12 +707,12 @@ export default function StudioPage() {
       )}
 
       {modalVideo && (
-        <AnalysisModal video={modalVideo} companyId={activeCompanyId} brandTitle={brandTitleOf(studioBrands.find(b => b.id === activeCompanyId)?.label)} initialTab={modalTab} onClose={() => setModalVideo(null)} />
+        <AnalysisModal video={modalVideo} companyId={activeCompanyId} brandId={activeBrandId} brandTitle={activeMarca?.name} initialTab={modalTab} onClose={() => setModalVideo(null)} />
       )}
       {ownPost && (
-        <CampaignCreator companyId={activeCompanyId}
+        <CampaignCreator companyId={activeCompanyId} brandId={activeBrandId}
           sourceMediaPath={ownPost.mediaPath} sourceMediaType={ownPost.mediaType} sourceIsOwnArt sourceThumbUrl={ownPost.thumbUrl || undefined}
-          initialTitle={brandTitleOf(studioBrands.find(b => b.id === activeCompanyId)?.label)}
+          initialTitle={activeMarca?.name}
           onClose={() => setOwnPost(null)} onSaved={() => { setOwnPost(null); setView('campanhas'); }} />
       )}
     </div>

@@ -146,13 +146,15 @@ export function AdminDashboard() {
   return (
     <div className="min-h-screen bg-[#f8f7f5]">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* No celular o cabeçalho quebra em duas linhas: com tudo numa linha a página ficava com
+              ~680 px e os modais abriam fora da tela. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-3 sm:py-0 sm:h-20">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Painel Administrativo</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Painel Administrativo</h1>
               <p className="text-sm text-gray-500">Café Saporino</p>
             </div>
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               <GuideToggle />
               <CompanySwitcher />
               <AdminNotificationBell onNavigate={(tab) => openTab(tab as TabType)} />
@@ -161,11 +163,11 @@ export function AdminDashboard() {
                   window.history.pushState({}, '', '/');
                   window.dispatchEvent(new PopStateEvent('popstate'));
                 }}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="hidden sm:inline-flex px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Voltar para Loja
               </button>
-              <div className="text-right">
+              <div className="hidden sm:block text-right">
                 <p className="text-sm font-semibold text-gray-900">{profile?.full_name}</p>
                 <p className="text-xs text-gray-500">{roleTitle}</p>
               </div>
@@ -188,12 +190,12 @@ export function AdminDashboard() {
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="border-b border-gray-200">
-            <nav className="flex p-1.5 gap-0.5">
+            <nav className="flex p-1.5 gap-0.5 overflow-x-auto">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => openTab(tab.id)}
-                  className={`flex-1 px-2 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap text-center ${
+                  className={`flex-1 flex-shrink-0 px-2 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap text-center ${
                     activeTab === tab.id
                       ? 'bg-[#a4240e] text-white shadow-md'
                       : 'text-gray-600 hover:bg-gray-100'

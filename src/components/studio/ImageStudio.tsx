@@ -89,7 +89,9 @@ interface Geracao {
   created_at: string;
 }
 
-export default function ImageStudio({ companyId, avancado = false, marcaLivre = false, nomeLivre = '' }: {
+export default function ImageStudio({ companyId, marcaId = null, avancado = false, marcaLivre = false, nomeLivre = '' }: {
+  /** Marca da aba escolhida no topo do Studio (studio_brand_profiles.id). */
+  marcaId?: string | null;
   /** DONO ADMINISTRATIVO: empresa que responde pelo arquivo, pela sessão e
    *  pela auditoria. NÃO é a marca da peça — foi confundir as duas coisas que
    *  fez a embalagem Capital sair como Saporino. */
@@ -146,9 +148,10 @@ export default function ImageStudio({ companyId, avancado = false, marcaLivre = 
         // Trocar de empresa no topo TEM de trocar a marca junto. Manter a
         // anterior deixaria o formulário apontando para a marca de outra
         // empresa — a mesma classe de erro que estamos fechando.
-        setBrandId(lista[0]?.id ?? '');
+        // A aba do topo é a marca da peça; sem aba (cliente final), a principal da empresa.
+        setBrandId(lista.find(m => m.id === marcaId)?.id ?? lista[0]?.id ?? '');
       });
-  }, [companyId]);
+  }, [companyId, marcaId]);
 
   const chamar = useCallback(async (body: Record<string, unknown>) => {
     const { data, error } = await supabase.functions.invoke('studio-image', {

@@ -50,12 +50,14 @@ Deno.serve(async (req) => {
     if (!isAdmin) return json({ error: "forbidden" }, 403);
 
     const body = await req.json();
-    const { company_id, media_path, notes, network = "instagram", current, action = "generate" } = body;
+    const { company_id, brand_id, media_path, notes, network = "instagram", current, action = "generate" } = body;
     const db = createClient(url, service);
 
-    // guardrails da marca ativa
-    const { data: brand } = await db.from("studio_brand_profiles")
-      .select("name, tone, guardrails").eq("company_id", company_id).order("is_primary", { ascending: false }).limit(1).maybeSingle();
+    // guardrails da marca da aba (brand_id); sem brand_id, a marca principal da empresa
+    const consulta = db.from("studio_brand_profiles").select("name, tone, guardrails");
+    const { data: brand } = brand_id
+      ? await consulta.eq("id", brand_id).maybeSingle()
+      : await consulta.eq("company_id", company_id).order("is_primary", { ascending: false }).limit(1).maybeSingle();
 
     // AÇÃO 'verify': só confere o texto (seu OU o da IA) contra os guardrails — sem gerar nada.
     if (action === "verify") {

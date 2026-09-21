@@ -11,8 +11,8 @@ const BIG = 24 * 1024 * 1024;
 
 // Upload de vídeo para o bucket studio-videos + registro em studio_videos (status pending).
 // O processamento (transcrição/análise) é feito depois pela Edge Function (próximos passos).
-export default function VideoDropzone({ companyId, userId, onUploaded }: {
-  companyId: string | null; userId: string | undefined; onUploaded: () => void;
+export default function VideoDropzone({ companyId, brandId, userId, onUploaded }: {
+  companyId: string | null; brandId: string | null; userId: string | undefined; onUploaded: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -50,7 +50,7 @@ export default function VideoDropzone({ companyId, userId, onUploaded }: {
         const { error: upErr } = await supabase.storage.from('studio-videos').upload(path, file, { contentType: file.type || (isImage ? 'image/jpeg' : 'video/mp4') });
         if (upErr) throw upErr;
         const { data: row, error: dbErr } = await supabase.from('studio_videos').insert({
-          company_id: companyId, created_by: userId ?? null, media_type: isImage ? 'image' : 'video',
+          company_id: companyId, brand_id: brandId, created_by: userId ?? null, media_type: isImage ? 'image' : 'video',
           filename: file.name, storage_path: path, audio_path: audioPath, source_url: sourceUrl.trim() || null, status: 'pending',
         }).select('id').single();
         if (dbErr) throw dbErr;

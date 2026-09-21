@@ -3,6 +3,7 @@ import { Megaphone, Pencil, Trash2, Clock, Film, Send, Loader2, Instagram, Music
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import CampaignCreator, { type Campaign } from './CampaignCreator';
+import type { StudioMarca } from './marcas';
 
 interface Row extends Campaign { studio_videos?: { filename: string } | null; publish_error?: string | null; }
 
@@ -14,23 +15,26 @@ const ST: Record<string, { label: string; cls: string }> = {
   error: { label: 'Falhou', cls: 'bg-red-100 text-red-700' },
 };
 
-export default function CampaignsPanel({ companyId }: { companyId: string | null }) {
+// Campanhas da MARCA da aba: cada uma sai na conta desta marca.
+export default function CampaignsPanel({ companyId, marca }: { companyId: string | null; marca: StudioMarca | null }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Campaign | null>(null);
   const [confirmPub, setConfirmPub] = useState<Row | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const brandId = marca?.id ?? null;
+  const contaDe = (plataforma: string) => marca?.contas[plataforma] || `conta de ${marca?.name || 'marca'}`;
 
   const load = useCallback(async () => {
-    if (!companyId) return;
+    if (!brandId) return;
     const { data } = await supabase
       .from('studio_campaigns')
       .select('*, studio_videos(filename)')
-      .eq('company_id', companyId)
+      .eq('brand_id', brandId)
       .order('created_at', { ascending: false });
     setRows((data as Row[]) || []);
     setLoading(false);
-  }, [companyId]);
+  }, [brandId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -49,7 +53,7 @@ export default function CampaignsPanel({ companyId }: { companyId: string | null
 
   // clica em "Publicar agora": se falta arte, manda anexar; senão abre a confirmação
   function askPublish(r: Row) {
-    if (!r.media_path) { toast.error('Anexe a arte final da Saporino na campanha (Editar) antes de publicar.'); setEditing(r); return; }
+    if (!r.media_path) { toast.error('Anexe a arte final na campanha (Editar) antes de publicar.'); setEditing(r); return; }
     if (r.platform === 'tiktok' && r.media_type !== 'video') { toast.error('TikTok só publica vídeo. Anexe um vídeo MP4 (9:16) na campanha.'); setEditing(r); return; }
     setConfirmPub(r);
   }
@@ -75,7 +79,7 @@ export default function CampaignsPanel({ companyId }: { companyId: string | null
   if (!rows.length) return (
     <div className="bg-white border border-gray-200 rounded-xl p-10 text-center text-gray-400">
       <Megaphone className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-      <p className="text-sm">Nenhuma campanha ainda. Crie uma a partir da análise de um vídeo (aba Vídeos → Ver Análise → Publicar).</p>
+      <p className="text-sm">Nenhuma campanha de {marca?.name || 'esta marca'} ainda. Crie em Vídeos → "Criar post (arte pronta)" ou a partir da análise de um vídeo.</p>
     </div>
   );
 
@@ -94,6 +98,7 @@ export default function CampaignsPanel({ companyId }: { companyId: string | null
                   <p className="font-semibold text-gray-900 truncate">{r.title}</p>
                   <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#f5f0ef] text-[#8B2214]">{PLAT_LABEL[r.platform] || r.platform}</span>
                   <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${st.cls}`}>{st.label}</span>
+                  {PUBLISHABLE[r.platform] && <span className="text-[11px] text-gray-500">{contaDe(r.platform)}</span>}
                 </div>
                 <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-2 flex-wrap">
                   {r.studio_videos?.filename && <span className="inline-flex items-center gap-1"><Film className="w-3 h-3" />{r.studio_videos.filename}</span>}
@@ -122,7 +127,7 @@ export default function CampaignsPanel({ companyId }: { companyId: string | null
       })}
 
       {editing && (
-        <CampaignCreator companyId={companyId} campaign={editing} onClose={() => setEditing(null)} onSaved={load} />
+        <CampaignCreator companyId={companyId} brandId={brandId} campaign={editing} onClose={() => setEditing(null)} onSaved={load} />
       )}
 
       {confirmPub && (
@@ -131,7 +136,7 @@ export default function CampaignsPanel({ companyId }: { companyId: string | null
             <div className="p-5 text-center">
               <div className="w-12 h-12 rounded-full bg-[#f5f0ef] text-[#8B2214] flex items-center justify-center mx-auto mb-3">{confirmPub.platform === 'tiktok' ? <Music2 className="w-6 h-6" /> : <Instagram className="w-6 h-6" />}</div>
               <h3 className="font-bold text-gray-900">Publicar agora no {PUBLISHABLE[confirmPub.platform]?.label}?</h3>
-              <p className="text-sm text-gray-500 mt-1">"{confirmPub.title}" ({confirmPub.media_type === 'video' ? 'vídeo' : 'imagem'}) vai ao ar na conta da Saporino. Não dá pra desfazer pelo site.</p>
+              <p className="text-sm text-gray-500 mt-1">"{confirmPub.title}" ({confirmPub.media_type === 'video' ? 'vídeo' : 'imagem'}) vai ao ar em <strong>{contaDe(confirmPub.platform)}</strong>. Não dá pra desfazer pelo site.</p>
             </div>
             <div className="flex justify-center gap-2 px-5 pb-5">
               <button onClick={() => setConfirmPub(null)} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>

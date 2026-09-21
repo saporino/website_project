@@ -18,10 +18,12 @@ async function publishCampaign(db: any, campaignId: string) {
   const isVideo = c.media_type === "video" || /\.(mp4|mov|m4v)$/i.test(c.media_path);
   if (!isVideo) throw new Error("O TikTok só publica vídeo por aqui. Anexe um vídeo (MP4 9:16).");
 
+  // Conta de destino = a da MARCA da campanha; campanha antiga sem marca → marca principal da empresa.
+  const brandId = c.brand_id || (await db.rpc("studio_marca_principal", { p_company: c.company_id })).data;
   const { data: conn } = await db.from("studio_social_connections")
-    .select("*").eq("company_id", c.company_id).eq("platform", "tiktok").maybeSingle();
+    .select("*").eq("brand_id", brandId).eq("platform", "tiktok").maybeSingle();
   if (!conn || conn.status !== "connected" || !conn.access_token)
-    throw new Error("TikTok não está conectado para esta empresa (aba Conexões).");
+    throw new Error("O TikTok desta marca não está conectado (Studio › aba da marca › Conexões).");
 
   const token = conn.access_token as string;
 

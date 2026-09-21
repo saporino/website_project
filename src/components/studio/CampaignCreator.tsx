@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { X, Megaphone, Loader2, Upload, Film, Image as ImageIcon, CheckCircle2, Check, AlertTriangle, Sparkles, ShieldCheck } from 'lucide-react';
+import { useStudioMarcas, destinosPermitidos } from './marcas';
 
 const PLATFORMS: [string, string][] = [
   ['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['facebook', 'Facebook'], ['youtube', 'YouTube'], ['ecommerce', 'E-commerce'],
@@ -9,7 +11,7 @@ const PLATFORMS: [string, string][] = [
 const STATUSES: [string, string][] = [['draft', 'Rascunho'], ['scheduled', 'Agendada'], ['published', 'Publicada']];
 
 export interface Campaign {
-  id: string; video_id: string | null; company_id: string | null;
+  id: string; video_id: string | null; company_id: string | null; brand_id?: string | null;
   title: string; platform: string; content: string | null; prompt_used: string | null;
   status: string; scheduled_at: string | null; created_at: string;
   external_url?: string | null; published_at?: string | null;
@@ -17,8 +19,8 @@ export interface Campaign {
 }
 
 // Cria (a partir da análise, podendo publicar em VÁRIAS redes de uma vez) OU edita 1 campanha.
-export default function CampaignCreator({ videoId, companyId, campaign, initialTitle, initialContent, initialCaptions, promptUsed, sourceMediaPath, sourceMediaType, sourceIsOwnArt, sourceThumbUrl, onClose, onSaved }: {
-  videoId?: string | null; companyId: string | null; campaign?: Campaign;
+export default function CampaignCreator({ videoId, companyId, brandId, campaign, initialTitle, initialContent, initialCaptions, promptUsed, sourceMediaPath, sourceMediaType, sourceIsOwnArt, sourceThumbUrl, onClose, onSaved }: {
+  videoId?: string | null; companyId: string | null; brandId: string | null; campaign?: Campaign;
   initialTitle?: string; initialContent?: string; initialCaptions?: Record<string, string>; promptUsed?: string;
   sourceMediaPath?: string | null; sourceMediaType?: string | null; sourceIsOwnArt?: boolean; sourceThumbUrl?: string | null;
   onClose: () => void; onSaved?: () => void;
@@ -50,11 +52,18 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
   const [verifying, setVerifying] = useState<string | null>(null);
   // Sugestão da IA (mostrada SEPARADA — não sobrescreve o seu texto; você compara e aproveita).
   const [aiSuggestion, setAiSuggestion] = useState<Record<string, { caption: string; notes_ia: string | null; warnings: any[] }>>({});
+  // CONTAS de destino: a da marca da aba (padrão) e, por escolha, a da COFICO e a da marca-mãe.
+  // Cada conta marcada vira uma campanha própria, publicada no perfil daquela marca.
+  const { marcas } = useStudioMarcas();
+  const marcaDaAba = marcas.find(m => m.id === (campaign?.brand_id ?? brandId));
+  const destinos = marcaDaAba ? destinosPermitidos(marcaDaAba, marcas) : [];
+  const [contas, setContas] = useState<Set<string>>(new Set(brandId ? [brandId] : []));
+  const toggleConta = (id: string) => { if (editing) return; setContas(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
 
   async function generateCaption(p: string) {
     setAiBusy(p);
     const { data, error } = await supabase.functions.invoke('studio-caption', {
-      body: { company_id: companyId, media_path: mediaPath, notes: aiNotes, network: p, current: capOf(p) },
+      body: { company_id: companyId, brand_id: brandId, media_path: mediaPath, notes: aiNotes, network: p, current: capOf(p) },
     });
     setAiBusy(null);
     if (error || (data as any)?.error) { toast.error((data as any)?.error || error?.message || 'Falha ao gerar a legenda.'); return; }
@@ -69,7 +78,7 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
   async function verifyCaption(p: string) {
     setVerifying(p);
     const { data, error } = await supabase.functions.invoke('studio-caption', {
-      body: { company_id: companyId, network: p, action: 'verify', text: capOf(p) },
+      body: { company_id: companyId, brand_id: brandId, network: p, action: 'verify', text: capOf(p) },
     });
     setVerifying(null);
     if (error || (data as any)?.error) { toast.error((data as any)?.error || error?.message || 'Falha ao verificar.'); return; }
@@ -127,13 +136,20 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
       onSaved?.(); onClose(); return;
     }
 
-    // criar: 1 linha por rede escolhida (cada uma com sua legenda), mídia e agenda compartilhadas
+    // criar: 1 linha por rede × conta escolhida (cada rede com sua legenda), mídia e agenda compartilhadas.
+    // A campanha leva a marca da CONTA de destino: é ela que o publicador usa pra achar o perfil.
+    const destinosEscolhidos: { id: string; company_id: string; name: string }[] = destinos.length
+      ? destinos.filter(d => contas.has(d.id))
+      : (brandId && companyId ? [{ id: brandId, company_id: companyId, name: '' }] : []);
+    if (!destinosEscolhidos.length) { setSaving(false); toast.error('Escolha ao menos uma conta.'); return; }
     const finalStatus = schedIso ? 'scheduled' : 'draft';
-    const rows = list.map(p => ({
-      title: title.trim(), platform: p, content: capOf(p), status: finalStatus,
+    const rows = destinosEscolhidos.flatMap(d => list.map(p => ({
+      // campanha que sai em outra conta leva o nome da conta no título (só pra você se organizar)
+      title: d.id !== brandId && d.name ? `${title.trim()} · ${d.name}` : title.trim(),
+      platform: p, content: capOf(p), status: finalStatus,
       scheduled_at: schedIso, media_path: mediaPath, media_type: mediaType,
-      video_id: videoId ?? null, company_id: companyId, prompt_used: promptUsed || null,
-    }));
+      video_id: videoId ?? null, company_id: d.company_id, brand_id: d.id, prompt_used: promptUsed || null,
+    })));
     const { error } = await supabase.from('studio_campaigns').insert(rows);
     setSaving(false);
     if (error) { toast.error('Erro ao criar: ' + error.message); return; }
@@ -142,8 +158,11 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
   }
 
   const selected = [...platforms];
+  const totalCampanhas = selected.length * Math.max(1, editing ? 1 : destinos.filter(d => contas.has(d.id)).length);
 
-  return (
+  // Portal no <body>: dentro do painel, um ancestral com transform prende o `fixed` ao cartão
+  // e no celular o modal saía da tela pela direita.
+  return createPortal(
     <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
@@ -154,6 +173,31 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
           <button onClick={onClose} className="p-1.5 rounded text-gray-400 hover:bg-gray-100"><X className="w-4 h-4" /></button>
         </div>
         <div className="p-5 space-y-3">
+          {destinos.length > 0 && (
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                {editing ? 'Conta' : 'Publicar na conta de (marque uma ou várias)'}
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {destinos.filter(d => !editing || d.id === marcaDaAba?.id).map(d => {
+                  const on = editing || contas.has(d.id);
+                  const arroba = d.contas.instagram;
+                  return (
+                    <button key={d.id} onClick={() => toggleConta(d.id)} disabled={editing}
+                      className={`inline-flex flex-col items-start px-3 py-1.5 rounded-lg text-sm font-medium border text-left ${on ? 'bg-saporino text-white border-saporino' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'} ${editing ? 'opacity-70 cursor-default' : ''}`}>
+                      <span className="inline-flex items-center gap-1">{!editing && on && <Check className="w-3.5 h-3.5" />}{d.name}</span>
+                      <span className={`text-[10px] font-normal ${on ? 'text-white/80' : arroba ? 'text-gray-400' : 'text-amber-600'}`}>{arroba || 'Instagram não conectado'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {!editing && destinos.some(d => contas.has(d.id) && !d.contas.instagram) && platforms.has('instagram') && (
+                <p className="text-[11px] text-amber-700 mt-1.5 flex items-start gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /> Conta sem Instagram conectado: a campanha é criada, mas só publica depois de conectar (aba da marca › Conexões).
+                </p>
+              )}
+            </div>
+          )}
           <div>
             <label className="block text-[11px] font-semibold text-gray-500 mb-1">
               {editing ? 'Plataforma' : 'Publicar em (marque uma ou várias)'}
@@ -252,7 +296,7 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
 
           {/* Arte final da Saporino que vai ser PUBLICADA (não é o vídeo do concorrente) */}
           <div>
-            <label className="block text-[11px] font-semibold text-gray-500 mb-1">Arte para publicar (imagem ou vídeo da Saporino)</label>
+            <label className="block text-[11px] font-semibold text-gray-500 mb-1">Arte para publicar (imagem ou vídeo da marca)</label>
             {mediaPath ? (
               <div className="flex items-center gap-2 border border-green-200 bg-green-50 rounded-lg px-3 py-2 text-sm text-green-800">
                 {sourceThumbUrl && mediaPath === sourceMediaPath ? (
@@ -305,10 +349,11 @@ export default function CampaignCreator({ videoId, companyId, campaign, initialT
         <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200">
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>
           <button onClick={save} disabled={saving} className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Megaphone className="w-4 h-4" />} {editing ? 'Salvar' : `Criar ${selected.length > 1 ? selected.length + ' campanhas' : 'campanha'}`}
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Megaphone className="w-4 h-4" />} {editing ? 'Salvar' : `Criar ${totalCampanhas > 1 ? totalCampanhas + ' campanhas' : 'campanha'}`}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

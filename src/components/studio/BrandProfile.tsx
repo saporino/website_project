@@ -11,7 +11,7 @@ interface Brand {
 }
 
 // Perfil da Marca (Brand Kit): a IA usa isto pra adaptar TODA análise pra sua marca.
-export default function BrandProfile({ companyId }: { companyId: string | null }) {
+export default function BrandProfile({ brandId }: { brandId: string | null }) {
   const [brand, setBrand] = useState<Brand | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -20,15 +20,14 @@ export default function BrandProfile({ companyId }: { companyId: string | null }
   const [grText, setGrText] = useState('{}');   // brand guardrails em JSON
 
   const load = useCallback(async () => {
-    if (!companyId) return;
-    const { data } = await supabase.from('studio_brand_profiles').select('*')
-      .eq('company_id', companyId).order('is_primary', { ascending: false }).limit(1).maybeSingle();
+    if (!brandId) return;
+    const { data } = await supabase.from('studio_brand_profiles').select('*').eq('id', brandId).maybeSingle();
     setBrand(data as Brand | null);
     setF((data as Brand) || { name: '', tone: '', audience: '', product_line: '', dos: '', donts: '', logo_url: '', notes: '' });
     setPiText(JSON.stringify((data as any)?.product_images ?? [], null, 2));
     setGrText(JSON.stringify((data as any)?.guardrails ?? {}, null, 2));
     setLoading(false);
-  }, [companyId]);
+  }, [brandId]);
   useEffect(() => { load(); }, [load]);
 
   async function save() {
@@ -37,16 +36,15 @@ export default function BrandProfile({ companyId }: { companyId: string | null }
     let product_images: any, guardrails: any;
     try { product_images = piText.trim() ? JSON.parse(piText) : []; } catch { toast.error('JSON dos Assets oficiais inválido.'); setSaving(false); return; }
     try { guardrails = grText.trim() ? JSON.parse(grText) : {}; } catch { toast.error('JSON dos Brand Guardrails inválido.'); setSaving(false); return; }
+    if (!brand) { setSaving(false); toast.error('Marca não encontrada.'); return; }
     const payload: any = {
-      company_id: companyId, name: f.name.trim(), is_primary: true,
+      name: f.name.trim(),
       tone: f.tone || null, audience: f.audience || null, product_line: f.product_line || null,
       dos: f.dos || null, donts: f.donts || null, logo_url: f.logo_url || null, notes: f.notes || null,
       product_images, guardrails,
       updated_at: new Date().toISOString(),
     };
-    const { error } = brand
-      ? await supabase.from('studio_brand_profiles').update(payload).eq('id', brand.id)
-      : await supabase.from('studio_brand_profiles').insert(payload);
+    const { error } = await supabase.from('studio_brand_profiles').update(payload).eq('id', brand.id);
     setSaving(false);
     if (error) { toast.error('Erro ao salvar: ' + error.message); return; }
     toast.success('Perfil da marca salvo! A IA vai usar isso nas próximas análises.');
@@ -68,7 +66,7 @@ export default function BrandProfile({ companyId }: { companyId: string | null }
     <div className="space-y-4">
       <div className="bg-[#f8f7f5] border border-[#ddd0cc] rounded-xl p-4 text-sm text-gray-600 flex items-start gap-2">
         <Palette className="w-4 h-4 text-[#8B2214] mt-0.5 flex-shrink-0" />
-        <span>Este é o <strong>Perfil da Marca</strong>. A IA usa ele pra <strong>adaptar toda análise pra Café Saporino</strong> — cores, tom, pacote. Quando lançar submarcas/linhas, criamos um perfil pra cada.</span>
+        <span>Este é o <strong>Perfil da Marca</strong> de <strong>{f.name || 'esta marca'}</strong>. A IA usa ele (e os guardrails abaixo) em toda análise, legenda e imagem feitas nesta aba — cores, tom, produtos e o que nunca dizer.</span>
       </div>
 
       <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
@@ -80,7 +78,7 @@ export default function BrandProfile({ companyId }: { companyId: string | null }
         <Campo label="Tom de voz" k="tone" hint="Como a marca fala (ex.: tradição mineira, calorosa, autêntica)" />
         <Campo label="Público-alvo" k="audience" />
         <Campo label="Linha de produtos" k="product_line" />
-        <Campo label="SEMPRE (o que a IA deve garantir)" k="dos" rows={3} hint="Ex.: mostrar o pacote vermelho Saporino, usar #8B2214, remeter à tradição de Minas" />
+        <Campo label="SEMPRE (o que a IA deve garantir)" k="dos" rows={3} hint="Ex.: mostrar a embalagem oficial, usar as cores da marca, CTA para o WhatsApp comercial" />
         <Campo label="NUNCA (o que evitar)" k="donts" rows={2} hint="Ex.: nunca usar marca de concorrente na peça final" />
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">Logo (URL)</label>

@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
     if (!token) return json({ error: "APIFY_TOKEN ausente nos secrets do Supabase." }, 500);
 
     const body = await req.json();
-    const { action, handle, company_id, created_by, mediaFilter } = body;
+    const { action, handle, company_id, brand_id, created_by, mediaFilter } = body;
     const db2 = createClient(url, service);
 
     // ===================== DEBUG_POST: raspa 1 post pela URL, devolve o ITEM CRU do Apify (Parte 2) e
@@ -163,7 +163,7 @@ Deno.serve(async (req) => {
             } catch { /* áudio é best-effort — sem ele, cai no fallback visual */ }
           }
           const { data: row } = await db.from("studio_videos").insert({
-            company_id, created_by: created_by || null, media_type: isVideo ? "video" : "image",
+            company_id, brand_id: brand_id || null, created_by: created_by || null, media_type: isVideo ? "video" : "image",
             filename: `@${uname} — ${(p.caption || "post").slice(0, 40)}`, storage_path: path, thumbnail_path, audio_path,
             source_url: p.url || (uname !== "ig" ? `https://www.instagram.com/${uname}/` : null), status: "pending",
           }).select("id").single();

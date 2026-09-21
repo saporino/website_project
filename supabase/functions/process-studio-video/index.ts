@@ -234,9 +234,12 @@ Deno.serve(async (req) => {
     const { data: video, error: vErr } = await supabase.from("studio_videos").select("*").eq("id", videoId).single();
     if (vErr || !video) throw new Error("Vídeo não encontrado");
 
-    // Perfil da marca (Brand Kit) + Brand Guardrails da empresa
-    const { data: brand } = await supabase.from("studio_brand_profiles")
-      .select("*").eq("company_id", video.company_id).order("is_primary", { ascending: false }).limit(1).maybeSingle();
+    // Perfil da marca (Brand Kit) + Brand Guardrails: a marca da aba em que o vídeo entrou
+    // (video.brand_id); vídeo antigo sem marca usa a principal da empresa.
+    const { data: brand } = video.brand_id
+      ? await supabase.from("studio_brand_profiles").select("*").eq("id", video.brand_id).maybeSingle()
+      : await supabase.from("studio_brand_profiles")
+        .select("*").eq("company_id", video.company_id).order("is_primary", { ascending: false }).limit(1).maybeSingle();
     const brandBlock = brand ? `
 
 === BRIEFING DA NOSSA MARCA ===

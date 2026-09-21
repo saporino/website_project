@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Instagram, Music2, Youtube, CheckCircle2, Link2, Loader2, X, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
+import type { StudioMarca } from './marcas';
 
 interface Conn {
   id: string; company_id: string | null; platform: string;
@@ -10,14 +11,15 @@ interface Conn {
 }
 
 const NETS: { key: string; label: string; icon: any; hint: string }[] = [
-  { key: 'instagram', label: 'Instagram', icon: Instagram, hint: 'Conta Comercial/Criador ligada a uma Página do Facebook. Token vem do app Meta (Graph API).' },
+  { key: 'instagram', label: 'Instagram', icon: Instagram, hint: 'Conta Profissional (Comercial ou Criador). Conecta pelo login do Instagram — não precisa de Página do Facebook.' },
   { key: 'tiktok', label: 'TikTok', icon: Music2, hint: 'App no TikTok for Developers com Content Posting API. Token vem de lá.' },
   { key: 'youtube', label: 'YouTube', icon: Youtube, hint: 'Projeto no Google Cloud com YouTube Data API v3 (OAuth). Depois.' },
 ];
 
-// Conexões de redes sociais do Studio (por empresa). Enquanto não há OAuth automático
-// (depende dos apps aprovados na Meta/TikTok), a conexão é feita colando o token do app.
-export default function SocialConnections({ companyId }: { companyId: string | null }) {
+// Conexões de redes sociais do Studio — POR MARCA (aba): cada marca tem o seu Instagram/TikTok.
+// Instagram e TikTok conectam por login (OAuth); "colar token" fica como alternativa.
+export default function SocialConnections({ companyId, marca, onChange }: { companyId: string | null; marca: StudioMarca | null; onChange?: () => void }) {
+  const brandId = marca?.id ?? null;
   const [conns, setConns] = useState<Record<string, Conn>>({});
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
@@ -39,13 +41,13 @@ export default function SocialConnections({ companyId }: { companyId: string | n
   const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : null;
 
   const load = useCallback(async () => {
-    if (!companyId) return;
-    const { data } = await supabase.from('studio_social_connections').select('*').eq('company_id', companyId);
+    if (!brandId) return;
+    const { data } = await supabase.from('studio_social_connections').select('*').eq('brand_id', brandId);
     const map: Record<string, Conn> = {};
     (data as Conn[] || []).forEach(c => { map[c.platform] = c; });
     setConns(map);
     setLoading(false);
-  }, [companyId]);
+  }, [brandId]);
   useEffect(() => { load(); }, [load]);
 
   function openEdit(platform: string) {
@@ -57,47 +59,52 @@ export default function SocialConnections({ companyId }: { companyId: string | n
   // TikTok conecta por OAuth (abre a autorização do TikTok numa nova aba)
   function connectTikTok() {
     const base = import.meta.env.VITE_SUPABASE_URL;
-    window.open(`${base}/functions/v1/tiktok-oauth?start=1&company=${companyId || ''}`, '_blank');
-    toast.info('Autorize o app na aba do TikTok que abriu; depois volte e atualize a página.');
+    window.open(`${base}/functions/v1/tiktok-oauth?start=1&brand=${brandId || ''}`, '_blank');
+    toast.info(`Entre com a conta do TikTok de ${marca?.name || 'marca'} na aba que abriu; depois volte e clique em Atualizar.`);
   }
 
   // Instagram conecta por OAuth (login do Instagram numa nova aba). Se o app da Meta ainda não
   // estiver configurado (sem App ID/Secret), a aba mostra o erro e você usa "Editar" pra colar o token.
   function connectInstagram() {
     const base = import.meta.env.VITE_SUPABASE_URL;
-    window.open(`${base}/functions/v1/instagram-oauth?start=1&company=${companyId || ''}`, '_blank');
-    toast.info('Entre com a conta certa (ex.: @coficobrasil) na aba que abriu; depois volte e atualize.');
+    window.open(`${base}/functions/v1/instagram-oauth?start=1&brand=${brandId || ''}`, '_blank');
+    toast.info(`Entre com o Instagram de ${marca?.name || 'marca'} na aba que abriu; depois volte e clique em Atualizar.`);
   }
 
   async function save() {
     if (!form.access_token.trim() && !conns[editing!]?.access_token) { toast.error('Cole o token de acesso da rede.'); return; }
     setSaving(true);
     const payload: any = {
-      company_id: companyId, platform: editing,
+      brand_id: brandId, company_id: companyId, platform: editing,
       account_name: form.account_name.trim() || null, account_id: form.account_id.trim() || null,
       status: 'connected', updated_at: new Date().toISOString(),
     };
     if (form.access_token.trim()) payload.access_token = form.access_token.trim();
-    const { error } = await supabase.from('studio_social_connections').upsert(payload, { onConflict: 'company_id,platform' });
+    const { error } = await supabase.from('studio_social_connections').upsert(payload, { onConflict: 'brand_id,platform' });
     setSaving(false);
     if (error) { toast.error('Erro: ' + error.message); return; }
     toast.success('Conexão salva!');
-    setEditing(null); load();
+    setEditing(null); load(); onChange?.();
   }
 
   async function disconnect(platform: string) {
-    if (!confirm('Desconectar esta rede?')) return;
-    await supabase.from('studio_social_connections').delete().eq('company_id', companyId).eq('platform', platform);
-    load();
+    if (!confirm(`Desconectar esta rede de ${marca?.name || 'marca'}?`)) return;
+    await supabase.from('studio_social_connections').delete().eq('brand_id', brandId).eq('platform', platform);
+    load(); onChange?.();
   }
 
   if (loading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8B2214]" /></div>;
 
   return (
     <div className="space-y-3">
-      <div className="bg-[#f8f7f5] border border-[#ddd0cc] rounded-xl p-4 text-sm text-gray-600">
-        Ligue aqui as contas onde o Studio vai publicar. Enquanto os apps da Meta/TikTok não estão aprovados,
-        a conexão é feita <strong>colando o token</strong> do app. Quando aprovar, ligo o botão "Conectar" automático.
+      <div className="bg-[#f8f7f5] border border-[#ddd0cc] rounded-xl p-4 text-sm text-gray-600 flex items-start gap-3">
+        <span className="flex-1">
+          Contas de <strong>{marca?.name || 'marca'}</strong>: o que for publicado nesta aba sai nestas contas.
+          Em <strong>Conectar</strong>, o Instagram pede login — entre com a conta desta marca (uma conta não pode ficar em duas abas).
+        </span>
+        <button onClick={() => { load(); onChange?.(); }} className="inline-flex items-center gap-1 text-xs font-semibold text-saporino hover:underline flex-shrink-0">
+          <RefreshCw className="w-3.5 h-3.5" /> Atualizar
+        </button>
       </div>
       {NETS.map(n => {
         const c = conns[n.key];

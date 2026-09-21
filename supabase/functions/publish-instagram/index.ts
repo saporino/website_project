@@ -16,10 +16,13 @@ async function publishCampaign(db: any, url: string, campaignId: string) {
   if (c.platform !== "instagram") throw new Error("Esta campanha não é do Instagram.");
   if (!c.media_path) throw new Error("Anexe a arte final da Saporino (imagem ou vídeo) na campanha antes de publicar.");
 
+  // A conta de destino é a da MARCA da campanha (aba escolhida no Studio). Campanha antiga sem
+  // marca cai na marca principal da empresa — nunca numa submarca por acaso.
+  const brandId = c.brand_id || (await db.rpc("studio_marca_principal", { p_company: c.company_id })).data;
   const { data: conn } = await db.from("studio_social_connections")
-    .select("*").eq("company_id", c.company_id).eq("platform", "instagram").maybeSingle();
+    .select("*").eq("brand_id", brandId).eq("platform", "instagram").maybeSingle();
   if (!conn || conn.status !== "connected" || !conn.access_token || !conn.account_id)
-    throw new Error("Instagram não está conectado para esta empresa (aba Conexões).");
+    throw new Error("O Instagram desta marca não está conectado (Studio › aba da marca › Conexões).");
 
   // signed URL público-temporário da arte (o IG precisa BAIXAR a mídia)
   const { data: signed, error: sErr } = await db.storage.from("studio-videos").createSignedUrl(c.media_path, 3600);
