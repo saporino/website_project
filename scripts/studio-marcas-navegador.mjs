@@ -193,6 +193,17 @@ try {
     checar(`[${tela.rotulo}] aba COFICO mostra a campanha dela`, await visivel(page.getByText(`Legenda ${MARCA}`), 10000));
     await admin.from('studio_campaigns').delete().like('content', `Legenda ${MARCA}`);
 
+    // volta do login do Instagram: a função redireciona pra /admin?studio_conexao=…
+    const volta = new URL(servidor.base + '/admin');
+    volta.searchParams.set('studio_conexao', 'ok');
+    volta.searchParams.set('studio_msg', 'Instagram @cafetropeiropaulista conectado à marca Café Tropeiro Paulista.');
+    volta.searchParams.set('studio_marca', idDe('Café Tropeiro Paulista'));
+    await page.goto(volta.toString(), { waitUntil: 'domcontentloaded' });
+    checar(`[${tela.rotulo}] volta do login: aviso de sucesso na tela`, await visivel(page.getByText('conectado à marca Café Tropeiro Paulista'), 60000));
+    checar(`[${tela.rotulo}] volta do login: abre Conexões da aba Tropeiro e limpa a URL`,
+      await visivel(page.getByText('Conta: @cafetropeiropaulista'), 20000) && !page.url().includes('studio_conexao'));
+    await foto('volta-do-login');
+
     checar(`[${tela.rotulo}] sem erro no console ou na rede`, erros.length === 0, erros.slice(0, 5).join(' | '));
     await ctx.close();
   }

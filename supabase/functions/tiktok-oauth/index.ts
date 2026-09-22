@@ -10,8 +10,14 @@ const REDIRECT_URI = `${Deno.env.get("SUPABASE_URL")}/functions/v1/tiktok-oauth`
 // URL pra onde devolvemos o usuário no fim (o admin/Studio)
 const APP_RETURN = "https://www.cafesaporino.com.br/admin";
 
-function html(msg: string) {
-  return new Response(`<!doctype html><html><head><meta charset="utf-8"></head><body style="font-family:sans-serif;padding:40px;text-align:center">${msg}<p><a href="${APP_RETURN}">Voltar ao Studio</a></p></body></html>`, { headers: { "Content-Type": "text/html; charset=utf-8" } });
+// Volta pro Studio (aba Conexões da marca) com o resultado na URL. Página HTML própria não
+// serve: o gateway do Supabase entrega HTML de função como texto puro.
+function html(msg: string, marca?: string) {
+  const u = new URL(APP_RETURN);
+  u.searchParams.set("studio_conexao", msg.startsWith("✅") ? "ok" : "erro");
+  u.searchParams.set("studio_msg", msg.replace(/<[^>]+>/g, "").replace(/^(✅|❌|⚠️)\s*/u, ""));
+  if (marca) u.searchParams.set("studio_marca", marca);
+  return new Response(null, { status: 302, headers: { Location: u.toString() } });
 }
 
 const SCOPES = "user.info.basic,video.upload"; // video.publish só depois da auditoria
@@ -79,7 +85,7 @@ Deno.serve(async (req) => {
     }, { onConflict: "brand_id,platform" });
     if (error) throw new Error(error.message);
 
-    return html(`✅ TikTok conectado à marca <b>${marca.name}</b>! Pode fechar esta aba e voltar ao Studio.`);
+    return html(`✅ TikTok conectado à marca ${marca.name}.`, marca.id);
   } catch (e) {
     return html(`❌ Erro ao conectar o TikTok: ${(e as Error).message}`);
   }

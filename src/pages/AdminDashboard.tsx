@@ -93,7 +93,8 @@ export function AdminDashboard() {
 
   // Deep-link: if another page stored a target tab in localStorage, activate it
   useEffect(() => {
-    const target = localStorage.getItem('admin-initial-tab') as TabType | null;
+    // Volta do login do Instagram/TikTok (studio_conexao na URL) → abre o Studio.
+    const target = (new URLSearchParams(window.location.search).has('studio_conexao') ? 'studio' : localStorage.getItem('admin-initial-tab')) as TabType | null;
     if (target) {
       openTab(target);
       localStorage.removeItem('admin-initial-tab');

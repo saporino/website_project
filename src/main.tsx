@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { Toaster } from 'sonner';
 import App from './App.tsx';
 import './index.css';
 
@@ -12,6 +13,9 @@ try {
   createRoot(rootElement).render(
     <StrictMode>
       <App />
+      {/* Na raiz: vale para todas as rotas (loja, admin, RepCo, Promotor, Coffee LiVRE…).
+          Antes ficava só dentro da loja, e os avisos do painel nunca apareciam. */}
+      <Toaster position="top-center" richColors />
     </StrictMode>
   );
 } catch (error) {

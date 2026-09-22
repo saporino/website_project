@@ -12,8 +12,14 @@ const APP_RETURN = "https://www.cafesaporino.com.br/admin";
 // escopos da Instagram API with Instagram Login: ler o básico + publicar conteúdo
 const SCOPES = "instagram_business_basic,instagram_business_content_publish";
 
-function html(msg: string) {
-  return new Response(`<!doctype html><html><head><meta charset="utf-8"></head><body style="font-family:sans-serif;padding:40px;text-align:center">${msg}<p><a href="${APP_RETURN}">Voltar ao Studio</a></p></body></html>`, { headers: { "Content-Type": "text/html; charset=utf-8" } });
+// Volta pro Studio (aba Conexões da marca) com o resultado na URL. Página HTML própria não
+// serve: o gateway do Supabase entrega HTML de função como texto puro.
+function html(msg: string, marca?: string) {
+  const u = new URL(APP_RETURN);
+  u.searchParams.set("studio_conexao", msg.startsWith("✅") ? "ok" : "erro");
+  u.searchParams.set("studio_msg", msg.replace(/<[^>]+>/g, "").replace(/^(✅|❌|⚠️)\s*/u, ""));
+  if (marca) u.searchParams.set("studio_marca", marca);
+  return new Response(null, { status: 302, headers: { Location: u.toString() } });
 }
 
 // state "b:<brand_id>" → a marca; state antigo (company_id) → marca principal da empresa.
@@ -96,7 +102,7 @@ Deno.serve(async (req) => {
     const outra = (outras || [])[0] as any;
     if (outra) {
       const nome = outra.studio_brand_profiles?.name || "outra marca";
-      return html(`⚠️ ${username || "Esta conta"} já está ligada à aba <b>${nome}</b>.<br>Para conectar <b>${marca.name}</b>, clique em Conectar de novo e entre com a conta do Instagram de ${marca.name}.`);
+      return html(`⚠️ ${username || "Esta conta"} já está ligada à aba <b>${nome}</b>.<br>Para conectar <b>${marca.name}</b>, clique em Conectar de novo e entre com a conta do Instagram de ${marca.name}.`, marca.id);
     }
 
     const { error } = await supabase.from("studio_social_connections").upsert({
@@ -107,7 +113,7 @@ Deno.serve(async (req) => {
     }, { onConflict: "brand_id,platform" });
     if (error) throw new Error(error.message);
 
-    return html(`✅ Instagram ${username || accountId} conectado à marca <b>${marca.name}</b>! Pode fechar esta aba e voltar ao Studio.`);
+    return html(`✅ Instagram ${username || accountId} conectado à marca ${marca.name}.`, marca.id);
   } catch (e) {
     return html(`❌ Erro ao conectar o Instagram: ${(e as Error).message}`);
   }

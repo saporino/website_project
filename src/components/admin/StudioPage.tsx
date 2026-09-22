@@ -32,6 +32,17 @@ export default function StudioPage() {
     ?? studioMarcas.find(m => m.company_id === salesCompanyId && m.is_primary)
     ?? studioMarcas[0] ?? null;
   const activeBrandId = activeMarca?.id ?? null;
+  // Volta do login do Instagram/TikTok: abre a aba da marca em Conexões e mostra o resultado.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const resultado = q.get('studio_conexao');
+    if (!resultado) return;
+    const msg = q.get('studio_msg') || '';
+    if (q.get('studio_marca')) setStudioBrandId(q.get('studio_marca'));
+    setView('conexoes');
+    if (resultado === 'ok') toast.success(msg || 'Conta conectada.'); else toast.error(msg || 'Não deu para conectar.', { duration: 15000 });
+    window.history.replaceState({}, '', window.location.pathname);
+  }, []);
   const activeCompanyId = activeMarca?.company_id ?? salesCompanyId;
   // MARCA LIVRE é um contexto administrativo de criação, não uma empresa.
   // Ela aparece junto no seletor e por baixo NÃO troca company nem

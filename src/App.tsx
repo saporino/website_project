@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, FormEvent, useCallback, lazy, Suspense } from 'react';
-import { Toaster, toast } from 'sonner';
+import { toast } from 'sonner';
 import { ShoppingCart, Plus, Minus, X, Trash2, ShoppingBag, Menu, Instagram, Send, User, ChevronDown, ChevronLeft, ChevronRight, LogOut, CreditCard, Facebook, Linkedin, Lock, Truck, Briefcase, MapPin, Flame, Coffee } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { CompanyProvider, useCompany } from './contexts/CompanyContext';
@@ -367,7 +367,6 @@ function AppContent() {
       />
       <PromoPopup onAction={(link) => openAuth(link === 'cadastro' ? 'register' : 'login')} />
       <CookieConsent />
-      <Toaster position="top-center" richColors />
     </div>
   );
 }
