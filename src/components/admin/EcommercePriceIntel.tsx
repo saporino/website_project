@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
-import { RefreshCw, Loader2, Search, Coffee, ExternalLink, Settings, Check, Smartphone } from 'lucide-react';
+import { montarFolhaDePrecos, nomeDoArquivo } from '../../lib/intelPdf';
+import { RefreshCw, Loader2, Search, Coffee, ExternalLink, Settings, Check, Smartphone, Download } from 'lucide-react';
 
 const BRAND = '#B03220';
 const SEGS: { key: string; label: string }[] = [
@@ -28,6 +29,13 @@ export default function EcommercePriceIntel({ marketplace, label, readOnly = fal
   const [onlyArabica, setOnlyArabica] = useState(false);
   const [q, setQ] = useState('');
   // Preço Saporino persistido: digita 1x e vale pra TODOS os marketplaces (e ao recarregar).
+  // Margens que o supermercado trabalha. No PDF viram colunas de "quanto ele pagaria":
+  // preço ao mercado = preço de prateleira × (1 − margem). Fica salvo no navegador.
+  const [margens, setMargens] = useState(() => localStorage.getItem('intel-margens') || '20; 22,5; 25');
+  useEffect(() => { localStorage.setItem('intel-margens', margens); }, [margens]);
+  const listaMargens = useMemo(() => margens.split(/[;,\n]/).map(m => parseFloat(m.replace(',', '.').trim()))
+    .filter(n => Number.isFinite(n) && n > 0 && n < 90).slice(0, 4), [margens]);
+
   const [sapPrice, setSapPrice] = useState(() => localStorage.getItem('saporino-eprice') || '');
   const [sapWeight, setSapWeight] = useState(() => localStorage.getItem('saporino-eweight') || '500');
   useEffect(() => { localStorage.setItem('saporino-eprice', sapPrice); }, [sapPrice]);
@@ -138,6 +146,56 @@ export default function EcommercePriceIntel({ marketplace, label, readOnly = fal
     capsula: rows.filter(r => r.unit_type === 'capsula').length, suspect: rows.filter(r => r.is_suspect).length,
   }), [rows]);
 
+  // BAIXAR PDF — leva o mesmo recorte que está na tela (segmento, filtro de arábica, busca
+  // e a ordem do ranking), com as fotos. Monta uma folha própria e abre a impressão do
+  // navegador: em "Destino", escolher "Salvar como PDF".
+  function baixarPdf() {
+    const hoje = new Date().toLocaleString('pt-BR');
+    const recorte = [
+      SEGS.find(s => s.key === seg)?.label,
+      onlyArabica ? 'só 100% arábica' : null,
+      q.trim() ? `busca: "${q.trim()}"` : null,
+    ].filter(Boolean).join(' · ');
+    const dataColeta = rows[0]?.captured_at ? new Date(rows[0].captured_at) : new Date();
+    const nomeArquivo = nomeDoArquivo(label, dataColeta);
+    const html = montarFolhaDePrecos({
+      mercado: label,
+      atualizadoEm: lastCapture,
+      geradoEm: hoje,
+      recorte,
+      margens: listaMargens,
+      medianaPorKg: med,
+      faixa: [lo, hi],
+      promoPct,
+      pesosAlvo: sapW ? [...new Set([250, 500, 1000, sapW])].sort((a, b) => a - b) : undefined,
+      linhas: segRows.map(r => ({
+        titulo: r.title,
+        fotoUrl: r.thumb_url,
+        precoPrateleira: r.price,
+        precoPorKg: r.price_per_kg,
+        pesoG: r.weight_g,
+        arabica: r.is_arabica,
+        patrocinado: r.is_sponsored,
+        descontoPct: r.discount_pct,
+      })),
+    }, nomeArquivo);
+
+    // Janela nova quando o navegador deixa; senão, um quadro escondido na própria página.
+    const janela = window.open('', '_blank');
+    if (janela) {
+      janela.document.write(html);
+      janela.document.close();
+      janela.addEventListener('load', () => setTimeout(() => janela.print(), 400));
+      return;
+    }
+    const quadro = document.createElement('iframe');
+    quadro.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+    document.body.appendChild(quadro);
+    const doc = quadro.contentDocument!;
+    doc.open(); doc.write(html); doc.close();
+    setTimeout(() => { quadro.contentWindow?.focus(); quadro.contentWindow?.print(); setTimeout(() => quadro.remove(), 60000); }, 800);
+  }
+
   if (loading) return <div className="flex justify-center py-10"><Loader2 className="w-7 h-7 animate-spin" style={{ color: BRAND }} /></div>;
 
   return (
@@ -148,8 +206,16 @@ export default function EcommercePriceIntel({ marketplace, label, readOnly = fal
           <h3 className="text-lg font-bold text-gray-900">Inteligência de preços — {label}</h3>
           <p className="text-sm text-gray-500">{rows.length} anúncios no último lote{lastCapture ? ` · coletado ${lastCapture}` : ' · nenhuma coleta ainda'}</p>
         </div>
-        {!readOnly && (
         <div className="flex items-center gap-2">
+          {/* Vale para qualquer marketplace, inclusive os de só leitura: baixa o que está na tela. */}
+          {rows.length > 0 && (
+            <button onClick={baixarPdf} title="Baixa a lista que está na tela, com as fotos (escolha “Salvar como PDF” na impressão)"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-lg border bg-white border-gray-300 text-gray-600 hover:bg-gray-50">
+              <Download className="w-4 h-4" /> Baixar PDF
+            </button>
+          )}
+        {!readOnly && (
+        <>
           <button onClick={toggleVisibleToReps} disabled={togglingVis} title="Liga/desliga: o representante vê estes preços no app do celular"
             className={`inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-lg border disabled:opacity-50 ${visibleToReps ? 'bg-green-600 border-green-600 text-white hover:bg-green-700' : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
             {togglingVis ? <Loader2 className="w-4 h-4 animate-spin" /> : <Smartphone className="w-4 h-4" />} {visibleToReps ? 'Rep vê ✓' : 'Rep não vê'}
@@ -160,8 +226,9 @@ export default function EcommercePriceIntel({ marketplace, label, readOnly = fal
           <button onClick={refresh} disabled={refreshing} className="inline-flex items-center gap-2 text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50" style={{ background: BRAND }}>
             {refreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />} Atualizar agora
           </button>
-        </div>
+        </>
         )}
+        </div>
       </div>
       {msg && <p className="text-xs p-2 rounded bg-gray-50 border border-gray-100 text-gray-700">{msg}</p>}
 
@@ -249,6 +316,15 @@ export default function EcommercePriceIntel({ marketplace, label, readOnly = fal
               <input value={sapWeight} onChange={e => setSapWeight(e.target.value)} className="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm" />
               <span className="text-xs text-gray-400">g</span>
               {sapSpk > 0 && <span className="text-sm font-bold" style={{ color: BRAND }}>= {brl(sapSpk)}/kg</span>}
+            </div>
+            {/* Margens do mercado — entram como colunas no PDF ("quanto ele pagaria") */}
+            <div className="flex items-center gap-2 flex-wrap mb-3 border-t border-gray-100 pt-3">
+              <span className="text-sm font-semibold text-gray-700">Margens do mercado:</span>
+              <input value={margens} onChange={e => setMargens(e.target.value)} placeholder="20; 22,5; 25"
+                className="w-40 border border-gray-300 rounded-lg px-2 py-1 text-sm" />
+              <span className="text-xs text-gray-400">
+                % separadas por ponto e vírgula (até 4). No PDF viram colunas de quanto o mercado pagaria por cada café.
+              </span>
             </div>
             <div className="relative h-10">
               <div className="absolute top-1/2 left-0 right-0 h-1.5 -translate-y-1/2 rounded-full bg-gradient-to-r from-green-300 via-amber-300 to-red-400" />
