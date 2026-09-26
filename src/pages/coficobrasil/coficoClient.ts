@@ -44,3 +44,17 @@ export async function fetchCoficoVitrine(): Promise<CoficoProduto[]> {
   if (error || !data) return [];
   return data as CoficoProduto[];
 }
+
+/**
+ * Marcas que a COFICO mostra no site. Vem de `vw_cofico_marcas`, que já esconde
+ * a empresa desligada em Configurações ("Aparece no site da COFICO") — desligar
+ * some do site, religar traz de volta, sem mexer em produto nem pedido.
+ */
+export interface CoficoMarca { id: string; marca: string; logo_url: string | null; tem_produto: boolean }
+
+export async function fetchCoficoMarcas(): Promise<CoficoMarca[] | null> {
+  const { data, error } = await coficoDb.from('vw_cofico_marcas').select('*');
+  // null = não deu para consultar; a página mantém o que já mostra (não apaga marca por falha de rede).
+  if (error || !data) return null;
+  return data as CoficoMarca[];
+}

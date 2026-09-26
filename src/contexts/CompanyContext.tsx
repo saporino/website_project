@@ -7,6 +7,8 @@ export interface Company {
   logo_url: string | null; commission_model: string; sort_order: number; is_active: boolean;
   endereco: string | null; cidade: string | null; uf: string | null; cep: string | null;
   allow_cash: boolean; is_b2c: boolean; order_prefix: string | null; is_operator?: boolean;
+  // Marca aparece no site da COFICO. Desligar só esconde da vitrine pública.
+  cofico_visivel?: boolean;
 }
 
 interface Ctx {

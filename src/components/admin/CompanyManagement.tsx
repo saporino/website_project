@@ -36,6 +36,8 @@ function CompanyRow({ company, onSaved }: { company: Company; onSaved: () => voi
 
   const set = (k: keyof Company, v: any) => setF(p => ({ ...p, [k]: v }));
 
+  // O logo GRAVA NA HORA. Antes ele só entrava no formulário e dependia do "Salvar":
+  // quem enviava a imagem e saía da tela perdia o logo (o arquivo subia, o cadastro ficava vazio).
   async function uploadLogo(file: File) {
     setUploading(true);
     try {
@@ -44,7 +46,11 @@ function CompanyRow({ company, onSaved }: { company: Company; onSaved: () => voi
       const { error } = await supabase.storage.from(BUCKET).upload(path, file, { upsert: true });
       if (error) throw error;
       const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
+      const { error: eGravar } = await supabase.from('companies').update({ logo_url: pub.publicUrl }).eq('id', company.id);
+      if (eGravar) throw eGravar;
       set('logo_url', pub.publicUrl);
+      setSaved(true); setTimeout(() => setSaved(false), 2500);
+      onSaved();
     } catch (e) { alert('Erro ao enviar logo: ' + (e instanceof Error ? e.message : e)); }
     setUploading(false);
   }
@@ -55,6 +61,7 @@ function CompanyRow({ company, onSaved }: { company: Company; onSaved: () => voi
       name: f.name, fantasia: f.fantasia || null, cnpj: (f.cnpj || '').replace(/\D/g, '') || null,
       endereco: f.endereco || null, cidade: f.cidade || null, uf: f.uf || null, cep: f.cep || null,
       logo_url: f.logo_url || null, commission_model: f.commission_model, is_active: f.is_active,
+      cofico_visivel: (f as any).cofico_visivel ?? true,
       allow_cash: f.allow_cash, order_prefix: (f.order_prefix || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4) || null,
     }).eq('id', company.id);
     setSaving(false);
@@ -99,6 +106,11 @@ function CompanyRow({ company, onSaved }: { company: Company; onSaved: () => voi
       <div className="flex items-center justify-end gap-3 mt-3">
         <label className="flex items-center gap-1.5 text-xs text-gray-600 mr-auto cursor-pointer">
           <input type="checkbox" checked={f.is_active} onChange={e => set('is_active', e.target.checked)} /> Ativa (aparece no seletor)
+        </label>
+        {/* Liga/desliga a marca no SITE da COFICO. Desligar só esconde: produto, estoque e
+            pedido ficam intactos e voltam ao lugar quando religar. */}
+        <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer" title="Mostrar esta marca no site da COFICO (vitrine e Marcas que distribuímos). Desligar não apaga nada.">
+          <input type="checkbox" checked={(f as any).cofico_visivel ?? true} onChange={e => set('cofico_visivel' as any, e.target.checked)} /> Aparece no site da COFICO
         </label>
         <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer" title="Permite receber em dinheiro na hora (venda na hora)">
           <input type="checkbox" checked={f.allow_cash} onChange={e => set('allow_cash', e.target.checked)} /> Aceita dinheiro

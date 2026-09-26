@@ -20,7 +20,7 @@ import CoficoCookieConsent from './CoficoCookieConsent';
 import CoficoMarcaLeadForm from './CoficoMarcaLeadForm';
 import AcessoCoffeeLivre from './AcessoCoffeeLivre';
 import { COFICO } from './config';
-import { fetchCoficoStats } from './coficoClient';
+import { fetchCoficoStats, fetchCoficoMarcas } from './coficoClient';
 import { FAZEMOS } from './conteudo';
 
 const ROTA_REGULAR = [
@@ -90,6 +90,14 @@ export default function CoficoBrasilPage() {
   useEffect(() => { if (view === 'home') document.title = 'COFICO Brasil — Desenvolvimento comercial e distribuição de marcas de alimentos em SP'; }, [view]);
   useEffect(() => { let alive = true; fetchCoficoStats().then((s) => { if (alive) setStats(s); }); return () => { alive = false; }; }, []);
 
+  // Marcas ligadas no painel (Configurações › Empresas › "Aparece no site da COFICO").
+  // null = ainda carregando ou consulta falhou → mostra tudo, para uma falha de rede
+  // nunca apagar marca do site.
+  const [marcasLigadas, setMarcasLigadas] = useState<string[] | null>(null);
+  useEffect(() => { let alive = true; fetchCoficoMarcas().then(ms => { if (alive && ms) setMarcasLigadas(ms.map(m => m.marca)); }); return () => { alive = false; }; }, []);
+  const marcaLigada = (nome: string) =>
+    marcasLigadas === null || marcasLigadas.some(m => m.toLowerCase().includes(nome.toLowerCase()));
+
   // Números ao vivo. Experiência e regiões são sempre reais; entregas/clientes só aparecem quando > 0
   // (crescem sozinhos conforme a operação COFICO entrega — nunca mostra "+0").
   const anos = new Date().getFullYear() - 1995;
@@ -138,6 +146,7 @@ export default function CoficoBrasilPage() {
         <div className="mx-auto max-w-6xl px-6 py-20">
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Marcas que distribuímos</h2>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {marcaLigada('Saporino') && <>
             <article className="border border-neutral-200 p-8">
               {/* tenta o arquivo em /cofico/, senão cai no logo que já existe no site */}
               <img src="/cofico/saporino.png" alt="Café Saporino" className="h-28 w-auto object-contain"
@@ -152,7 +161,8 @@ export default function CoficoBrasilPage() {
               <p className="mt-1 text-sm text-neutral-500">Distribuição exclusiva no Estado de São Paulo</p>
               <p className="mt-4 text-sm text-neutral-700 font-medium">Tradicional · Extra Forte</p>
             </article>
-            <button type="button" onClick={() => setShowFazendinha(true)}
+            </>}
+            {marcaLigada('Fazendinha') && <button type="button" onClick={() => setShowFazendinha(true)}
               className="text-left border border-neutral-200 p-8 transition-colors hover:border-cofico-ink hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-cofico-ink">
               {/* tenta o arquivo em /cofico/, senão cai no logo do banco */}
               <img src="/cofico/fazendinha.png" alt="Café Fazendinha" className="h-28 w-auto object-contain"
@@ -163,7 +173,7 @@ export default function CoficoBrasilPage() {
               <span className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-cofico-ink">
                 <Play className="w-4 h-4" aria-hidden="true" /> Ver vídeo, produtos e fichas técnicas
               </span>
-            </button>
+            </button>}
           </div>
           <p className="mt-6 text-sm text-neutral-500">
             Portfólio em expansão. Sua marca também pode estar aqui —{' '}

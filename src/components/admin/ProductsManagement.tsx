@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Edit, Trash2, Save, X, Image as ImageIcon, ChevronUp, ChevronDown, Eye, EyeOff, Check } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Image as ImageIcon, ChevronUp, ChevronDown, Eye, EyeOff, Check, Copy } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
 import { useCompany } from '../../contexts/CompanyContext';
 import KitBuilder from './KitBuilder';
@@ -189,6 +189,60 @@ export function ProductsManagement() {
     });
   };
 
+  // CLONAR DE OUTRA MARCA — inventário é por empresa (o café da Saporino é da Saporino).
+  // Para a COFICO revender, o produto é COPIADO para ela: vira ficha independente, com
+  // preço, estoque e canais próprios. Não copia SKU, código de barras nem kit: isso é
+  // identidade/embalagem da outra empresa e daria conflito.
+  const [clonando, setClonando] = useState(false);
+  const [doOutro, setDoOutro] = useState<any[] | null>(null);
+  const [buscaClone, setBuscaClone] = useState('');
+  const [escolhidos, setEscolhidos] = useState<Set<string>>(new Set());
+  const [clonandoAgora, setClonandoAgora] = useState(false);
+
+  const abrirClonagem = async () => {
+    setClonando(true); setDoOutro(null); setBuscaClone(''); setEscolhidos(new Set());
+    const { data } = await supabase
+      .from('products')
+      .select('id,name,description,image_url,weight_grams,category,product_line,roast_type,flavor_notes,full_details,price,company_id,companies(name,fantasia)')
+      .neq('company_id', activeCompanyId)
+      .is('kit_of_product_id', null)
+      .order('name');
+    setDoOutro(data ?? []);
+  };
+
+  const alternarEscolha = (id: string) =>
+    setEscolhidos(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  // Copia os escolhidos de uma vez. Cada cópia nasce com estoque zero: o estoque é da
+  // empresa que a recebeu, e entra pelos lotes dela.
+  const clonarEscolhidos = async (lista: any[]) => {
+    const alvo = lista.filter(p => escolhidos.has(p.id));
+    if (!alvo.length) return;
+    setClonandoAgora(true);
+    const linhas = alvo.map(p => ({
+      name: p.name,
+      product_line: p.product_line ?? null,
+      description: p.description ?? null,
+      price: p.price ?? 0,
+      image_url: p.image_url ?? null,
+      weight_grams: p.weight_grams ?? 500,
+      is_active: true,
+      hidden_from_store: false,
+      category: p.category ?? 'café',
+      roast_type: p.roast_type ?? null,
+      flavor_notes: p.flavor_notes ?? null,
+      full_details: p.full_details ?? null,
+      company_id: activeCompanyId,
+      // A cópia nasce nos canais da empresa que a recebeu; quem clonou ajusta depois.
+      sales_channels: ['cofico', 'repco'],
+    }));
+    const { error } = await supabase.from('products').insert(linhas);
+    setClonandoAgora(false);
+    if (error) { alert('Erro ao clonar: ' + error.message); return; }
+    setClonando(false);
+    loadProducts();
+  };
+
   const handleSave = async () => {
     try {
       // 1. Prepare clean payload (prevent sending id, created_at, or NaN)
@@ -356,14 +410,107 @@ export function ProductsManagement() {
     <div>
       <div className="flex items-center justify-between mb-8">
         <h2 className="text-3xl font-bold text-gray-900">Gerenciamento de Produtos</h2>
-        <button
-          onClick={handleAdd}
-          className="flex items-center space-x-2 px-6 py-3 bg-[#a4240e] text-white rounded-lg hover:bg-[#8a1f0c] transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Adicionar Produto</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={abrirClonagem}
+            title="Copiar um produto de outra marca para esta empresa"
+            className="flex items-center space-x-2 px-5 py-3 border border-[#a4240e] text-[#a4240e] rounded-lg hover:bg-[#f5f0ef] transition-colors"
+          >
+            <Copy className="w-5 h-5" />
+            <span>Clonar de outra marca</span>
+          </button>
+          <button
+            onClick={handleAdd}
+            className="flex items-center space-x-2 px-6 py-3 bg-[#a4240e] text-white rounded-lg hover:bg-[#8a1f0c] transition-colors"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Adicionar Produto</span>
+          </button>
+        </div>
       </div>
+
+      {/* Escolher o produto de outra marca para copiar para a empresa aberta */}
+      {clonando && (
+        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4" onClick={() => setClonando(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <div>
+                <h3 className="font-bold text-gray-900">Clonar de outra marca</h3>
+                <p className="text-xs text-gray-500 mt-0.5">A cópia vira um produto desta empresa, com estoque, preço e canais próprios.</p>
+              </div>
+              <button onClick={() => setClonando(false)} className="p-1.5 rounded text-gray-400 hover:bg-gray-100"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="px-5 py-3 border-b border-gray-100">
+              <input value={buscaClone} onChange={e => setBuscaClone(e.target.value)} placeholder="Buscar por nome ou marca"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+            </div>
+            {doOutro === null ? (
+              <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#a4240e]" /></div>
+            ) : (() => {
+              const termo = buscaClone.trim().toLowerCase();
+              const lista = doOutro.filter((p: any) => !termo
+                || p.name?.toLowerCase().includes(termo)
+                || (p.companies?.fantasia ?? p.companies?.name ?? '').toLowerCase().includes(termo));
+              const marcaDe = (p: any) => p.companies?.fantasia ?? p.companies?.name ?? 'Outra empresa';
+              const porMarca = [...new Set(lista.map(marcaDe))].map(m => ({ marca: m, itens: lista.filter(p => marcaDe(p) === m) }));
+              const todosMarcados = lista.length > 0 && lista.every((p: any) => escolhidos.has(p.id));
+              const marcarTodos = () => setEscolhidos(todosMarcados ? new Set() : new Set(lista.map((p: any) => p.id)));
+              return (
+                <>
+                  <div className="flex items-center justify-between px-5 py-2 border-b border-gray-100 bg-gray-50">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer">
+                      <input type="checkbox" checked={todosMarcados} onChange={marcarTodos} />
+                      Selecionar todos {termo && '(do filtro)'}
+                    </label>
+                    <span className="text-xs text-gray-500">{escolhidos.size} selecionado(s)</span>
+                  </div>
+                  <div className="flex-1 overflow-auto p-3">
+                    {!lista.length ? (
+                      <p className="text-sm text-gray-500 text-center py-10">Nenhum produto de outra marca para clonar.</p>
+                    ) : porMarca.map(({ marca, itens }) => (
+                      <div key={marca} className="mb-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="text-xs font-bold uppercase tracking-wide text-gray-500">{marca}</h4>
+                          <button type="button" onClick={() => setEscolhidos(prev => {
+                            const n = new Set(prev);
+                            const todosDaMarca = itens.every((p: any) => n.has(p.id));
+                            itens.forEach((p: any) => todosDaMarca ? n.delete(p.id) : n.add(p.id));
+                            return n;
+                          })} className="text-[11px] font-semibold text-[#a4240e] hover:underline">
+                            {itens.every((p: any) => escolhidos.has(p.id)) ? 'desmarcar marca' : 'marcar a marca toda'}
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          {itens.map((p: any) => (
+                            <label key={p.id}
+                              className={`w-full flex items-center gap-3 text-left border rounded-lg p-3 cursor-pointer transition-colors ${escolhidos.has(p.id) ? 'border-[#a4240e] bg-[#f8f7f5]' : 'border-gray-200 hover:border-gray-300'}`}>
+                              <input type="checkbox" checked={escolhidos.has(p.id)} onChange={() => alternarEscolha(p.id)} />
+                              <img src={p.image_url || '/saporino-logo.png'} alt="" className="w-12 h-12 object-contain flex-shrink-0" />
+                              <span className="flex-1 min-w-0">
+                                <span className="block text-sm font-semibold text-gray-900 truncate">{p.name}</span>
+                                <span className="block text-xs text-gray-500 truncate">
+                                  {p.weight_grams ? `${p.weight_grams}g` : ''}{p.category ? ` · ${p.category}` : ''}
+                                </span>
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-200">
+                    <button onClick={() => setClonando(false)} className="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">Cancelar</button>
+                    <button onClick={() => clonarEscolhidos(lista)} disabled={!escolhidos.size || clonandoAgora}
+                      className="inline-flex items-center gap-1.5 bg-[#a4240e] hover:bg-[#8a1f0c] text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50">
+                      <Copy className="w-4 h-4" /> {clonandoAgora ? 'Clonando…' : `Clonar ${escolhidos.size || ''}`.trim()}
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
       {isAdding && (
         <div className="bg-white border-2 border-[#a4240e] rounded-xl p-6 mb-6 shadow-lg">
