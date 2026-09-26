@@ -31,19 +31,25 @@ export default function CoficoHeader() {
         </a>
         <nav className="hidden md:flex items-center gap-8" aria-label="Navegação principal">
           {/* Produtos abre no hover e no clique (teclado); sem JS de posicionamento. */}
-          <div className="relative group">
+          {/* Abertura controlada por UM estado só. Com `group-hover` no CSS o menu voltava a
+              aparecer logo após o clique, porque o ponteiro continuava em cima dele. */}
+          <div className="relative"
+            onMouseEnter={() => setLinhasAbertas(true)}
+            onMouseLeave={() => setLinhasAbertas(false)}>
             <button type="button" onClick={() => setLinhasAbertas(v => !v)} aria-expanded={linhasAbertas}
               className="inline-flex items-center gap-1 text-sm font-medium text-neutral-700 hover:text-cofico-ink transition-colors">
-              Produtos <ChevronDown className="w-4 h-4" aria-hidden="true" />
+              Produtos <ChevronDown className={`w-4 h-4 transition-transform ${linhasAbertas ? 'rotate-180' : ''}`} aria-hidden="true" />
             </button>
-            <div className={`absolute left-0 top-full pt-3 ${linhasAbertas ? 'block' : 'hidden'} group-hover:block group-focus-within:block`}>
-              <div className="min-w-[230px] bg-white border border-neutral-200 shadow-sm py-2">
-                {LINHAS.map(([href, label]) => (
-                  <a key={href} href={href} onClick={() => setLinhasAbertas(false)}
-                    className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-cofico-ink transition-colors">{label}</a>
-                ))}
+            {linhasAbertas && (
+              <div className="absolute left-0 top-full pt-3">
+                <div className="min-w-[230px] bg-white border border-neutral-200 shadow-sm py-2">
+                  {LINHAS.map(([href, label]) => (
+                    <a key={href} href={href} onClick={(e) => { setLinhasAbertas(false); e.currentTarget.blur(); }}
+                      className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-cofico-ink transition-colors">{label}</a>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
           {NAV.map(([href, label]) => (
             <a key={href} href={href} className="text-sm font-medium text-neutral-700 hover:text-cofico-ink transition-colors">{label}</a>
