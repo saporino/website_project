@@ -11,5 +11,9 @@ export const FAZEMOS = [
 ];
 
 // Link de WhatsApp da COFICO com o assunto já escrito.
-export const whatsAppCofico = (telefone: string, assunto: string) =>
-  `https://wa.me/55${telefone.replace(/\D/g, '')}?text=${encodeURIComponent(assunto)}`;
+// Aceita o número com ou sem +55: só acrescenta o país quando falta (11 dígitos = DDD + celular).
+export const whatsAppCofico = (telefone: string, assunto: string) => {
+  const so = telefone.replace(/\D/g, '');
+  const comPais = so.length > 11 && so.startsWith('55') ? so : `55${so}`;
+  return `https://wa.me/${comPais}?text=${encodeURIComponent(assunto)}`;
+};

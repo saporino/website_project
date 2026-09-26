@@ -9,7 +9,10 @@ import CoficoFooter from './CoficoFooter';
 import { COFICO } from './config';
 import { whatsAppCofico } from './conteudo';
 
-const WA_FILTROS = whatsAppCofico(COFICO.phone, 'Olá! Vim pelo site da COFICO e quero a tabela de filtros e coadores.');
+// Filtros falam com o Marcelo, não com o comercial geral da COFICO. Número dele,
+// combinado com o Vlademir em 26/09/2026 — vale SÓ nesta página, por enquanto.
+const WHATSAPP_MARCELO = '+55 14 99174-3909';
+const WA_FILTROS = whatsAppCofico(WHATSAPP_MARCELO, 'Olá! Vim pelo site da COFICO e quero a tabela de filtros e coadores.');
 
 // LINHA PAPEL COFICO — dados do próprio produto (arte da caixa + códigos COFICO).
 // Quantidade por caixa master ainda NÃO entra: o Vlademir precisa confirmar (10 ou 40 cartuchos).
@@ -80,9 +83,9 @@ export default function CoficoFiltrosPage() {
             {PAPEL.map(({ n, codigo, uso }) => (
               <article key={n} className="bg-white border border-neutral-200 p-6 flex flex-col">
                 <div className="aspect-square flex items-center justify-center">
-                  <img src={`/cofico/filtro-papel-${n}.png`} alt={`Filtro de papel COFICO ${n}`} loading="lazy"
+                  <img src={`/cofico/filtro-papel-${n}.webp`} alt={`Filtro de papel COFICO ${n}`}
                     className="w-4/5 h-4/5 object-contain"
-                    onError={(e) => { const t = e.currentTarget; t.style.display = 'none'; }} />
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                 </div>
                 <h3 className="mt-4 text-lg font-semibold">Filtro de Papel COFICO {n}</h3>
                 <p className="mt-1 text-sm text-neutral-600 flex-1">{uso}</p>
