@@ -3,16 +3,16 @@
 // REGRA DE CONTEÚDO: sem número inventado. Tamanho, marca, quantidade por caixa e preço
 // saem da tabela, com o comercial. Aqui fica só o que existe de fato.
 import { useEffect } from 'react';
-import { ArrowRight, Filter, Layers, Recycle, ShoppingBag } from 'lucide-react';
+import { ArrowRight, Filter, Layers, Recycle, ShoppingBag, Tag, Boxes, Factory } from 'lucide-react';
 import CoficoHeader from './CoficoHeader';
 import CoficoFooter from './CoficoFooter';
-import { COFICO } from './config';
 import { whatsAppCofico } from './conteudo';
 
 // Filtros falam com o Marcelo, não com o comercial geral da COFICO. Número dele,
 // combinado com o Vlademir em 26/09/2026 — vale SÓ nesta página, por enquanto.
 const WHATSAPP_MARCELO = '+55 14 99174-3909';
 const WA_FILTROS = whatsAppCofico(WHATSAPP_MARCELO, 'Olá! Vim pelo site da COFICO e quero a tabela de filtros e coadores.');
+const WA_MARCA_PROPRIA = whatsAppCofico(WHATSAPP_MARCELO, 'Olá! Vim pelo site da COFICO e quero produzir filtro de papel com a minha marca.');
 
 // LINHA PAPEL COFICO — dados do próprio produto (arte da caixa + códigos COFICO).
 // Quantidade por caixa master ainda NÃO entra: o Vlademir precisa confirmar (10 ou 40 cartuchos).
@@ -44,13 +44,20 @@ export default function CoficoFiltrosPage() {
 
         <h1 className="mt-4 text-3xl md:text-4xl font-black tracking-tight">Filtros e coadores</h1>
         <p className="mt-3 text-neutral-600 max-w-2xl">
-          Quem vende café vende filtro junto. A COFICO entrega os dois no mesmo pedido, na mesma rota,
-          para mercados, padarias, cafeterias e cozinhas industriais.
+          Filtro de papel para a indústria do café. Fornecemos a linha COFICO pronta para revenda e,
+          principalmente, <strong>produzimos com a marca do cliente</strong> — torrefações, indústrias e
+          distribuidores que querem o filtro no próprio portfólio.
         </p>
-        <a href={WA_FILTROS} target="_blank" rel="noopener noreferrer"
-          className="mt-8 inline-flex items-center gap-1.5 bg-cofico-ink text-white text-sm font-semibold px-6 py-3.5 hover:bg-cofico-dark transition-colors">
-          Pedir a tabela <ArrowRight className="w-4 h-4" aria-hidden="true" />
-        </a>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <a href={WA_MARCA_PROPRIA} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 bg-cofico-ink text-white text-sm font-semibold px-6 py-3.5 hover:bg-cofico-dark transition-colors">
+            Filtro com a minha marca <ArrowRight className="w-4 h-4" aria-hidden="true" />
+          </a>
+          <a href={WA_FILTROS} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center border border-neutral-300 text-neutral-900 text-sm font-semibold px-6 py-3.5 hover:border-cofico-ink hover:text-cofico-ink transition-colors">
+            Pedir a tabela
+          </a>
+        </div>
       </section>
 
       <section className="border-t border-neutral-200">
@@ -71,13 +78,48 @@ export default function CoficoFiltrosPage() {
         </div>
       </section>
 
+      {/* MARCA PRÓPRIA — é o negócio principal da linha de filtros: produzir com a marca do cliente.
+          A linha COFICO existe como padrão de qualidade e prova do que entregamos. */}
+      <section id="marca-propria" className="border-t border-neutral-200">
+        <div className="mx-auto max-w-6xl px-6 py-16">
+          <p className="text-xs font-bold uppercase tracking-wide text-cofico-ink">Marca própria</p>
+          <h2 className="mt-3 text-2xl md:text-3xl font-bold tracking-tight">Filtro de papel com a sua marca</h2>
+          <p className="mt-4 text-neutral-600 max-w-3xl">
+            A COFICO produz filtro de papel para torrefações, indústrias de café e distribuidores que querem
+            a linha no próprio portfólio. O produto sai com a sua marca na embalagem, no mesmo padrão da
+            linha COFICO: 100% fibras vegetais, filtragem rápida e sem interferência no sabor do café.
+          </p>
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {[
+              { icon: Tag, t: 'A marca é sua', d: 'Arte, identidade e código do produto são do cliente. A COFICO não aparece na embalagem.' },
+              { icon: Boxes, t: 'Medidas 100, 102 e 103', d: 'As três medidas de maior giro no varejo brasileiro, com 30 filtros por cartucho.' },
+              { icon: Factory, t: 'Para quem já vende café', d: 'Fecha o portfólio da torrefação e do distribuidor: o cliente compra o café e o filtro da mesma marca.' },
+            ].map(({ icon: Icon, t, d }) => (
+              <article key={t} className="border border-neutral-200 p-8">
+                <Icon className="w-7 h-7 text-cofico-ink" aria-hidden="true" />
+                <h3 className="mt-5 text-lg font-semibold">{t}</h3>
+                <p className="mt-2 text-sm text-neutral-600">{d}</p>
+              </article>
+            ))}
+          </div>
+          <a href={WA_MARCA_PROPRIA} target="_blank" rel="noopener noreferrer"
+            className="mt-10 inline-flex items-center gap-1.5 bg-cofico-ink text-white text-sm font-semibold px-6 py-3.5 hover:bg-cofico-dark transition-colors">
+            Quero produzir com a minha marca <ArrowRight className="w-4 h-4" aria-hidden="true" />
+          </a>
+          <p className="mt-4 text-sm text-neutral-500">
+            Quantidade mínima, prazo de produção e condições de arte são definidos no orçamento, pelo volume do seu pedido.
+          </p>
+        </div>
+      </section>
+
       {/* Linha própria da COFICO — marca, código e conteúdo saem da arte da caixa */}
       <section id="linha-papel" className="border-t border-neutral-200 bg-neutral-50">
         <div className="mx-auto max-w-6xl px-6 py-16">
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Linha Papel COFICO</h2>
           <p className="mt-3 text-neutral-600 max-w-2xl">
-            Filtro de papel com a nossa marca, em <strong>100% fibras vegetais</strong>, para filtragem rápida e
-            sem gosto de papel. Cada cartucho leva <strong>30 filtros</strong>.
+            A nossa linha de referência: filtro em <strong>100% fibras vegetais</strong>, filtragem rápida e sem
+            gosto de papel, com <strong>30 filtros por cartucho</strong>. É este o padrão que entregamos também
+            na produção com a marca do cliente.
           </p>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {PAPEL.map(({ n, codigo, uso }) => (
