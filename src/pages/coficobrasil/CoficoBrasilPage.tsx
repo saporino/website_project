@@ -2,7 +2,7 @@
 // nenhum link absoluto para cafesaporino.com.br). Conteúdo final aprovado. Marca Canaan não aparece.
 import { useEffect, useState } from 'react';
 import {
-  Warehouse, PackageCheck, Truck, Radar, Cpu, MapPin, Mail, Phone, Instagram,
+  Truck, Cpu, MapPin, Mail, Phone, Instagram,
   ExternalLink, Building2, Store, UtensilsCrossed, Boxes, Briefcase, ArrowRight, Users,
   X, Play, FileText, Globe, ShoppingBag,
 } from 'lucide-react';
@@ -11,19 +11,17 @@ import CoficoFooter from './CoficoFooter';
 import CoficoCarousel from './CoficoCarousel';
 import CoficoMap from './CoficoMap';
 import CoficoProdutosPage from './CoficoProdutosPage';
+import CoficoEmbalagensPage from './CoficoEmbalagensPage';
+import CoficoServicosPage from './CoficoServicosPage';
+import CoficoFiltrosPage from './CoficoFiltrosPage';
+import CoficoMaquinasPage from './CoficoMaquinasPage';
 import { CoficoPrivacidade, CoficoTermos } from './CoficoPolicyPages';
 import CoficoCookieConsent from './CoficoCookieConsent';
 import CoficoMarcaLeadForm from './CoficoMarcaLeadForm';
 import AcessoCoffeeLivre from './AcessoCoffeeLivre';
 import { COFICO } from './config';
 import { fetchCoficoStats } from './coficoClient';
-
-const FAZEMOS = [
-  { icon: Warehouse, t: 'Recebimento e armazenagem', d: 'Conferência na entrada, controle de lote e de validade, armazenagem seca em centro de distribuição próprio em Várzea Paulista.' },
-  { icon: PackageCheck, t: 'Separação e expedição', d: 'Separação por FIFO e FEFO — primeiro que entra sai primeiro, primeiro que vence sai primeiro. Carga fracionada por cliente e por região.' },
-  { icon: Truck, t: 'Entrega', d: 'Frota própria em rota programada, com comprovante digital de entrega.' },
-  { icon: Radar, t: 'Controle e rastreio', d: 'Estoque e status do pedido acompanhados em tempo real pela nossa plataforma.' },
-];
+import { FAZEMOS } from './conteudo';
 
 const ROTA_REGULAR = [
   'São Paulo capital — Zona Norte, Sul, Leste e Oeste', 'Grande São Paulo', 'Jundiaí e Várzea Paulista',
@@ -68,15 +66,19 @@ export default function CoficoBrasilPage() {
   const [activeVideo, setActiveVideo] = useState<string | null>(null);
   // "Produtos" é uma PÁGINA separada dentro da COFICO, controlada pelo hash #loja
   // (sem depender do router do App.tsx). Assim entra/sai da vitrine sem recarregar.
-  const viewFromHash = (h: string): 'home' | 'loja' | 'privacidade' | 'termos' =>
-    h === '#loja' ? 'loja' : h === '#privacidade' ? 'privacidade' : h === '#termos' ? 'termos' : 'home';
-  const [view, setView] = useState<'home' | 'loja' | 'privacidade' | 'termos'>(
+  type View = 'home' | 'loja' | 'embalagens' | 'filtros' | 'maquinas' | 'servicos' | 'privacidade' | 'termos';
+  const PAGINAS: Record<string, View> = {
+    '#loja': 'loja', '#embalagens': 'embalagens', '#filtros': 'filtros', '#maquinas': 'maquinas',
+    '#servicos': 'servicos', '#privacidade': 'privacidade', '#termos': 'termos',
+  };
+  const viewFromHash = (h: string): View => PAGINAS[h] ?? 'home';
+  const [view, setView] = useState<View>(
     () => (typeof window !== 'undefined' ? viewFromHash(window.location.hash) : 'home'));
 
   useEffect(() => {
     const onHash = () => {
       const h = window.location.hash;
-      if (h === '#loja' || h === '#privacidade' || h === '#termos') { setView(viewFromHash(h)); window.scrollTo(0, 0); return; }
+      if (PAGINAS[h]) { setView(viewFromHash(h)); window.scrollTo(0, 0); return; }
       setView('home');
       if (h && h !== '#topo') { setTimeout(() => { const el = document.querySelector(h); if (el) el.scrollIntoView(); }, 30); }
       else window.scrollTo(0, 0);
@@ -100,6 +102,10 @@ export default function CoficoBrasilPage() {
 
   // Vitrine/loja é uma página separada (aberta pelo menu "Produtos").
   if (view === 'loja') return <><CoficoProdutosPage /><CoficoCookieConsent /></>;
+  if (view === 'embalagens') return <><CoficoEmbalagensPage /><CoficoCookieConsent /></>;
+  if (view === 'filtros') return <><CoficoFiltrosPage /><CoficoCookieConsent /></>;
+  if (view === 'maquinas') return <><CoficoMaquinasPage /><CoficoCookieConsent /></>;
+  if (view === 'servicos') return <><CoficoServicosPage /><CoficoCookieConsent /></>;
   if (view === 'privacidade') return <><CoficoPrivacidade /><CoficoCookieConsent /></>;
   if (view === 'termos') return <><CoficoTermos /><CoficoCookieConsent /></>;
 
@@ -195,6 +201,11 @@ export default function CoficoBrasilPage() {
               </article>
             ))}
           </div>
+          {/* A operação é só uma parte: embalagem, impressão e marca própria vivem em Serviços. */}
+          <p className="mt-8 text-sm text-neutral-600">
+            Também fazemos <a href="#servicos" className="font-semibold text-cofico-ink hover:underline">marca própria</a>,{' '}
+            <a href="#embalagens" className="font-semibold text-cofico-ink hover:underline">embalagem e impressão silkscreen</a>.
+          </p>
         </div>
       </section>
 

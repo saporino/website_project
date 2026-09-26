@@ -44,7 +44,21 @@ const CATALOGO: { marca: string; produtos: CatalogoProduto[] }[] = [
 ];
 const CADASTRO_WA = `https://wa.me/55${COFICO.phone.replace(/\D/g, '')}?text=${encodeURIComponent('Olá! Vim pelo site da COFICO e quero comprar no atacado / receber a tabela de preços. Tenho CNPJ ativo.')}`;
 
+// Categoria do cadastro → grupo que o visitante entende. O painel pode escrever
+// "Café Moído", "Filtro de papel", "Máquina de café": aqui vira uma aba só.
+const GRUPOS = ['Cafés', 'Filtros', 'Máquinas e acessórios', 'Embalagens', 'Outros'] as const;
+type Grupo = typeof GRUPOS[number];
+function grupoDaCategoria(cat: string): Grupo {
+  const c = cat.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (/filtro|coador/.test(c)) return 'Filtros';
+  if (/maquina|cafeteira|moedor|equipamento|acessorio/.test(c)) return 'Máquinas e acessórios';
+  if (/embalagem|embalagens|pouch|saco|pote/.test(c)) return 'Embalagens';
+  if (/cafe|graos|moido|capsula/.test(c)) return 'Cafés';
+  return 'Outros';
+}
+
 export default function CoficoProdutosPage() {
+  const [grupoAtivo, setGrupoAtivo] = useState<Grupo | 'Todos'>('Todos');
   // Catálogo vindo do painel. A lista fixa acima vira apenas rede de segurança:
   // se a consulta falhar, a página mostra o portfólio antigo em vez de ficar vazia.
   const [doBanco, setDoBanco] = useState<CoficoProduto[] | null>(null);
@@ -95,6 +109,12 @@ export default function CoficoProdutosPage() {
     else catalogo.push({ marca, produtos: [doBancoComoCard(p)] });
   }
 
+  // Abas: só aparecem os grupos que existem no catálogo (nada de aba vazia).
+  const gruposPresentes = GRUPOS.filter(g => catalogo.some(({ produtos }) => produtos.some(p => grupoDaCategoria(p.cat) === g)));
+  const catalogoVisivel = catalogo
+    .map(({ marca, produtos }) => ({ marca, produtos: grupoAtivo === 'Todos' ? produtos : produtos.filter(p => grupoDaCategoria(p.cat) === grupoAtivo) }))
+    .filter(({ produtos }) => produtos.length > 0);
+
   return (
     <div id="topo" className="min-h-screen bg-white text-neutral-900 antialiased selection:bg-cofico-ink selection:text-white">
       <CoficoHeader />
@@ -121,8 +141,23 @@ export default function CoficoProdutosPage() {
           </a>
         </div>
 
+        {/* Abas de categoria — café, filtro, máquina… */}
+        {gruposPresentes.length > 1 && (
+          <div className="mt-10 flex flex-wrap gap-2" role="tablist" aria-label="Categorias">
+            {(['Todos', ...gruposPresentes] as const).map((g) => (
+              <button key={g} type="button" role="tab" aria-selected={grupoAtivo === g} onClick={() => setGrupoAtivo(g)}
+                className={`px-4 py-2 text-sm font-semibold border transition-colors ${grupoAtivo === g ? 'bg-cofico-ink text-white border-cofico-ink' : 'bg-white text-neutral-700 border-neutral-300 hover:border-cofico-ink hover:text-cofico-ink'}`}>
+                {g}
+              </button>
+            ))}
+            <a href="#embalagens" className="px-4 py-2 text-sm font-semibold border border-neutral-300 text-neutral-700 hover:border-cofico-ink hover:text-cofico-ink transition-colors">
+              Embalagens e impressão ›
+            </a>
+          </div>
+        )}
+
         {/* Catálogo por marca — cards estilo loja Saporino (flutuante) */}
-        {catalogo.map(({ marca, produtos }) => (
+        {catalogoVisivel.map(({ marca, produtos }) => (
           <div key={marca} className="mt-14">
             <h2 className="text-sm font-bold uppercase tracking-wide text-neutral-900">{marca}</h2>
             <div className="mt-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
