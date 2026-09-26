@@ -1,7 +1,22 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { montarFolhaDePrecos, nomeDoArquivo, precoAoMercado, type DadosFolha } from './intelPdf';
+import { lerMargens, montarFolhaDePrecos, nomeDoArquivo, precoAoMercado, type DadosFolha } from './intelPdf';
+
+describe('margens digitadas', () => {
+  it('a vírgula é casa decimal, não separador (22,5 é um número só)', () => {
+    expect(lerMargens('20; 22,5; 25')).toEqual([20, 22.5, 25]);
+    expect(lerMargens('20;22,5;25')).toEqual([20, 22.5, 25]);
+  });
+  it('aceita ponto, espaço, barra e o símbolo de %', () => {
+    expect(lerMargens('20 22.5 25')).toEqual([20, 22.5, 25]);
+    expect(lerMargens('20% / 25%')).toEqual([20, 25]);
+  });
+  it('descarta o que não é margem e limita a quantidade', () => {
+    expect(lerMargens('20; abc; -5; 0; 95; 30')).toEqual([20, 30]);
+    expect(lerMargens('10;20;30;40;50')).toEqual([10, 20, 30, 40]);
+  });
+});
 
 // Exemplo real do mercado (gôndola do Lopes, 26/09/2026): Pilão 250 g a R$ 14,89.
 const dados: DadosFolha = {

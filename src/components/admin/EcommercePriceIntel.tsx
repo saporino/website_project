@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
-import { montarFolhaDePrecos, nomeDoArquivo } from '../../lib/intelPdf';
+import { montarFolhaDePrecos, nomeDoArquivo, lerMargens } from '../../lib/intelPdf';
 import { RefreshCw, Loader2, Search, Coffee, ExternalLink, Settings, Check, Smartphone, Download } from 'lucide-react';
 
 const BRAND = '#B03220';
@@ -33,8 +33,7 @@ export default function EcommercePriceIntel({ marketplace, label, readOnly = fal
   // preço ao mercado = preço de prateleira × (1 − margem). Fica salvo no navegador.
   const [margens, setMargens] = useState(() => localStorage.getItem('intel-margens') || '20; 22,5; 25');
   useEffect(() => { localStorage.setItem('intel-margens', margens); }, [margens]);
-  const listaMargens = useMemo(() => margens.split(/[;,\n]/).map(m => parseFloat(m.replace(',', '.').trim()))
-    .filter(n => Number.isFinite(n) && n > 0 && n < 90).slice(0, 4), [margens]);
+  const listaMargens = useMemo(() => lerMargens(margens), [margens]);
 
   const [sapPrice, setSapPrice] = useState(() => localStorage.getItem('saporino-eprice') || '');
   const [sapWeight, setSapWeight] = useState(() => localStorage.getItem('saporino-eweight') || '500');

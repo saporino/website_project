@@ -37,6 +37,18 @@ export const brl = (v: number) =>
 const pct = (n: number) => `${n.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
 const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
 
+/**
+ * Lê as margens digitadas ("20; 22,5; 25") em números.
+ * Separa por ponto e vírgula, barra, quebra de linha ou espaço — NUNCA por vírgula,
+ * que em português é casa decimal: dividir nela transformava 22,5 em 22 e 5.
+ */
+export function lerMargens(texto: string, maximo = 4): number[] {
+  return texto.split(/[;/\n\s]+/)
+    .map(m => parseFloat(m.replace(',', '.').replace('%', '').trim()))
+    .filter(n => Number.isFinite(n) && n > 0 && n < 90)
+    .slice(0, maximo);
+}
+
 /** Preço que o mercado pode pagar para vender a `prateleira` com aquela margem. */
 export const precoAoMercado = (prateleira: number, margemPct: number) =>
   +(prateleira * (1 - margemPct / 100)).toFixed(2);
