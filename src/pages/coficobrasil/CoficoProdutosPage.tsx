@@ -46,12 +46,12 @@ const CADASTRO_WA = `https://wa.me/55${COFICO.phone.replace(/\D/g, '')}?text=${e
 
 // Categoria do cadastro → grupo que o visitante entende. O painel pode escrever
 // "Café Moído", "Filtro de papel", "Máquina de café": aqui vira uma aba só.
-const GRUPOS = ['Cafés', 'Filtros', 'Máquinas e acessórios', 'Embalagens', 'Outros'] as const;
+const GRUPOS = ['Cafés', 'Filtros', 'Máquinas e moinhos', 'Embalagens', 'Outros'] as const;
 type Grupo = typeof GRUPOS[number];
 function grupoDaCategoria(cat: string): Grupo {
   const c = cat.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   if (/filtro|coador/.test(c)) return 'Filtros';
-  if (/maquina|cafeteira|moedor|equipamento|acessorio/.test(c)) return 'Máquinas e acessórios';
+  if (/maquina|cafeteira|moinho|moedor|equipamento|acessorio/.test(c)) return 'Máquinas e moinhos';
   if (/embalagem|embalagens|pouch|saco|pote/.test(c)) return 'Embalagens';
   if (/cafe|graos|moido|capsula/.test(c)) return 'Cafés';
   return 'Outros';

@@ -4,7 +4,7 @@
 // "Produtos" é o que a COFICO vende; "Serviços" é o que ela faz. Misturar os dois
 // foi o que deixou a home sem lugar para as linhas novas.
 import { useEffect } from 'react';
-import { ArrowRight, Tag, Printer, Truck } from 'lucide-react';
+import { ArrowRight, Tag, Printer, Truck, Cog } from 'lucide-react';
 import CoficoHeader from './CoficoHeader';
 import CoficoFooter from './CoficoFooter';
 import CoficoMarcaLeadForm from './CoficoMarcaLeadForm';
@@ -17,6 +17,7 @@ const SERVICOS = [
   { icon: Tag, t: 'Marca própria', d: 'A sua marca de café, do começo ao fim: café, embalagem, arte e entrega. Você vende com a sua marca; a produção e a logística ficam com a gente.', href: '#marca-propria', cta: 'Ver como funciona' },
   { icon: Printer, t: 'Embalagem e impressão', d: 'Embalagem para café e impressão silkscreen da sua marca direto no pacote.', href: '#embalagens', cta: 'Ver embalagens' },
   { icon: Truck, t: 'Distribuição e logística', d: 'Armazenagem, separação, entrega com frota própria e rastreio — a operação que já roda hoje em São Paulo.', href: '#operacao', cta: 'Ver a operação' },
+  { icon: Cog, t: 'Máquinas e moinhos', d: 'Equipamento que mói e serve o café no seu balcão, com instalação e suporte combinados.', href: '#maquinas', cta: 'Ver equipamentos' },
 ];
 
 export default function CoficoServicosPage() {

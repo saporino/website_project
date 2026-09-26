@@ -8,7 +8,7 @@ const LINHAS: [string, string][] = [
   ['#loja', 'Cafés'],
   ['#embalagens', 'Embalagens e impressão'],
   ['#filtros', 'Filtros e coadores'],
-  ['#maquinas', 'Máquinas de café'],
+  ['#maquinas', 'Máquinas e moinhos'],
 ];
 
 const NAV: [string, string][] = [

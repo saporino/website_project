@@ -139,6 +139,9 @@ function AppRouter() {
   // Título da aba por rota — usado tb. pelo "Adicionar à tela inicial" (atalho pega o título).
   // No portal do rep vira "RepCo" para o atalho/app já nascer com esse nome.
   useEffect(() => {
+    // A COFICO é outra marca e cada página dela põe o próprio título (produtos, embalagens,
+    // filtros…). Sem esta saída, o título da Saporino sobrescrevia o da COFICO ao abrir a página.
+    if (currentPath.startsWith('/coficobrasil')) return;
     document.title = currentPath.startsWith('/repco')
       ? 'RepCo'
       : currentPath.startsWith('/promotor')
