@@ -3,9 +3,11 @@ import { supabase } from '../../lib/supabase';
 import { CLIENT_SEGMENTS, MARKETPLACE_SEGMENTS, SUPERMARKET_SEGMENTS, SEGMENT_LABEL } from '../../constants/segments';
 import EcommercePriceIntel from './EcommercePriceIntel';
 import MarketOverviewSP from './MarketOverviewSP';
+import GondolaPesquisa from './GondolaPesquisa';
 import { useCompany } from '../../contexts/CompanyContext';
 
 const SUPER_OVERVIEW = 'super_todos';
+const GONDOLA = 'gondola_visita'; // pesquisa de loja física (foto da prateleira)
 
 // segmento de marketplace (UI) -> chave do marketplace na inteligência de preços
 const MARKETPLACE_KEY: Record<string, { key: string; label: string }> = {
@@ -37,7 +39,8 @@ export default function PriceListManager({ fixedSegment, refreshKey = 0 }: Props
 
   // If fixedSegment changes from parent, sync it
   useEffect(() => { if (fixedSegment) setSelectedSegment(fixedSegment); }, [fixedSegment]);
-  useEffect(() => { if (activeCompanyId) fetchData(); }, [refreshKey, activeCompanyId]);
+  // Sem empresa ativa não há o que buscar — e ficar girando para sempre não explica nada.
+  useEffect(() => { if (activeCompanyId) fetchData(); else setLoading(false); }, [refreshKey, activeCompanyId]);
   useEffect(() => {
     function handleRefresh() {
       fetchData();
@@ -91,6 +94,7 @@ export default function PriceListManager({ fixedSegment, refreshKey = 0 }: Props
   }
 
   if (loading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#a4240e]"/></div>;
+  if (!activeCompanyId) return <p className="text-sm text-gray-500 py-8 text-center">Escolha a empresa no seletor do topo para ver a tabela de preços.</p>;
 
   return (
     <div className="space-y-5">
@@ -122,6 +126,11 @@ export default function PriceListManager({ fixedSegment, refreshKey = 0 }: Props
           <div className="border-t border-amber-200 pt-3">
             <p className="text-xs font-semibold text-teal-700 uppercase tracking-wide mb-2">Supermercados SP</p>
             <div className="flex flex-wrap gap-2">
+              {/* Preço de loja física: o que você fotografa na visita, não o que se raspa da internet */}
+              <button onClick={() => setSelectedSegment(GONDOLA)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${selectedSegment === GONDOLA ? 'bg-slate-800 text-white' : 'bg-slate-700 text-white hover:bg-slate-800'}`}>
+                📷 Pesquisa de gôndola
+              </button>
               <button onClick={() => setSelectedSegment(SUPER_OVERVIEW)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${selectedSegment === SUPER_OVERVIEW ? 'bg-teal-800 text-white' : 'bg-teal-700 text-white hover:bg-teal-800'}`}>
                 ★ Todas (visão geral)
@@ -141,6 +150,13 @@ export default function PriceListManager({ fixedSegment, refreshKey = 0 }: Props
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 flex items-center gap-2">
           <span className="text-xs text-amber-700 font-medium">Segmento fixo:</span>
           <span className="text-sm font-semibold text-amber-900">{SEGMENT_LABEL[fixedSegment] ?? fixedSegment}</span>
+        </div>
+      )}
+
+      {/* Levantamento visual de loja física (foto da prateleira na visita) */}
+      {selectedSegment === GONDOLA && (
+        <div className="border border-gray-200 rounded-xl p-4 bg-[#f8f7f5]">
+          <GondolaPesquisa />
         </div>
       )}
 
