@@ -83,7 +83,19 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
   const isAdmin = profile?.is_admin === true;
   const isFlatCommission = activeCompany?.commission_model === 'flat';
   const [adminTab, setAdminTab] = useState<AdminTab>('list');
-  const [adminView, setAdminView] = useState<'list' | 'map' | 'price-list' | 'prospection'>('list');
+  // Quem volta de uma tela de fora (mapa de prospecção, Inteligência) diz para onde quer
+  // voltar. É lido AQUI, na abertura: lido depois, em efeito, o recarregamento da lista
+  // chegava junto e devolvia a pessoa para a lista de representantes.
+  // Só LÊ, nunca apaga aqui: em desenvolvimento o React monta a tela duas vezes, e quem
+  // apagasse na primeira faria a segunda cair na lista. O destino é limpo quando a pessoa
+  // clica na aba RepCo de novo (efeito do refreshKey, abaixo).
+  const [adminView, setAdminView] = useState<'list' | 'map' | 'price-list' | 'prospection'>(() => {
+    try {
+      const destino = localStorage.getItem('repco-initial-view');
+      if (destino && ['list', 'map', 'price-list', 'prospection'].includes(destino)) return destino as any;
+    } catch { /* sem localStorage */ }
+    return 'list';
+  });
   const [detailTab, setDetailTab] = useState<'pedidos' | 'clientes' | 'comissoes' | 'precos'>('pedidos');
   const [reps, setReps] = useState<Representative[]>([]);
   const [selectedRep, setSelectedRep] = useState<Representative | null>(null);
@@ -228,18 +240,23 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
 
   // Ao (re)clicar na aba RepCo (refreshKey muda), volta pra lista de representantes —
   // mesmo que estivesse na Tabela de Preços / Prospecção / detalhe de um rep.
-  useEffect(() => { setAdminView('list'); setSelectedRep(null); fetchReps(); fetchSnoozedClients(); }, [refreshKey]);
+  // Na PRIMEIRA abertura não mexe na tela: quem veio de fora já escolheu onde cair.
+  // Compara o VALOR do refreshKey (e não "é a primeira vez?"): em desenvolvimento o React
+  // roda o efeito duas vezes na mesma montagem, e um guarda de "primeira vez" era derrubado
+  // justamente aí — a tela voltava para a lista mesmo tendo vindo do mapa.
+  const ultimoRefresh = useRef(refreshKey);
+  useEffect(() => {
+    if (ultimoRefresh.current !== refreshKey) {
+      ultimoRefresh.current = refreshKey;
+      setAdminView('list'); setSelectedRep(null);
+      try { localStorage.removeItem('repco-initial-view'); } catch { /* ok */ }
+    }
+    fetchReps(); fetchSnoozedClients();
+  }, [refreshKey]);
 
   // Ao trocar de empresa, recarrega reps + volta pra lista (o detalhe é por empresa)
   useEffect(() => { setAdminTab('list'); setSelectedRep(null); fetchReps(); fetchSnoozedClients(); /* eslint-disable-next-line */ }, [activeCompanyId]);
 
-  // Deep-link: ao voltar do mapa de prospecção, abre direto a sub-view Prospecção (não a lista).
-  useEffect(() => {
-    if (localStorage.getItem('repco-initial-view') === 'prospection') {
-      setAdminView('prospection');
-      localStorage.removeItem('repco-initial-view');
-    }
-  }, []);
 
   useEffect(() => {
     function handleRefresh() {

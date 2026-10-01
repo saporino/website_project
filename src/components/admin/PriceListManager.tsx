@@ -99,12 +99,20 @@ export default function PriceListManager({ fixedSegment, refreshKey = 0 }: Props
   if (loading) return <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#a4240e]"/></div>;
   if (!activeCompanyId) return <p className="text-sm text-gray-500 py-8 text-center">Escolha a empresa no seletor do topo para ver a tabela de preços.</p>;
 
+  // A faixa de segmentos e o conteúdo dela são UM bloco só: a faixa é o cabeçalho e o que
+  // está embaixo é a resposta dela. Separadas, ninguém via que uma manda na outra — o próprio
+  // Vlademir se perdeu achando que "Distribuidora" era um título fixo.
   return (
-    <div className="space-y-5">
+    <div className="border border-gray-200 rounded-xl overflow-hidden">
       {/* Segment selector — hidden when fixedSegment is provided */}
       {!fixedSegment && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+        <div className="bg-amber-50 border-b border-amber-200 p-4 space-y-3">
           <div>
+            <p className="text-sm font-bold text-amber-900">Escolha para quem é o preço</p>
+            <p className="text-xs text-amber-700 mt-0.5 mb-3">
+              Cada botão troca a tabela abaixo. O preço vale para <strong>todos os representantes</strong> (tabela global) e é
+              o que o RepCo usa quando o cliente pertence àquele segmento. Marketplaces e supermercados mostram preço de concorrente.
+            </p>
             <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-2">Representantes B2B</p>
             <div className="flex flex-wrap gap-2">
               {CLIENT_SEGMENTS.map(seg => (
@@ -150,11 +158,13 @@ export default function PriceListManager({ fixedSegment, refreshKey = 0 }: Props
       )}
 
       {fixedSegment && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2 flex items-center gap-2">
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center gap-2">
           <span className="text-xs text-amber-700 font-medium">Segmento fixo:</span>
           <span className="text-sm font-semibold text-amber-900">{SEGMENT_LABEL[fixedSegment] ?? fixedSegment}</span>
         </div>
       )}
+
+      <div className="p-4 space-y-5 bg-white">
 
       {/* Levantamento visual de loja física (foto da prateleira na visita) */}
       {selectedSegment === GONDOLA && (
@@ -179,8 +189,13 @@ export default function PriceListManager({ fixedSegment, refreshKey = 0 }: Props
 
       {/* Tabela de preços da Saporino só faz sentido p/ segmentos de venda (B2B/marketplace), não p/ supermercado concorrente */}
       {!SUPER_KEY[selectedSegment] && selectedSegment !== SUPER_OVERVIEW && (<>
-      <div className="flex items-center justify-between">
-        <h4 className="font-semibold text-gray-800">Tabela de Preços — {SEGMENT_LABEL[selectedSegment] ?? selectedSegment}</h4>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h4 className="font-semibold text-gray-800">
+            Preço para: <span className="text-[#a4240e]">{SEGMENT_LABEL[selectedSegment] ?? selectedSegment}</span>
+          </h4>
+          <p className="text-xs text-gray-500">Tabela global — vale para todos os representantes</p>
+        </div>
         <span className="text-xs text-gray-500">{products.length} produtos</span>
       </div>
 
@@ -223,6 +238,7 @@ export default function PriceListManager({ fixedSegment, refreshKey = 0 }: Props
         })}
       </div>
       </>)}
+      </div>
     </div>
   );
 }

@@ -100,6 +100,7 @@ try {
     console.log('      botoes:', JSON.stringify((await page.locator('button').allTextContents()).slice(0, 25)));
   }
   checar('Tabela de Preços abre com o botão da pesquisa de gôndola', achou);
+  await page.screenshot({ path: path.join(SAIDA, 'tabela-precos.png') });
   await page.getByRole('button', { name: /Pesquisa de gôndola/ }).click();
   checar('seção da pesquisa abre', await visivel(page.getByRole('heading', { name: 'Pesquisa de gôndola' }), 20000));
 

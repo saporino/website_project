@@ -25,7 +25,10 @@ function aggregate(rows: Row[], keyFn: (r: Row) => string): Agg[] {
   return [...m.values()].sort((a, b) => b.faturamento - a.faturamento);
 }
 
+// Volta para onde a Inteligência é aberta: Admin › RepCo › Representantes.
+// Antes caía no Dashboard, que não é de onde a pessoa saiu.
 function goBack() {
+  try { localStorage.setItem('admin-initial-tab', 'repco'); localStorage.setItem('repco-initial-view', 'list'); } catch { /* ok */ }
   window.history.pushState({}, '', '/admin');
   window.dispatchEvent(new PopStateEvent('popstate'));
 }

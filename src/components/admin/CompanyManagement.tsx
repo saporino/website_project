@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useCompany, type Company } from '../../contexts/CompanyContext';
 import { Building2, Upload, Loader2, Check, Save } from 'lucide-react';
@@ -7,7 +7,19 @@ const BUCKET = 'product-images';
 
 // Gerência das empresas (Saporino / Fazendinha): dados, logo e modelo de comissão.
 export default function CompanyManagement() {
-  const { companies, reloadCompanies } = useCompany();
+  const { reloadCompanies } = useCompany();
+  // AQUI lista TODAS as empresas, inclusive as desativadas. O seletor do topo só mostra as
+  // ativas — e, quando esta tela usava a mesma lista, desativar uma empresa a fazia sumir
+  // daqui também: não havia como religá-la.
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const carregarTodas = useCallback(async () => {
+    const { data } = await supabase.from('companies').select('*').order('sort_order');
+    setCompanies((data as Company[]) ?? []);
+    setCarregando(false);
+  }, []);
+  useEffect(() => { carregarTodas(); }, [carregarTodas]);
+  const aoSalvar = () => { carregarTodas(); reloadCompanies(); };
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-6">
@@ -21,8 +33,8 @@ export default function CompanyManagement() {
         </div>
       </div>
       <div className="space-y-3">
-        {companies.map(c => <CompanyRow key={c.id} company={c} onSaved={reloadCompanies} />)}
-        {companies.length === 0 && <p className="text-sm text-gray-400">Nenhuma empresa cadastrada.</p>}
+        {companies.map(c => <CompanyRow key={c.id} company={c} onSaved={aoSalvar} />)}
+        {!carregando && companies.length === 0 && <p className="text-sm text-gray-400">Nenhuma empresa cadastrada.</p>}
       </div>
     </div>
   );
@@ -71,7 +83,13 @@ function CompanyRow({ company, onSaved }: { company: Company; onSaved: () => voi
   }
 
   return (
-    <div className="border border-gray-200 rounded-xl p-4">
+    <div className={`border rounded-xl p-4 ${f.is_active ? 'border-gray-200' : 'border-amber-300 bg-amber-50/40'}`}>
+      {/* Empresa desativada continua aqui, visível e editável — é daqui que ela volta. */}
+      {!f.is_active && (
+        <p className="mb-3 text-xs font-semibold text-amber-800 bg-amber-100 border border-amber-200 rounded-lg px-3 py-1.5 inline-block">
+          Desativada — não aparece no seletor do topo. Marque "Ativa" e salve para voltar.
+        </p>
+      )}
       <div className="flex items-start gap-4">
         {/* Logo */}
         <div className="flex flex-col items-center gap-2 flex-shrink-0">
