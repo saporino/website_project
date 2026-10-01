@@ -43,7 +43,7 @@ export default function PriceListManager({ fixedSegment, refreshKey = 0 }: Props
   useEffect(() => { if (activeCompanyId) fetchData(); else setLoading(false); }, [refreshKey, activeCompanyId]);
   useEffect(() => {
     function handleRefresh() {
-      fetchData();
+      fetchData(true);
     }
     window.addEventListener('admin:price-list-updated', handleRefresh);
     window.addEventListener('focus', handleRefresh);
@@ -53,8 +53,11 @@ export default function PriceListManager({ fixedSegment, refreshKey = 0 }: Props
     };
   }, []);
 
-  async function fetchData() {
-    setLoading(true);
+  // `silencioso` = recarrega os dados SEM voltar para a tela de carregando.
+  // Ao voltar de outra aba o navegador dispara 'focus': com o loading ligado, a tela
+  // inteira era remontada e o que estivesse digitado nos formulários de dentro sumia.
+  async function fetchData(silencioso = false) {
+    if (!silencioso) setLoading(true);
     const [{ data: prods }, { data: prices }] = await Promise.all([
       supabase.from('products').select('id,name,image_url,price,is_active').eq('is_active', true).eq('company_id', activeCompanyId).order('name'),
       supabase.from('price_lists').select('*').eq('company_id', activeCompanyId),

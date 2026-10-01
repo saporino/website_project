@@ -103,6 +103,26 @@ try {
   await page.getByRole('button', { name: /Pesquisa de gôndola/ }).click();
   checar('seção da pesquisa abre', await visivel(page.getByRole('heading', { name: 'Pesquisa de gôndola' }), 20000));
 
+  // O caso real: começa a digitar, sai para outra aba copiar o endereço da loja e volta.
+  await page.getByPlaceholder('Rede (ex.: Supermercado Lopes)').fill(`${MARCA} Rede`);
+  await page.getByPlaceholder('Cidade').fill('Osasco');
+  const outraAba = await ctx.newPage();
+  await outraAba.goto('about:blank');
+  await outraAba.bringToFront();
+  await page.waitForTimeout(1500);
+  await page.bringToFront();                    // volta: dispara o 'focus' que antes limpava tudo
+  await page.waitForTimeout(2500);
+  checar('o que foi digitado sobrevive a sair e voltar da aba',
+    await page.getByPlaceholder('Rede (ex.: Supermercado Lopes)').inputValue() === `${MARCA} Rede`
+    && await page.getByPlaceholder('Cidade').inputValue() === 'Osasco');
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.getByRole('button', { name: 'Tabela de Preços' }).first().click();
+  await page.getByRole('button', { name: /Pesquisa de gôndola/ }).click();
+  await visivel(page.getByPlaceholder('Rede (ex.: Supermercado Lopes)'), 20000);
+  checar('o rascunho volta até depois de recarregar a página',
+    await page.getByPlaceholder('Rede (ex.: Supermercado Lopes)').inputValue() === `${MARCA} Rede`);
+  await outraAba.close();
+
   await page.getByPlaceholder('Rede (ex.: Supermercado Lopes)').fill(`${MARCA} Rede`);
   await page.getByPlaceholder('Loja (ex.: Cipava)').fill('Centro');
   await page.getByPlaceholder('Cidade').fill('Osasco');
@@ -111,6 +131,8 @@ try {
 
   const { data: pesquisa } = await admin.from('gondola_pesquisas').select('id').like('rede', `${MARCA}%`).maybeSingle();
   checar('pesquisa gravada no banco com loja e cidade', !!pesquisa?.id);
+  checar('rascunho some depois de criar a pesquisa',
+    await page.evaluate(() => localStorage.getItem('gondola-rascunho')) === null);
 
   // Itens como a função de leitura os grava: um legível, um que a IA não conseguiu ler.
   await admin.from('gondola_itens').insert([

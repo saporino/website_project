@@ -29,7 +29,20 @@ export default function GondolaPesquisa() {
   const [enviando, setEnviando] = useState('');
   const [lendo, setLendo] = useState(false);
   const [msg, setMsg] = useState('');
-  const [nova, setNova] = useState({ rede: '', loja: '', cidade: '', uf: 'SP' });
+  // RASCUNHO: o que você digita fica guardado no navegador enquanto não cria a pesquisa.
+  // Serve para o caso real — sair para outra aba copiar o endereço da loja e voltar.
+  // Some sozinho quando a pesquisa é criada.
+  const RASCUNHO = 'gondola-rascunho';
+  const [nova, setNova] = useState(() => {
+    try { const s = localStorage.getItem(RASCUNHO); if (s) return JSON.parse(s); } catch { /* sem rascunho */ }
+    return { rede: '', loja: '', cidade: '', uf: 'SP' };
+  });
+  useEffect(() => {
+    try {
+      const vazio = !nova.rede && !nova.loja && !nova.cidade;
+      if (vazio) localStorage.removeItem(RASCUNHO); else localStorage.setItem(RASCUNHO, JSON.stringify(nova));
+    } catch { /* navegador sem espaço */ }
+  }, [nova]);
   const [margens, setMargens] = useState(() => localStorage.getItem('intel-margens') || '20; 22,5; 25');
   const listaMargens = useMemo(() => lerMargens(margens), [margens]);
 
@@ -63,6 +76,7 @@ export default function GondolaPesquisa() {
     }).select().single();
     if (error) { setMsg('Erro ao criar: ' + error.message); return; }
     setNova({ rede: '', loja: '', cidade: '', uf: 'SP' });
+    try { localStorage.removeItem(RASCUNHO); } catch { /* ignora */ }
     await carregarPesquisas();
     abrir(data as Pesquisa);
   }
