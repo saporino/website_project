@@ -29,13 +29,13 @@ export default function CardEmbalagem({ item, ancora }: { item: EmbalagemItem; a
   return (
     <article className="border border-neutral-200 p-6 grid gap-8 sm:grid-cols-[minmax(0,420px)_minmax(0,1fr)] items-start">
       {/* Foto grande à esquerda, miniaturas embaixo — quem compra embalagem decide pelo que vê.
-          Moldura vermelha COFICO: o branco das artes do fornecedor não é o mesmo branco da
-          página, e sem a moldura a foto parecia um retângulo sujo no meio do card. */}
+          O painel da foto é vermelho COFICO: o branco das artes não é o mesmo branco da página,
+          e solto no card a foto parecia um retângulo sujo. Sobre o vermelho, ela se fecha. */}
       {fotos.length > 0 && (
         <div>
           <button type="button" onClick={() => setAmpliada(true)}
             title="Ver a foto grande" aria-label={`Ver ${item.nome} em tamanho grande`}
-            className="group relative w-full aspect-square flex items-center justify-center cursor-zoom-in bg-white border-[6px] border-cofico">
+            className="group relative w-full aspect-square flex items-center justify-center cursor-zoom-in bg-white">
             <img src={fotos[atual]} alt={item.nome} className="w-full h-full object-contain"
               onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             <span className="absolute bottom-1 right-1 inline-flex items-center gap-1 bg-white/90 border border-neutral-200 text-[11px] font-semibold text-neutral-600 px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -47,7 +47,7 @@ export default function CardEmbalagem({ item, ancora }: { item: EmbalagemItem; a
               {fotos.map((f, i) => (
                 <button key={f} type="button" onClick={() => setAtual(i)}
                   aria-label={`Foto ${i + 1} de ${item.nome}`} aria-current={i === atual}
-                  className={`w-16 h-16 border p-1 transition-colors ${i === atual ? 'border-cofico-ink' : 'border-neutral-200 hover:border-neutral-400'}`}>
+                  className={`w-16 h-16 border-2 p-1 bg-white transition-colors ${i === atual ? 'border-cofico' : 'border-neutral-200 hover:border-neutral-400'}`}>
                   <img src={f} alt="" className="w-full h-full object-contain" />
                 </button>
               ))}
