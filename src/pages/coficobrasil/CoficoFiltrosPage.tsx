@@ -247,6 +247,84 @@ export default function CoficoFiltrosPage() {
         </div>
       </section>
 
+      {/* MARCA PRÓPRIA de coador e permanente. Texto escrito do zero a partir das informações
+          do Vlademir — nada copiado do material de origem. Só o que ele confirmou entra aqui. */}
+      <section id="mp-coadores" className="border-t border-neutral-200 bg-neutral-50">
+        <div className="mx-auto max-w-6xl px-6 py-16">
+          <p className="text-xs font-bold uppercase tracking-wide text-cofico-ink">Marca própria</p>
+          <h2 className="mt-3 text-2xl md:text-3xl font-bold tracking-tight">Coador e filtro permanente com a sua marca</h2>
+          <p className="mt-4 text-neutral-600 max-w-3xl">
+            Produzimos e embalamos com a marca do cliente. A logo vai estampada no próprio produto, e a armação
+            plástica pode ser injetada na cor da marca — não é só uma etiqueta trocada.
+          </p>
+
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <article className="bg-white border border-neutral-200 p-6">
+              <div className="aspect-[4/3] flex items-center justify-center">
+                <img src="/cofico/mp-filtro-permanente.webp" alt="Filtro permanente com a marca do cliente" className="w-4/5 h-4/5 object-contain"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              </div>
+              <h3 className="mt-4 text-lg font-semibold">Filtro permanente</h3>
+              <p className="mt-2 text-sm text-neutral-600">
+                A logo do cliente vai na alça. A embalagem sai em flow pack, para volumes maiores, ou em saco
+                cristal PP com cartela interna ou lapela de papel grampeada.
+              </p>
+            </article>
+
+            <article className="bg-white border border-neutral-200 p-6">
+              <div className="aspect-[4/3] flex items-center justify-center">
+                <img src="/cofico/mp-coador-pano.webp" alt="Coador de pano com a marca do cliente" className="w-4/5 h-4/5 object-contain"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              </div>
+              <h3 className="mt-4 text-lg font-semibold">Coador de pano</h3>
+              <p className="mt-2 text-sm text-neutral-600">
+                Filtro 100% algodão, em malha ou flanela, nos três tamanhos. Cabo branco é o padrão; outras cores,
+                sob consulta.
+              </p>
+            </article>
+
+            <article className="bg-white border border-neutral-200 p-6">
+              <div className="aspect-[4/3] flex items-center justify-center">
+                <img src="/cofico/mp-coador-cabo-cor.webp" alt="Coador com o cabo na cor da marca" className="w-4/5 h-4/5 object-contain"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              </div>
+              <h3 className="mt-4 text-lg font-semibold">Cabo na cor da marca</h3>
+              <p className="mt-2 text-sm text-neutral-600">
+                O cabo pode acompanhar a identidade visual do cliente, e a logo é impressa em uma cor.
+              </p>
+            </article>
+          </div>
+
+          <div className="mt-12 grid gap-10 lg:grid-cols-2">
+            <div>
+              <h3 className="text-lg font-semibold">Para quem é</h3>
+              <p className="mt-3 text-sm text-neutral-600">
+                Torrefações, encarteladores, atacadistas, redes de supermercado e ações promocionais — quem já tem
+                marca e quer o coador no próprio portfólio.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">Medidas e modelos</h3>
+              <ul className="mt-3 space-y-1.5 text-sm text-neutral-700">
+                <li>Coador pequeno — 9,5 cm de diâmetro, até 1 litro</li>
+                <li>Coador médio — 11 cm de diâmetro, até 2 litros</li>
+                <li>Coador grande — 14 cm de diâmetro, até 4 litros</li>
+                <li>Filtro 100% algodão, em malha ou flanela</li>
+                <li>Filtro permanente para café — 102 e 103</li>
+              </ul>
+            </div>
+          </div>
+
+          <a href={WA_MARCA_PROPRIA} target="_blank" rel="noopener noreferrer"
+            className="mt-10 inline-flex items-center gap-1.5 bg-cofico-ink text-white text-sm font-semibold px-6 py-3.5 hover:bg-cofico-dark transition-colors">
+            Quero coador com a minha marca <ArrowRight className="w-4 h-4" aria-hidden="true" />
+          </a>
+          <p className="mt-4 text-sm text-neutral-500">
+            Quantidade mínima, prazo de produção e condições de arte entram no orçamento, pelo volume do pedido.
+          </p>
+        </div>
+      </section>
+
       <section className="border-t border-neutral-200">
         <div className="mx-auto max-w-6xl px-6 py-16">
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Compre junto com o café</h2>
