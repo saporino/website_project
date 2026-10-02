@@ -80,11 +80,17 @@ export default function CoficoEmbalagensPage() {
 
       {/* CATÁLOGO — cada embalagem é uma linha em embalagens.ts. Grupo sem item não aparece,
           para a página nunca mostrar seção vazia enquanto a linha está sendo montada. */}
-      {EMBALAGENS.filter(g => g.itens.length > 0).map(grupo => (
+      {EMBALAGENS.map(grupo => (
         <section key={grupo.id} id={grupo.id} className="border-t border-neutral-200">
           <div className="mx-auto max-w-6xl px-6 py-16">
             <h2 className="text-2xl md:text-3xl font-bold tracking-tight">{grupo.titulo}</h2>
             {grupo.resumo && <p className="mt-3 text-neutral-600 max-w-3xl">{grupo.resumo}</p>}
+            {grupo.itens.length === 0 && (
+              <p className="mt-6 text-sm text-neutral-600 border border-neutral-200 px-5 py-4">
+                Medidas e cores conforme a sua necessidade, a partir de {MINIMO_PADRAO} por item.{' '}
+                <a href={WA_EMBALAGEM} target="_blank" rel="noopener noreferrer" className="font-semibold text-cofico-ink hover:underline">Peça o orçamento</a> com o tamanho do seu pacote.
+              </p>
+            )}
             <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {grupo.itens.map(item => (
                 <article key={item.nome} className="border border-neutral-200 p-6 flex flex-col">
@@ -109,7 +115,7 @@ export default function CoficoEmbalagensPage() {
                 </article>
               ))}
             </div>
-            <p className="mt-6 text-sm text-neutral-500">
+            <p className={`text-sm text-neutral-500 ${grupo.itens.length ? 'mt-6' : 'hidden'}`}>
               Pedido mínimo de {MINIMO_PADRAO} por item. Preço, prazo e impressão:{' '}
               <a href={WA_EMBALAGEM} target="_blank" rel="noopener noreferrer" className="font-semibold text-cofico-ink hover:underline">peça o orçamento</a>.
             </p>
