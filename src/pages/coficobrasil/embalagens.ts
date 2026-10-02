@@ -40,7 +40,16 @@ export const EMBALAGENS: GrupoEmbalagem[] = [
   {
     id: 'stand-up-pouch',
     titulo: 'Stand up pouch',
-    resumo: 'Fica em pé na gôndola, com zip para fechar de novo. O formato mais usado por torrefação pequena e média.',
-    itens: [],
+    resumo: 'Fica em pé na gôndola, com zip para fechar de novo. Serve café moído, em grãos, kit de degustação, amostra e brinde. A embalagem vai vazia: café, etiqueta e acessórios não acompanham.',
+    itens: [
+      {
+        nome: 'Stand Up Pouch Preto para Café — 50 g',
+        capacidade: '50 g',
+        medidas: '10 × 14,5 cm',
+        cor: 'preto fosco',
+        detalhes: ['Zip para fechar de novo', 'Fica em pé', 'Espessura 0,180 mm'],
+        foto: '/cofico/pouch-preto-50g.webp',
+      },
+    ],
   },
 ];
