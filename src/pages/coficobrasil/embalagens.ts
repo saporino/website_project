@@ -49,6 +49,7 @@ export const EMBALAGENS: GrupoEmbalagem[] = [
         capacidade: '50 g',
         medidas: '10 × 14,5 cm',
         cor: 'preto fosco',
+        codigo: 'SUPPF1014COFI-1000',
         detalhes: ['Zip para fechar de novo', 'Fica em pé', 'Espessura 0,180 mm'],
         foto: '/cofico/pouch-preto-50g.webp',
         fotos: [

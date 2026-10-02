@@ -91,7 +91,11 @@ export default function CoficoEmbalagensPage() {
                 <a href={WA_EMBALAGEM} target="_blank" rel="noopener noreferrer" className="font-semibold text-cofico-ink hover:underline">Peça o orçamento</a> com o tamanho do seu pacote.
               </p>
             )}
-            <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {/* 3 por linha: com 4, o card ficava estreito e a embalagem, pequena demais
+                para quem precisa ver acabamento e medida antes de pedir orçamento. */}
+            {/* Uma embalagem por linha: a foto precisa ser grande o bastante para o cliente
+                ver acabamento, zip e proporção antes de pedir orçamento. */}
+            <div className="mt-10 grid gap-6">
               {grupo.itens.map(item => (
                 <CardEmbalagem key={item.nome} item={item} ancora={grupo.id} />
               ))}
