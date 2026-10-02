@@ -22,6 +22,30 @@ const PAPEL = [
   { n: '103', codigo: 'COFI1033040', uso: 'Para coador nº 103, de volume maior — padaria, escritório e cozinha industrial.' },
 ];
 
+// LINHA COADORES — cabo plástico, filtro de algodão. Dados da ficha do produto.
+// A marca é COFICO ou a do cliente (marca própria) — vale para todas as categorias.
+// Nome e referência são os da COFICO: o material de origem vinha como "Colonial".
+const COADORES = [
+  {
+    ref: 'C19P', tamanho: 'P', nome: 'Coador de algodão com cabo plástico — P',
+    diametro: '95 mm (9,5 cm)', volume: 'até 1 litro',
+    foto: '/cofico/coador-cabo-plastico-p.webp',
+    uso: 'O tamanho de casa e do cafezinho do balcão: prepara até 1 litro, com o sabor do café coado na hora.',
+  },
+  {
+    ref: 'C20M', tamanho: 'M', nome: 'Coador de algodão com cabo plástico — M',
+    diametro: '110 mm (11 cm)', volume: 'até 2 litros',
+    foto: '/cofico/coador-cabo-plastico-m.webp',
+    uso: 'Para servir a mesa toda de uma vez: prepara até 2 litros, com extração consistente, mais corpo e aroma.',
+  },
+  {
+    ref: 'C21G', tamanho: 'G', nome: 'Coador de algodão com cabo plástico — G',
+    diametro: '140 mm (14 cm)', volume: 'até 4 litros',
+    foto: '/cofico/coador-cabo-plastico-g.webp',
+    uso: 'O de maior volume: prepara até 4 litros de uma vez — empresa, evento e cozinha que serve muita gente.',
+  },
+];
+
 const LINHAS = [
   { icon: Filter, t: 'Filtro de papel', d: 'Para coador de plástico e cafeteira elétrica, nos tamanhos que a sua operação usa. Caixa fechada para revenda ou consumo.' },
   { icon: Layers, t: 'Coador de pano', d: 'O coador de sempre, para quem faz café na hora. Tamanhos para casa, padaria e cozinha industrial.' },
@@ -140,6 +164,38 @@ export default function CoficoFiltrosPage() {
           </div>
           <p className="mt-6 text-sm text-neutral-500">
             Quantidade por caixa, pedido mínimo e prazo: <a href={WA_FILTROS} target="_blank" rel="noopener noreferrer" className="font-semibold text-cofico-ink hover:underline">peça a tabela</a>.
+          </p>
+        </div>
+      </section>
+
+      {/* Coadores de algodão — linha própria, mesma lógica da linha de papel */}
+      <section id="coadores" className="border-t border-neutral-200">
+        <div className="mx-auto max-w-6xl px-6 py-16">
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Coadores de algodão</h2>
+          <p className="mt-3 text-neutral-600 max-w-3xl">
+            Linha cabo plástico, com filtro em <strong>malha 100% algodão</strong>: extração suave, reutilizável e lavável.
+            Cabo resistente e estrutura reforçada, para uso constante. Embalagem com 1 unidade.
+          </p>
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {COADORES.map(c => (
+              <article key={c.ref} className="border border-neutral-200 p-6 flex flex-col">
+                <div className="aspect-square flex items-center justify-center">
+                  <img src={c.foto} alt={c.nome} className="w-4/5 h-4/5 object-contain"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                </div>
+                <h3 className="mt-4 text-lg font-semibold">Coador cabo plástico {c.tamanho}</h3>
+                <p className="mt-1 text-sm text-neutral-600 flex-1">{c.uso}</p>
+                <dl className="mt-4 text-sm border-t border-neutral-200 pt-3 space-y-1">
+                  <div className="flex justify-between gap-3"><dt className="text-neutral-500">Diâmetro</dt><dd className="font-medium">{c.diametro}</dd></div>
+                  <div className="flex justify-between gap-3"><dt className="text-neutral-500">Prepara</dt><dd className="font-medium">{c.volume}</dd></div>
+                  {c.ref && <div className="flex justify-between gap-3"><dt className="text-neutral-500">Referência</dt><dd className="font-mono text-[13px] font-medium">{c.ref}</dd></div>}
+                </dl>
+              </article>
+            ))}
+          </div>
+          <p className="mt-6 text-sm text-neutral-500">
+            Disponível com a marca <strong>COFICO</strong> ou com a <strong>sua marca</strong> (marca própria).
+            Tamanhos M e G, quantidade por caixa e prazo: <a href={WA_FILTROS} target="_blank" rel="noopener noreferrer" className="font-semibold text-cofico-ink hover:underline">peça a tabela</a>.
           </p>
         </div>
       </section>
