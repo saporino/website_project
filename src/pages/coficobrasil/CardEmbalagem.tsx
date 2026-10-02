@@ -70,6 +70,71 @@ export default function CardEmbalagem({ item, ancora }: { item: EmbalagemItem; a
         <CompartilharWhats titulo={item.nome} ancora={ancora} />
       </div>
 
+      {/* Descrição, aplicações e ficha ocupam a largura toda: é o texto que o cliente lê antes
+          de pedir orçamento, e em coluna estreita vira parede. */}
+      {(item.descricao?.length || item.aplicacoes?.length || item.ficha?.length || item.naoAcompanha || item.faq?.length) && (
+        <div className="sm:col-span-2 border-t border-neutral-200 pt-6 grid gap-8 lg:grid-cols-2">
+          <div>
+            {item.descricao?.length ? (
+              <>
+                <h4 className="text-sm font-bold uppercase tracking-wide text-neutral-500">Descrição do produto</h4>
+                <div className="mt-3 space-y-3 text-sm text-neutral-700 leading-relaxed">
+                  {item.descricao.map(p => <p key={p}>{p}</p>)}
+                </div>
+              </>
+            ) : null}
+            {item.aplicacoes?.length ? (
+              <>
+                <h4 className="mt-7 text-sm font-bold uppercase tracking-wide text-neutral-500">Principais aplicações</h4>
+                <ul className="mt-3 space-y-1.5 text-sm text-neutral-700">
+                  {item.aplicacoes.map(a => (
+                    <li key={a} className="flex gap-2">
+                      <span className="text-cofico-ink" aria-hidden="true">•</span>{a}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+          </div>
+          <div>
+            {item.ficha?.length ? (
+              <>
+                <h4 className="text-sm font-bold uppercase tracking-wide text-neutral-500">Ficha técnica</h4>
+                <dl className="mt-3 text-sm">
+                  {item.ficha.map(([rotulo, valor]) => (
+                    <div key={rotulo} className="flex justify-between gap-4 border-b border-neutral-100 py-2">
+                      <dt className="text-neutral-500">{rotulo}</dt>
+                      <dd className="font-medium text-right">{valor}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </>
+            ) : null}
+            {item.naoAcompanha ? (
+              <p className="mt-6 text-sm text-neutral-600 border-l-2 border-cofico pl-3">
+                <strong className="font-semibold text-neutral-900">Não acompanha:</strong> {item.naoAcompanha}
+              </p>
+            ) : null}
+          </div>
+
+          {/* FAQ: as perguntas que o comercial responde toda semana. Respondidas aqui, o
+              orçamento chega mais perto de fechado. */}
+          {item.faq?.length ? (
+            <div className="lg:col-span-2 border-t border-neutral-200 pt-6">
+              <h4 className="text-sm font-bold uppercase tracking-wide text-neutral-500">Perguntas frequentes</h4>
+              <div className="mt-3 grid gap-x-10 gap-y-4 md:grid-cols-2">
+                {item.faq.map(({ p, r }) => (
+                  <div key={p}>
+                    <p className="text-sm font-semibold text-neutral-900">{p}</p>
+                    <p className="mt-1 text-sm text-neutral-600 leading-relaxed">{r}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
+
       {ampliada && createPortal(
         <div className="fixed inset-0 z-[80] bg-black/80 flex items-center justify-center p-4" onClick={() => setAmpliada(false)}>
           <button type="button" onClick={() => setAmpliada(false)} aria-label="Fechar"
