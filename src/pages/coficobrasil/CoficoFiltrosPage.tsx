@@ -7,6 +7,7 @@ import { ArrowRight, Filter, Layers, Recycle, ShoppingBag, Tag, Boxes, Factory }
 import CoficoHeader from './CoficoHeader';
 import CoficoFooter from './CoficoFooter';
 import { whatsAppCofico } from './conteudo';
+import CompartilharWhats from './CompartilharWhats';
 
 // Filtros falam com o Marcelo, não com o comercial geral da COFICO. Número dele,
 // combinado com o Vlademir em 26/09/2026 — vale SÓ nesta página, por enquanto.
@@ -179,6 +180,7 @@ export default function CoficoFiltrosPage() {
                   <div className="flex justify-between gap-3"><dt className="text-neutral-500">Conteúdo</dt><dd className="font-medium">30 filtros</dd></div>
                   <div className="flex justify-between gap-3"><dt className="text-neutral-500">Código</dt><dd className="font-mono text-[13px] font-medium">{codigo}</dd></div>
                 </dl>
+                <CompartilharWhats titulo={`Filtro de Papel COFICO ${n}`} ancora="linha-papel" />
               </article>
             ))}
           </div>
@@ -210,6 +212,7 @@ export default function CoficoFiltrosPage() {
                   <div className="flex justify-between gap-3"><dt className="text-neutral-500">Prepara</dt><dd className="font-medium">{p.volume}</dd></div>
                   <div className="flex justify-between gap-3"><dt className="text-neutral-500">Referência</dt><dd className="font-mono text-[13px] font-medium">{p.ref}</dd></div>
                 </dl>
+                <CompartilharWhats titulo={`Filtro permanente COFICO ${p.medida}`} ancora="permanentes" />
               </article>
             ))}
           </div>
@@ -242,6 +245,7 @@ export default function CoficoFiltrosPage() {
                   <div className="flex justify-between gap-3"><dt className="text-neutral-500">Prepara</dt><dd className="font-medium">{c.volume}</dd></div>
                   {c.ref && <div className="flex justify-between gap-3"><dt className="text-neutral-500">Referência</dt><dd className="font-mono text-[13px] font-medium">{c.ref}</dd></div>}
                 </dl>
+                <CompartilharWhats titulo={`Coador de algodão COFICO ${c.tamanho}`} ancora="coadores" />
               </article>
             ))}
           </div>
@@ -307,8 +311,10 @@ export default function CoficoFiltrosPage() {
             <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {CLIENTES_MP.map(c => (
                 <article key={c.marca} className="bg-white border border-neutral-200 p-5">
-                  <div className="aspect-square flex items-center justify-center">
-                    <img src={c.foto} alt={`${c.marca} — ${c.produto}`} className="w-4/5 h-4/5 object-contain"
+                  {/* Pacote é alto: quadro mais alto que largo, e a foto ocupa o quadro inteiro.
+                      No quadrado com margem, a embalagem aparecia miúda. */}
+                  <div className="aspect-[3/4] flex items-center justify-center">
+                    <img src={c.foto} alt={`${c.marca} — ${c.produto}`} className="w-full h-full object-contain"
                       onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                   </div>
                   <h4 className="mt-4 text-base font-semibold">{c.marca}</h4>

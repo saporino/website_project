@@ -11,6 +11,7 @@ import CoficoFooter from './CoficoFooter';
 import { COFICO } from './config';
 import { whatsAppCofico } from './conteudo';
 import { EMBALAGENS, MINIMO_PADRAO } from './embalagens';
+import CompartilharWhats from './CompartilharWhats';
 
 const WA_EMBALAGEM = whatsAppCofico(COFICO.phone, 'Olá! Vim pelo site da COFICO e quero um orçamento de embalagens para café.');
 const WA_SILK = whatsAppCofico(COFICO.phone, 'Olá! Vim pelo site da COFICO e quero um orçamento de impressão (silkscreen) na embalagem.');
@@ -104,6 +105,7 @@ export default function CoficoEmbalagensPage() {
                     <div className="flex justify-between gap-3"><dt className="text-neutral-500">Mínimo</dt><dd className="font-medium">{item.minimo ?? MINIMO_PADRAO}</dd></div>
                     {item.codigo && <div className="flex justify-between gap-3"><dt className="text-neutral-500">Código</dt><dd className="font-mono text-[13px] font-medium">{item.codigo}</dd></div>}
                   </dl>
+                  <CompartilharWhats titulo={item.nome} ancora={grupo.id} />
                 </article>
               ))}
             </div>
