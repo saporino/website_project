@@ -36,6 +36,8 @@ export interface EmbalagemItem {
   naoAcompanha?: string;
   /** Perguntas que o comercial responde toda semana. */
   faq?: { p: string; r: string }[];
+  /** Gramatura que existe na linha mas ainda não tem ficha/preço fechados. */
+  sobConsulta?: boolean;
 }
 
 export interface GrupoEmbalagem {
@@ -107,18 +109,95 @@ export const EMBALAGENS: GrupoEmbalagem[] = [
           '/cofico/pouch-preto-50g-vazias.webp',
         ],
       },
+      {
+        nome: 'Stand Up Pouch para Café — 100 g',
+        capacidade: '100 g',
+        medidas: '14 × 18,5 + 4 cm',
+        cor: 'preto, branco ou kraft',
+        codigo: 'SUP1418COFI-1000',
+        detalhes: ['Com ou sem válvula', '3 cores', 'Espessura 0,200 mm'],
+        descricao: [
+          'A mesma embalagem em três caras diferentes: preto para apresentação sóbria, branco como base neutra para a sua arte e kraft para quem quer o visual natural e artesanal. Sai com ou sem válvula, conforme o seu processo de envase.',
+          'A medida é 14 cm de largura por 18,5 cm de altura mais 4 cm de base — esse "+4" é o fundo que faz a embalagem ficar em pé cheia. Espessura de 0,200 mm.',
+          'O mínimo de 1.000 unidades é do pedido, não da cor: dá para fechar com 500 pretas e 500 kraft, ou 500 com válvula e 500 sem. Você monta a combinação e a gente produz.',
+        ],
+        aplicacoes: [
+          'Café moído e café em grãos',
+          'Linha própria de torrefação e cafeteria',
+          'Kits, amostras e clubes de assinatura',
+          'Brindes, eventos e ações promocionais',
+          'Outros produtos sólidos compatíveis com a medida',
+        ],
+        ficha: [
+          ['Produto', 'Embalagem stand up pouch'],
+          ['Espessura', '0,200 mm'],
+          ['Capacidade de referência', 'até 100 g, conforme a densidade do produto'],
+          ['Cores', 'preto, branco e kraft'],
+          ['Válvula', 'com ou sem — você escolhe por quantidade'],
+          ['Prazo da versão com válvula', '5 dias úteis de confecção'],
+          ['Unidade de venda', 'pedido fechado a partir de 1.000 unidades'],
+          ['Conteúdo', 'embalagens vazias, sem impressão'],
+        ],
+        naoAcompanha: 'Café, etiquetas, dosador, funil, caixa e itens de montagem não acompanham. Impressão da sua marca é serviço à parte — a COFICO faz em silkscreen.',
+        faq: [
+          { p: 'Posso misturar as cores no mesmo pedido?',
+            r: 'Pode. O mínimo de 1.000 unidades vale para o pedido inteiro. Você divide como quiser entre preto, branco e kraft — por exemplo 500 de uma e 500 de outra.' },
+          { p: 'E com válvula e sem válvula, posso misturar também?',
+            r: 'Pode, na mesma lógica: 500 com válvula e 500 sem fecham o mínimo. Só precisamos da quantidade certinha de cada combinação para produzir.' },
+          { p: 'Para que serve a válvula?',
+            r: 'Ela é usada em café recém-torrado, que libera gás depois da torra. Se a sua operação envasa logo após a torra, converse com o comercial sobre a especificação antes de fechar.' },
+          { p: 'O que significa o "+4" na medida?',
+            r: 'É o fundo: 14 cm de largura por 18,5 cm de altura, mais 4 cm de base. Esse fundo é o que faz a embalagem ficar em pé quando cheia.' },
+          { p: 'Cabe exatamente 100 g?',
+            r: '100 g é porção de referência. O peso real varia conforme a densidade, a granulometria e o jeito de encher.' },
+          { p: 'Quanto tempo leva a versão com válvula?',
+            r: 'A valvulada tem 5 dias úteis de confecção. A versão sem válvula sai mais rápido — o comercial confirma o prazo com o seu volume.' },
+          { p: 'Qual é a quantidade mínima?',
+            r: 'A COFICO fecha pedido a partir de 1.000 unidades, somando todas as combinações de cor e válvula.' },
+          { p: 'Dá para imprimir a minha marca?',
+            r: 'Dá. A COFICO imprime em silkscreen: você manda a arte, a gente ajusta ao formato, faz a prova e só produz depois da sua aprovação.' },
+        ],
+      },
+      { nome: 'Stand Up Pouch para Café — 250 g', capacidade: '250 g', sobConsulta: true },
+      { nome: 'Stand Up Pouch para Café — 500 g', capacidade: '500 g', sobConsulta: true },
+      { nome: 'Stand Up Pouch para Café — 1 kg', capacidade: '1 kg', sobConsulta: true },
     ],
   },
   {
     id: 'sanfonada',
     titulo: 'Sanfonada (lateral)',
     resumo: 'A embalagem clássica de café, com fole nas laterais: enche bem, empilha na prateleira e é a que o consumidor reconhece como pacote de café. Vai vazia, para você envasar e etiquetar.',
-    itens: [],
+    itens: [
+      { nome: 'Sanfonada — 100 g', capacidade: '100 g', sobConsulta: true },
+      { nome: 'Sanfonada — 250 g', capacidade: '250 g', sobConsulta: true },
+      { nome: 'Sanfonada — 500 g', capacidade: '500 g', sobConsulta: true },
+      { nome: 'Sanfonada — 1 kg', capacidade: '1 kg', sobConsulta: true },
+    ],
   },
   {
     id: 'quatro-soldas',
     titulo: '4 soldas',
-    resumo: 'Fechamento soldado nos quatro lados, formato reto e limpo. Usada para linha própria, porção maior e quem quer apresentação sóbria sem fole aparente.',
+    resumo: 'Fechamento soldado nos quatro lados, formato reto e limpo. Usada para linha própria, porção maior e quem quer apresentação sóbria, sem fole aparente.',
+    itens: [
+      { nome: '4 soldas — 250 g', capacidade: '250 g', sobConsulta: true },
+      { nome: '4 soldas — 500 g', capacidade: '500 g', sobConsulta: true },
+      { nome: '4 soldas — 1 kg', capacidade: '1 kg', sobConsulta: true },
+      { nome: '4 soldas — 5 kg', capacidade: '5 kg', sobConsulta: true },
+    ],
+  },
+  {
+    id: 'almofada',
+    titulo: 'Almofada',
+    resumo: 'Embalagem deitada, sem fundo: o formato mais econômico por unidade. Serve porção, amostra e produto que não precisa ficar em pé na prateleira.',
+    itens: [
+      { nome: 'Almofada — 250 g', capacidade: '250 g', sobConsulta: true },
+      { nome: 'Almofada — 500 g', capacidade: '500 g', sobConsulta: true },
+    ],
+  },
+  {
+    id: 'sacos-plasticos',
+    titulo: 'Sacos plásticos',
+    resumo: 'Saco liso para envase, transporte e armazenamento interno. É o item de operação: não vai para a gôndola, mas segura a produção.',
     itens: [],
   },
 ];

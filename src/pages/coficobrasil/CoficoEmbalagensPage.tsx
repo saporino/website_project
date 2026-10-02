@@ -10,8 +10,8 @@ import CoficoHeader from './CoficoHeader';
 import CoficoFooter from './CoficoFooter';
 import { COFICO } from './config';
 import { whatsAppCofico } from './conteudo';
-import { EMBALAGENS, MINIMO_PADRAO } from './embalagens';
-import CardEmbalagem from './CardEmbalagem';
+import { EMBALAGENS } from './embalagens';
+import GrupoEmbalagens from './GrupoEmbalagens';
 
 const WA_EMBALAGEM = whatsAppCofico(COFICO.phone, 'Olá! Vim pelo site da COFICO e quero um orçamento de embalagens para café.');
 const WA_SILK = whatsAppCofico(COFICO.phone, 'Olá! Vim pelo site da COFICO e quero um orçamento de impressão (silkscreen) na embalagem.');
@@ -78,40 +78,9 @@ export default function CoficoEmbalagensPage() {
         </div>
       </section>
 
-      {/* CATÁLOGO — cada embalagem é uma linha em embalagens.ts. Grupo sem item não aparece,
-          para a página nunca mostrar seção vazia enquanto a linha está sendo montada. */}
+      {/* CATÁLOGO — cada linha é um grupo em embalagens.ts, com seletor de gramatura. */}
       {EMBALAGENS.map(grupo => (
-        <section key={grupo.id} id={grupo.id} className="border-t border-neutral-200">
-          <div className="mx-auto max-w-6xl px-6 py-16">
-            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">{grupo.titulo}</h2>
-            {grupo.resumo && <p className="mt-3 text-neutral-600 max-w-3xl">{grupo.resumo}</p>}
-            {grupo.itens.length === 0 && (
-              <p className="mt-6 text-sm text-neutral-600 border border-neutral-200 px-5 py-4">
-                Medidas e cores conforme a sua necessidade, a partir de {MINIMO_PADRAO} por item.{' '}
-                <a href={WA_EMBALAGEM} target="_blank" rel="noopener noreferrer" className="font-semibold text-cofico-ink hover:underline">Peça o orçamento</a> com o tamanho do seu pacote.
-              </p>
-            )}
-            {/* 3 por linha: com 4, o card ficava estreito e a embalagem, pequena demais
-                para quem precisa ver acabamento e medida antes de pedir orçamento. */}
-            {/* Uma embalagem por linha: a foto precisa ser grande o bastante para o cliente
-                ver acabamento, zip e proporção antes de pedir orçamento. */}
-            <div className="mt-10 grid gap-6">
-              {grupo.itens.map(item => (
-                <CardEmbalagem key={item.nome} item={item} ancora={grupo.id} />
-              ))}
-            </div>
-            {/* Aviso de preço: embalagem depende de matéria-prima e muda sem aviso.
-                Dito aqui, evita cobrança de preço antigo no fechamento do pedido. */}
-            <p className="mt-6 text-xs text-neutral-500 border-l-2 border-neutral-300 pl-3">
-              Os preços de embalagem valem para negociação de curto prazo e <strong>não são fixos</strong>. Podem mudar sem
-              aviso, conforme o custo de matéria-prima, insumos e produção. Confirme o valor atualizado no fechamento do pedido.
-            </p>
-            <p className={`text-sm text-neutral-500 ${grupo.itens.length ? 'mt-4' : 'hidden'}`}>
-              Pedido mínimo de {MINIMO_PADRAO} por item. Preço, prazo e impressão:{' '}
-              <a href={WA_EMBALAGEM} target="_blank" rel="noopener noreferrer" className="font-semibold text-cofico-ink hover:underline">peça o orçamento</a>.
-            </p>
-          </div>
-        </section>
+        <GrupoEmbalagens key={grupo.id} grupo={grupo} waOrcamento={WA_EMBALAGEM} />
       ))}
 
       <section id="impressao" className="border-t border-neutral-200 bg-neutral-50">

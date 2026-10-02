@@ -27,7 +27,9 @@ export default function CardEmbalagem({ item, ancora }: { item: EmbalagemItem; a
   ) : null;
 
   return (
-    <article className="border border-neutral-200 p-6 grid gap-8 sm:grid-cols-[minmax(0,420px)_minmax(0,1fr)] items-start">
+    <article className={`border border-neutral-200 p-6 grid gap-8 items-start ${
+      fotos.length > 0 ? 'sm:grid-cols-[minmax(0,420px)_minmax(0,1fr)]' : ''
+    }`}>
       {/* Foto grande à esquerda, miniaturas embaixo — quem compra embalagem decide pelo que vê.
           O painel da foto é vermelho COFICO: o branco das artes não é o mesmo branco da página,
           e solto no card a foto parecia um retângulo sujo. Sobre o vermelho, ela se fecha. */}
