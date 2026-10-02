@@ -27,22 +27,37 @@ const PAPEL = [
 // Nome e referência são os da COFICO: o material de origem vinha como "Colonial".
 const COADORES = [
   {
-    ref: 'C19P', tamanho: 'P', nome: 'Coador de algodão com cabo plástico — P',
+    ref: 'COFI19P', tamanho: 'P', nome: 'Coador de algodão com cabo plástico — P',
     diametro: '95 mm (9,5 cm)', volume: 'até 1 litro',
     foto: '/cofico/coador-cabo-plastico-p.webp',
     uso: 'O tamanho de casa e do cafezinho do balcão: prepara até 1 litro, com o sabor do café coado na hora.',
   },
   {
-    ref: 'C20M', tamanho: 'M', nome: 'Coador de algodão com cabo plástico — M',
+    ref: 'COFI20M', tamanho: 'M', nome: 'Coador de algodão com cabo plástico — M',
     diametro: '110 mm (11 cm)', volume: 'até 2 litros',
     foto: '/cofico/coador-cabo-plastico-m.webp',
     uso: 'Para servir a mesa toda de uma vez: prepara até 2 litros, com extração consistente, mais corpo e aroma.',
   },
   {
-    ref: 'C21G', tamanho: 'G', nome: 'Coador de algodão com cabo plástico — G',
+    ref: 'COFI21G', tamanho: 'G', nome: 'Coador de algodão com cabo plástico — G',
     diametro: '140 mm (14 cm)', volume: 'até 4 litros',
     foto: '/cofico/coador-cabo-plastico-g.webp',
     uso: 'O de maior volume: prepara até 4 litros de uma vez — empresa, evento e cozinha que serve muita gente.',
+  },
+];
+
+// FILTROS PERMANENTES — tela e aro em polipropileno, laváveis, sem descarte de papel.
+// Dados da ficha do produto; o material de origem vinha como "Colonial".
+const PERMANENTES = [
+  {
+    ref: 'FPC80', medida: '102', porte: 'médio', volume: 'até 2 litros',
+    foto: '/cofico/filtro-permanente-102.webp',
+    uso: 'A medida do dia a dia: substitui o filtro de papel do coador 102, lava e usa de novo.',
+  },
+  {
+    ref: 'FPC81', medida: '103', porte: 'grande', volume: 'até 4 litros',
+    foto: '/cofico/filtro-permanente-103.webp',
+    uso: 'Para volume maior — família grande, empresa e evento —, sem descartar filtro a cada café.',
   },
 ];
 
@@ -164,6 +179,38 @@ export default function CoficoFiltrosPage() {
           </div>
           <p className="mt-6 text-sm text-neutral-500">
             Quantidade por caixa, pedido mínimo e prazo: <a href={WA_FILTROS} target="_blank" rel="noopener noreferrer" className="font-semibold text-cofico-ink hover:underline">peça a tabela</a>.
+          </p>
+        </div>
+      </section>
+
+      {/* Filtros permanentes — alternativa ao papel: lava e usa de novo */}
+      <section id="permanentes" className="border-t border-neutral-200">
+        <div className="mx-auto max-w-6xl px-6 py-16">
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Filtros permanentes</h2>
+          <p className="mt-3 text-neutral-600 max-w-3xl">
+            Tela e aro em <strong>polipropileno</strong>: lava, usa de novo e acaba o descarte diário de filtro de papel.
+            Cada unidade <strong>rende até 500 cafés</strong>. Embalagem com 1 unidade.
+          </p>
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {PERMANENTES.map(p => (
+              <article key={p.ref} className="border border-neutral-200 p-6 flex flex-col">
+                <div className="aspect-square flex items-center justify-center">
+                  <img src={p.foto} alt={`Filtro permanente COFICO ${p.medida}`} className="w-4/5 h-4/5 object-contain"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                </div>
+                <h3 className="mt-4 text-lg font-semibold">Filtro permanente {p.medida}</h3>
+                <p className="mt-1 text-sm text-neutral-600 flex-1">{p.uso}</p>
+                <dl className="mt-4 text-sm border-t border-neutral-200 pt-3 space-y-1">
+                  <div className="flex justify-between gap-3"><dt className="text-neutral-500">Porte</dt><dd className="font-medium">{p.porte}</dd></div>
+                  <div className="flex justify-between gap-3"><dt className="text-neutral-500">Prepara</dt><dd className="font-medium">{p.volume}</dd></div>
+                  <div className="flex justify-between gap-3"><dt className="text-neutral-500">Referência</dt><dd className="font-mono text-[13px] font-medium">{p.ref}</dd></div>
+                </dl>
+              </article>
+            ))}
+          </div>
+          <p className="mt-6 text-sm text-neutral-500">
+            Disponível com a marca <strong>COFICO</strong> ou com a <strong>sua marca</strong> (marca própria).
+            Quantidade por caixa e prazo: <a href={WA_FILTROS} target="_blank" rel="noopener noreferrer" className="font-semibold text-cofico-ink hover:underline">peça a tabela</a>.
           </p>
         </div>
       </section>

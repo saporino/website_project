@@ -8,7 +8,7 @@ import { ArrowRight, FileText, Lock, ShoppingBag } from 'lucide-react';
 import CoficoHeader from './CoficoHeader';
 import CoficoFooter from './CoficoFooter';
 import { COFICO } from './config';
-import { fetchCoficoVitrine, type CoficoProduto } from './coficoClient';
+import { fetchCoficoVitrine, fetchCoficoMarcas, type CoficoProduto } from './coficoClient';
 
 // Fichas técnicas: o catálogo do banco ainda não tem campo de PDF, então o arquivo
 // continua mapeado pelo nome do produto. Quando o painel ganhar upload de ficha,
@@ -63,8 +63,15 @@ export default function CoficoProdutosPage() {
   // se a consulta falhar, a página mostra o portfólio antigo em vez de ficar vazia.
   const [doBanco, setDoBanco] = useState<CoficoProduto[] | null>(null);
 
+  // Marcas LIGADAS no painel ("Aparece no site da COFICO"). A lista fixa abaixo também
+  // obedece a isto: antes, desligar a marca tirava os produtos do banco mas a lista fixa
+  // continuava mostrando o portfólio dela — o liga/desliga não valia nesta página.
+  // null = ainda carregando ou falhou → mostra tudo (falha de rede não apaga portfólio).
+  const [marcasLigadas, setMarcasLigadas] = useState<string[] | null>(null);
+
   useEffect(() => { document.title = 'Produtos — COFICO Brasil'; window.scrollTo(0, 0); }, []);
   useEffect(() => { fetchCoficoVitrine().then(setDoBanco).catch(() => setDoBanco([])); }, []);
+  useEffect(() => { fetchCoficoMarcas().then(ms => { if (ms) setMarcasLigadas(ms.map(m => m.marca)); }).catch(() => {}); }, []);
 
   // Catálogo = portfólio da página + o que o painel administra, mesclados.
   //
@@ -109,9 +116,14 @@ export default function CoficoProdutosPage() {
     else catalogo.push({ marca, produtos: [doBancoComoCard(p)] });
   }
 
+  // Marca desligada no painel sai da vitrine inteira — inclusive do portfólio fixo.
+  const marcaLigada = (marca: string) =>
+    marcasLigadas === null || marcasLigadas.some(m => chave(semSufixoLegal(m)) === chave(semSufixoLegal(marca)));
+  const catalogoLigado = catalogo.filter(g => marcaLigada(g.marca));
+
   // Abas: só aparecem os grupos que existem no catálogo (nada de aba vazia).
-  const gruposPresentes = GRUPOS.filter(g => catalogo.some(({ produtos }) => produtos.some(p => grupoDaCategoria(p.cat) === g)));
-  const catalogoVisivel = catalogo
+  const gruposPresentes = GRUPOS.filter(g => catalogoLigado.some(({ produtos }) => produtos.some(p => grupoDaCategoria(p.cat) === g)));
+  const catalogoVisivel = catalogoLigado
     .map(({ marca, produtos }) => ({ marca, produtos: grupoAtivo === 'Todos' ? produtos : produtos.filter(p => grupoDaCategoria(p.cat) === grupoAtivo) }))
     .filter(({ produtos }) => produtos.length > 0);
 
