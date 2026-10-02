@@ -10,6 +10,7 @@ import CoficoHeader from './CoficoHeader';
 import CoficoFooter from './CoficoFooter';
 import { COFICO } from './config';
 import { whatsAppCofico } from './conteudo';
+import { EMBALAGENS, MINIMO_PADRAO } from './embalagens';
 
 const WA_EMBALAGEM = whatsAppCofico(COFICO.phone, 'Olá! Vim pelo site da COFICO e quero um orçamento de embalagens para café.');
 const WA_SILK = whatsAppCofico(COFICO.phone, 'Olá! Vim pelo site da COFICO e quero um orçamento de impressão (silkscreen) na embalagem.');
@@ -75,6 +76,44 @@ export default function CoficoEmbalagensPage() {
           </p>
         </div>
       </section>
+
+      {/* CATÁLOGO — cada embalagem é uma linha em embalagens.ts. Grupo sem item não aparece,
+          para a página nunca mostrar seção vazia enquanto a linha está sendo montada. */}
+      {EMBALAGENS.filter(g => g.itens.length > 0).map(grupo => (
+        <section key={grupo.id} id={grupo.id} className="border-t border-neutral-200">
+          <div className="mx-auto max-w-6xl px-6 py-16">
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">{grupo.titulo}</h2>
+            {grupo.resumo && <p className="mt-3 text-neutral-600 max-w-3xl">{grupo.resumo}</p>}
+            <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {grupo.itens.map(item => (
+                <article key={item.nome} className="border border-neutral-200 p-6 flex flex-col">
+                  {item.foto && (
+                    <div className="aspect-square flex items-center justify-center">
+                      <img src={item.foto} alt={item.nome} className="w-4/5 h-4/5 object-contain"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                    </div>
+                  )}
+                  <h3 className="mt-4 text-base font-semibold leading-snug">{item.nome}</h3>
+                  {item.detalhes?.length ? (
+                    <p className="mt-2 text-sm text-neutral-600 flex-1">{item.detalhes.join(' · ')}</p>
+                  ) : <span className="flex-1" />}
+                  <dl className="mt-4 text-sm border-t border-neutral-200 pt-3 space-y-1">
+                    {item.capacidade && <div className="flex justify-between gap-3"><dt className="text-neutral-500">Capacidade</dt><dd className="font-medium">{item.capacidade}</dd></div>}
+                    {item.medidas && <div className="flex justify-between gap-3"><dt className="text-neutral-500">Medidas</dt><dd className="font-medium">{item.medidas}</dd></div>}
+                    {item.cor && <div className="flex justify-between gap-3"><dt className="text-neutral-500">Cor</dt><dd className="font-medium">{item.cor}</dd></div>}
+                    <div className="flex justify-between gap-3"><dt className="text-neutral-500">Mínimo</dt><dd className="font-medium">{item.minimo ?? MINIMO_PADRAO}</dd></div>
+                    {item.codigo && <div className="flex justify-between gap-3"><dt className="text-neutral-500">Código</dt><dd className="font-mono text-[13px] font-medium">{item.codigo}</dd></div>}
+                  </dl>
+                </article>
+              ))}
+            </div>
+            <p className="mt-6 text-sm text-neutral-500">
+              Pedido mínimo de {MINIMO_PADRAO} por item. Preço, prazo e impressão:{' '}
+              <a href={WA_EMBALAGEM} target="_blank" rel="noopener noreferrer" className="font-semibold text-cofico-ink hover:underline">peça o orçamento</a>.
+            </p>
+          </div>
+        </section>
+      ))}
 
       <section id="impressao" className="border-t border-neutral-200 bg-neutral-50">
         <div className="mx-auto max-w-6xl px-6 py-16">

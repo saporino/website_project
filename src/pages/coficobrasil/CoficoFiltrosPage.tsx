@@ -61,6 +61,11 @@ const PERMANENTES = [
   },
 ];
 
+// Clientes que já produzem marca própria com a COFICO (prova real, não ilustração).
+const CLIENTES_MP = [
+  { marca: 'Café Capital', praca: 'Rio de Janeiro', produto: 'Coador de pano médio, 100% algodão, com a marca do cliente', foto: '/cofico/mp-cliente-capital.webp' },
+];
+
 const LINHAS = [
   { icon: Filter, t: 'Filtro de papel', d: 'Para coador de plástico e cafeteira elétrica, nos tamanhos que a sua operação usa. Caixa fechada para revenda ou consumo.' },
   { icon: Layers, t: 'Coador de pano', d: 'O coador de sempre, para quem faz café na hora. Tamanhos para casa, padaria e cozinha industrial.' },
@@ -293,6 +298,25 @@ export default function CoficoFiltrosPage() {
                 O cabo pode acompanhar a identidade visual do cliente, e a logo é impressa em uma cor.
               </p>
             </article>
+          </div>
+
+          {/* Clientes que já produzem com a COFICO. Entra marca com autorização do dono —
+              é a marca dele numa página comercial nossa. */}
+          <div className="mt-12 border-t border-neutral-200 pt-10">
+            <h3 className="text-lg font-semibold">Marcas que já produzem com a gente</h3>
+            <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {CLIENTES_MP.map(c => (
+                <article key={c.marca} className="bg-white border border-neutral-200 p-5">
+                  <div className="aspect-square flex items-center justify-center">
+                    <img src={c.foto} alt={`${c.marca} — ${c.produto}`} className="w-4/5 h-4/5 object-contain"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                  </div>
+                  <h4 className="mt-4 text-base font-semibold">{c.marca}</h4>
+                  <p className="text-sm text-neutral-500">{c.praca}</p>
+                  <p className="mt-2 text-sm text-neutral-600">{c.produto}</p>
+                </article>
+              ))}
+            </div>
           </div>
 
           <div className="mt-12 grid gap-10 lg:grid-cols-2">
