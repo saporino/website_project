@@ -109,4 +109,16 @@ export const EMBALAGENS: GrupoEmbalagem[] = [
       },
     ],
   },
+  {
+    id: 'sanfonada',
+    titulo: 'Sanfonada (lateral)',
+    resumo: 'A embalagem clássica de café, com fole nas laterais: enche bem, empilha na prateleira e é a que o consumidor reconhece como pacote de café. Vai vazia, para você envasar e etiquetar.',
+    itens: [],
+  },
+  {
+    id: 'quatro-soldas',
+    titulo: '4 soldas',
+    resumo: 'Fechamento soldado nos quatro lados, formato reto e limpo. Usada para linha própria, porção maior e quem quer apresentação sóbria sem fole aparente.',
+    itens: [],
+  },
 ];
