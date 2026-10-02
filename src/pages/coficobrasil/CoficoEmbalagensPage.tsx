@@ -11,7 +11,7 @@ import CoficoFooter from './CoficoFooter';
 import { COFICO } from './config';
 import { whatsAppCofico } from './conteudo';
 import { EMBALAGENS, MINIMO_PADRAO } from './embalagens';
-import CompartilharWhats from './CompartilharWhats';
+import CardEmbalagem from './CardEmbalagem';
 
 const WA_EMBALAGEM = whatsAppCofico(COFICO.phone, 'Olá! Vim pelo site da COFICO e quero um orçamento de embalagens para café.');
 const WA_SILK = whatsAppCofico(COFICO.phone, 'Olá! Vim pelo site da COFICO e quero um orçamento de impressão (silkscreen) na embalagem.');
@@ -93,29 +93,16 @@ export default function CoficoEmbalagensPage() {
             )}
             <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {grupo.itens.map(item => (
-                <article key={item.nome} className="border border-neutral-200 p-6 flex flex-col">
-                  {item.foto && (
-                    <div className="aspect-square flex items-center justify-center">
-                      <img src={item.foto} alt={item.nome} className="w-4/5 h-4/5 object-contain"
-                        onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                    </div>
-                  )}
-                  <h3 className="mt-4 text-base font-semibold leading-snug">{item.nome}</h3>
-                  {item.detalhes?.length ? (
-                    <p className="mt-2 text-sm text-neutral-600 flex-1">{item.detalhes.join(' · ')}</p>
-                  ) : <span className="flex-1" />}
-                  <dl className="mt-4 text-sm border-t border-neutral-200 pt-3 space-y-1">
-                    {item.capacidade && <div className="flex justify-between gap-3"><dt className="text-neutral-500">Capacidade</dt><dd className="font-medium">{item.capacidade}</dd></div>}
-                    {item.medidas && <div className="flex justify-between gap-3"><dt className="text-neutral-500">Medidas</dt><dd className="font-medium">{item.medidas}</dd></div>}
-                    {item.cor && <div className="flex justify-between gap-3"><dt className="text-neutral-500">Cor</dt><dd className="font-medium">{item.cor}</dd></div>}
-                    <div className="flex justify-between gap-3"><dt className="text-neutral-500">Mínimo</dt><dd className="font-medium">{item.minimo ?? MINIMO_PADRAO}</dd></div>
-                    {item.codigo && <div className="flex justify-between gap-3"><dt className="text-neutral-500">Código</dt><dd className="font-mono text-[13px] font-medium">{item.codigo}</dd></div>}
-                  </dl>
-                  <CompartilharWhats titulo={item.nome} ancora={grupo.id} />
-                </article>
+                <CardEmbalagem key={item.nome} item={item} ancora={grupo.id} />
               ))}
             </div>
-            <p className={`text-sm text-neutral-500 ${grupo.itens.length ? 'mt-6' : 'hidden'}`}>
+            {/* Aviso de preço: embalagem depende de matéria-prima e muda sem aviso.
+                Dito aqui, evita cobrança de preço antigo no fechamento do pedido. */}
+            <p className="mt-6 text-xs text-neutral-500 border-l-2 border-neutral-300 pl-3">
+              Os preços de embalagem valem para negociação de curto prazo e <strong>não são fixos</strong>. Podem mudar sem
+              aviso, conforme o custo de matéria-prima, insumos e produção. Confirme o valor atualizado no fechamento do pedido.
+            </p>
+            <p className={`text-sm text-neutral-500 ${grupo.itens.length ? 'mt-4' : 'hidden'}`}>
               Pedido mínimo de {MINIMO_PADRAO} por item. Preço, prazo e impressão:{' '}
               <a href={WA_EMBALAGEM} target="_blank" rel="noopener noreferrer" className="font-semibold text-cofico-ink hover:underline">peça o orçamento</a>.
             </p>

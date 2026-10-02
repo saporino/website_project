@@ -22,6 +22,8 @@ export interface EmbalagemItem {
   codigo?: string;
   /** Caminho em /public/cofico. Vazio = card sem foto, em vez de imagem quebrada. */
   foto?: string;
+  /** Fotos extras (medidas, usos, o que acompanha). Viram quadrinhos embaixo da principal. */
+  fotos?: string[];
   /** Quando difere do mínimo padrão de 1.000 unidades. */
   minimo?: string;
 }
@@ -49,6 +51,11 @@ export const EMBALAGENS: GrupoEmbalagem[] = [
         cor: 'preto fosco',
         detalhes: ['Zip para fechar de novo', 'Fica em pé', 'Espessura 0,180 mm'],
         foto: '/cofico/pouch-preto-50g.webp',
+        fotos: [
+          '/cofico/pouch-preto-50g-medidas.webp',
+          '/cofico/pouch-preto-50g-possibilidades.webp',
+          '/cofico/pouch-preto-50g-vazias.webp',
+        ],
       },
     ],
   },
