@@ -28,12 +28,14 @@ export default function CardEmbalagem({ item, ancora }: { item: EmbalagemItem; a
 
   return (
     <article className="border border-neutral-200 p-6 grid gap-8 sm:grid-cols-[minmax(0,420px)_minmax(0,1fr)] items-start">
-      {/* Foto grande à esquerda, miniaturas embaixo — quem compra embalagem decide pelo que vê. */}
+      {/* Foto grande à esquerda, miniaturas embaixo — quem compra embalagem decide pelo que vê.
+          Moldura vermelha COFICO: o branco das artes do fornecedor não é o mesmo branco da
+          página, e sem a moldura a foto parecia um retângulo sujo no meio do card. */}
       {fotos.length > 0 && (
         <div>
           <button type="button" onClick={() => setAmpliada(true)}
             title="Ver a foto grande" aria-label={`Ver ${item.nome} em tamanho grande`}
-            className="group relative w-full aspect-square flex items-center justify-center cursor-zoom-in bg-white">
+            className="group relative w-full aspect-square flex items-center justify-center cursor-zoom-in bg-white border-[6px] border-cofico">
             <img src={fotos[atual]} alt={item.nome} className="w-full h-full object-contain"
               onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             <span className="absolute bottom-1 right-1 inline-flex items-center gap-1 bg-white/90 border border-neutral-200 text-[11px] font-semibold text-neutral-600 px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity">
