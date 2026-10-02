@@ -121,6 +121,8 @@ export const EMBALAGENS: GrupoEmbalagem[] = [
           '/cofico/pouch-100g-preto.webp',
           '/cofico/pouch-100g-branco.webp',
           '/cofico/pouch-100g-kraft.webp',
+          '/cofico/pouch-100g-perfil.webp',
+          '/cofico/pouch-100g-aplicacoes.webp',
         ],
         descricao: [
           'A mesma embalagem em três caras diferentes: preto para apresentação sóbria, branco como base neutra para a sua arte e kraft para quem quer o visual natural e artesanal. Sai com ou sem válvula, conforme o seu processo de envase.',
