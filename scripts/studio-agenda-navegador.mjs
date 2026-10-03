@@ -1,0 +1,158 @@
+// Studio — agenda no card da peça. Bancada de NAVEGADOR no staging (desktop e 375 px).
+//
+// O que verifica: a peça diz sozinha quando foi publicada, para quando está agendada e
+// quando a publicação falhou — sem precisar abrir a aba Campanhas.
+// Admin temporário, sessão injetada, empresa/marca/peça de teste. Tudo apagado no fim.
+//   node scripts/studio-agenda-navegador.mjs [--mostrar]
+
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { spawn } from 'node:child_process';
+import { chromium } from 'playwright-core';
+import { createClient } from '@supabase/supabase-js';
+import { escolherAmbiente, confirmarNoBanco, anunciar } from './_ambiente.mjs';
+
+const RAIZ = path.resolve(import.meta.dirname, '..');
+const ambiente = escolherAmbiente({ destrutivo: true });
+const env = ambiente.env;
+anunciar(ambiente);
+const semSessao = { auth: { persistSession: false, autoRefreshToken: false } };
+const admin = createClient(env.VITE_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, semSessao);
+await confirmarNoBanco(admin, ambiente, { destrutivo: true });
+
+const MARCA = 'teste-agenda-nav';
+const EMPRESA = 'Agenda Studio Teste Ltda';
+const PORTA = 5192;
+const SAIDA = path.join(RAIZ, 'test-results', 'studio-agenda');
+fs.mkdirSync(SAIDA, { recursive: true });
+let falhas = 0, criterios = 0;
+const checar = (t, c, d = '') => { criterios++; if (c) console.log('  ok  ' + t); else { falhas++; console.log(`  !!  ${t} ${d}`); } };
+
+async function limpar() {
+  const { data } = await admin.from('companies').select('id').eq('name', EMPRESA);
+  const ids = (data ?? []).map(c => c.id);
+  if (ids.length) {
+    await admin.from('studio_campaigns').delete().in('company_id', ids);
+    await admin.from('studio_videos').delete().in('company_id', ids);
+    await admin.from('studio_brand_profiles').delete().in('company_id', ids);
+    await admin.from('studio_organizations').delete().in('company_id', ids);
+    await admin.from('companies').delete().in('id', ids);
+  }
+  for (let p = 1; p <= 20; p++) {
+    const { data: u } = await admin.auth.admin.listUsers({ page: p, perPage: 200 });
+    for (const x of (u?.users ?? []).filter(x => x.email?.startsWith(MARCA))) await admin.auth.admin.deleteUser(x.id);
+    if (!u?.users || u.users.length < 200) break;
+  }
+}
+
+async function subirVite() {
+  const vite = spawn(process.execPath, [path.join(RAIZ, 'node_modules/vite/bin/vite.js'), '--port', String(PORTA), '--strictPort', '--mode', 'staging'], { cwd: RAIZ, stdio: 'ignore' });
+  const base = `http://localhost:${PORTA}`;
+  for (let i = 0; i < 120; i++) {
+    try { if ((await fetch(base)).ok) return { base, parar: () => vite.kill() }; } catch { /* subindo */ }
+    await new Promise(r => setTimeout(r, 500));
+  }
+  vite.kill(); throw new Error('o Vite não respondeu');
+}
+const visivel = async (loc, ms = 20000) => { try { await loc.first().waitFor({ state: 'visible', timeout: ms }); return true; } catch { return false; } };
+
+// ---------- dados ----------
+await limpar();
+const { data: emp, error: eEmp } = await admin.from('companies')
+  .insert({ name: EMPRESA, fantasia: 'AGENDA TESTE', is_active: true, studio_enabled: true, is_operator: false, sort_order: 90 })
+  .select('id').single();
+if (eEmp) throw new Error(eEmp.message);
+const { data: org } = await admin.from('studio_organizations')
+  .insert({ name: `Org ${MARCA}`, slug: MARCA, company_id: emp.id, plan: 'interno', status: 'ativa' }).select('id').single();
+const { data: marca } = await admin.from('studio_brand_profiles')
+  .insert({ company_id: emp.id, organization_id: org.id, name: 'Marca Agenda', is_primary: true, guardrails: {} }).select('id').single();
+
+// Três peças, uma para cada situação que o card tem de contar sozinho.
+const base = { company_id: emp.id, brand_id: marca.id, status: 'completed', storage_path: '', media_type: 'image' };
+const { data: pecas, error: ePecas } = await admin.from('studio_videos').insert([
+  { ...base, filename: 'peca-publicada.png' },
+  { ...base, filename: 'peca-agendada.png' },
+  { ...base, filename: 'peca-falhou.png' },
+]).select('id, filename');
+if (ePecas) throw new Error(ePecas.message);
+const idDaPeca = n => pecas.find(p => p.filename === n).id;
+
+const ontem = new Date(Date.now() - 26 * 3600e3).toISOString();
+const daquiTresDias = new Date(Date.now() + 3 * 24 * 3600e3).toISOString();
+const { error: eCamp } = await admin.from('studio_campaigns').insert([
+  { video_id: idDaPeca('peca-publicada.png'), company_id: emp.id, brand_id: marca.id, title: 'Publicada', platform: 'instagram',
+    status: 'published', scheduled_at: ontem, published_at: ontem, external_url: 'https://instagram.com/p/teste' },
+  { video_id: idDaPeca('peca-agendada.png'), company_id: emp.id, brand_id: marca.id, title: 'Agendada', platform: 'instagram',
+    status: 'scheduled', scheduled_at: daquiTresDias },
+  { video_id: idDaPeca('peca-falhou.png'), company_id: emp.id, brand_id: marca.id, title: 'Falhou', platform: 'tiktok',
+    status: 'error', scheduled_at: ontem, publish_error: 'token expirado' },
+]);
+if (eCamp) throw new Error(eCamp.message);
+
+const email = `${MARCA}-admin@coffeelivre.test`;
+const senha = crypto.randomBytes(24).toString('base64url') + 'Aa1!';
+const { data: criado, error: ec } = await admin.auth.admin.createUser({ email, password: senha, email_confirm: true });
+if (ec) throw new Error(ec.message);
+await admin.from('user_profiles').upsert({ id: criado.user.id, full_name: `Admin ${MARCA}`, is_admin: true });
+const cli = createClient(env.VITE_SUPABASE_URL, env.VITE_SUPABASE_ANON_KEY, semSessao);
+const { data: login, error: el } = await cli.auth.signInWithPassword({ email, password: senha });
+if (el) throw new Error(el.message);
+const chaveSessao = `sb-${ambiente.ref}-auth-token`;
+const sessao = JSON.stringify(login.session);
+
+const servidor = await subirVite();
+const browser = await chromium.launch({ channel: 'chrome', headless: !process.argv.includes('--mostrar') })
+  .catch(() => chromium.launch({ channel: 'msedge', headless: !process.argv.includes('--mostrar') }));
+
+try {
+  for (const tela of [{ rotulo: 'desktop', viewport: { width: 1366, height: 900 }, movel: false },
+                      { rotulo: '375', viewport: { width: 375, height: 812 }, movel: true }]) {
+    console.log(`\n=== ${tela.rotulo} ===`);
+    const ctx = await browser.newContext({ viewport: tela.viewport, isMobile: tela.movel, hasTouch: tela.movel, locale: 'pt-BR' });
+    await ctx.addInitScript(([k, v, c]) => {
+      localStorage.setItem(k, v);
+      localStorage.setItem('admin-initial-tab', 'studio');
+      localStorage.setItem('active-company-id', c);
+    }, [chaveSessao, sessao, emp.id]);
+    const page = await ctx.newPage();
+    const erros = [];
+    page.on('pageerror', e => erros.push(e.message));
+
+    await page.goto(servidor.base + '/admin', { waitUntil: 'domcontentloaded', timeout: 120000 });
+    checar(`[${tela.rotulo}] Studio abre`, await visivel(page.getByText('peca-publicada.png'), 90000));
+
+    const cartao = nome => page.locator('div').filter({ hasText: nome }).last();
+
+    checar(`[${tela.rotulo}] peça publicada diz quando saiu`,
+      await visivel(page.getByText(/Publicado no Instagram em/), 10000));
+    checar(`[${tela.rotulo}] peça publicada leva ao post`,
+      await visivel(page.getByRole('link', { name: 'ver post' }), 10000));
+    checar(`[${tela.rotulo}] peça agendada diz a data e quanto falta`,
+      await visivel(page.getByText(/Agendado no Instagram para .* \(em \d+ dias?\)/), 10000));
+    checar(`[${tela.rotulo}] peça que falhou avisa e diz o motivo`,
+      await visivel(page.getByText(/Não publicou no TikTok.*token expirado/), 10000));
+    checar(`[${tela.rotulo}] peça sem campanha não inventa agenda`,
+      (await cartao('peca-falhou.png').getByText(/Agendado no/).count()) === 0);
+
+    // a captura existe para OLHAR os cards: rola até eles, não até o topo da lista
+    await page.evaluate(() => {
+      const el = [...document.querySelectorAll('p')].find(p => p.textContent?.includes('peca-publicada.png'));
+      el?.scrollIntoView({ block: 'center' });
+    });
+    await page.waitForTimeout(500);
+    const sem = await page.evaluate(vw => document.documentElement.scrollWidth <= vw + 1, tela.viewport.width);
+    checar(`[${tela.rotulo}] sem rolagem lateral`, sem);
+    await page.screenshot({ path: path.join(SAIDA, `${tela.rotulo}-agenda.png`), fullPage: false });
+
+    checar(`[${tela.rotulo}] sem erro de JavaScript`, erros.length === 0, erros.join(' | '));
+    await ctx.close();
+  }
+} finally {
+  await browser.close();
+  servidor.parar();
+  await limpar();
+}
+
+console.log(`\n${criterios - falhas}/${criterios} critérios · capturas em ${path.relative(RAIZ, SAIDA)}`);
+process.exit(falhas ? 1 : 0);

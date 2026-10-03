@@ -1,9 +1,43 @@
-import { Film, CheckCircle2, Loader2, Clock, AlertCircle, Sparkles, Megaphone, Trash2, RotateCcw, Download } from 'lucide-react';
+import { Film, CheckCircle2, Loader2, Clock, AlertCircle, Sparkles, Megaphone, Trash2, RotateCcw, Download, CalendarClock, Send } from 'lucide-react';
+
+/** Campanha desta peça que já está agendada ou já saiu. */
+export interface StudioPublicacao {
+  video_id: string | null;
+  platform: string;
+  status: string;               // scheduled | published
+  scheduled_at: string | null;
+  published_at: string | null;
+  external_url: string | null;
+  publish_error: string | null;
+}
 
 export interface StudioVideo {
   id: string; filename: string; storage_path: string; status: string;
   duration: number | null; brand_detected: string | null; created_at: string; error_text: string | null;
   source_url?: string | null; media_type?: string | null; thumbUrl?: string | null;
+  publicacoes?: StudioPublicacao[];
+}
+
+const REDE: Record<string, string> = {
+  instagram: 'Instagram', tiktok: 'TikTok', facebook: 'Facebook', youtube: 'YouTube', ecommerce: 'Loja',
+};
+
+/** "3 de outubro, 14h30" — data que dá para ler sem traduzir ISO na cabeça. */
+function quando(iso: string) {
+  const d = new Date(iso);
+  const dia = d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
+  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  return `${dia}, ${hora}`;
+}
+
+/** "em 2 dias", "em 3h", "faltam 20 min" — o que ele quer saber de relance. */
+function faltam(iso: string) {
+  const min = Math.round((new Date(iso).getTime() - Date.now()) / 60000);
+  if (min <= 0) return 'a qualquer momento';
+  if (min < 60) return `em ${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `em ${h}h`;
+  return `em ${Math.round(h / 24)} dia${Math.round(h / 24) > 1 ? 's' : ''}`;
 }
 
 const STATUS: Record<string, { label: string; cls: string; icon: any }> = {
@@ -71,6 +105,45 @@ export default function VideoCard({ v, onAnalyze, onCampaign, onDelete, onReproc
           {v.status === 'processing' && (
             <div className="mt-2 h-1.5 w-full max-w-xs bg-gray-100 rounded-full overflow-hidden">
               <div className="h-full w-2/3 bg-[#8B2214] animate-pulse" />
+            </div>
+          )}
+          {/* Agenda da peça: sem isto é preciso abrir a aba Campanhas para lembrar
+              quando a postagem foi programada. */}
+          {!!v.publicacoes?.length && (
+            <div className="mt-2 flex flex-col gap-1">
+              {v.publicacoes.map((p, i) => {
+                const rede = REDE[p.platform] || p.platform;
+                if (p.status === 'published' && p.published_at) {
+                  return (
+                    <span key={i} className="inline-flex items-center gap-1.5 text-xs text-green-700">
+                      <Send className="w-3 h-3 flex-shrink-0" />
+                      Publicado no {rede} em {quando(p.published_at)}
+                      {p.external_url && (
+                        <a href={p.external_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
+                          className="font-semibold underline">ver post</a>
+                      )}
+                    </span>
+                  );
+                }
+                const falhou = p.status === 'error' || !!p.publish_error;
+                if (falhou) {
+                  return (
+                    <span key={i} className="inline-flex items-start gap-1.5 text-xs text-red-600">
+                      <AlertCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                      <span>Não publicou no {rede}{p.scheduled_at ? ` (era para ${quando(p.scheduled_at)})` : ''}{p.publish_error ? `: ${p.publish_error}` : ''}</span>
+                    </span>
+                  );
+                }
+                if (p.scheduled_at) {
+                  return (
+                    <span key={i} className="inline-flex items-center gap-1.5 text-xs text-[#8B2214]">
+                      <CalendarClock className="w-3 h-3 flex-shrink-0" />
+                      Agendado no {rede} para {quando(p.scheduled_at)} <span className="text-gray-500">({faltam(p.scheduled_at)})</span>
+                    </span>
+                  );
+                }
+                return null;
+              })}
             </div>
           )}
         </div>

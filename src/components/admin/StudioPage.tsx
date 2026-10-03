@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
 import { useAuth } from '../../contexts/AuthContext';
 import VideoDropzone from '../studio/VideoDropzone';
-import VideoCard, { type StudioVideo } from '../studio/VideoCard';
+import VideoCard, { type StudioVideo, type StudioPublicacao } from '../studio/VideoCard';
 import AnalysisModal from '../studio/AnalysisModal';
 import CampaignsPanel from '../studio/CampaignsPanel';
 import CampaignCreator from '../studio/CampaignCreator';
@@ -378,6 +378,25 @@ export default function StudioPage() {
       const { data: signed } = await supabase.storage.from('studio-videos').createSignedUrls(paths, 3600);
       const map = new Map((signed || []).map((s: any) => [s.path, s.signedUrl]));
       list = list.map(v => ({ ...v, thumbUrl: map.get(v.storage_path) || null }));
+    }
+    // Agenda de cada peça: o Vlademir programa a postagem e depois não lembra para
+    // quando. Trazendo a campanha junto, o card diz "agendada p/ dia X" ou "publicada
+    // em Y" sem precisar abrir a aba Campanhas.
+    if (list.length) {
+      const { data: camps } = await supabase
+        .from('studio_campaigns')
+        .select('video_id, platform, status, scheduled_at, published_at, external_url, publish_error')
+        .in('video_id', list.map(v => v.id))
+        // 'error' entra de propósito: postagem que falhou é justamente a que ele precisa ver.
+        .in('status', ['scheduled', 'published', 'error']);
+      const porVideo = new Map<string, StudioPublicacao[]>();
+      for (const c of (camps || []) as StudioPublicacao[]) {
+        if (!c.video_id) continue;
+        const atual = porVideo.get(c.video_id) || [];
+        atual.push(c);
+        porVideo.set(c.video_id, atual);
+      }
+      list = list.map(v => ({ ...v, publicacoes: porVideo.get(v.id) || [] }));
     }
     setVideos(list);
     setLoading(false);
