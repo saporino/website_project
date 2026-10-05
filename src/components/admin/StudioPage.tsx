@@ -467,12 +467,18 @@ export default function StudioPage() {
           {studioMarcas.map(b => {
             const ativa = !marcaLivre && activeBrandId === b.id;
             const arroba = b.contas.instagram;
+            // Conexão vencida é pior que conexão ausente: o post é agendado e falha calado
+            // na hora de publicar. A aba avisa antes de alguém programar em cima dela.
+            const vencida = !arroba && 'instagram' in b.vencidas;
+            const rodape = arroba || (vencida ? `reconectar ${b.vencidas.instagram || 'Instagram'}` : 'sem Instagram');
             return (
               <button key={b.id} onClick={() => { setStudioBrandId(b.id); setMarcaLivre(false); }}
-                title={arroba ? `Publica em ${arroba}` : 'Instagram ainda não conectado (aba Conexões)'}
+                title={arroba ? `Publica em ${arroba}`
+                  : vencida ? 'A conexão do Instagram caiu. Reconecte na aba Conexões antes de agendar.'
+                  : 'Instagram ainda não conectado (aba Conexões)'}
                 className={`inline-flex flex-col items-start px-3 py-1 rounded-lg text-sm font-medium border leading-tight ${ativa ? 'bg-saporino text-white border-saporino' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
                 <span>{b.name}</span>
-                <span className={`text-[10px] font-normal ${ativa ? 'text-white/80' : arroba ? 'text-gray-400' : 'text-amber-600'}`}>{arroba || 'sem Instagram'}</span>
+                <span className={`text-[10px] font-normal ${ativa ? 'text-white/80' : arroba ? 'text-gray-400' : vencida ? 'text-red-600 font-semibold' : 'text-amber-600'}`}>{rodape}</span>
               </button>
             );
           })}

@@ -13,6 +13,9 @@ export interface StudioMarca {
   operadora: boolean;
   // @ conectado por rede (instagram/tiktok), quando houver
   contas: Record<string, string | null>;
+  // redes cuja conexão caiu (token invalidado). Precisa reconectar antes de agendar:
+  // sem isto a postagem é aceita e falha calada na hora de publicar.
+  vencidas: Record<string, string | null>;
 }
 
 export function useStudioMarcas() {
@@ -27,15 +30,18 @@ export function useStudioMarcas() {
       supabase.from('studio_social_connections').select('brand_id, platform, account_name, status'),
     ]);
     const contas: Record<string, Record<string, string | null>> = {};
+    const vencidas: Record<string, Record<string, string | null>> = {};
     (conexoes || []).forEach((c: any) => {
-      if (!c.brand_id || c.status !== 'connected') return;
-      (contas[c.brand_id] ||= {})[c.platform] = c.account_name || null;
+      if (!c.brand_id) return;
+      if (c.status === 'connected') (contas[c.brand_id] ||= {})[c.platform] = c.account_name || null;
+      else if (c.status === 'expired') (vencidas[c.brand_id] ||= {})[c.platform] = c.account_name || null;
     });
     const lista = (perfis || []).map((p: any) => ({
       id: p.id, name: p.name, company_id: p.company_id, is_primary: !!p.is_primary,
       logo: p.logo_url || p.companies?.logo_url || null,
       operadora: !!p.companies?.is_operator,
       contas: contas[p.id] || {},
+      vencidas: vencidas[p.id] || {},
       _ordem: (p.ordem ?? 100) + (p.companies?.sort_order ?? 0) / 1000,
     }));
     lista.sort((a, b) => a._ordem - b._ordem);

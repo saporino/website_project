@@ -9,6 +9,16 @@ const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers
 const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// O Instagram devolve code 190 quando o token morreu: senha trocada, acesso revogado ou
+// sessão invalidada pelo Facebook. Sem tratar, o erro ia para a tela como JSON cru e a
+// conexão continuava marcada como "conectada" — ou seja, toda postagem agendada falhava
+// em silêncio até alguém reparar.
+function tokenMorreu(resposta: unknown): boolean {
+  const e = (resposta as { error?: { code?: number; type?: string; message?: string } })?.error;
+  if (!e) return false;
+  return e.code === 190 || e.type === "OAuthException" || /access token/i.test(e.message || "");
+}
+
 // Faz todo o fluxo de publicação de uma campanha. Retorna { ok, media_id, permalink } ou lança erro.
 async function publishCampaign(db: any, url: string, campaignId: string) {
   const { data: c } = await db.from("studio_campaigns").select("*").eq("id", campaignId).maybeSingle();
@@ -21,6 +31,8 @@ async function publishCampaign(db: any, url: string, campaignId: string) {
   const brandId = c.brand_id || (await db.rpc("studio_marca_principal", { p_company: c.company_id })).data;
   const { data: conn } = await db.from("studio_social_connections")
     .select("*").eq("brand_id", brandId).eq("platform", "instagram").maybeSingle();
+  if (conn?.status === "expired")
+    throw new Error(`A conexão do Instagram ${conn.account_name || "desta marca"} está vencida. Reconecte em Studio › aba da marca › Conexões antes de publicar.`);
   if (!conn || conn.status !== "connected" || !conn.access_token || !conn.account_id)
     throw new Error("O Instagram desta marca não está conectado (Studio › aba da marca › Conexões).");
 
@@ -40,6 +52,10 @@ async function publishCampaign(db: any, url: string, campaignId: string) {
   else { p.set("image_url", mediaUrl); }
   const cRes = await fetch(`${IG}/${igid}/media`, { method: "POST", body: p });
   const cJson = await cRes.json().catch(() => ({}));
+  if (tokenMorreu(cJson)) {
+    await db.from("studio_social_connections").update({ status: "expired" }).eq("id", conn.id);
+    throw new Error(`A conexão do Instagram ${conn.account_name || ""} caiu (o token foi invalidado — normalmente por troca de senha ou revogação de acesso). Reconecte em Studio › aba da marca › Conexões e agende a postagem de novo.`.replace("  ", " "));
+  }
   if (!cRes.ok || !cJson.id) throw new Error("IG (criar mídia): " + JSON.stringify(cJson).slice(0, 250));
   const containerId = cJson.id as string;
 
@@ -66,6 +82,10 @@ async function publishCampaign(db: any, url: string, campaignId: string) {
   pp.set("access_token", token);
   const pubRes = await fetch(`${IG}/${igid}/media_publish`, { method: "POST", body: pp });
   const pubJson = await pubRes.json().catch(() => ({}));
+  if (tokenMorreu(pubJson)) {
+    await db.from("studio_social_connections").update({ status: "expired" }).eq("id", conn.id);
+    throw new Error(`A conexão do Instagram ${conn.account_name || ""} caiu no meio da publicação. Reconecte em Studio › aba da marca › Conexões e agende de novo.`);
+  }
   if (!pubRes.ok || !pubJson.id) throw new Error("IG (publicar): " + JSON.stringify(pubJson).slice(0, 250));
   const mediaId = pubJson.id as string;
 
