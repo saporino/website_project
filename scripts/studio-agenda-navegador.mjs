@@ -79,6 +79,7 @@ if (ePecas) throw new Error(ePecas.message);
 const idDaPeca = n => pecas.find(p => p.filename === n).id;
 
 const ontem = new Date(Date.now() - 26 * 3600e3).toISOString();
+const anteontem = new Date(Date.now() - 50 * 3600e3).toISOString();
 const daquiTresDias = new Date(Date.now() + 3 * 24 * 3600e3).toISOString();
 const { error: eCamp } = await admin.from('studio_campaigns').insert([
   { video_id: idDaPeca('peca-publicada.png'), company_id: emp.id, brand_id: marca.id, title: 'Publicada', platform: 'instagram',
@@ -87,6 +88,13 @@ const { error: eCamp } = await admin.from('studio_campaigns').insert([
     status: 'scheduled', scheduled_at: daquiTresDias },
   { video_id: idDaPeca('peca-falhou.png'), company_id: emp.id, brand_id: marca.id, title: 'Falhou', platform: 'tiktok',
     status: 'error', scheduled_at: ontem, publish_error: 'token expirado' },
+  // Tentativa que falhou e DEPOIS deu certo na mesma rede: não pode gritar em vermelho ao
+  // lado da publicada — vira o histórico. Caso real da COFICO (falhou 14:26, saiu 16:10).
+  { video_id: idDaPeca('peca-publicada.png'), company_id: emp.id, brand_id: marca.id, title: 'Tentativa velha', platform: 'instagram',
+    status: 'error', scheduled_at: anteontem, publish_error: 'Instagram não estava conectado' },
+  // Repostagem: não gostou da primeira e postou de novo. O card tem de mostrar a ÚLTIMA.
+  { video_id: idDaPeca('peca-publicada.png'), company_id: emp.id, brand_id: marca.id, title: 'Primeira vez', platform: 'instagram',
+    status: 'published', scheduled_at: anteontem, published_at: anteontem, external_url: 'https://instagram.com/p/velho' },
 ]);
 if (eCamp) throw new Error(eCamp.message);
 
@@ -134,6 +142,21 @@ try {
       await visivel(page.getByText(/Não publicou no TikTok.*token expirado/), 10000));
     checar(`[${tela.rotulo}] peça sem campanha não inventa agenda`,
       (await cartao('peca-falhou.png').getByText(/Agendado no/).count()) === 0);
+    checar(`[${tela.rotulo}] falha e repostagem antigas ficam fora da tela`,
+      (await page.getByText(/Instagram não estava conectado/).count()) === 0
+      && (await page.getByText(/Publicado no Instagram em/).count()) === 1);
+    checar(`[${tela.rotulo}] oferece o histórico das anteriores`,
+      await visivel(page.getByRole('button', { name: /\+2 anteriores/ }), 8000));
+
+    await page.getByRole('button', { name: /\+2 anteriores/ }).click();
+    await page.waitForTimeout(400);
+    checar(`[${tela.rotulo}] histórico aberto mostra a publicação antiga e a falha`,
+      await visivel(page.getByText(/· publicado em/), 5000)
+      && await visivel(page.getByText(/· falhou.*Instagram não estava conectado/), 5000));
+    await page.getByRole('button', { name: /ocultar histórico/ }).click();
+    await page.waitForTimeout(400);
+    checar(`[${tela.rotulo}] histórico fecha de novo`,
+      (await page.getByText(/· publicado em/).count()) === 0);
 
     // a captura existe para OLHAR os cards: rola até eles, não até o topo da lista
     await page.evaluate(() => {

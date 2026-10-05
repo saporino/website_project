@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { Film, CheckCircle2, Loader2, Clock, AlertCircle, Sparkles, Megaphone, Trash2, RotateCcw, Download, CalendarClock, Send } from 'lucide-react';
 
 /** Campanha desta peça que já está agendada ou já saiu. */
@@ -66,6 +67,27 @@ export default function VideoCard({ v, onAnalyze, onCampaign, onDelete, onReproc
 }) {
   const st = STATUS[v.status] || STATUS.pending;
   const Icon = st.icon;
+  const [aberto, setHistorico] = useState<Record<string, boolean>>({});
+
+  // Uma linha por rede: a que vale AGORA em cima, o resto no histórico.
+  // "Vale agora" = a última publicada; se nunca publicou, o agendamento que está de pé;
+  // se nem isso, a última tentativa que falhou. Repostar a mesma arte (porque não gostou
+  // da primeira) é normal — e aí o que interessa é a data da última, não a lista toda.
+  const porRede = useMemo(() => {
+    const grupos = new Map<string, StudioPublicacao[]>();
+    for (const p of v.publicacoes ?? []) {
+      grupos.set(p.platform, [...(grupos.get(p.platform) || []), p]);
+    }
+    const quandoDe = (p: StudioPublicacao) =>
+      new Date(p.published_at || p.scheduled_at || 0).getTime();
+    return [...grupos.entries()].map(([rede, lista]) => {
+      const ordenada = [...lista].sort((a, b) => quandoDe(b) - quandoDe(a));
+      const publicadas = ordenada.filter(p => p.status === 'published');
+      const agendadas = ordenada.filter(p => p.status === 'scheduled');
+      const atual = publicadas[0] || agendadas[0] || ordenada[0];
+      return { rede, atual, anteriores: ordenada.filter(p => p !== atual) };
+    });
+  }, [v.publicacoes]);
   const done = v.status === 'completed';
   const isVideoMedia = v.media_type === 'video' || /\.(mp4|mov|m4v|webm)$/i.test(v.filename || '');
   return (
@@ -108,41 +130,55 @@ export default function VideoCard({ v, onAnalyze, onCampaign, onDelete, onReproc
             </div>
           )}
           {/* Agenda da peça: sem isto é preciso abrir a aba Campanhas para lembrar
-              quando a postagem foi programada. */}
-          {!!v.publicacoes?.length && (
+              quando a postagem foi programada. UMA linha por rede, com o que vale AGORA —
+              repostar a mesma arte é comum, e a lista inteira vira parede. O resto fica
+              atrás de "ver histórico". */}
+          {porRede.length > 0 && (
             <div className="mt-2 flex flex-col gap-1">
-              {v.publicacoes.map((p, i) => {
-                const rede = REDE[p.platform] || p.platform;
-                if (p.status === 'published' && p.published_at) {
-                  return (
-                    <span key={i} className="inline-flex items-center gap-1.5 text-xs text-green-700">
-                      <Send className="w-3 h-3 flex-shrink-0" />
-                      Publicado no {rede} em {quando(p.published_at)}
-                      {p.external_url && (
-                        <a href={p.external_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
-                          className="font-semibold underline">ver post</a>
-                      )}
-                    </span>
-                  );
-                }
-                const falhou = p.status === 'error' || !!p.publish_error;
-                if (falhou) {
-                  return (
-                    <span key={i} className="inline-flex items-start gap-1.5 text-xs text-red-600">
-                      <AlertCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                      <span>Não publicou no {rede}{p.scheduled_at ? ` (era para ${quando(p.scheduled_at)})` : ''}{p.publish_error ? `: ${p.publish_error}` : ''}</span>
-                    </span>
-                  );
-                }
-                if (p.scheduled_at) {
-                  return (
-                    <span key={i} className="inline-flex items-center gap-1.5 text-xs text-[#8B2214]">
-                      <CalendarClock className="w-3 h-3 flex-shrink-0" />
-                      Agendado no {rede} para {quando(p.scheduled_at)} <span className="text-gray-500">({faltam(p.scheduled_at)})</span>
-                    </span>
-                  );
-                }
-                return null;
+              {porRede.map(({ rede, atual, anteriores }) => {
+                const nome = REDE[rede] || rede;
+                const historico = anteriores.length > 0 && (
+                  <button type="button" onClick={() => setHistorico(h => ({ ...h, [rede]: !h[rede] }))}
+                    className="text-gray-500 hover:text-gray-800 underline decoration-dotted">
+                    {aberto[rede] ? 'ocultar histórico' : `+${anteriores.length} ${anteriores.length > 1 ? 'anteriores' : 'anterior'}`}
+                  </button>
+                );
+                const falhou = atual.status === 'error' || !!atual.publish_error;
+                return (
+                  <div key={rede} className="flex flex-col gap-0.5">
+                    {atual.status === 'published' && atual.published_at ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs text-green-700">
+                        <Send className="w-3 h-3 flex-shrink-0" />
+                        Publicado no {nome} em {quando(atual.published_at)}
+                        {atual.external_url && (
+                          <a href={atual.external_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()}
+                            className="font-semibold underline">ver post</a>
+                        )}
+                        {historico}
+                      </span>
+                    ) : falhou ? (
+                      <span className="inline-flex items-start gap-1.5 text-xs text-red-600">
+                        <AlertCircle className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                        <span>Não publicou no {nome}{atual.scheduled_at ? ` (era para ${quando(atual.scheduled_at)})` : ''}{atual.publish_error ? `: ${atual.publish_error}` : ''} {historico}</span>
+                      </span>
+                    ) : atual.scheduled_at ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs text-[#8B2214]">
+                        <CalendarClock className="w-3 h-3 flex-shrink-0" />
+                        Agendado no {nome} para {quando(atual.scheduled_at)} <span className="text-gray-500">({faltam(atual.scheduled_at)})</span>
+                        {historico}
+                      </span>
+                    ) : null}
+
+                    {aberto[rede] && anteriores.map((p, i) => (
+                      <span key={i} className="inline-flex items-center gap-1.5 text-[11px] text-gray-500 pl-4">
+                        {p.status === 'published' && p.published_at
+                          ? <>· publicado em {quando(p.published_at)}
+                              {p.external_url && <a href={p.external_url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} className="underline">ver</a>}</>
+                          : <>· falhou{p.scheduled_at ? ` em ${quando(p.scheduled_at)}` : ''}{p.publish_error ? `: ${p.publish_error}` : ''}</>}
+                      </span>
+                    ))}
+                  </div>
+                );
               })}
             </div>
           )}
