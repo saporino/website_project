@@ -3,6 +3,7 @@ import { Megaphone, Pencil, Trash2, Clock, Film, Send, Loader2, Instagram, Music
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import CampaignCreator, { type Campaign } from './CampaignCreator';
+import { dataHoraEmSP } from '../../lib/horario';
 import type { StudioMarca } from './marcas';
 
 interface Row extends Campaign { studio_videos?: { filename: string } | null; publish_error?: string | null; }
@@ -22,6 +23,7 @@ export default function CampaignsPanel({ companyId, marca }: { companyId: string
   const [editing, setEditing] = useState<Campaign | null>(null);
   const [confirmPub, setConfirmPub] = useState<Row | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [vendo, setVendo] = useState<'pendentes' | 'publicadas'>('pendentes');
   const brandId = marca?.id ?? null;
   const contaDe = (plataforma: string) => marca?.contas[plataforma] || `conta de ${marca?.name || 'marca'}`;
 
@@ -83,9 +85,38 @@ export default function CampaignsPanel({ companyId, marca }: { companyId: string
     </div>
   );
 
+  // Campanha publicada não some — ela guarda o link do post, a legenda que foi ao ar e a
+  // data. Mas também não fica no caminho: esta aba é a lista de TAREFAS, e o que já saiu
+  // vira arquivo. Por isso a tela abre em "A publicar".
+  const pendente = (r: Row) => r.status !== 'published';
+  const aPublicar = rows.filter(pendente);
+  const publicadas = rows.filter(r => !pendente(r));
+  const visiveis = vendo === 'publicadas' ? publicadas : aPublicar;
+
   return (
     <div className="space-y-3">
-      {rows.map(r => {
+      <div className="flex gap-1.5">
+        {([['pendentes', 'A publicar', aPublicar.length], ['publicadas', 'Publicadas', publicadas.length]] as const).map(([chave, rotulo, qtd]) => (
+          <button key={chave} onClick={() => setVendo(chave)}
+            className={`px-3 py-1.5 text-sm font-semibold rounded-lg border ${
+              vendo === chave ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+            }`}>
+            {rotulo} ({qtd})
+          </button>
+        ))}
+      </div>
+
+      {visiveis.length === 0 && (
+        <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-gray-400">
+          <p className="text-sm">
+            {vendo === 'publicadas'
+              ? 'Nada publicado por esta marca ainda.'
+              : 'Tudo publicado — nenhuma campanha esperando.'}
+          </p>
+        </div>
+      )}
+
+      {visiveis.map(r => {
         const st = ST[r.status] || ST.draft;
         return (
           <div key={r.id} className="bg-white border border-gray-200 rounded-xl p-4">
@@ -102,7 +133,10 @@ export default function CampaignsPanel({ companyId, marca }: { companyId: string
                 </div>
                 <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-2 flex-wrap">
                   {r.studio_videos?.filename && <span className="inline-flex items-center gap-1"><Film className="w-3 h-3" />{r.studio_videos.filename}</span>}
-                  {r.scheduled_at && <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" />{new Date(r.scheduled_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>}
+                  {/* sempre horário de Brasília, não o fuso do aparelho */}
+                  {r.published_at
+                    ? <span className="inline-flex items-center gap-1 text-green-700"><Send className="w-3 h-3" />publicado em {dataHoraEmSP(r.published_at)}</span>
+                    : r.scheduled_at && <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" />{dataHoraEmSP(r.scheduled_at)}</span>}
                 </p>
                 {r.content && <p className="text-sm text-gray-600 mt-1.5 line-clamp-2 whitespace-pre-line">{r.content}</p>}
                 {r.external_url && <a href={r.external_url} target="_blank" rel="noreferrer" className="text-xs text-[#8B2214] font-medium hover:underline break-all">🔗 {r.external_url}</a>}

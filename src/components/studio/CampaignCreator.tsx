@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
 import { X, Megaphone, Loader2, Upload, Film, Image as ImageIcon, CheckCircle2, Check, AlertTriangle, Sparkles, ShieldCheck } from 'lucide-react';
 import { useStudioMarcas, destinosPermitidos } from './marcas';
+import { isoDeSaoPaulo, paraInputSP } from '../../lib/horario';
 
 const PLATFORMS: [string, string][] = [
   ['instagram', 'Instagram'], ['tiktok', 'TikTok'], ['facebook', 'Facebook'], ['youtube', 'YouTube'], ['ecommerce', 'E-commerce'],
@@ -36,7 +37,9 @@ export default function CampaignCreator({ videoId, companyId, brandId, campaign,
     return seed;
   });
   const [status, setStatus] = useState(campaign?.status || 'draft');
-  const [scheduledAt, setScheduledAt] = useState(campaign?.scheduled_at ? campaign.scheduled_at.slice(0, 16) : '');
+  // O campo mostra e recebe horário de BRASÍLIA. Antes vinha o ISO cru (UTC) cortado, que
+  // exibia 3h a mais, e o que fosse digitado era lido no fuso do aparelho.
+  const [scheduledAt, setScheduledAt] = useState(campaign?.scheduled_at ? paraInputSP(campaign.scheduled_at) : '');
   const [externalUrl, setExternalUrl] = useState(campaign?.external_url || '');
   const [saving, setSaving] = useState(false);
   // Numa campanha NOVA a partir de uma arte PRÓPRIA (upload seu, não vídeo de concorrente),
@@ -120,7 +123,7 @@ export default function CampaignCreator({ videoId, companyId, brandId, campaign,
       toast.error('O TikTok só aceita vídeo (MP4 9:16). Anexe um vídeo ou desmarque o TikTok.'); return;
     }
     setSaving(true);
-    const schedIso = scheduledAt ? new Date(scheduledAt).toISOString() : null;
+    const schedIso = scheduledAt ? isoDeSaoPaulo(scheduledAt) : null;
 
     if (editing) {
       const finalStatus = status;
@@ -346,7 +349,7 @@ export default function CampaignCreator({ videoId, companyId, brandId, campaign,
             </div>
           )}
           <div>
-            <label className="block text-[11px] font-semibold text-gray-500 mb-1">Agendar para (opcional) — vale pra todas as redes marcadas</label>
+            <label className="block text-[11px] font-semibold text-gray-500 mb-1">Agendar para (opcional, horário de Brasília) — vale pra todas as redes marcadas</label>
             <input type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm" />
             {!editing && <p className="text-[11px] text-gray-400 mt-1">Sem data = rascunho. Com data = agendada (publica sozinho na hora). Hoje o publicar automático vale pra Instagram e TikTok.</p>}

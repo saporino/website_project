@@ -163,6 +163,29 @@ try {
     checar(`[${tela.rotulo}] rascunho avisa que ainda não foi ao ar`,
       await visivel(page.getByText(/Campanha de Instagram em rascunho — ainda não foi ao ar/), 8000));
 
+    // A hora mostrada tem de ser a de Brasília, não a do aparelho. O agendamento foi
+    // gravado em UTC; o card tem de exibir o mesmo instante convertido para SP.
+    const horaEsperada = new Date(daquiTresDias).toLocaleTimeString('pt-BR',
+      { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+    checar(`[${tela.rotulo}] hora aparece em horário de Brasília (${horaEsperada})`,
+      await visivel(page.getByText(new RegExp(`Agendado no Instagram para .*${horaEsperada}`)), 8000));
+
+    // Campanhas: o que já foi publicado sai da lista de tarefas e vai para a outra aba.
+    await page.getByRole('button', { name: /^Campanhas/ }).click();
+    await page.waitForTimeout(800);
+    checar(`[${tela.rotulo}] Campanhas abre em "A publicar"`,
+      await visivel(page.getByRole('button', { name: /A publicar \(\d+\)/ }), 8000));
+    // "Publicada" exato = a etiqueta da campanha; sem exact casaria com o botão "Publicadas".
+    checar(`[${tela.rotulo}] publicada não polui a lista de tarefas`,
+      (await page.getByText('Publicada', { exact: true }).count()) === 0
+      && (await page.getByText('Rascunho', { exact: true }).count()) > 0);
+    await page.getByRole('button', { name: /Publicadas \(\d+\)/ }).click();
+    await page.waitForTimeout(600);
+    checar(`[${tela.rotulo}] aba Publicadas guarda o que já saiu`,
+      (await page.getByText('Publicada', { exact: true }).count()) > 0);
+    await page.getByRole('button', { name: /^Vídeos/ }).click();
+    await page.waitForTimeout(600);
+
     // a captura existe para OLHAR os cards: rola até eles, não até o topo da lista
     await page.evaluate(() => {
       const el = [...document.querySelectorAll('p')].find(p => p.textContent?.includes('peca-publicada.png'));

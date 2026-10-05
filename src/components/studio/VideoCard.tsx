@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Film, CheckCircle2, Loader2, Clock, AlertCircle, Sparkles, Megaphone, Trash2, RotateCcw, Download, CalendarClock, Send, FileClock } from 'lucide-react';
+import { quandoEmSP, faltamPara } from '../../lib/horario';
 
 /** Campanha desta peça que já está agendada ou já saiu. */
 export interface StudioPublicacao {
@@ -23,23 +24,9 @@ const REDE: Record<string, string> = {
   instagram: 'Instagram', tiktok: 'TikTok', facebook: 'Facebook', youtube: 'YouTube', ecommerce: 'Loja',
 };
 
-/** "3 de outubro, 14h30" — data que dá para ler sem traduzir ISO na cabeça. */
-function quando(iso: string) {
-  const d = new Date(iso);
-  const dia = d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
-  const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  return `${dia}, ${hora}`;
-}
-
-/** "em 2 dias", "em 3h", "faltam 20 min" — o que ele quer saber de relance. */
-function faltam(iso: string) {
-  const min = Math.round((new Date(iso).getTime() - Date.now()) / 60000);
-  if (min <= 0) return 'a qualquer momento';
-  if (min < 60) return `em ${min} min`;
-  const h = Math.round(min / 60);
-  if (h < 24) return `em ${h}h`;
-  return `em ${Math.round(h / 24)} dia${Math.round(h / 24) > 1 ? 's' : ''}`;
-}
+// Data e hora saem SEMPRE em horário de Brasília, não no fuso do aparelho de quem abre.
+const quando = quandoEmSP;
+const faltam = faltamPara;
 
 const STATUS: Record<string, { label: string; cls: string; icon: any }> = {
   pending: { label: 'Na fila', cls: 'bg-gray-100 text-gray-600', icon: Clock },
