@@ -412,6 +412,9 @@ export default function StudioPage() {
     if (!activeCompanyId) return;
     const ch = supabase.channel('studio-videos-rt')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'studio_videos' }, () => load())
+      // Campanha também: criar, agendar ou publicar muda a linha de agenda do card. Sem
+      // isto só aparecia depois de um F5.
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'studio_campaigns' }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [activeCompanyId, load]);
@@ -745,14 +748,16 @@ export default function StudioPage() {
         </>
       )}
 
+      {/* recarrega ao fechar: dá para criar campanha de dentro da análise, e a agenda do
+          card tem de refletir isso na hora */}
       {modalVideo && (
-        <AnalysisModal video={modalVideo} companyId={activeCompanyId} brandId={activeBrandId} brandTitle={activeMarca?.name} initialTab={modalTab} onClose={() => setModalVideo(null)} />
+        <AnalysisModal video={modalVideo} companyId={activeCompanyId} brandId={activeBrandId} brandTitle={activeMarca?.name} initialTab={modalTab} onClose={() => { setModalVideo(null); load(); }} />
       )}
       {ownPost && (
         <CampaignCreator companyId={activeCompanyId} brandId={activeBrandId}
           sourceMediaPath={ownPost.mediaPath} sourceMediaType={ownPost.mediaType} sourceIsOwnArt sourceThumbUrl={ownPost.thumbUrl || undefined}
           initialTitle={activeMarca?.name}
-          onClose={() => setOwnPost(null)} onSaved={() => { setOwnPost(null); setView('campanhas'); }} />
+          onClose={() => setOwnPost(null)} onSaved={() => { setOwnPost(null); setView('campanhas'); load(); }} />
       )}
     </div>
   );

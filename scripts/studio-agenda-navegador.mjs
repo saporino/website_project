@@ -186,6 +186,15 @@ try {
     await page.getByRole('button', { name: /^Vídeos/ }).click();
     await page.waitForTimeout(600);
 
+    // Realtime: campanha criada FORA da tela (direto no banco, como faria outra aba ou o
+    // agendador) tem de aparecer sem F5. Era o que faltava: só vinha depois de recarregar.
+    const { error: eRt } = await admin.from('studio_campaigns').insert({
+      video_id: idDaPeca('peca-rascunho.png'), company_id: emp.id, brand_id: marca.id,
+      title: 'Veio pelo realtime', platform: 'tiktok', status: 'scheduled', scheduled_at: daquiTresDias,
+    });
+    checar(`[${tela.rotulo}] campanha nova chega sem F5`,
+      !eRt && await visivel(page.getByText(/Agendado no TikTok para/), 15000));
+
     // a captura existe para OLHAR os cards: rola até eles, não até o topo da lista
     await page.evaluate(() => {
       const el = [...document.querySelectorAll('p')].find(p => p.textContent?.includes('peca-publicada.png'));
