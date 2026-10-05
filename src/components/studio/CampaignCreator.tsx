@@ -153,7 +153,13 @@ export default function CampaignCreator({ videoId, companyId, brandId, campaign,
     const { error } = await supabase.from('studio_campaigns').insert(rows);
     setSaving(false);
     if (error) { toast.error('Erro ao criar: ' + error.message); return; }
-    toast.success(`${rows.length} campanha(s) criada(s)${schedIso ? ' e agendada(s)' : ''}!`);
+    // Sem data, a campanha fica guardada e NÃO vai ao ar. Dizer só "criada" fez o Vlademir
+    // achar que tinha postado — ele criou duas seguidas esperando o post sair.
+    if (schedIso) {
+      toast.success(`${rows.length} campanha(s) agendada(s)! Publica sozinha na data marcada.`);
+    } else {
+      toast.success(`${rows.length} campanha(s) salva(s) como RASCUNHO — ainda não foi ao ar. Vá em Campanhas e clique em "Publicar agora", ou edite e coloque data para agendar.`, { duration: 8000 });
+    }
     onSaved?.(); onClose();
   }
 

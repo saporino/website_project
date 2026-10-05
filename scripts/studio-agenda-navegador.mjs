@@ -74,6 +74,7 @@ const { data: pecas, error: ePecas } = await admin.from('studio_videos').insert(
   { ...base, filename: 'peca-publicada.png' },
   { ...base, filename: 'peca-agendada.png' },
   { ...base, filename: 'peca-falhou.png' },
+  { ...base, filename: 'peca-rascunho.png' },
 ]).select('id, filename');
 if (ePecas) throw new Error(ePecas.message);
 const idDaPeca = n => pecas.find(p => p.filename === n).id;
@@ -95,6 +96,8 @@ const { error: eCamp } = await admin.from('studio_campaigns').insert([
   // Repostagem: não gostou da primeira e postou de novo. O card tem de mostrar a ÚLTIMA.
   { video_id: idDaPeca('peca-publicada.png'), company_id: emp.id, brand_id: marca.id, title: 'Primeira vez', platform: 'instagram',
     status: 'published', scheduled_at: anteontem, published_at: anteontem, external_url: 'https://instagram.com/p/velho' },
+  // Campanha criada e esquecida sem agendar: card mudo faz pensar que o post saiu.
+  { video_id: idDaPeca('peca-rascunho.png'), company_id: emp.id, brand_id: marca.id, title: 'Esquecida', platform: 'instagram', status: 'draft' },
 ]);
 if (eCamp) throw new Error(eCamp.message);
 
@@ -157,6 +160,8 @@ try {
     await page.waitForTimeout(400);
     checar(`[${tela.rotulo}] histórico fecha de novo`,
       (await page.getByText(/· publicado em/).count()) === 0);
+    checar(`[${tela.rotulo}] rascunho avisa que ainda não foi ao ar`,
+      await visivel(page.getByText(/Campanha de Instagram em rascunho — ainda não foi ao ar/), 8000));
 
     // a captura existe para OLHAR os cards: rola até eles, não até o topo da lista
     await page.evaluate(() => {

@@ -387,8 +387,11 @@ export default function StudioPage() {
         .from('studio_campaigns')
         .select('video_id, platform, status, scheduled_at, published_at, external_url, publish_error')
         .in('video_id', list.map(v => v.id))
-        // 'error' entra de propósito: postagem que falhou é justamente a que ele precisa ver.
-        .in('status', ['scheduled', 'published', 'error']);
+        // 'error' e 'draft' entram de propósito: postagem que falhou e campanha que ficou
+        // guardada sem agendar são justamente as que ele precisa ver. Card mudo parece
+        // "tudo certo" — foi assim que ele criou a mesma campanha duas vezes esperando o
+        // post sair.
+        .in('status', ['draft', 'scheduled', 'published', 'error']);
       const porVideo = new Map<string, StudioPublicacao[]>();
       for (const c of (camps || []) as StudioPublicacao[]) {
         if (!c.video_id) continue;

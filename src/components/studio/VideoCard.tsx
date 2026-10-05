@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Film, CheckCircle2, Loader2, Clock, AlertCircle, Sparkles, Megaphone, Trash2, RotateCcw, Download, CalendarClock, Send } from 'lucide-react';
+import { Film, CheckCircle2, Loader2, Clock, AlertCircle, Sparkles, Megaphone, Trash2, RotateCcw, Download, CalendarClock, Send, FileClock } from 'lucide-react';
 
 /** Campanha desta peça que já está agendada ou já saiu. */
 export interface StudioPublicacao {
@@ -84,8 +84,11 @@ export default function VideoCard({ v, onAnalyze, onCampaign, onDelete, onReproc
       const ordenada = [...lista].sort((a, b) => quandoDe(b) - quandoDe(a));
       const publicadas = ordenada.filter(p => p.status === 'published');
       const agendadas = ordenada.filter(p => p.status === 'scheduled');
-      const atual = publicadas[0] || agendadas[0] || ordenada[0];
-      return { rede, atual, anteriores: ordenada.filter(p => p !== atual) };
+      const falhas = ordenada.filter(p => p.status === 'error' || p.publish_error);
+      // Rascunho é o último da fila: se já publicou ou agendou, o que vale é aquilo.
+      const atual = publicadas[0] || agendadas[0] || falhas[0] || ordenada[0];
+      const rascunhos = ordenada.filter(p => p.status === 'draft');
+      return { rede, atual, rascunhos: atual.status === 'draft' ? rascunhos : [], anteriores: ordenada.filter(p => p !== atual && p.status !== 'draft') };
     });
   }, [v.publicacoes]);
   const done = v.status === 'completed';
@@ -135,7 +138,7 @@ export default function VideoCard({ v, onAnalyze, onCampaign, onDelete, onReproc
               atrás de "ver histórico". */}
           {porRede.length > 0 && (
             <div className="mt-2 flex flex-col gap-1">
-              {porRede.map(({ rede, atual, anteriores }) => {
+              {porRede.map(({ rede, atual, anteriores, rascunhos }) => {
                 const nome = REDE[rede] || rede;
                 const historico = anteriores.length > 0 && (
                   <button type="button" onClick={() => setHistorico(h => ({ ...h, [rede]: !h[rede] }))}
@@ -166,6 +169,16 @@ export default function VideoCard({ v, onAnalyze, onCampaign, onDelete, onReproc
                         <CalendarClock className="w-3 h-3 flex-shrink-0" />
                         Agendado no {nome} para {quando(atual.scheduled_at)} <span className="text-gray-500">({faltam(atual.scheduled_at)})</span>
                         {historico}
+                      </span>
+                    ) : atual.status === 'draft' ? (
+                      // Campanha criada e esquecida no rascunho: o card tem de dizer que
+                      // ela NÃO foi ao ar, senão silêncio passa por "está tudo certo".
+                      <span className="inline-flex items-start gap-1.5 text-xs text-amber-700">
+                        <FileClock className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                        <span>
+                          {rascunhos.length > 1 ? `${rascunhos.length} campanhas` : 'Campanha'} de {nome} em rascunho — <strong>ainda não foi ao ar</strong>.
+                          {' '}Abra <strong>Campanhas</strong> e clique em “Publicar agora”, ou coloque data para agendar.
+                        </span>
                       </span>
                     ) : null}
 
