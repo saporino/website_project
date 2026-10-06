@@ -36,17 +36,19 @@ export type TabelaDeFrete = {
 
 let tabelaEmCache: TabelaDeFrete | null | undefined;
 
-/** Tabela de preços ativa. Uma consulta por sessão. */
+/**
+ * Tabela de preços ativa. Uma consulta por sessão.
+ *
+ * Vem por função, não por leitura da tabela: a tabela de frete é preço comercial e não é
+ * pública. A função devolve só qual está valendo — os preços nunca saem do banco, e o
+ * cliente vê apenas a cotação do CEP dele.
+ */
 export async function tabelaDeFreteAtiva(): Promise<TabelaDeFrete | null> {
   if (tabelaEmCache !== undefined) return tabelaEmCache;
-  const { data } = await supabase
-    .from('shipping_rate_tables')
-    .select('id, allow_discount')
-    .eq('is_active', true)
-    .limit(1)
-    .maybeSingle();
-  tabelaEmCache = data?.id
-    ? { id: data.id as string, aceitaDesconto: data.allow_discount === true }
+  const { data } = await supabase.rpc('tabela_de_frete_ativa');
+  const linha = Array.isArray(data) ? data[0] : data;
+  tabelaEmCache = linha?.id
+    ? { id: linha.id as string, aceitaDesconto: linha.allow_discount === true }
     : null;
   return tabelaEmCache;
 }
