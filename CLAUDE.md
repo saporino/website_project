@@ -36,7 +36,7 @@ Rep cadastra clientes → lança pedido em 3 passos: **Cliente → Produtos → 
 - `price_lists` — preço por segmento B2B (R$/pacote). UNIQUE(product_id, segment).
 - **Inventário/Lotes:** `green_coffee_lots` (lote de café verde: peso/custo/status), `lot_transfers` (transferências verde/torrado), `lot_documents` (docs: compra_verde/nota_fiscal/pagamento_torra/pagamento_embalagem), `batch_photos`, `roasting_companies` (+ `roasting_company_contacts`). UI = `BatchManagement.tsx` (cadeia de custos verde→torra→embalagem→custo/kg; `products.stock` atualizado por trigger a partir dos lotes ativos).
 - **Rotas/Logística:** `routes`, `route_stops`, `route_assignments`, `delivery_proofs`, `client_route_links` — RouteManager (admin) + RepCoRoutes (mapa Leaflet/OSM, geofencing 500m, GPS, nav Waze/Maps, POD foto+texto). `RepCoLiveMap` = presença ao vivo dos reps.
-- **Sistema:** `presence_sessions` (presença online), `notifications` (alertas do admin).
+- **Sistema:** `presence_sessions` (presença online). **Não existe tabela `notifications`** (verificado 09/10/2026): o sininho do admin monta os alertas na hora, a partir de `representative_orders`, `representative_order_installments`, `representatives`, `promoters`, `promoter_incidents`, `b2b_leads`, `candidaturas_representante`, `orders` e `embalagem_pedidos`.
 
 ## 7. Regras de negócio confirmadas
 - **Numeração de pedido:** trigger `generate_repco_order_number` → `'RC-' || LPAD(nextval('repco_order_seq'),5,'0')`. Acima de 99999 vira `RC-100000` automaticamente (LPAD não trunca). **Nunca resetar em produção** (só em fase de teste, e só com a tabela vazia).
