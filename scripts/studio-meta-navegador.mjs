@@ -72,6 +72,8 @@ const emSP = d => new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/S
 const hojeAs = h => { const d = new Date(); d.setHours(h, 0, 0, 0); return d.toISOString(); };
 const diasAtras = (n, h) => { const d = new Date(); d.setDate(d.getDate() - n); d.setHours(h, 0, 0, 0); return d.toISOString(); };
 
+const daquiA = (n, h) => { const d = new Date(); d.setDate(d.getDate() + n); d.setHours(h, 0, 0, 0); return d.toISOString(); };
+
 const campanhas = [
   // hoje: 2 publicadas + 1 agendada → falta 1, agendado NÃO conta
   { status: 'published', published_at: hojeAs(8) },
@@ -79,6 +81,9 @@ const campanhas = [
   { status: 'scheduled', scheduled_at: hojeAs(20) },
   // ontem e anteontem fecharam a meta → sequência de 2
   ...[1, 2].flatMap(n => [7, 12, 19].map(h => ({ status: 'published', published_at: diasAtras(n, h) }))),
+  // semana que vem: 2 agendadas em dias diferentes — é o que ele quer enxergar para programar
+  { status: 'scheduled', scheduled_at: daquiA(2, 9) },
+  { status: 'scheduled', scheduled_at: daquiA(5, 19) },
 ];
 const { error: eC } = await admin.from('studio_campaigns').insert(campanhas.map((c, i) => ({
   company_id: emp.id, brand_id: marca.id, title: `Campanha ${i}`, platform: 'instagram', ...c,
@@ -126,6 +131,12 @@ try {
       await visivel(page.getByText(/7h – 9h · 11h – 13h · 18h – 21h/), 10000));
     checar(`[${tela.rotulo}] avisa que o horário é referência, não medição`,
       await visivel(page.getByText(/referência de mercado, não do seu público ainda/), 10000));
+    checar(`[${tela.rotulo}] mostra o que já está agendado para os próximos dias`,
+      await visivel(page.getByText(/Próximos 7 dias:.*2 postagens agendadas/), 10000));
+    checar(`[${tela.rotulo}] aponta os dias que ainda estão vazios`,
+      await visivel(page.getByText(/5 dias sem nada/), 10000));
+    checar(`[${tela.rotulo}] cada quadradinho mostra o dia do mês`,
+      await visivel(page.getByText(new RegExp('^' + String(new Date().getDate()).padStart(2, '0') + '$')), 10000));
 
     // fecha a meta por fora: a terceira publicação tem de pintar verde sem F5
     const { data: nova } = await admin.from('studio_campaigns').insert({
