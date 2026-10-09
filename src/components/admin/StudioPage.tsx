@@ -8,6 +8,7 @@ import VideoDropzone from '../studio/VideoDropzone';
 import VideoCard, { type StudioVideo, type StudioPublicacao } from '../studio/VideoCard';
 import AnalysisModal from '../studio/AnalysisModal';
 import CampaignsPanel from '../studio/CampaignsPanel';
+import MetaDiaria from '../studio/MetaDiaria';
 import CampaignCreator from '../studio/CampaignCreator';
 import SocialConnections from '../studio/SocialConnections';
 import BrandProfile from '../studio/BrandProfile';
@@ -511,6 +512,12 @@ export default function StudioPage() {
             de outra marca. A identidade é o nome digitado mais a embalagem que você anexar.
           </span>
         </div>
+      )}
+
+      {/* Placar do dia da marca escolhida: quantas postagens saíram, quantas faltam e como
+          foi a semana. Fica acima das abas para ser a primeira coisa que ele vê ao entrar. */}
+      {!marcaLivre && (
+        <MetaDiaria brandId={activeBrandId} marcaNome={activeMarca?.name} meta={activeMarca?.metaPostsDia ?? 3} />
       )}
 
       {/* Visão: Vídeos, Campanhas ou Conexões */}
