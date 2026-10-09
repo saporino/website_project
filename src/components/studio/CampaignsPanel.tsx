@@ -40,6 +40,17 @@ export default function CampaignsPanel({ companyId, marca }: { companyId: string
 
   useEffect(() => { load(); }, [load]);
 
+  // A campanha pode ser publicada pelo agendador enquanto esta tela está aberta. Sem
+  // escutar o banco, ela continuava em "A publicar" até alguém dar F5 — e aí parece que
+  // não saiu, que é justamente o que confunde na hora de decidir o que ainda falta postar.
+  useEffect(() => {
+    if (!brandId) return;
+    const ch = supabase.channel('studio-campanhas-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'studio_campaigns' }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [brandId, load]);
+
   async function remove(r: Row) {
     if (!confirm(`Excluir a campanha "${r.title}"?`)) return;
     const { error } = await supabase.from('studio_campaigns').delete().eq('id', r.id);

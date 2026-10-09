@@ -130,9 +130,16 @@ export function OrdersManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     }
     window.addEventListener('admin:orders-updated', handleRefresh);
     window.addEventListener('focus', handleRefresh);
+    // Venda chega sem ninguém clicar em nada: a lista tem de se virar sozinha, e não só
+    // quando a janela volta ao foco. Sem isto, o pedido novo ficava invisível para quem
+    // está com a tela aberta esperando.
+    const ch = supabase.channel('admin-orders-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => loadOrders())
+      .subscribe();
     return () => {
       window.removeEventListener('admin:orders-updated', handleRefresh);
       window.removeEventListener('focus', handleRefresh);
+      supabase.removeChannel(ch);
     };
   }, []);
 

@@ -179,6 +179,25 @@ try {
     checar(`[${tela.rotulo}] publicada não polui a lista de tarefas`,
       (await page.getByText('Publicada', { exact: true }).count()) === 0
       && (await page.getByText('Rascunho', { exact: true }).count()) > 0);
+    // O agendador publica por fora enquanto a tela está aberta: a campanha tem de sair de
+    // "A publicar" sozinha, senão fica parecendo que não saiu.
+    // Campanha DEDICADA a este teste, para não consumir a agendada que os critérios
+    // anteriores usam — cada viewport roda sobre o mesmo banco.
+    const { data: doAgendador } = await admin.from('studio_campaigns').insert({
+      video_id: idDaPeca('peca-rascunho.png'), company_id: emp.id, brand_id: marca.id,
+      title: `Do agendador ${tela.rotulo}`, platform: 'facebook', status: 'scheduled', scheduled_at: daquiTresDias,
+    }).select('id').single();
+    await page.waitForTimeout(2000);
+    const apareceu = (await page.getByText(`Do agendador ${tela.rotulo}`).count()) > 0;
+    await admin.from('studio_campaigns').update({
+      status: 'published', published_at: new Date().toISOString(), external_url: 'https://instagram.com/p/agendador',
+    }).eq('id', doAgendador.id);
+    await page.waitForTimeout(2500);
+    checar(`[${tela.rotulo}] publicada pelo agendador sai de "A publicar" sem F5`,
+      apareceu && (await page.getByText(`Do agendador ${tela.rotulo}`).count()) === 0,
+      apareceu ? 'continuou na lista depois de publicada' : 'nem chegou a aparecer na lista');
+    await admin.from('studio_campaigns').delete().eq('id', doAgendador.id);
+
     await page.getByRole('button', { name: /Publicadas \(\d+\)/ }).click();
     await page.waitForTimeout(600);
     checar(`[${tela.rotulo}] aba Publicadas guarda o que já saiu`,
@@ -188,12 +207,14 @@ try {
 
     // Realtime: campanha criada FORA da tela (direto no banco, como faria outra aba ou o
     // agendador) tem de aparecer sem F5. Era o que faltava: só vinha depois de recarregar.
-    const { error: eRt } = await admin.from('studio_campaigns').insert({
+    // cada viewport usa a sua, e apaga no fim: os dois rodam sobre o mesmo banco
+    const { data: doRealtime, error: eRt } = await admin.from('studio_campaigns').insert({
       video_id: idDaPeca('peca-rascunho.png'), company_id: emp.id, brand_id: marca.id,
-      title: 'Veio pelo realtime', platform: 'tiktok', status: 'scheduled', scheduled_at: daquiTresDias,
-    });
+      title: `Veio pelo realtime ${tela.rotulo}`, platform: 'tiktok', status: 'scheduled', scheduled_at: daquiTresDias,
+    }).select('id').single();
     checar(`[${tela.rotulo}] campanha nova chega sem F5`,
-      !eRt && await visivel(page.getByText(/Agendado no TikTok para/), 15000));
+      !eRt && await visivel(page.getByText(/Agendado no TikTok para/), 15000), eRt?.message ?? '');
+    if (doRealtime) await admin.from('studio_campaigns').delete().eq('id', doRealtime.id);
 
     // a captura existe para OLHAR os cards: rola até eles, não até o topo da lista
     await page.evaluate(() => {

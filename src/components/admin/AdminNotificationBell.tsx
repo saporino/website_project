@@ -246,6 +246,10 @@ export function AdminNotificationBell({ onNavigate }: AdminNotificationBellProps
       .on('postgres_changes', { event: '*', schema: 'public', table: 'promoter_incidents' }, () => fetchNotifications())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'b2b_leads' }, () => fetchNotifications())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'candidaturas_representante' }, () => fetchNotifications())
+      // Venda da loja e pedido de embalagem da COFICO: chegam de fora, sem ninguém no
+      // painel. Faltavam aqui — o sino só acordava para o que vinha do RepCo.
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchNotifications())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'embalagem_pedidos' }, () => fetchNotifications())
       .subscribe();
     const interval = setInterval(fetchNotifications, 60_000);
     return () => { clearInterval(interval); supabase.removeChannel(ch); };
