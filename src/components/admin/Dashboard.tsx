@@ -27,8 +27,8 @@ export function Dashboard() {
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth()); // 0-indexed
   const [customerFilter, setCustomerFilter] = useState<CustomerType>('all');
   const [monthStats, setMonthStats] = useState<MonthStats>({ revenuePF: 0, revenuePJ: 0, ordersPF: 0, ordersPJ: 0, avgTicketPF: 0, avgTicketPJ: 0 });
-  const [totalCustomersPF, setTotalCustomersPF] = useState(0);
-  const [totalCustomersPJ, setTotalCustomersPJ] = useState(0);
+  // Um número só: o banco ainda não separa PF de PJ no cadastro.
+  const [totalClientes, setTotalClientes] = useState(0);
   const [totalProducts, setTotalProducts] = useState(0);
   const [pendingOrders, setPendingOrders] = useState(0);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
@@ -58,7 +58,7 @@ export function Dashboard() {
       const { data: orders } = await supabase
         .from('orders')
         .select(`
-          total_amount, user_id,
+          order_number, total_amount, user_id,
           order_items(quantity, unit_price, products(name)),
           shipments(carrier_name)
         `)
@@ -67,28 +67,23 @@ export function Dashboard() {
         .in('payment_status', ['paid', 'approved'])
         .order('created_at');
 
-      const userIds = Array.from(new Set((orders || []).map((order: any) => order.user_id).filter(Boolean)));
-      const profileMap = new Map<string, string>();
+      // PF ou PJ sai do NÚMERO do pedido, que é onde o canal fica registrado de verdade
+      // (PF-…, PJ-…, ML-…, SH-…). Antes isto vinha de `user_profiles.account_type`, coluna
+      // que não existe no banco: a consulta falhava, todo pedido caía em PF e o card de
+      // receita PJ ficava eternamente zerado.
+      const tipoDoPedido = (pedido: any): 'PF' | 'PJ' =>
+        String(pedido?.order_number ?? '').toUpperCase().startsWith('PJ') ? 'PJ' : 'PF';
 
-      if (userIds.length > 0) {
-        const { data: profiles, error: profilesError } = await supabase
-          .from('user_profiles')
-          .select('id, account_type')
-          .in('id', userIds);
-
-        if (profilesError) {
-          console.warn('Could not load user profile account types for dashboard orders:', profilesError.message);
-        } else {
-          (profiles || []).forEach((profile: any) => {
-            profileMap.set(profile.id, profile.account_type || 'PF');
-          });
-        }
-      }
-
-      // Total customers
-      const [{ count: pfCount, error: pfError }, { count: pjCount, error: pjError }, { data: products }] = await Promise.all([
-        supabase.from('user_profiles').select('id', { count: 'exact', head: true }).eq('account_type', 'PF'),
-        supabase.from('user_profiles').select('id', { count: 'exact', head: true }).eq('account_type', 'PJ'),
+      // Clientes cadastrados.
+      //
+      // Antes isto contava por `user_profiles.account_type` — coluna que NÃO EXISTE no banco
+      // (a tabela tem id, full_name, phone, is_admin, created_at). As duas consultas falhavam
+      // e o card mostrava "0 clientes · PF: 0 · PJ: 0" mesmo com gente cadastrada: número
+      // errado na cara de quem decide. Enquanto o cadastro B2C não distinguir PF de PJ, o
+      // card conta quem existe de fato e não finge uma separação que o banco não tem.
+      const [{ count: totalPerfis }, { count: totalAdmins }, { data: products }] = await Promise.all([
+        supabase.from('user_profiles').select('id', { count: 'exact', head: true }),
+        supabase.from('user_profiles').select('id', { count: 'exact', head: true }).eq('is_admin', true),
         supabase.from('products').select('id', { count: 'exact', head: true }),
       ]);
 
@@ -98,12 +93,7 @@ export function Dashboard() {
         .select('id', { count: 'exact', head: true })
         .in('order_status', ['created', 'payment_pending']);
 
-      if (pfError || pjError) {
-        console.warn('Could not load PF/PJ customer counters from user_profiles.account_type:', pfError?.message || pjError?.message);
-      }
-
-      setTotalCustomersPF(pfError ? 0 : pfCount || 0);
-      setTotalCustomersPJ(pjError ? 0 : pjCount || 0);
+      setTotalClientes(Math.max(0, (totalPerfis ?? 0) - (totalAdmins ?? 0)));
       setTotalProducts((products as any)?.length || 0);
       setPendingOrders(pendingCount || 0);
 
@@ -113,9 +103,8 @@ export function Dashboard() {
       const carrierMap: Record<string, CarrierStats> = {};
 
       (orders || []).forEach((order: any) => {
-        const acctType = profileMap.get(order.user_id) || 'PF';
         const amount = Number(order.total_amount) || 0;
-        const isPF = acctType !== 'PJ';
+        const isPF = tipoDoPedido(order) === 'PF';
 
         if (isPF) { revPF += amount; ordsPF++; }
         else { revPJ += amount; ordsPJ++; }
@@ -304,12 +293,10 @@ export function Dashboard() {
                   <Users className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-2xl font-semibold text-gray-900">
-                {customerFilter === 'all' ? totalCustomersPF + totalCustomersPJ : customerFilter === 'PF' ? totalCustomersPF : totalCustomersPJ}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                {customerFilter === 'all' ? `PF: ${totalCustomersPF} · PJ: ${totalCustomersPJ}` : `Cadastros ${customerFilter}`}
-              </div>
+              <div className="text-2xl font-semibold text-gray-900">{totalClientes}</div>
+              {/* Sem PF/PJ enquanto o cadastro não guardar isso: melhor um número certo sem
+                  recorte do que dois números errados. */}
+              <div className="text-xs text-gray-500 mt-1">Cadastros na loja</div>
             </div>
 
             {/* Produtos */}

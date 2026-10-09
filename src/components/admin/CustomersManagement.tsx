@@ -292,12 +292,9 @@ export const CustomersManagement = ({ refreshKey = 0 }: { refreshKey?: number })
     try {
       setViewingHistory(customer);
 
-      const { data: stats } = await supabase
-        .from('customer_stats')
-        .select('*')
-        .eq('user_id', customer.id)
-        .maybeSingle();
-
+      // `customer_stats` não existe no banco (era uma tabela planejada que nunca foi
+      // criada). O histórico mostrava "R$ 0,00 gasto" para todo mundo. O número verdadeiro
+      // está nos próprios pedidos que já carregamos aqui embaixo — então é de lá que ele sai.
       const { data: orders } = await supabase
         .from('orders')
         .select(`
@@ -310,46 +307,27 @@ export const CustomersManagement = ({ refreshKey = 0 }: { refreshKey?: number })
         .eq('user_id', customer.id)
         .order('created_at', { ascending: false });
 
-      setCustomerStats(stats);
-      setCustomerOrders(orders || []);
+      const lista = orders || [];
+      setCustomerStats({
+        total_orders: lista.length,
+        total_spent: lista.reduce((s: number, o: any) => s + Number(o.total_amount ?? 0), 0),
+      });
+      setCustomerOrders(lista);
     } catch (error) {
       console.error('Error loading customer history:', error);
     }
   };
 
   const handleSendAnniversaryEmail = async (customer: Customer) => {
-    if (!confirm(`Enviar email de agradecimento para ${customer.full_name}?`)) return;
-
-    try {
-      const oneYearAgo = new Date();
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-
-      const { error: giftError } = await supabase
-        .from('anniversary_gifts')
-        .insert({
-          user_id: customer.id,
-          anniversary_year: 1,
-          email_sent_at: new Date().toISOString(),
-          status: 'email_sent',
-        })
-        .select()
-        .single();
-      if (giftError) throw giftError;
-
-      await supabase
-        .from('user_profiles')
-        .update({
-          anniversary_email_sent: true,
-          last_anniversary_email_date: new Date().toISOString(),
-        })
-        .eq('id', customer.id);
-
-      alert('Email de agradecimento enviado com sucesso!');
-      loadCustomers();
-    } catch (error) {
-      console.error('Error sending anniversary email:', error);
-      alert('Erro ao enviar email');
-    }
+    // Este fluxo nunca enviou e-mail: ele só gravaria em `anniversary_gifts`, tabela que
+    // não existe no banco — e o clique terminava num "Erro ao enviar email" sem explicação.
+    // Enquanto o brinde de aniversário não for construído de verdade (tabela + envio pelo
+    // Resend), o botão diz a verdade em vez de fingir que tentou.
+    toast.info(
+      `O brinde de aniversário ainda não está pronto: falta o cadastro e o envio automático. ` +
+      `Por enquanto, fale com ${customer.full_name} pelo e-mail ${customer.email ?? 'cadastrado'}.`,
+      { duration: 8000 },
+    );
   };
 
   const isAnniversary = (createdAt: string) => {
@@ -507,15 +485,11 @@ export const CustomersManagement = ({ refreshKey = 0 }: { refreshKey?: number })
 
   const loadLabelFormats = async (customer: Customer) => {
     try {
-      const { data: formats } = await supabase
-        .from('label_formats')
-        .select('*')
-        .eq('is_active', true)
-        .order('is_default', { ascending: false })
-        .order('name', { ascending: true });
-
-      setLabelFormats(formats || []);
-      setSelectedFormat(formats?.[0] || null);
+      // `label_formats` nunca foi criada no banco: a consulta falhava e o modal abria em
+      // branco. Enquanto o cadastro de formatos não existir, a lista nasce vazia e o modal
+      // explica o porquê, em vez de parecer travado.
+      setLabelFormats([]);
+      setSelectedFormat(null);
       setShowLabelFormatSelector(true);
       setViewingHistory(customer);
     } catch (error) {
@@ -680,24 +654,12 @@ export const CustomersManagement = ({ refreshKey = 0 }: { refreshKey?: number })
       const newWindow = window.open(url, '_blank');
 
       if (newWindow) {
-        await supabase
-          .from('anniversary_gifts')
-          .update({
-            product_id: coffee.id,
-            product_name: coffee.name,
-            status: 'gift_sent',
-            gift_sent_at: new Date().toISOString(),
-          })
-          .eq('user_id', customer.id)
-          .eq('anniversary_year', 1);
-
-        await supabase
-          .from('user_profiles')
-          .update({
-            anniversary_gift_sent: true,
-          })
-          .eq('id', customer.id);
-
+        // A etiqueta é gerada e impressa normalmente. O que saiu daqui foi o registro do
+        // brinde: `anniversary_gifts` não existe no banco, e `user_profiles` não tem a
+        // coluna `anniversary_gift_sent` (a tabela tem id, full_name, phone, is_admin,
+        // created_at). As duas chamadas falhavam em silêncio — o alerta dizia "sucesso"
+        // e nada ficava gravado. Quando o brinde virar funcionalidade de verdade, o
+        // registro volta junto com a tabela.
         setTimeout(() => URL.revokeObjectURL(url), 1000);
         alert('Etiqueta gerada com sucesso! A janela de impressão será aberta.');
         loadCustomers();
@@ -1197,6 +1159,16 @@ export const CustomersManagement = ({ refreshKey = 0 }: { refreshKey?: number })
             </div>
 
             <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+              {/* Sem formatos cadastrados o modal abria em branco, sem explicar nada. A
+                  tabela `label_formats` ainda não existe no banco — dizer isso é melhor
+                  do que deixar a pessoa olhando um painel vazio achando que travou. */}
+              {labelFormats.length === 0 && (
+                <div className="border border-amber-200 bg-amber-50 rounded-lg p-4 text-sm text-amber-900">
+                  <strong>Nenhum formato de etiqueta cadastrado.</strong> Este recurso ainda
+                  não está disponível — o cadastro de formatos não foi criado. Por enquanto,
+                  imprima a etiqueta pelo sistema da transportadora.
+                </div>
+              )}
               {labelFormats.map((format) => (
                 <div
                   key={format.id}

@@ -150,27 +150,12 @@ export function OrdersManagement({ refreshKey = 0 }: { refreshKey?: number }) {
         .select(`*, order_items(quantity, unit_price, product_id, products(name, weight_grams)), invoices(*), shipments(*)`)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      const userIds = Array.from(new Set((data || []).map((o: any) => o.user_id).filter(Boolean)));
-      const profileMap = new Map<string, string>();
-
-      if (userIds.length > 0) {
-        const { data: profiles, error: profilesError } = await supabase
-          .from('user_profiles')
-          .select('id, account_type')
-          .in('id', userIds);
-
-        if (profilesError) {
-          console.warn('Could not load user profile account types for orders:', profilesError.message);
-        } else {
-          (profiles || []).forEach((profile: any) => {
-            profileMap.set(profile.id, profile.account_type || 'PF');
-          });
-        }
-      }
-
+      // PF ou PJ vem do NÚMERO do pedido (PF-…, PJ-…), que é onde o canal fica registrado.
+      // Antes vinha de `user_profiles.account_type`, coluna inexistente: a consulta falhava,
+      // tudo virava PF e o filtro "PJ" desta tela nunca mostrava nada.
       const enriched = (data || []).map((o: any) => ({
         ...o,
-        account_type: profileMap.get(o.user_id) || 'PF',
+        account_type: String(o.order_number ?? '').toUpperCase().startsWith('PJ') ? 'PJ' : 'PF',
       }));
       setOrders(enriched);
     } catch (error) {
