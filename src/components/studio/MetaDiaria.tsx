@@ -27,8 +27,13 @@ const JANELAS = [
   { faixa: '18h – 21h', quando: 'noite', nota: 'maior tempo de tela, melhor alcance' },
 ];
 
-/** Uma postagem daquele dia — é o que responde "a que horas vai sair?". */
-interface Post { id: string; titulo: string; rede: string; hora: string; publicado: boolean; link: string | null }
+/** Uma postagem daquele dia — responde "a que horas sai?" e "qual arte foi?". */
+interface Post {
+  id: string; titulo: string; rede: string; hora: string;
+  publicado: boolean; link: string | null;
+  /** Miniatura da arte publicada. O bucket é privado, então é link assinado de 1h. */
+  arte: string | null;
+}
 
 interface Dia {
   data: string; rotulo: string; diaDoMes: string; porExtenso: string;
@@ -61,10 +66,19 @@ export default function MetaDiaria({ brandId, marcaNome, meta }: {
     // atrás para a semana que vem — justamente o que ele quer enxergar.
     const { data } = await supabase
       .from('studio_campaigns')
-      .select('id, title, platform, status, published_at, scheduled_at, external_url')
+      .select('id, title, platform, status, published_at, scheduled_at, external_url, media_path')
       .eq('brand_id', brandId)
       .in('status', ['published', 'scheduled'])
       .or(`published_at.gte.${inicio.toISOString()},scheduled_at.gte.${inicio.toISOString()}`);
+
+    // Miniatura da arte: o bucket é privado, então vem por link assinado. Num lote só,
+    // para não disparar uma assinatura por postagem.
+    const caminhos = [...new Set((data ?? []).map((c: any) => c.media_path).filter(Boolean))] as string[];
+    const arteDe = new Map<string, string>();
+    if (caminhos.length) {
+      const { data: assinadas } = await supabase.storage.from('studio-videos').createSignedUrls(caminhos, 3600);
+      for (const a of assinadas ?? []) if (a.path && a.signedUrl) arteDe.set(a.path, a.signedUrl);
+    }
 
     const porDia = new Map<string, { publicados: number; agendados: number; posts: Post[] }>();
     const guardar = (chave: string, campo: 'publicados' | 'agendados', post: Post) => {
@@ -78,6 +92,7 @@ export default function MetaDiaria({ brandId, marcaNome, meta }: {
         id: c.id, titulo: c.title, rede: c.platform, publicado: c.status === 'published',
         hora: new Date(quando).toLocaleTimeString('pt-BR', { timeZone: FUSO, hour: '2-digit', minute: '2-digit' }),
         link: c.external_url ?? null,
+        arte: c.media_path ? arteDe.get(c.media_path) ?? null : null,
       });
     }
 
@@ -108,10 +123,23 @@ export default function MetaDiaria({ brandId, marcaNome, meta }: {
   // O placar muda sozinho quando uma campanha é publicada, inclusive pelo agendador.
   useEffect(() => {
     if (!brandId) return;
-    const ch = supabase.channel('studio-meta-rt')
+    // Nome único por marca: com nome fixo, trocar de marca criava um canal novo enquanto o
+    // antigo ainda fechava, e a inscrição falhava em silêncio — o placar parava de se
+    // atualizar sozinho de vez em quando, sem erro nenhum na tela.
+    const ch = supabase.channel(`studio-meta-rt-${brandId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'studio_campaigns' }, () => carregar())
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    // Rede de segurança: o aviso do banco pode se perder (conexão oscilando, aba em segundo
+    // plano). Sem isto, o placar ficava parado sem nenhum sinal de que estava desatualizado.
+    // Com isto, o pior caso é um minuto de atraso em vez de "até alguém dar F5".
+    const relogio = setInterval(carregar, 60_000);
+    const aoVoltar = () => { if (document.visibilityState === 'visible') carregar(); };
+    document.addEventListener('visibilitychange', aoVoltar);
+    return () => {
+      supabase.removeChannel(ch);
+      clearInterval(relogio);
+      document.removeEventListener('visibilitychange', aoVoltar);
+    };
   }, [brandId, carregar]);
 
   // A faixa anda sozinha na virada do dia. Sem isto, uma aba deixada aberta durante a noite
@@ -250,19 +278,32 @@ export default function MetaDiaria({ brandId, marcaNome, meta }: {
           ) : (
             <ul className="mt-1.5 space-y-1">
               {aberto.posts.map(p => (
-                <li key={p.id} className="flex flex-wrap items-center gap-x-2 text-xs">
-                  <span className="font-mono font-semibold text-gray-900">{p.hora}</span>
-                  <span className={p.publicado ? 'text-green-700' : 'text-[#8B2214]'}>
-                    {p.publicado ? 'publicado' : 'agendado'}
-                  </span>
-                  <span className="text-gray-400">·</span>
-                  <span className="text-gray-600">{REDE[p.rede] ?? p.rede}</span>
-                  <span className="text-gray-400">·</span>
-                  <span className="text-gray-700 truncate max-w-[220px]">{p.titulo}</span>
-                  {p.link && (
-                    <a href={p.link} target="_blank" rel="noreferrer"
-                      className="font-semibold text-[#8B2214] underline">ver post</a>
+                <li key={p.id} className="flex items-center gap-2 text-xs">
+                  {/* A arte ao lado do horário: é assim que ele reconhece o que escolheu
+                      para aquele momento, sem abrir o Instagram. Clicar abre inteira. */}
+                  {p.arte ? (
+                    <button type="button" onClick={() => window.open(p.arte!, '_blank')}
+                      title="Ver a arte inteira"
+                      className="w-10 h-10 rounded border border-gray-200 overflow-hidden flex-shrink-0 hover:ring-2 hover:ring-[#8B2214]">
+                      <img src={p.arte} alt={`Arte de ${p.hora}`} className="w-full h-full object-cover" />
+                    </button>
+                  ) : (
+                    <span className="w-10 h-10 rounded border border-dashed border-gray-200 flex-shrink-0" aria-hidden="true" />
                   )}
+                  <span className="flex flex-wrap items-center gap-x-2">
+                    <span className="font-mono font-semibold text-gray-900">{p.hora}</span>
+                    <span className={p.publicado ? 'text-green-700' : 'text-[#8B2214]'}>
+                      {p.publicado ? 'publicado' : 'agendado'}
+                    </span>
+                    <span className="text-gray-400">·</span>
+                    <span className="text-gray-600">{REDE[p.rede] ?? p.rede}</span>
+                    <span className="text-gray-400">·</span>
+                    <span className="text-gray-700 truncate max-w-[200px]">{p.titulo}</span>
+                    {p.link && (
+                      <a href={p.link} target="_blank" rel="noreferrer"
+                        className="font-semibold text-[#8B2214] underline">ver post</a>
+                    )}
+                  </span>
                 </li>
               ))}
             </ul>

@@ -85,8 +85,14 @@ const campanhas = [
   { status: 'scheduled', scheduled_at: daquiA(2, 9) },
   { status: 'scheduled', scheduled_at: daquiA(5, 19) },
 ];
+// Arte de teste no bucket, para a lista do dia ter miniatura de verdade para mostrar.
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+const arteTeste = `campaigns/${MARCA}/arte.png`;
+await admin.storage.from('studio-videos').upload(arteTeste, PNG, { contentType: 'image/png', upsert: true });
+
 const { error: eC } = await admin.from('studio_campaigns').insert(campanhas.map((c, i) => ({
-  company_id: emp.id, brand_id: marca.id, title: `Campanha ${i}`, platform: 'instagram', ...c,
+  company_id: emp.id, brand_id: marca.id, title: `Campanha ${i}`, platform: 'instagram',
+  media_path: arteTeste, media_type: 'image', ...c,
 })));
 if (eC) throw new Error(eC.message);
 
@@ -151,6 +157,9 @@ try {
       && await visivel(page.getByText('agendado').first(), 5000));
     checar(`[${tela.rotulo}] a lista do dia diz a rede e o título`,
       await visivel(page.getByText('Instagram').first(), 5000));
+    // o nome acessível do botão vem do alt da imagem, não do title
+    checar(`[${tela.rotulo}] a lista do dia mostra a arte de cada postagem`,
+      await visivel(page.getByRole('img', { name: /^Arte de \d{2}:\d{2}$/ }).first(), 8000));
 
     // fecha a meta por fora: a terceira publicação tem de pintar verde sem F5
     const { data: nova } = await admin.from('studio_campaigns').insert({
@@ -159,8 +168,10 @@ try {
     }).select('id').single();
     // espera o aviso do banco chegar, em vez de cronometrar: a inscrição do realtime pode
     // levar um instante a mais na primeira carga da página
+    // 70s cobre o pior caso: o aviso do banco se perder e a atualização vir pela rede de
+    // segurança de 60s. O que não pode é exigir F5.
     checar(`[${tela.rotulo}] fechou a meta e ficou verde sem F5`,
-      await visivel(page.getByText('3 de 3 postagens hoje'), 20000)
+      await visivel(page.getByText('3 de 3 postagens hoje'), 70000)
       && await visivel(page.getByText('· meta cumprida'), 5000));
     await admin.from('studio_campaigns').delete().eq('id', nova.id);
 
@@ -180,6 +191,7 @@ try {
 } finally {
   await browser.close();
   servidor.parar();
+  await admin.storage.from('studio-videos').remove([arteTeste]);
   await limpar();
 }
 

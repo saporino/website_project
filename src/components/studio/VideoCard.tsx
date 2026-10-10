@@ -31,8 +31,12 @@ const faltam = faltamPara;
 const STATUS: Record<string, { label: string; cls: string; icon: any }> = {
   pending: { label: 'Na fila', cls: 'bg-gray-100 text-gray-600', icon: Clock },
   processing: { label: 'Processando', cls: 'bg-amber-100 text-amber-800', icon: Loader2 },
-  completed: { label: 'Concluído', cls: 'bg-green-100 text-green-700', icon: CheckCircle2 },
+  // 'completed' = a ANÁLISE terminou e nada foi marcado ainda.
+  completed: { label: 'Analisada', cls: 'bg-gray-100 text-gray-700', icon: CheckCircle2 },
   error: { label: 'Erro', cls: 'bg-red-100 text-red-700', icon: AlertCircle },
+  // Estes dois não vêm do banco: são calculados a partir das campanhas da peça.
+  agendada: { label: 'Agendada', cls: 'bg-amber-100 text-amber-800', icon: CalendarClock },
+  publicada: { label: 'Publicada', cls: 'bg-green-100 text-green-700', icon: Send },
 };
 
 function tempoAtras(iso: string) {
@@ -52,8 +56,6 @@ export default function VideoCard({ v, onAnalyze, onCampaign, onDelete, onReproc
   onReprocess: (v: StudioVideo) => void;
   onDownload: (v: StudioVideo) => void;
 }) {
-  const st = STATUS[v.status] || STATUS.pending;
-  const Icon = st.icon;
   const [aberto, setHistorico] = useState<Record<string, boolean>>({});
 
   // Uma linha por rede: a que vale AGORA em cima, o resto no histórico.
@@ -84,6 +86,18 @@ export default function VideoCard({ v, onAnalyze, onCampaign, onDelete, onReproc
       return { rede, atual, rascunhos: atual.status === 'draft' ? rascunhos : [], anteriores: ordenada.filter(p => p !== atual && p.status !== 'draft') };
     });
   }, [v.publicacoes]);
+
+  // A etiqueta conta o ESTÁGIO DA PEÇA, não o do processamento. "Concluído" significava só
+  // que a análise terminou — e quem lia entendia que o post estava resolvido, mesmo com ele
+  // apenas agendado. Agora: analisada → agendada → publicada.
+  const st = useMemo(() => {
+    if (v.status !== 'completed') return STATUS[v.status] || STATUS.pending;
+    const pubs = porRede.flatMap(r => [r.atual, ...r.anteriores]);
+    if (pubs.some(p => p.status === 'published')) return STATUS.publicada;
+    if (pubs.some(p => p.status === 'scheduled')) return STATUS.agendada;
+    return STATUS.completed;
+  }, [v.status, porRede]);
+  const Icon = st.icon;
   const done = v.status === 'completed';
   const isVideoMedia = v.media_type === 'video' || /\.(mp4|mov|m4v|webm)$/i.test(v.filename || '');
   return (

@@ -411,14 +411,16 @@ export default function StudioPage() {
   // Realtime: status muda (quando a Edge Function processar) → recarrega
   useEffect(() => {
     if (!activeCompanyId) return;
-    const ch = supabase.channel('studio-videos-rt')
+    const ch = supabase.channel(`studio-videos-rt-${activeBrandId ?? 'sem-marca'}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'studio_videos' }, () => load())
       // Campanha também: criar, agendar ou publicar muda a linha de agenda do card. Sem
       // isto só aparecia depois de um F5.
       .on('postgres_changes', { event: '*', schema: 'public', table: 'studio_campaigns' }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [activeCompanyId, load]);
+    // activeBrandId entra nas dependências porque o NOME do canal depende dela: sem isso,
+    // trocar de marca mantinha o canal antigo e o novo nome nunca era usado.
+  }, [activeCompanyId, activeBrandId, load]);
 
   async function handleReprocess(v: StudioVideo) {
     await supabase.from('studio_videos').update({ status: 'processing', error_text: null }).eq('id', v.id);

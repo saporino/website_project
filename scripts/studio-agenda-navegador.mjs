@@ -141,6 +141,13 @@ try {
 
     const cartao = nome => page.locator('div').filter({ hasText: nome }).last();
 
+    // A etiqueta conta o estágio da peça, não o do processamento.
+    checar(`[${tela.rotulo}] peça publicada tem etiqueta "Publicada", não "Concluído"`,
+      await visivel(page.getByText('Publicada', { exact: true }).first(), 10000)
+      && (await page.getByText('Concluído', { exact: true }).count()) === 0);
+    checar(`[${tela.rotulo}] peça só agendada tem etiqueta "Agendada"`,
+      await visivel(page.getByText('Agendada', { exact: true }).first(), 8000));
+
     checar(`[${tela.rotulo}] peça publicada diz quando saiu`,
       await visivel(page.getByText(/Publicado no Instagram em/), 10000));
     checar(`[${tela.rotulo}] peça publicada leva ao post`,

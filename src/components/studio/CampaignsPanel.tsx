@@ -45,7 +45,7 @@ export default function CampaignsPanel({ companyId, marca }: { companyId: string
   // não saiu, que é justamente o que confunde na hora de decidir o que ainda falta postar.
   useEffect(() => {
     if (!brandId) return;
-    const ch = supabase.channel('studio-campanhas-rt')
+    const ch = supabase.channel(`studio-campanhas-rt-${brandId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'studio_campaigns' }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
