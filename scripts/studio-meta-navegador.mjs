@@ -138,6 +138,17 @@ try {
     checar(`[${tela.rotulo}] cada quadradinho mostra o dia do mês`,
       await visivel(page.getByText(new RegExp('^' + String(new Date().getDate()).padStart(2, '0') + '$')), 10000));
 
+    // clicar no dia tem de dizer A QUE HORAS — o número sozinho não responde isso
+    const diaDaquiA2 = new Date(); diaDaquiA2.setDate(diaDaquiA2.getDate() + 2);
+    const rotuloDia = String(diaDaquiA2.getDate()).padStart(2, '0');
+    await page.getByText(new RegExp('^' + rotuloDia + '$')).first().click();
+    await page.waitForTimeout(500);
+    checar(`[${tela.rotulo}] clicar no dia mostra a hora da postagem agendada`,
+      await visivel(page.getByText('09:00'), 8000)
+      && await visivel(page.getByText('agendado').first(), 5000));
+    checar(`[${tela.rotulo}] a lista do dia diz a rede e o título`,
+      await visivel(page.getByText('Instagram').first(), 5000));
+
     // fecha a meta por fora: a terceira publicação tem de pintar verde sem F5
     const { data: nova } = await admin.from('studio_campaigns').insert({
       company_id: emp.id, brand_id: marca.id, title: 'Fecha a meta', platform: 'instagram',

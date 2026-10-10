@@ -17,15 +17,22 @@ import { FUSO } from '../../lib/horario';
 /** Janelas em que o público brasileiro costuma estar no Instagram. É referência de mercado,
  *  não medição do público DELE — por isso a tela diz isso em voz alta. Quando houver
  *  engajamento por post, estes números devem sair dos dados da própria conta. */
+const REDE: Record<string, string> = {
+  instagram: 'Instagram', tiktok: 'TikTok', facebook: 'Facebook', youtube: 'YouTube', ecommerce: 'Loja',
+};
+
 const JANELAS = [
   { faixa: '7h – 9h', quando: 'começo do dia', nota: 'café da manhã, antes do trabalho' },
   { faixa: '11h – 13h', quando: 'almoço', nota: 'a pausa mais cheia do dia' },
   { faixa: '18h – 21h', quando: 'noite', nota: 'maior tempo de tela, melhor alcance' },
 ];
 
+/** Uma postagem daquele dia — é o que responde "a que horas vai sair?". */
+interface Post { id: string; titulo: string; rede: string; hora: string; publicado: boolean; link: string | null }
+
 interface Dia {
-  data: string; rotulo: string; diaDoMes: string;
-  publicados: number; agendados: number;
+  data: string; rotulo: string; diaDoMes: string; porExtenso: string;
+  publicados: number; agendados: number; posts: Post[];
   hoje: boolean; futuro: boolean;
 }
 
@@ -41,6 +48,7 @@ export default function MetaDiaria({ brandId, marcaNome, meta }: {
 }) {
   const [dias, setDias] = useState<Dia[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [diaAberto, setDiaAberto] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     if (!brandId) return;
@@ -53,20 +61,24 @@ export default function MetaDiaria({ brandId, marcaNome, meta }: {
     // atrás para a semana que vem — justamente o que ele quer enxergar.
     const { data } = await supabase
       .from('studio_campaigns')
-      .select('status, published_at, scheduled_at')
+      .select('id, title, platform, status, published_at, scheduled_at, external_url')
       .eq('brand_id', brandId)
       .in('status', ['published', 'scheduled'])
       .or(`published_at.gte.${inicio.toISOString()},scheduled_at.gte.${inicio.toISOString()}`);
 
-    const porDia = new Map<string, { publicados: number; agendados: number }>();
-    for (const c of (data ?? []) as { status: string; published_at: string | null; scheduled_at: string | null }[]) {
-      if (c.status === 'published' && c.published_at) {
-        const d = diaEmSP(c.published_at);
-        porDia.set(d, { ...(porDia.get(d) ?? { publicados: 0, agendados: 0 }), publicados: (porDia.get(d)?.publicados ?? 0) + 1 });
-      } else if (c.status === 'scheduled' && c.scheduled_at) {
-        const d = diaEmSP(c.scheduled_at);
-        porDia.set(d, { ...(porDia.get(d) ?? { publicados: 0, agendados: 0 }), agendados: (porDia.get(d)?.agendados ?? 0) + 1 });
-      }
+    const porDia = new Map<string, { publicados: number; agendados: number; posts: Post[] }>();
+    const guardar = (chave: string, campo: 'publicados' | 'agendados', post: Post) => {
+      const atual = porDia.get(chave) ?? { publicados: 0, agendados: 0, posts: [] };
+      porDia.set(chave, { ...atual, [campo]: atual[campo] + 1, posts: [...atual.posts, post] });
+    };
+    for (const c of (data ?? []) as any[]) {
+      const quando = c.status === 'published' ? c.published_at : c.scheduled_at;
+      if (!quando) continue;
+      guardar(diaEmSP(quando), c.status === 'published' ? 'publicados' : 'agendados', {
+        id: c.id, titulo: c.title, rede: c.platform, publicado: c.status === 'published',
+        hora: new Date(quando).toLocaleTimeString('pt-BR', { timeZone: FUSO, hour: '2-digit', minute: '2-digit' }),
+        link: c.external_url ?? null,
+      });
     }
 
     const hojeSP = diaEmSP(new Date().toISOString());
@@ -79,8 +91,10 @@ export default function MetaDiaria({ brandId, marcaNome, meta }: {
         data: chave,
         rotulo: d.toLocaleDateString('pt-BR', { timeZone: FUSO, weekday: 'short' }).replace('.', ''),
         diaDoMes: d.toLocaleDateString('pt-BR', { timeZone: FUSO, day: '2-digit' }),
+        porExtenso: d.toLocaleDateString('pt-BR', { timeZone: FUSO, weekday: 'long', day: 'numeric', month: 'long' }),
         publicados: porDia.get(chave)?.publicados ?? 0,
         agendados: porDia.get(chave)?.agendados ?? 0,
+        posts: [...(porDia.get(chave)?.posts ?? [])].sort((a, b) => a.hora.localeCompare(b.hora)),
         hoje: chave === hojeSP,
         futuro: chave > hojeSP,
       });
@@ -138,6 +152,7 @@ export default function MetaDiaria({ brandId, marcaNome, meta }: {
 
   const agora = Number(new Date().toLocaleString('en-US', { timeZone: FUSO, hour: '2-digit', hour12: false }));
   const proxima = JANELAS.find(j => agora < Number(j.faixa.slice(0, 2)));
+  const aberto = dias.find(d => d.data === diaAberto);
 
   return (
     <div className={`rounded-xl border p-4 ${cumpriu ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
@@ -181,11 +196,14 @@ export default function MetaDiaria({ brandId, marcaNome, meta }: {
           const marcados = d.agendados;
           const dataCurta = d.data.split('-').reverse().slice(0, 2).join('/');
           return (
-            <div key={d.data} className="flex flex-col items-center gap-1 flex-shrink-0"
-              title={d.futuro
-                ? `${marcados} agendada(s) para ${dataCurta} — meta ${meta}`
-                : `${d.publicados} de ${meta} em ${dataCurta}`}>
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
+            <button key={d.data} type="button"
+              onClick={() => setDiaAberto(a => (a === d.data ? null : d.data))}
+              aria-expanded={diaAberto === d.data}
+              className="flex flex-col items-center gap-1 flex-shrink-0"
+              title={d.posts.length
+                ? `${d.posts.map(p => p.hora).join(', ')} — clique para ver`
+                : d.futuro ? `Nada agendado para ${dataCurta}` : `Nenhuma postagem em ${dataCurta}`}>
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-transform hover:scale-110 ${
                 d.futuro
                   ? marcados >= meta ? 'border-2 border-dashed border-green-500 text-green-700 bg-white'
                   : marcados > 0 ? 'border-2 border-dashed border-[#8B2214] text-[#8B2214] bg-white'
@@ -193,15 +211,49 @@ export default function MetaDiaria({ brandId, marcaNome, meta }: {
                 : bateu ? 'bg-green-600 text-white'
                 : parcial ? 'bg-amber-200 text-amber-900'
                 : 'bg-white border border-gray-200 text-gray-400'
-              } ${d.hoje ? 'ring-2 ring-offset-1 ring-[#8B2214]' : ''}`}>
+              } ${d.hoje ? 'ring-2 ring-offset-1 ring-[#8B2214]' : ''} ${diaAberto === d.data ? 'ring-2 ring-offset-1 ring-gray-700' : ''}`}>
                 {d.futuro ? (marcados || '–') : d.publicados}
               </div>
               <span className={`text-[10px] leading-none ${d.hoje ? 'font-bold text-[#8B2214]' : 'text-gray-500'}`}>{d.rotulo}</span>
               <span className="text-[9px] leading-none text-gray-400">{d.diaDoMes}</span>
-            </div>
+            </button>
           );
         })}
       </div>
+
+      {/* A que horas vai sair: o número do quadradinho diz quantas, esta lista diz quando.
+          Clicar é o caminho que funciona no celular — tooltip só existe com mouse. */}
+      {aberto && (
+        <div className="mt-2 rounded-lg border border-gray-200 bg-white p-3">
+          <p className="text-xs font-bold text-gray-700 capitalize">{aberto.porExtenso}</p>
+          {aberto.posts.length === 0 ? (
+            <p className="mt-1 text-xs text-gray-500">
+              {aberto.futuro
+                ? 'Nada agendado. Crie a campanha e preencha data e hora para ocupar este dia.'
+                : 'Nenhuma postagem saiu neste dia.'}
+            </p>
+          ) : (
+            <ul className="mt-1.5 space-y-1">
+              {aberto.posts.map(p => (
+                <li key={p.id} className="flex flex-wrap items-center gap-x-2 text-xs">
+                  <span className="font-mono font-semibold text-gray-900">{p.hora}</span>
+                  <span className={p.publicado ? 'text-green-700' : 'text-[#8B2214]'}>
+                    {p.publicado ? 'publicado' : 'agendado'}
+                  </span>
+                  <span className="text-gray-400">·</span>
+                  <span className="text-gray-600">{REDE[p.rede] ?? p.rede}</span>
+                  <span className="text-gray-400">·</span>
+                  <span className="text-gray-700 truncate max-w-[220px]">{p.titulo}</span>
+                  {p.link && (
+                    <a href={p.link} target="_blank" rel="noreferrer"
+                      className="font-semibold text-[#8B2214] underline">ver post</a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">
         <span className="inline-flex items-center gap-1 font-semibold text-gray-700">
