@@ -100,6 +100,19 @@ export default function MetaDiaria({ brandId, marcaNome, meta }: {
     return () => { supabase.removeChannel(ch); };
   }, [brandId, carregar]);
 
+  // A faixa anda sozinha na virada do dia. Sem isto, uma aba deixada aberta durante a noite
+  // continuaria marcando ontem como "hoje" — e o placar cobraria postagem de um dia que já
+  // acabou. A virada é a de Brasília, não a do aparelho.
+  useEffect(() => {
+    const agora = new Date();
+    const emSP = new Date(agora.toLocaleString('en-US', { timeZone: FUSO }));
+    const amanha = new Date(emSP);
+    amanha.setDate(amanha.getDate() + 1);
+    amanha.setHours(0, 0, 30, 0);   // 30s depois da virada, para não cair no limite exato
+    const t = setTimeout(carregar, amanha.getTime() - emSP.getTime());
+    return () => clearTimeout(t);
+  }, [carregar, dias]);
+
   if (!brandId || meta === 0 || carregando) return null;
 
   const hoje = dias.find(d => d.hoje);
