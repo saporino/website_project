@@ -81,9 +81,11 @@ export function Dashboard() {
       // e o card mostrava "0 clientes · PF: 0 · PJ: 0" mesmo com gente cadastrada: número
       // errado na cara de quem decide. Enquanto o cadastro B2C não distinguir PF de PJ, o
       // card conta quem existe de fato e não finge uma separação que o banco não tem.
-      const [{ count: totalPerfis }, { count: totalAdmins }, { data: products }] = await Promise.all([
+      const [{ count: totalPerfis }, { count: totalAdmins }, { count: totalProdutos }] = await Promise.all([
         supabase.from('user_profiles').select('id', { count: 'exact', head: true }),
         supabase.from('user_profiles').select('id', { count: 'exact', head: true }).eq('is_admin', true),
+        // `head: true` não traz linhas: o contador tem de vir de `count`. Lendo de
+        // `data.length` o card mostrava 0 produtos com 14 no catálogo.
         supabase.from('products').select('id', { count: 'exact', head: true }),
       ]);
 
@@ -94,7 +96,7 @@ export function Dashboard() {
         .in('order_status', ['created', 'payment_pending']);
 
       setTotalClientes(Math.max(0, (totalPerfis ?? 0) - (totalAdmins ?? 0)));
-      setTotalProducts((products as any)?.length || 0);
+      setTotalProducts(totalProdutos ?? 0);
       setPendingOrders(pendingCount || 0);
 
       // Process orders by PF/PJ

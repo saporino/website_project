@@ -185,6 +185,16 @@ try {
   const { data: ehAdmin } = await loja.cli.rpc('is_admin');
   const { data: repDaLoja } = await loja.cli.rpc('my_rep_id');
   checar('cliente da loja não é admin nem representante', ehAdmin !== true && !repDaLoja);
+
+  // O admin passou a enxergar todos os cadastros (senão a aba Clientes fica cega). O cliente
+  // NÃO pode ter ganhado isso junto — é o lado da moeda que precisa continuar fechado.
+  const { data: perfisQueOClienteVe } = await loja.cli.from('user_profiles').select('id');
+  const deOutros = (perfisQueOClienteVe ?? []).filter(p => p.id !== loja.id);
+  checar('cliente da loja lê só o próprio perfil', deOutros.length === 0,
+    `leu ${deOutros.length} perfil(is) de outras pessoas`);
+  const { data: perfisQueORepVe } = await A.cli.from('user_profiles').select('id');
+  checar('representante lê só o próprio perfil',
+    (perfisQueORepVe ?? []).filter(p => p.id !== A.id).length === 0);
 } finally {
   for (const [tabela, id] of limpar.reverse()) await admin.from(tabela).delete().eq('id', id);
   for (const id of usuarios) await admin.auth.admin.deleteUser(id);

@@ -60,15 +60,25 @@ export default function AnalysisModal({ video, companyId, brandId, brandTitle, i
   const [loading, setLoading] = useState(true);
   const [showCampaign, setShowCampaign] = useState(false);
   const [copiedLegenda, setCopiedLegenda] = useState('');
+  const [desatualizada, setDesatualizada] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const [{ data: an }, { data: tr }] = await Promise.all([
+      const [{ data: an }, { data: tr }, { data: marca }] = await Promise.all([
         supabase.from('studio_analyses').select('*').eq('video_id', video.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('studio_transcriptions').select('full_text').eq('video_id', video.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        brandId
+          ? supabase.from('studio_brand_profiles').select('updated_at').eq('id', brandId).maybeSingle()
+          : Promise.resolve({ data: null }),
       ]);
       setA(an || {});
       setTranscript((tr as any)?.full_text || '');
+      // A análise é gravada uma vez e fica. Quando as regras da marca mudam depois disso, o
+      // laudo da tela passa a cobrar coisa que já foi resolvida — aconteceu com a bandeira
+      // italiana, acusada em peça após peça por 20 minutos de diferença entre os dois.
+      const feitaEm = (an as any)?.created_at;
+      const regrasEm = (marca as any)?.updated_at;
+      setDesatualizada(!!feitaEm && !!regrasEm && new Date(regrasEm) > new Date(feitaEm));
       setLoading(false);
     })();
   }, [video.id]);
@@ -140,6 +150,16 @@ export default function AnalysisModal({ video, companyId, brandId, brandTitle, i
             <p className="text-sm text-gray-400 text-center py-8">Sem análise disponível. Tente Reprocessar o vídeo.</p>
           ) : (
             <>
+              {/* Laudo mais velho que as regras: avisa antes que ele leia como verdade de
+                  hoje. Sem isto, uma correção no cadastro continua sendo cobrada peça após
+                  peça e a pessoa perde a confiança no alerta. */}
+              {desatualizada && (
+                <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-900">
+                  <strong>Esta análise é anterior à última mudança nas regras da marca.</strong>{' '}
+                  Os avisos abaixo valem para as regras de antes — clique em <strong>Reprocessar</strong> para
+                  revalidar com as regras atuais.
+                </div>
+              )}
               {warns.length > 0 && (
                 <div className="mb-4 space-y-1.5">
                   <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500 flex items-center gap-1"><ShieldAlert className="w-3.5 h-3.5" /> Verificação de Marca</p>

@@ -91,15 +91,23 @@ export function AdminDashboard() {
     }
   }, [allowedTabs.join(','), activeTab]);
 
-  // Deep-link: if another page stored a target tab in localStorage, activate it
+  // Qual aba abrir ao entrar. Três origens, nesta ordem:
+  //   1. volta do login do Instagram/TikTok (studio_conexao na URL) → Studio;
+  //   2. deep-link gravado por outra tela (admin-initial-tab), que é consumido e apagado;
+  //   3. a última aba em que a pessoa estava — senão um F5 no meio do trabalho joga de
+  //      volta no Dashboard e perde o lugar.
   useEffect(() => {
-    // Volta do login do Instagram/TikTok (studio_conexao na URL) → abre o Studio.
-    const target = (new URLSearchParams(window.location.search).has('studio_conexao') ? 'studio' : localStorage.getItem('admin-initial-tab')) as TabType | null;
-    if (target) {
-      openTab(target);
-      localStorage.removeItem('admin-initial-tab');
-    }
+    const deepLink = localStorage.getItem('admin-initial-tab');
+    const target = (new URLSearchParams(window.location.search).has('studio_conexao') ? 'studio'
+      : deepLink || localStorage.getItem('admin-ultima-aba')) as TabType | null;
+    if (target) openTab(target);
+    if (deepLink) localStorage.removeItem('admin-initial-tab');
   }, []);
+
+  // Guarda onde a pessoa está, para o F5 devolver no mesmo lugar.
+  useEffect(() => {
+    try { localStorage.setItem('admin-ultima-aba', activeTab); } catch { /* navegador sem storage */ }
+  }, [activeTab]);
 
   function refreshTabs(...tabsToRefresh: TabType[]) {
     setRefreshVersion(current => {
