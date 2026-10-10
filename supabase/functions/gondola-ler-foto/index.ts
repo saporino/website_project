@@ -8,6 +8,7 @@
 // Recebe { pesquisa_id, paths: string[] } (fotos já no bucket privado `gondola`).
 // Gate: admin logado. Deploy: --no-verify-jwt (a função confere o admin por conta própria).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { explicarErroDaIA } from "../_shared/erroDaIA.ts";
 
 const CLAUDE_MODEL = "claude-sonnet-5";
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
@@ -86,7 +87,7 @@ Deno.serve(async (req) => {
           }),
         });
         const texto = await r.text();
-        if (!r.ok) throw new Error("IA: " + texto.slice(0, 160));
+        if (!r.ok) throw new Error(explicarErroDaIA(r.status, texto, "Anthropic"));
         const cJson = JSON.parse(texto);
         const bruto = (cJson.content || []).find((b: any) => b.type === "text")?.text ?? "";
         const m = bruto.match(/\{[\s\S]*\}/);

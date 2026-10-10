@@ -2,6 +2,7 @@
 // da marca ativa, a IA escreve/refina a legenda pronta pra postar (com hashtags focadas). Não inventa claim/preço/promo.
 // Recebe { company_id, media_path?, notes?, network, current? }. Gate: admin logado. Deploy: --no-verify-jwt.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { explicarErroDaIA } from "../_shared/erroDaIA.ts";
 
 const CLAUDE_MODEL = "claude-sonnet-5";
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
@@ -98,7 +99,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 2000, system, messages: [{ role: "user", content: parts }] }),
     });
     const cText = await cRes.text();
-    if (!cRes.ok) return json({ error: "Claude: " + cText.slice(0, 200) }, 502);
+    if (!cRes.ok) return json({ error: explicarErroDaIA(cRes.status, cText, "Anthropic") }, 502);
     const cJson = JSON.parse(cText);
     const rawText = (cJson.content || []).find((b: any) => b.type === "text")?.text ?? "";
     const m = rawText.match(/\{[\s\S]*\}/);

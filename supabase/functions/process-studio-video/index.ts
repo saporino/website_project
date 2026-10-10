@@ -3,11 +3,13 @@
 // PENDENTE DE LIGAR: precisa dos secrets OPENAI_API_KEY e ANTHROPIC_API_KEY.
 // Deploy: npx supabase functions deploy process-studio-video --no-verify-jwt
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { explicarErroDaIA } from "../_shared/erroDaIA.ts";
 
 // Modelos (troque aqui se quiser outro tier). Whisper transcreve; Claude analisa.
 const WHISPER_MODEL = "whisper-1";
 const CLAUDE_MODEL = "claude-sonnet-5";
 const WHISPER_MAX_BYTES = 25 * 1024 * 1024; // limite da API do Whisper (25MB)
+
 
 const SYSTEM_PROMPT = `Você é um ESTRATEGISTA de marketing que faz engenharia reversa de conteúdo de CONCORRENTES para gerar execuções ORIGINAIS da NOSSA marca. A peça do concorrente é fonte de INSIGHT, NUNCA storyboard.
 
@@ -361,7 +363,7 @@ Regra de ouro: o concorrente é só referência de ESTRATÉGIA. Extraia o PRINC�
       body: JSON.stringify({ model: CLAUDE_MODEL, max_tokens: 12000, system: SYSTEM_PROMPT + brandBlock, messages: [{ role: "user", content: userContent }] }),
     });
     const cText = await cRes.text();
-    if (!cRes.ok) throw new Error("Claude: " + cText.slice(0, 200));
+    if (!cRes.ok) throw new Error(explicarErroDaIA(cRes.status, cText, "Anthropic"));
     const cJson = JSON.parse(cText);
     // Claude 5 devolve blocos "thinking" antes do texto → pega o bloco type==='text'
     const rawText = (cJson.content || []).find((b: any) => b.type === "text")?.text ?? "";
