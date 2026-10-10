@@ -161,6 +161,13 @@ try {
       && await visivel(page.getByText('· meta cumprida'), 5000));
     await admin.from('studio_campaigns').delete().eq('id', nova.id);
 
+    // F5 tem de devolver na MESMA aba. Antes voltava sempre no Dashboard e perdia o lugar.
+    // Entra aqui porque esta bancada já está dentro do Studio, que é o caso que ele relatou.
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    checar(`[${tela.rotulo}] F5 continua no Studio, não volta ao Dashboard`,
+      await visivel(page.getByText('Saporino Studio'), 60000)
+      && (await page.getByRole('heading', { name: 'Dashboard' }).count()) === 0);
+
     const sem = await page.evaluate(vw => document.documentElement.scrollWidth <= vw + 1, tela.viewport.width);
     checar(`[${tela.rotulo}] sem rolagem lateral`, sem);
     await page.screenshot({ path: path.join(SAIDA, `${tela.rotulo}-meta.png`), fullPage: false });

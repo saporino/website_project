@@ -63,7 +63,21 @@ export function AdminDashboard() {
   const allowedTabs: TabType[] = isAdmin
     ? ALL_ADMIN_TABS
     : Array.from(new Set(consoleRoles.flatMap(r => ROLE_TABS[r])));
-  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+  // Em que aba o painel ABRE. Decidido já no primeiro render, não por efeito: quando isso
+  // era feito em useEffect, o efeito que valida a aba pelo papel rodava no mesmo ciclo e
+  // devolvia para o Dashboard — o deep-link do Studio simplesmente não pegava.
+  //   1. volta do login do Instagram/TikTok (studio_conexao na URL) → Studio;
+  //   2. deep-link gravado por outra tela (admin-initial-tab);
+  //   3. a última aba em que a pessoa estava, para o F5 não tirar ela do lugar.
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    try {
+      if (new URLSearchParams(window.location.search).has('studio_conexao')) return 'studio';
+      const alvo = localStorage.getItem('admin-initial-tab') || localStorage.getItem('admin-ultima-aba');
+      return (alvo as TabType) || 'dashboard';
+    } catch {
+      return 'dashboard';   // navegador sem storage
+    }
+  });
   const [refreshVersion, setRefreshVersion] = useState<Record<TabType, number>>({
     dashboard: 0,
     messages: 0,
@@ -91,23 +105,12 @@ export function AdminDashboard() {
     }
   }, [allowedTabs.join(','), activeTab]);
 
-  // Qual aba abrir ao entrar. Três origens, nesta ordem:
-  //   1. volta do login do Instagram/TikTok (studio_conexao na URL) → Studio;
-  //   2. deep-link gravado por outra tela (admin-initial-tab), que é consumido e apagado;
-  //   3. a última aba em que a pessoa estava — senão um F5 no meio do trabalho joga de
-  //      volta no Dashboard e perde o lugar.
+  // O deep-link é CONSUMIDO aqui, uma vez, depois de a aba já ter nascido com ele. Apagar
+  // dentro do inicializador não serve: o StrictMode roda o inicializador duas vezes e a
+  // segunda leria a chave já apagada.
   useEffect(() => {
-    const deepLink = localStorage.getItem('admin-initial-tab');
-    const target = (new URLSearchParams(window.location.search).has('studio_conexao') ? 'studio'
-      : deepLink || localStorage.getItem('admin-ultima-aba')) as TabType | null;
-    if (target) openTab(target);
-    if (deepLink) localStorage.removeItem('admin-initial-tab');
+    try { localStorage.removeItem('admin-initial-tab'); } catch { /* navegador sem storage */ }
   }, []);
-
-  // Guarda onde a pessoa está, para o F5 devolver no mesmo lugar.
-  useEffect(() => {
-    try { localStorage.setItem('admin-ultima-aba', activeTab); } catch { /* navegador sem storage */ }
-  }, [activeTab]);
 
   function refreshTabs(...tabsToRefresh: TabType[]) {
     setRefreshVersion(current => {
@@ -122,6 +125,10 @@ export function AdminDashboard() {
   function openTab(tab: TabType) {
     setActiveTab(tab);
     refreshTabs(tab);
+    // Guarda onde a pessoa está para o F5 devolver no mesmo lugar. Gravado no clique, e não
+    // num efeito que observa `activeTab`: assim a correção automática de aba por papel não
+    // sobrescreve a escolha de quem clicou.
+    try { localStorage.setItem('admin-ultima-aba', tab); } catch { /* navegador sem storage */ }
   }
 
   // Aguarda o Supabase restaurar a sessão antes de verificar permissões
