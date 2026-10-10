@@ -123,8 +123,11 @@ try {
     checar(`[${tela.rotulo}] placar aparece no topo`, await visivel(page.getByText(/de 3 postagens hoje/), 60000));
     checar(`[${tela.rotulo}] conta só o que foi ao ar (2 de 3, não 3 de 3)`,
       await visivel(page.getByText('2 de 3 postagens hoje'), 10000));
-    checar(`[${tela.rotulo}] diz quanto falta e lembra o agendado`,
-      await visivel(page.getByText(/falta 1 \(1 agendada para hoje\)/), 10000));
+    // 2 publicadas + 1 agendada = o dia está coberto. Não é "cumprida" (o post ainda pode
+    // falhar), mas quem já fez o trabalho não pode ver cobrança em âmbar.
+    checar(`[${tela.rotulo}] dia coberto por agendamento não aparece como dívida`,
+      await visivel(page.getByText(/o dia já está coberto — a próxima sai às \d{2}:\d{2}/), 10000)
+      && (await page.getByText(/falta 1/).count()) === 0);
     checar(`[${tela.rotulo}] mostra a sequência de dias na meta`,
       await visivel(page.getByText(/2 dias seguidos na meta/), 10000));
     checar(`[${tela.rotulo}] oferece as janelas de horário`,

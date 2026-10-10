@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Clock, Flame, CalendarDays } from 'lucide-react';
+import { CheckCircle2, Clock, Flame, CalendarDays, CalendarClock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { FUSO } from '../../lib/horario';
 
@@ -134,6 +134,11 @@ export default function MetaDiaria({ brandId, marcaNome, meta }: {
   const faltam = Math.max(0, meta - feitos);
   const cumpriu = feitos >= meta;
   const agendadosHoje = hoje?.agendados ?? 0;
+  // O dia está COBERTO quando o que saiu mais o que está marcado fecha a meta. Não é o
+  // mesmo que cumprida — o post ainda pode falhar —, mas quem já fez o trabalho não pode
+  // ver âmbar de cobrança como se estivesse devendo.
+  const coberto = !cumpriu && feitos + agendadosHoje >= meta;
+  const proximoDeHoje = (hoje?.posts ?? []).filter(p => !p.publicado)[0];
 
   // Quantos dias seguidos, terminando ontem, bateram a meta. Hoje não entra: o dia ainda
   // está acontecendo e dizer "quebrou a sequência" às 9h da manhã seria injusto.
@@ -155,27 +160,37 @@ export default function MetaDiaria({ brandId, marcaNome, meta }: {
   const aberto = dias.find(d => d.data === diaAberto);
 
   return (
-    <div className={`rounded-xl border p-4 ${cumpriu ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
+    <div className={`rounded-xl border p-4 ${
+      cumpriu ? 'border-green-200 bg-green-50'
+      : coberto ? 'border-green-200 bg-green-50/60'
+      : 'border-amber-200 bg-amber-50'
+    }`}>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex items-center gap-2">
-          {cumpriu
-            ? <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+          {cumpriu ? <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+            : coberto ? <CalendarClock className="w-5 h-5 text-green-600 flex-shrink-0" />
             : <Clock className="w-5 h-5 text-amber-600 flex-shrink-0" />}
-          <span className={`font-bold ${cumpriu ? 'text-green-800' : 'text-amber-900'}`}>
+          <span className={`font-bold ${cumpriu || coberto ? 'text-green-800' : 'text-amber-900'}`}>
             {feitos} de {meta} {feitos === 1 ? 'postagem' : 'postagens'} hoje
           </span>
-          <span className={`text-sm ${cumpriu ? 'text-green-700' : 'text-amber-800'}`}>
-            {cumpriu
-              ? '· meta cumprida'
-              : `· falta${faltam > 1 ? 'm' : ''} ${faltam}${agendadosHoje ? ` (${agendadosHoje} agendada${agendadosHoje > 1 ? 's' : ''} para hoje)` : ''}`}
+          <span className={`text-sm ${cumpriu || coberto ? 'text-green-700' : 'text-amber-800'}`}>
+            {cumpriu ? '· meta cumprida'
+              : coberto
+                ? `· o dia já está coberto${proximoDeHoje ? ` — a próxima sai às ${proximoDeHoje.hora}` : ''}`
+                : `· falta${faltam > 1 ? 'm' : ''} ${faltam}${agendadosHoje ? ` (${agendadosHoje} agendada${agendadosHoje > 1 ? 's' : ''} para hoje)` : ''}`}
           </span>
         </div>
 
-        {/* bolinhas da meta: enche uma por post que foi ao ar */}
+        {/* Bolinhas: cheia = foi ao ar; contorno tracejado = agendada para hoje, ainda não
+            saiu. Assim dá para ver que o dia está resolvido sem afirmar que já aconteceu. */}
         <div className="flex items-center gap-1">
           {Array.from({ length: meta }).map((_, i) => (
             <span key={i} aria-hidden="true"
-              className={`w-3 h-3 rounded-full ${i < feitos ? 'bg-green-600' : 'bg-white border border-amber-300'}`} />
+              className={`w-3 h-3 rounded-full ${
+                i < feitos ? 'bg-green-600'
+                : i < feitos + agendadosHoje ? 'border-2 border-dashed border-green-500 bg-white'
+                : 'bg-white border border-amber-300'
+              }`} />
           ))}
         </div>
 
@@ -276,11 +291,11 @@ export default function MetaDiaria({ brandId, marcaNome, meta }: {
             (diasVazios ? ` · ${diasVazios} ${diasVazios === 1 ? 'dia sem nada' : 'dias sem nada'}` : ' · todos os dias com postagem')}
       </p>
 
-      {marcaNome && !cumpriu && (
+      {marcaNome && !cumpriu && !coberto && (
         <p className="mt-2 text-xs text-amber-800">
-          {feitos === 0
-            ? `Nenhuma postagem de ${marcaNome} hoje.`
-            : `${marcaNome} já postou hoje, mas ainda não fechou o dia.`}
+          {feitos === 0 && agendadosHoje === 0
+            ? `Nenhuma postagem de ${marcaNome} hoje, e nada agendado.`
+            : `${marcaNome} ainda não fechou o dia.`}
         </p>
       )}
     </div>
