@@ -96,6 +96,12 @@ const { error: eCamp } = await admin.from('studio_campaigns').insert([
   // Repostagem: não gostou da primeira e postou de novo. O card tem de mostrar a ÚLTIMA.
   { video_id: idDaPeca('peca-publicada.png'), company_id: emp.id, brand_id: marca.id, title: 'Primeira vez', platform: 'instagram',
     status: 'published', scheduled_at: anteontem, published_at: anteontem, external_url: 'https://instagram.com/p/velho' },
+  // Peça publicada que foi REPROGRAMADA para o futuro: o card tem de mostrar o que vem,
+  // não a publicação antiga. Caso real do "Feliz Domingo" republicado para o dia seguinte.
+  { video_id: idDaPeca('peca-falhou.png'), company_id: emp.id, brand_id: marca.id, title: 'Republicada p/ amanhã', platform: 'facebook',
+    status: 'published', published_at: ontem, external_url: 'https://instagram.com/p/saiu-ontem' },
+  { video_id: idDaPeca('peca-falhou.png'), company_id: emp.id, brand_id: marca.id, title: 'Republicada p/ amanhã', platform: 'facebook',
+    status: 'scheduled', scheduled_at: daquiTresDias },
   // Campanha criada e esquecida sem agendar: card mudo faz pensar que o post saiu.
   { video_id: idDaPeca('peca-rascunho.png'), company_id: emp.id, brand_id: marca.id, title: 'Esquecida', platform: 'instagram', status: 'draft' },
 ]);
@@ -162,6 +168,10 @@ try {
       (await page.getByText(/· publicado em/).count()) === 0);
     checar(`[${tela.rotulo}] rascunho avisa que ainda não foi ao ar`,
       await visivel(page.getByText(/Campanha de Instagram em rascunho — ainda não foi ao ar/), 8000));
+    // peça que já saiu e foi reprogramada: a linha de cima é o que VEM, não o que passou
+    checar(`[${tela.rotulo}] republicada mostra o próximo agendamento, não a publicação antiga`,
+      await visivel(page.getByText(/Agendado no Facebook para/), 8000)
+      && (await page.getByText(/Publicado no Facebook em/).count()) === 0);
 
     // A hora mostrada tem de ser a de Brasília, não a do aparelho. O agendamento foi
     // gravado em UTC; o card tem de exibir o mesmo instante convertido para SP.

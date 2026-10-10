@@ -67,13 +67,19 @@ export default function VideoCard({ v, onAnalyze, onCampaign, onDelete, onReproc
     }
     const quandoDe = (p: StudioPublicacao) =>
       new Date(p.published_at || p.scheduled_at || 0).getTime();
+    const agora = Date.now();
     return [...grupos.entries()].map(([rede, lista]) => {
       const ordenada = [...lista].sort((a, b) => quandoDe(b) - quandoDe(a));
       const publicadas = ordenada.filter(p => p.status === 'published');
-      const agendadas = ordenada.filter(p => p.status === 'scheduled');
       const falhas = ordenada.filter(p => p.status === 'error' || p.publish_error);
-      // Rascunho é o último da fila: se já publicou ou agendou, o que vale é aquilo.
-      const atual = publicadas[0] || agendadas[0] || falhas[0] || ordenada[0];
+      const agendadas = ordenada.filter(p => p.status === 'scheduled');
+      // Agendamento que AINDA VAI acontecer vem primeiro: é o que está por vir. Republicar
+      // uma peça para amanhã deixava o card mostrando a publicação de ontem como se fosse
+      // a novidade, e o agendamento novo sumia no histórico.
+      const proxima = [...agendadas]
+        .filter(p => p.scheduled_at && new Date(p.scheduled_at).getTime() > agora)
+        .sort((a, b) => quandoDe(a) - quandoDe(b))[0];
+      const atual = proxima || publicadas[0] || agendadas[0] || falhas[0] || ordenada[0];
       const rascunhos = ordenada.filter(p => p.status === 'draft');
       return { rede, atual, rascunhos: atual.status === 'draft' ? rascunhos : [], anteriores: ordenada.filter(p => p !== atual && p.status !== 'draft') };
     });
