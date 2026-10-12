@@ -234,10 +234,22 @@ export default function MetaDiaria({ brandId, marcaNome, meta }: {
           vazio ANTES de ele passar, que é quando ainda dá para programar. */}
       <div className="mt-3 -mx-1 flex items-end gap-1.5 overflow-x-auto px-1 pb-1">
         {dias.map(d => {
-          const bateu = d.publicados >= meta;
-          const parcial = d.publicados > 0 && !bateu;
           const marcados = d.agendados;
+          const previsto = d.publicados + marcados;   // o que o dia já tem resolvido
           const dataCurta = d.data.split('-').reverse().slice(0, 2).join('/');
+
+          // UMA regra para a cor, do melhor para o pior estado:
+          //   verde cheio  = a meta saiu de verdade
+          //   âmbar        = o dia tem postagem, mas nem tudo publicado ainda
+          //   vermelho     = dia que passou sem nada (não dá mais para resolver)
+          //   tracejado    = dia futuro ainda vazio (dá tempo de programar)
+          const tudoPublicado = d.publicados >= meta;
+          const temAlgo = previsto > 0;
+          const perdido = !temAlgo && !d.futuro && !d.hoje;
+          const cor = tudoPublicado ? 'bg-green-600 text-white border border-green-600'
+            : temAlgo ? 'bg-amber-200 text-amber-900 border border-amber-300'
+            : perdido ? 'bg-red-50 text-red-400 border border-red-200'
+            : 'bg-white text-gray-300 border-2 border-dashed border-gray-300';
           return (
             <button key={d.data} type="button"
               onClick={() => setDiaAberto(a => (a === d.data ? null : d.data))}
@@ -246,23 +258,13 @@ export default function MetaDiaria({ brandId, marcaNome, meta }: {
               title={d.posts.length
                 ? `${dataCurta}: ${d.publicados} publicada(s), ${marcados} agendada(s) — ${d.posts.map(p => p.hora).join(', ')}`
                 : d.futuro ? `Nada agendado para ${dataCurta}` : `Nenhuma postagem em ${dataCurta}`}>
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-transform hover:scale-110 ${
-                d.futuro
-                  ? marcados >= meta ? 'border-2 border-dashed border-green-500 text-green-700 bg-white'
-                  : marcados > 0 ? 'border-2 border-dashed border-[#8B2214] text-[#8B2214] bg-white'
-                  : 'border-2 border-dashed border-gray-300 text-gray-300 bg-white'
-                : bateu ? 'bg-green-600 text-white'
-                : parcial ? 'bg-amber-200 text-amber-900'
-                : 'bg-white border border-gray-200 text-gray-400'
-              } ${d.hoje ? 'ring-2 ring-offset-1 ring-[#8B2214]' : ''} ${diaAberto === d.data ? 'ring-2 ring-offset-1 ring-gray-700' : ''}`}>
-                {/* Dia que já tem postagem publicada E agendamento pendente mostra os dois:
-                    "1+2". Só o número do publicado escondia o trabalho já feito — parecia
-                    que faltava tudo num dia que já estava resolvido. */}
-                {d.futuro
-                  ? (marcados || '–')
-                  : marcados > 0
-                    ? <span className="text-[11px] leading-none">{d.publicados}<span className="opacity-60">+{marcados}</span></span>
-                    : d.publicados}
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-transform hover:scale-110 ${cor} ${
+                d.hoje ? 'ring-2 ring-offset-1 ring-[#8B2214]' : ''
+              } ${diaAberto === d.data ? 'ring-2 ring-offset-1 ring-gray-700' : ''}`}>
+                {/* O número é o que o dia JÁ TEM, somando o que saiu e o que está marcado.
+                    Mostrar só o publicado fazia um dia resolvido parecer vazio — e a reação
+                    natural era agendar de novo em cima. A cor é que diz se já saiu. */}
+                {temAlgo ? previsto : '–'}
               </div>
               <span className={`text-[10px] leading-none ${d.hoje ? 'font-bold text-[#8B2214]' : 'text-gray-500'}`}>{d.rotulo}</span>
               <span className="text-[9px] leading-none text-gray-400">{d.diaDoMes}</span>
@@ -317,6 +319,24 @@ export default function MetaDiaria({ brandId, marcaNome, meta }: {
           )}
         </div>
       )}
+
+      {/* Legenda: a cor precisa ser lida sem adivinhação. O número é sempre quantas o dia
+          tem (publicadas + agendadas); a cor diz em que pé está. */}
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500">
+        <span className="font-semibold text-gray-600">O número é quanto o dia já tem:</span>
+        <span className="inline-flex items-center gap-1">
+          <span className="w-3 h-3 rounded bg-green-600" aria-hidden="true" /> tudo publicado
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="w-3 h-3 rounded bg-amber-200 border border-amber-300" aria-hidden="true" /> tem postagem, falta publicar
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="w-3 h-3 rounded bg-white border-2 border-dashed border-gray-300" aria-hidden="true" /> vazio, dá tempo
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="w-3 h-3 rounded bg-red-50 border border-red-200" aria-hidden="true" /> passou sem nada
+        </span>
+      </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-600">
         <span className="inline-flex items-center gap-1 font-semibold text-gray-700">
