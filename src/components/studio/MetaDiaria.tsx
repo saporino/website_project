@@ -244,7 +244,7 @@ export default function MetaDiaria({ brandId, marcaNome, meta }: {
               aria-expanded={diaAberto === d.data}
               className="flex flex-col items-center gap-1 flex-shrink-0"
               title={d.posts.length
-                ? `${d.posts.map(p => p.hora).join(', ')} — clique para ver`
+                ? `${dataCurta}: ${d.publicados} publicada(s), ${marcados} agendada(s) — ${d.posts.map(p => p.hora).join(', ')}`
                 : d.futuro ? `Nada agendado para ${dataCurta}` : `Nenhuma postagem em ${dataCurta}`}>
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold transition-transform hover:scale-110 ${
                 d.futuro
@@ -255,7 +255,14 @@ export default function MetaDiaria({ brandId, marcaNome, meta }: {
                 : parcial ? 'bg-amber-200 text-amber-900'
                 : 'bg-white border border-gray-200 text-gray-400'
               } ${d.hoje ? 'ring-2 ring-offset-1 ring-[#8B2214]' : ''} ${diaAberto === d.data ? 'ring-2 ring-offset-1 ring-gray-700' : ''}`}>
-                {d.futuro ? (marcados || '–') : d.publicados}
+                {/* Dia que já tem postagem publicada E agendamento pendente mostra os dois:
+                    "1+2". Só o número do publicado escondia o trabalho já feito — parecia
+                    que faltava tudo num dia que já estava resolvido. */}
+                {d.futuro
+                  ? (marcados || '–')
+                  : marcados > 0
+                    ? <span className="text-[11px] leading-none">{d.publicados}<span className="opacity-60">+{marcados}</span></span>
+                    : d.publicados}
               </div>
               <span className={`text-[10px] leading-none ${d.hoje ? 'font-bold text-[#8B2214]' : 'text-gray-500'}`}>{d.rotulo}</span>
               <span className="text-[9px] leading-none text-gray-400">{d.diaDoMes}</span>

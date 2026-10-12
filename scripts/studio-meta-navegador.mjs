@@ -144,6 +144,9 @@ try {
       await visivel(page.getByText(/Próximos 7 dias:.*2 postagens agendadas/), 10000));
     checar(`[${tela.rotulo}] aponta os dias que ainda estão vazios`,
       await visivel(page.getByText(/5 dias sem nada/), 10000));
+    // hoje tem 2 publicadas + 1 agendada: o quadradinho tem de contar as duas coisas
+    checar(`[${tela.rotulo}] o dia de hoje mostra publicadas e agendadas (2+1)`,
+      await visivel(page.getByText('+1', { exact: true }).first(), 8000));
     checar(`[${tela.rotulo}] cada quadradinho mostra o dia do mês`,
       await visivel(page.getByText(new RegExp('^' + String(new Date().getDate()).padStart(2, '0') + '$')), 10000));
 
