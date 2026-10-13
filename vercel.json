@@ -41,7 +41,7 @@
     },
     {
       "src": "/(privacidade|termos|exclusao-de-dados)/?",
-      "has": [{ "type": "host", "value": "(www\\.)?coficobrasil\\.com\\.br" }],
+      "has": [{ "type": "host", "value": "(?:www\\.)?coficobrasil\\.com\\.br" }],
       "dest": "/cofico-$1.html"
     },
     {

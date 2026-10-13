@@ -98,6 +98,16 @@ if (!existsSync(DIST)) {
   checa('rota /coficobrasil/<slug> existe e vem antes do catchall', iSob >= 0 && iSob < iCatchall);
   checa('as rotas apontam para o arquivo gerado',
     rotas[iRaiz]?.dest === '/cofico-$1.html' && rotas[iSob]?.dest === '/cofico-$1.html');
+  // Pegou a gente em produção: com `has`, os grupos do HOST entram na MESMA numeração dos
+  // grupos do `src`. Um `(www\.)?` capturante rouba o $1 — o destino virava /cofico-www..html,
+  // não existia, e a rota caía no catchall servindo o index da Saporino no domínio da COFICO.
+  for (const [i, r] of rotas.entries()) {
+    if (!/\$\d/.test(r.dest ?? '')) continue;
+    for (const h of r.has ?? []) {
+      checa(`rota ${i} (${r.src}): grupo do host é não-capturante`,
+        !/\((?!\?)/.test(h.value ?? ''), `has.value = ${h.value}`);
+    }
+  }
   for (const doc of legal.documentos) {
     checa(`sitemap lista /${doc.slug}`, sitemap.includes(`/${doc.slug}</loc>`));
   }
