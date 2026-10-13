@@ -48,6 +48,7 @@ const RepCoIntelligence = lazy(() => import('./pages/RepCoIntelligence'));
 const RepCoCoverageMap = lazy(() => import('./pages/RepCoCoverageMap'));
 const CoficoBrasilPage = lazy(() => import('./pages/coficobrasil/CoficoBrasilPage'));
 const CoficoLegalPage = lazy(() => import('./pages/coficobrasil/CoficoPolicyPages').then(m => ({ default: m.CoficoLegalPage })));
+const CoficoCookieConsent = lazy(() => import('./pages/coficobrasil/CoficoCookieConsent'));
 const CoffeeLivrePage = lazy(() => import('./pages/coffeelivre/CoffeeLivrePage'));
 const HeroExperiencePage = lazy(() => import('./pages/HeroExperiencePage'));
 import HeroGate from './components/HeroGate'; // ABERTURA (HERO) antes da HOME — import direto: é o LCP, não pode esperar code-split
@@ -143,7 +144,11 @@ function AppRouter() {
   useEffect(() => {
     // A COFICO é outra marca e cada página dela põe o próprio título (produtos, embalagens,
     // filtros…). Sem esta saída, o título da Saporino sobrescrevia o da COFICO ao abrir a página.
+    // As páginas legais da COFICO moram na RAIZ do domínio dela (/privacidade), fora do
+    // prefixo /coficobrasil — sem esta segunda saída, a aba abria "Política de Privacidade
+    // — COFICO Brasil" e virava "Café Saporino" assim que o React montava.
     if (currentPath.startsWith('/coficobrasil')) return;
+    if (rotaLegalCofico(currentPath, window.location.hostname)) return;
     document.title = currentPath.startsWith('/repco')
       ? 'RepCo'
       : currentPath.startsWith('/promotor')
@@ -206,7 +211,8 @@ function AppRouter() {
   // política da COFICO em cafesaporino.com.br/privacidade.
   {
     const legal = rotaLegalCofico(currentPath, window.location.hostname);
-    if (legal) return <CoficoLegalPage slug={legal} />;
+    // Aviso de cookies da COFICO (nunca o da Saporino): e o site dela que esta na tela.
+    if (legal) return <><CoficoLegalPage slug={legal} /><CoficoCookieConsent /></>;
   }
   if (currentPath === '/coffeelivre' || currentPath.startsWith('/coffeelivre/')) return <CoffeeLivrePage />;
   if (currentPath === '/experiencia') return <HeroExperiencePage />;
