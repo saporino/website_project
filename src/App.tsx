@@ -58,7 +58,7 @@ import PromoPopup from './components/PromoPopup';
 import { trackVisit } from './lib/trackVisit';
 import StoreLocator from './components/StoreLocator';
 import NotFound from './components/NotFound';
-import { rotaLegalCofico } from './pages/coficobrasil/config';
+import { rotaLegalCofico, noDominioCofico } from './pages/coficobrasil/config';
 
 const logoImage = '/saporino-logo.png';
 
@@ -142,11 +142,15 @@ function AppRouter() {
   // Título da aba por rota — usado tb. pelo "Adicionar à tela inicial" (atalho pega o título).
   // No portal do rep vira "RepCo" para o atalho/app já nascer com esse nome.
   useEffect(() => {
-    // A COFICO é outra marca e cada página dela põe o próprio título (produtos, embalagens,
-    // filtros…). Sem esta saída, o título da Saporino sobrescrevia o da COFICO ao abrir a página.
-    // As páginas legais da COFICO moram na RAIZ do domínio dela (/privacidade), fora do
-    // prefixo /coficobrasil — sem esta segunda saída, a aba abria "Política de Privacidade
-    // — COFICO Brasil" e virava "Café Saporino" assim que o React montava.
+    // A COFICO é outra marca e cada página dela põe o próprio título. Sem esta saída, o título
+    // da Saporino sobrescrevia o da COFICO assim que o React montava — o HTML estático abria
+    // certo e a aba virava "Café Saporino" um instante depois.
+    //
+    // A regra é por DOMÍNIO, não por caminho: em coficobrasil.com.br NENHUMA página é da
+    // Saporino, a começar pela home em "/". Caminho só decide dentro do site da Saporino, onde
+    // a COFICO vive sob /coficobrasil (inclusive as páginas legais, que no domínio próprio
+    // moram na raiz).
+    if (noDominioCofico()) return;
     if (currentPath.startsWith('/coficobrasil')) return;
     if (rotaLegalCofico(currentPath, window.location.hostname)) return;
     document.title = currentPath.startsWith('/repco')

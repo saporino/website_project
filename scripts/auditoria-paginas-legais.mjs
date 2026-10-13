@@ -107,6 +107,20 @@ if (!existsSync(DIST)) {
   checa('trata decisão automatizada (Art. 20)', /Art\. 20/.test(textoPriv) && /revisão por pessoa natural/i.test(textoPriv));
   checa('aponta a transferência internacional (Meta)', /transferência internacional/i.test(textoPriv));
 
+  // Estes dois não aparecem no HTML estático: são de tempo de execução. Ficam aqui porque
+  // foram achados DEPOIS do deploy, no navegador, e não podem voltar.
+  console.log('\n— identidade e rodapé (regressão achada em produção)');
+  const app = readFileSync(resolve('src/App.tsx'), 'utf8');
+  const iDominio = app.indexOf('if (noDominioCofico()) return;');
+  const iTitulo = app.indexOf("'Café Saporino — O Verdadeiro Sabor de Minas'");
+  checa('o título da aba sai fora pelo DOMÍNIO da COFICO, não só pelo caminho',
+    iDominio > 0 && iDominio < iTitulo,
+    'sem isso, coficobrasil.com.br/ abre com o título da Saporino na aba');
+  const aviso = readFileSync(resolve('src/pages/coficobrasil/CoficoCookieConsent.tsx'), 'utf8');
+  checa('o aviso de cookies reserva espaço e não cobre o rodapé',
+    /document\.body\.style\.paddingBottom/.test(aviso),
+    'sem isso, os 3 links legais do rodapé ficam inclicáveis até alguém aceitar');
+
   console.log('\n— roteamento (vercel.json)');
   const rotas = vercel.routes;
   const idx = (re) => rotas.findIndex(r => re.test(r.src));
