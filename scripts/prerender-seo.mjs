@@ -5,6 +5,7 @@
 // Dirigido por lista: novas páginas institucionais entram em ROUTES, sem reescrever o script.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { LEGAL, paginaEstatica } from './legal-render.mjs';
 
 const DIST = resolve('dist');
 const env = (k, d = '') => process.env[k] || d;
@@ -39,6 +40,40 @@ const ROUTES = [
       sameAs: ['https://instagram.com/coficobrasil', 'https://maps.app.goo.gl/rYKCPWBXWpKzJFZD7', ...coficoSameAs],
     },
   },
+  // ── Páginas legais da COFICO ────────────────────────────────────────────
+  // A Meta exige URL direta e conteúdo LEGÍVEL SEM JAVASCRIPT. Por isso estas rotas, além
+  // do <head> próprio, recebem o texto da política já montado dentro do <div id="root">:
+  // o crawler lê o HTML cru; o React monta depois e substitui pelo mesmo conteúdo.
+  // Texto e marcação vêm de src/pages/coficobrasil/legal.json (fonte única).
+  ...LEGAL.documentos.map(doc => ({
+    path: `/${doc.slug}`,
+    out: `cofico-${doc.slug}.html`,
+    title: doc.titulo,
+    description: doc.descricao,
+    canonical: `${COFICO_BASE}/${doc.slug}`,
+    ogSiteName: 'COFICO Brasil',
+    ogImage: `${ASSET_ORIGIN}/og/cofico-og-1200.png`,
+    favicon: '/icons/cofico-icon-512.png',
+    faviconApple: '/icons/cofico-apple-touch-icon.png',
+    // noindex NÃO: a Meta precisa alcançar a página, e política pública é indexável.
+    corpo: paginaEstatica(doc, LEGAL.vars, LEGAL.atualizado),
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'WebPage',
+      name: doc.h1,
+      description: doc.descricao,
+      url: `${COFICO_BASE}/${doc.slug}`,
+      inLanguage: 'pt-BR',
+      dateModified: LEGAL.atualizado,
+      publisher: {
+        '@type': 'Organization',
+        name: 'COFICO BRASIL',
+        legalName: LEGAL.vars.razao,
+        taxID: LEGAL.vars.cnpj,
+        url: COFICO_BASE,
+      },
+    },
+  })),
 ];
 
 // Remove SÓ o SEO existente (mantém charset, viewport, favicon, GA, script de limpeza de SW).
@@ -80,12 +115,21 @@ for (const r of ROUTES) {
   // Favicon próprio da rota (ex.: COFICO não pode herdar o ícone da Saporino na aba/Google).
   if (r.favicon) html = html.replace('/icons/saporino-icon-512.png', r.favicon);
   if (r.faviconApple) html = html.replace('/icons/apple-touch-icon.png', r.faviconApple);
+  // Corpo estático: entra DENTRO do #root. O React usa createRoot().render() (não hydrate),
+  // então ele simplesmente substitui este conteúdo ao montar — sem erro de hidratação.
+  if (r.corpo) {
+    const vazio = /<div id="root"([^>]*)><\/div>/;
+    if (!vazio.test(html)) throw new Error(`${r.out}: não achei <div id="root"></div> para inserir o corpo estático.`);
+    html = html.replace(vazio, (_m, attrs) => `<div id="root"${attrs}>${r.corpo}</div>`);
+  }
   // Validação: exatamente 1 og:title, 1 canonical, 1 JSON-LD (garante que substituiu, não somou).
   const n = (re) => (html.match(re) || []).length;
   const [nOg, nCanon, nLd] = [n(/property="og:title"/g), n(/rel="canonical"/g), n(/application\/ld\+json/g)];
   if (nOg !== 1 || nCanon !== 1 || nLd !== 1) {
     throw new Error(`SEO inválido em ${r.out}: og:title=${nOg}, canonical=${nCanon}, ld+json=${nLd} (esperado 1/1/1)`);
   }
+  // Sem JS, o texto tem de estar ali. Uma política vazia é reprovada pela Meta.
+  if (r.corpo && !/<h1[^>]*>/.test(html)) throw new Error(`${r.out}: corpo estático sem <h1>.`);
   writeFileSync(resolve(DIST, r.out), html, 'utf8');
-  console.log(`✓ ${r.out} — head próprio (og:title=1 · canonical=1 · ld+json=1) · canonical=${r.canonical}`);
+  console.log(`✓ ${r.out} — head próprio (og:title=1 · canonical=1 · ld+json=1)${r.corpo ? ' · corpo estático ' + r.corpo.length + ' bytes' : ''} · canonical=${r.canonical}`);
 }

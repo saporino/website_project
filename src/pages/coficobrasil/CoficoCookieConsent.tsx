@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
+import { linkLegal } from './config';
 
 const KEY = 'cofico-cookie-consent';
 
 // Aviso de cookies PRÓPRIO da COFICO (site institucional — sem carrinho/login).
-// Estilo cofico-red; links via hash (#privacidade), sem sair do domínio COFICO.
+// Estilo cofico-red; link para a URL real da política (/privacidade), resolvida por domínio.
 // Some após aceitar (localStorage). Chave separada da Saporino.
 export default function CoficoCookieConsent() {
   const [show, setShow] = useState(false);
@@ -25,10 +26,10 @@ export default function CoficoCookieConsent() {
         <p className="flex-1 text-sm text-neutral-700 leading-relaxed">
           Usamos cookies essenciais e de medição para melhorar sua experiência neste site.
           Ao continuar navegando, você concorda com a nossa{' '}
-          <a href="#privacidade" className="text-cofico-ink font-semibold underline">Política de Privacidade</a>.
+          <a href={linkLegal('privacidade')} className="text-cofico-ink font-semibold underline">Política de Privacidade</a>.
         </p>
         <div className="flex items-center gap-3 flex-shrink-0">
-          <a href="#privacidade" className="text-sm font-semibold text-neutral-600 hover:text-neutral-900">Saber mais</a>
+          <a href={linkLegal('privacidade')} className="text-sm font-semibold text-neutral-600 hover:text-neutral-900">Saber mais</a>
           <button onClick={accept} className="bg-cofico-ink hover:bg-cofico-dark text-white font-semibold px-6 py-2.5 rounded-full transition-colors shadow">
             Aceitar
           </button>

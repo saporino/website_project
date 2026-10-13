@@ -1,0 +1,181 @@
+{
+  "_leia_me": [
+    "FONTE ÚNICA das páginas legais da COFICO. Este arquivo é lido em dois lugares:",
+    "  1. src/pages/coficobrasil/CoficoPolicyPages.tsx — a página dentro do app React;",
+    "  2. scripts/prerender-seo.mjs — gera o HTML ESTÁTICO de cada página no build, para",
+    "     que o texto seja lido sem executar JavaScript (exigência da Meta e dos crawlers).",
+    "Editar o texto AQUI muda os dois. Não duplicar texto legal em componente.",
+    "Marcação aceita dentro de um texto: **negrito**, [rótulo](url) e os curingas",
+    "{razao} {cnpj} {email} {telefone} {site}. Bloco {\"aviso\": ...} vira caixa destacada."
+  ],
+  "atualizado": "13 de outubro de 2026",
+  "vars": {
+    "razao": "V. Medeiros de Santi Ltda",
+    "cnpj": "66.006.929/0001-36",
+    "email": "sac@coficobrasil.com.br",
+    "telefone": "(11) 93810-0909",
+    "site": "https://www.coficobrasil.com.br"
+  },
+  "documentos": [
+    {
+      "slug": "privacidade",
+      "titulo": "Política de Privacidade — COFICO Brasil",
+      "h1": "Política de Privacidade",
+      "descricao": "Como a COFICO Brasil coleta, usa e protege dados pessoais de visitantes, parceiros e potenciais clientes, em conformidade com a LGPD.",
+      "blocos": [
+        { "p": "Esta Política de Privacidade descreve como a {razao} (CNPJ {cnpj}), que opera a marca **COFICO Brasil** (“COFICO”, “nós”), coleta, usa, compartilha e protege dados pessoais de visitantes, parceiros e potenciais clientes do site [www.coficobrasil.com.br](https://www.coficobrasil.com.br) (“Site”), em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — “LGPD”)." },
+        { "p": "O Site é **institucional**: apresenta nossos serviços de desenvolvimento comercial, armazenagem e distribuição, além de uma vitrine informativa de marcas. **Não realizamos vendas, cobranças ou pagamentos pelo Site** — portanto não coletamos aqui dados de cartão, conta bancária ou de compra." },
+
+        { "h2": "1. Quem é o controlador" },
+        { "p": "A {razao}, inscrita no CNPJ nº {cnpj}, é a controladora dos dados pessoais tratados por meio do Site. Para assuntos de privacidade e proteção de dados, incluindo o exercício de direitos do titular, o canal é o e-mail {email} (que também atende como contato do Encarregado/DPO)." },
+
+        { "h2": "2. Definições" },
+        { "ul": [
+          "**Dados pessoais:** informação que identifique ou possa identificar uma pessoa natural (ex.: nome, e-mail, telefone).",
+          "**Tratamento:** qualquer operação com dados pessoais (coleta, uso, armazenamento, compartilhamento, eliminação).",
+          "**Titular:** a pessoa natural a quem os dados se referem.",
+          "**LGPD:** Lei nº 13.709/2018, que regula o tratamento de dados pessoais no Brasil."
+        ] },
+
+        { "h2": "3. Quais dados coletamos" },
+        { "p": "**3.1 Dados que você nos fornece.** Ao entrar em contato por formulário, e-mail, WhatsApp ou ao manifestar interesse em distribuir uma marca conosco, podemos coletar: nome, empresa/razão social, e-mail, telefone e o conteúdo da sua mensagem." },
+        { "p": "**3.2 Dados coletados automaticamente.** Ao navegar no Site, podemos registrar dados técnicos como endereço IP, tipo de dispositivo e navegador, páginas visitadas e data/hora de acesso, por meio de cookies e tecnologias semelhantes (ver Seção 5)." },
+        { "p": "**3.3 Não coletamos** dados sensíveis nem dados de pagamento por meio do Site." },
+
+        { "h2": "4. Para que usamos e bases legais" },
+        { "ul": [
+          "Responder a contatos e conduzir tratativas comerciais de distribuição/representação — *execução de contrato e diligências pré-contratuais* e *legítimo interesse* (Art. 7º, V e IX da LGPD).",
+          "Operar, medir e melhorar o Site e sua segurança — *legítimo interesse*.",
+          "Cumprir obrigações legais e regulatórias — *cumprimento de obrigação legal*.",
+          "Enviar comunicações que você tenha solicitado — *consentimento*, revogável a qualquer momento."
+        ] },
+
+        { "h2": "5. Cookies e analytics" },
+        { "p": "Usamos cookies **essenciais** (necessários ao funcionamento do Site) e, mediante seu consentimento, cookies de **medição/analytics** para entender o uso do Site e melhorá-lo. Você pode gerenciar o consentimento pelo aviso de cookies exibido no Site e, a qualquer momento, bloquear ou apagar cookies nas configurações do seu navegador — parte das funcionalidades pode ser afetada." },
+
+        { "h2": "6. Atendimento comercial por WhatsApp" },
+        { "aviso": "**Situação atual:** hoje o atendimento pelo número {telefone} é feito pelo **aplicativo WhatsApp Business**, operado manualmente por nossa equipe. A integração com a **WhatsApp Business Platform (Cloud API)** da Meta está **em preparação e ainda não está em operação**. Esta seção descreve, com antecedência, como o tratamento de dados funcionará quando essa integração entrar no ar." },
+        { "p": "**6.1 O que é.** A WhatsApp Business Platform é o serviço da Meta que permite a uma empresa receber e enviar mensagens de WhatsApp por meio de um sistema próprio, em vez de somente pelo aplicativo no celular. A COFICO pretende usá-la para organizar o atendimento comercial e o acompanhamento de pedidos e entregas." },
+        { "p": "**6.2 Quais dados serão tratados.** Quando você nos escrever por WhatsApp: seu **nome ou nome de perfil**, seu **número de telefone**, o **conteúdo das mensagens** que você enviar (texto, fotos e documentos que você anexar, como comprovantes ou pedidos) e **metadados da conversa** (data e hora do envio, status de entrega e leitura, e o identificador da conversa). Não solicitamos dados de cartão de crédito, senha ou dados sensíveis por WhatsApp — e pedimos que você não os envie por esse canal." },
+        { "p": "**6.3 Para que serão usados.** Responder às suas mensagens e conduzir tratativas comerciais; informar status de pedido, carregamento e entrega; combinar janelas de entrega e endereços; enviar documentos de uma entrega (como comprovante ou canhoto); e prestar suporte. Mensagens de caráter **promocional** só são enviadas a quem **consentiu** em recebê-las." },
+        { "p": "**6.4 Bases legais.** Atendimento e tratativas comerciais: *execução de contrato e diligências pré-contratuais* (Art. 7º, V) e *legítimo interesse* (Art. 7º, IX). Comunicações promocionais: *consentimento* (Art. 7º, I), que você pode revogar a qualquer momento." },
+        { "p": "**6.5 Quem mais participa.** A entrega técnica das mensagens é feita pela infraestrutura da **Meta** (WhatsApp), que atua como provedora do serviço de mensageria e trata os dados conforme as próprias políticas: [Política de Privacidade do WhatsApp](https://www.whatsapp.com/legal/privacy-policy) e [Termos do WhatsApp Business](https://www.whatsapp.com/legal/business-terms). Isso envolve **transferência internacional de dados**, com as salvaguardas previstas na LGPD para essa hipótese." },
+        { "p": "**6.6 Por quanto tempo guardamos.** O histórico de conversa é mantido enquanto durar o atendimento ou a relação comercial e, depois disso, pelo prazo necessário ao cumprimento de obrigações legais e à defesa de direitos; findo o prazo, é eliminado ou anonimizado." },
+        { "p": "**6.7 Como parar de receber e como apagar.** Para deixar de receber mensagens, basta responder **SAIR** na própria conversa ou escrever para {email}. Para pedir a **exclusão** do seu histórico de conversa e dos seus dados de contato, siga as instruções da página [Exclusão de dados](exclusao-de-dados)." },
+        { "aviso": "**Revisão jurídica pendente:** os prazos concretos de retenção (item 6.6), a documentação das salvaguardas de transferência internacional (item 6.5) e a designação formal do Encarregado/DPO devem ser confirmados pelo jurídico antes da publicação definitiva." },
+
+        { "h2": "7. Compartilhamento" },
+        { "p": "Não vendemos dados pessoais. Podemos compartilhá-los com:" },
+        { "ul": [
+          "provedores de infraestrutura, hospedagem, mensageria e ferramentas que operam o Site e o atendimento, sob obrigação de confidencialidade e apenas conforme nossas instruções;",
+          "empresas parceiras/representadas, quando necessário para dar seguimento à sua solicitação comercial;",
+          "autoridades públicas, quando exigido por lei ou ordem judicial."
+        ] },
+
+        { "h2": "8. Armazenamento, segurança e retenção" },
+        { "p": "Adotamos medidas técnicas e organizacionais razoáveis para proteger os dados. Mantemos os dados apenas pelo tempo necessário às finalidades acima ou ao cumprimento de obrigações legais; findo esse prazo, são eliminados ou anonimizados. Alguns provedores podem processar dados fora do Brasil, sempre com salvaguardas compatíveis com a LGPD." },
+
+        { "h2": "9. Seus direitos (LGPD)" },
+        { "p": "Você pode, a qualquer tempo, solicitar: confirmação da existência de tratamento; acesso; correção; anonimização, bloqueio ou eliminação de dados desnecessários; portabilidade; informação sobre compartilhamento; e revogação do consentimento. Para exercê-los, escreva para {email} ou use a página [Exclusão de dados](exclusao-de-dados)." },
+
+        { "h2": "10. Alterações" },
+        { "p": "Esta Política pode ser atualizada. A versão vigente é sempre a publicada nesta página, com a data de “Última atualização” acima." },
+
+        { "h2": "11. Contato" },
+        { "p": "Dúvidas sobre privacidade: {email} · Telefone/WhatsApp: {telefone}." }
+      ]
+    },
+
+    {
+      "slug": "termos",
+      "titulo": "Termos de Uso — COFICO Brasil",
+      "h1": "Termos de Uso",
+      "descricao": "Termos de Uso do site institucional da COFICO Brasil: natureza informativa, vitrine sem venda, propriedade intelectual e canais de atendimento.",
+      "blocos": [
+        { "p": "Estes Termos de Uso regem o acesso e a navegação no site [www.coficobrasil.com.br](https://www.coficobrasil.com.br) (“Site”), operado pela {razao} (CNPJ {cnpj}), sob a marca **COFICO Brasil**. Ao navegar no Site, você concorda com estes Termos." },
+
+        { "h2": "1. Objeto e natureza do Site" },
+        { "p": "O Site é **institucional e informativo**. Apresenta os serviços da COFICO (desenvolvimento comercial, armazenagem, inteligência comercial, distribuição, marketing de apoio e tecnologia) e uma **vitrine de marcas**. Os produtos exibidos têm caráter **meramente informativo**: **não há carrinho, checkout, preço ao público, pagamento ou venda pelo Site**. A comercialização ocorre por nossos canais próprios (representantes/atendimento), sujeita a cadastro, condições comerciais e aprovação." },
+
+        { "h2": "2. Uso permitido" },
+        { "p": "Você concorda em usar o Site de forma lícita e a não: (a) violar direitos de terceiros ou da COFICO; (b) tentar acessar áreas restritas sem autorização; (c) interferir na segurança ou no funcionamento do Site; (d) reproduzir conteúdo sem autorização." },
+
+        { "h2": "3. Propriedade intelectual" },
+        { "p": "A marca COFICO, o layout, os textos e demais elementos do Site são protegidos por direitos de propriedade intelectual. As marcas de terceiros (produtos representados) pertencem aos seus respectivos titulares e são exibidas com finalidade informativa. Nenhum conteúdo pode ser copiado ou usado comercialmente sem autorização prévia." },
+
+        { "h2": "4. Vitrine sem venda" },
+        { "p": "As informações de produtos (nomes, descrições, imagens) podem mudar sem aviso e não constituem oferta. Disponibilidade, condições e preços são tratados exclusivamente pelos canais comerciais da COFICO mediante cadastro." },
+
+        { "h2": "5. Atendimento por WhatsApp" },
+        { "p": "O número {telefone} é um canal de **atendimento comercial**. As mensagens trocadas por esse canal seguem estes Termos e a nossa [Política de Privacidade](privacidade). O atendimento por WhatsApp **não** substitui a formalização de pedidos e contratos pelos canais comerciais da COFICO, e informações passadas por mensagem não constituem oferta vinculante. A integração com a WhatsApp Business Platform da Meta está **em preparação** e, quando entrar em operação, continuará regida por estes Termos." },
+
+        { "h2": "6. Links e serviços de terceiros" },
+        { "p": "O Site pode conter links para sites externos (ex.: redes sociais, mapas). Não somos responsáveis pelo conteúdo ou pelas práticas de privacidade desses terceiros." },
+
+        { "h2": "7. Limitação de responsabilidade" },
+        { "p": "O Site é fornecido “no estado em que se encontra”. Empregamos esforços razoáveis para manter as informações corretas e o Site disponível, mas não garantimos ausência de erros ou interrupções. Na máxima extensão permitida pela lei, a COFICO não responde por danos decorrentes do uso ou da indisponibilidade do Site." },
+
+        { "h2": "8. Privacidade" },
+        { "p": "O tratamento de dados pessoais segue a nossa [Política de Privacidade](privacidade)." },
+
+        { "h2": "9. Alterações" },
+        { "p": "Podemos atualizar estes Termos a qualquer momento. A versão vigente é a publicada nesta página, com a data de “Última atualização” acima." },
+
+        { "h2": "10. Legislação e foro" },
+        { "p": "Estes Termos são regidos pelas leis brasileiras. Fica eleito o foro da comarca de São Paulo/SP para dirimir controvérsias, com renúncia a qualquer outro, por mais privilegiado que seja." },
+        { "aviso": "**Revisão jurídica pendente:** a eleição de foro (item 10) e a extensão da limitação de responsabilidade (item 7) devem ser confirmadas pelo jurídico." },
+
+        { "h2": "11. Contato" },
+        { "p": "Fale conosco: {email} · Telefone/WhatsApp: {telefone}." }
+      ]
+    },
+
+    {
+      "slug": "exclusao-de-dados",
+      "titulo": "Exclusão de dados — COFICO Brasil",
+      "h1": "Como pedir a exclusão dos seus dados",
+      "descricao": "Instruções para solicitar a exclusão de dados pessoais tratados pela COFICO Brasil, incluindo o histórico de conversas de WhatsApp.",
+      "blocos": [
+        { "p": "Esta página explica como pedir à {razao} (CNPJ {cnpj}), que opera a marca **COFICO Brasil**, a **exclusão dos seus dados pessoais** — inclusive o histórico de conversas do nosso atendimento por WhatsApp. O direito de eliminação está previsto na Lei Geral de Proteção de Dados (Lei nº 13.709/2018, Art. 18)." },
+
+        { "h2": "1. Por onde pedir" },
+        { "p": "Escolha **um** dos canais abaixo. Os dois chegam à mesma equipe." },
+        { "ul": [
+          "**E-mail:** {email} — assunto “Exclusão de dados”.",
+          "**WhatsApp:** {telefone} — envie a mensagem “Quero excluir meus dados”."
+        ] },
+
+        { "h2": "2. O que informar no pedido" },
+        { "p": "Para localizar o seu cadastro e não apagar os dados da pessoa errada, precisamos que você informe:" },
+        { "ul": [
+          "o **nome** (e a empresa, se o contato foi comercial);",
+          "o **e-mail** e/ou o **número de telefone** que você usou para falar com a gente;",
+          "o que você quer excluir: **tudo**, apenas o **histórico de conversas do WhatsApp**, ou apenas os **dados de contato comercial**."
+        ] },
+        { "p": "Não é necessário anexar documento para abrir o pedido. Se houver dúvida razoável sobre quem está pedindo, podemos solicitar uma confirmação adicional antes de excluir — é uma medida de segurança a seu favor." },
+
+        { "h2": "3. Prazo" },
+        { "p": "Confirmamos o recebimento do pedido e respondemos em até **15 dias** contados do recebimento, informando o que foi excluído e, se for o caso, o que precisamos manter e por qual motivo legal." },
+
+        { "h2": "4. O que pode não ser excluído" },
+        { "p": "A LGPD permite que alguns dados sejam mantidos mesmo após o pedido de exclusão. Nesses casos explicamos exatamente o porquê. As hipóteses mais comuns são:" },
+        { "ul": [
+          "**cumprimento de obrigação legal ou regulatória** — por exemplo, documentos fiscais e registros de entrega que a legislação obriga a guardar;",
+          "**exercício regular de direitos**, inclusive em processo judicial, administrativo ou arbitral;",
+          "dados já **anonimizados**, que não permitem identificar você e, por isso, deixam de ser dados pessoais."
+        ] },
+        { "p": "Fora dessas hipóteses, os dados são eliminados dos nossos sistemas." },
+
+        { "h2": "5. Mensagens que ficam no seu aplicativo" },
+        { "p": "Apagamos os registros que estão **sob nossa guarda**. A cópia da conversa que fica no **seu** aplicativo de WhatsApp e nos servidores da Meta não está sob nosso controle: para apagá-la, use as opções do próprio aplicativo e, se precisar, os canais da Meta descritos na [Política de Privacidade do WhatsApp](https://www.whatsapp.com/legal/privacy-policy)." },
+
+        { "h2": "6. Outros direitos" },
+        { "p": "Além da exclusão, você pode pedir acesso, correção, portabilidade, informação sobre compartilhamento e revogação de consentimento. Os detalhes estão na nossa [Política de Privacidade](privacidade)." },
+
+        { "h2": "7. Se não concordar com a resposta" },
+        { "p": "Se a resposta não resolver, você pode reapresentar o pedido para {email} detalhando o ponto em aberto, e também tem o direito de peticionar à **Autoridade Nacional de Proteção de Dados (ANPD)**." },
+        { "aviso": "**Revisão jurídica pendente:** o prazo de resposta do item 3 e a lista de retenções obrigatórias do item 4 devem ser confirmados pelo jurídico, junto com a tabela de retenção por tipo de documento." }
+      ]
+    }
+  ]
+}

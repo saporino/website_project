@@ -1,0 +1,174 @@
+import { describe, it, expect } from 'vitest';
+import { renderInline, type Bloco, type Documento } from '../pages/coficobrasil/legalMarkup';
+import { COFICO, linkLegal, rotaLegalCofico, noDominioCofico, SLUGS_LEGAIS } from '../pages/coficobrasil/config';
+import { renderInline as renderInlineMjs, paginaEstatica, LEGAL } from '../../scripts/legal-render.mjs';
+import dados from '../pages/coficobrasil/legal.json';
+
+const legal = dados as unknown as { atualizado: string; vars: Record<string, string>; documentos: Documento[] };
+const textosDe = (b: Bloco) => [b.h2, b.p, b.aviso, ...(b.ul ?? [])].filter(Boolean) as string[];
+const todosOsTextos = legal.documentos.flatMap(d => d.blocos.flatMap(textosDe));
+const doc = (slug: string) => legal.documentos.find(d => d.slug === slug)!;
+
+describe('as duas cópias do renderizador não podem divergir', () => {
+  // O texto legal é renderizado DUAS vezes: pelo React (legalMarkup.ts) e pelo build
+  // (scripts/legal-render.mjs, que gera o HTML lido sem JavaScript). Se alguém mexer em
+  // uma e esquecer a outra, a Meta leria uma política diferente da que o cliente vê.
+  it('produzem HTML idêntico para todo texto do legal.json', () => {
+    expect(todosOsTextos.length).toBeGreaterThan(40);
+    for (const t of todosOsTextos) {
+      expect(renderInlineMjs(t, legal.vars)).toBe(renderInline(t, legal.vars));
+    }
+  });
+  it('o script do build lê o mesmo arquivo', () => {
+    expect(LEGAL.atualizado).toBe(legal.atualizado);
+    expect((LEGAL.documentos as Documento[]).map(d => d.slug)).toEqual(legal.documentos.map(d => d.slug));
+  });
+});
+
+describe('marcação', () => {
+  it('negrito, ênfase e link externo', () => {
+    const h = renderInline('**forte** e *leve* e [ir](https://exemplo.com)', {});
+    expect(h).toContain('<strong>forte</strong>');
+    expect(h).toContain('<em>leve</em>');
+    expect(h).toContain('target="_blank"');
+    expect(h).toContain('rel="noopener noreferrer"');
+  });
+  it('link interno é relativo e NÃO abre em outra aba', () => {
+    const h = renderInline('veja [privacidade](privacidade)', {});
+    expect(h).toContain('href="privacidade"');
+    expect(h).not.toContain('target="_blank"');
+  });
+  it('curingas viram os dados da COFICO e o e-mail fica clicável', () => {
+    const h = renderInline('fale com {email} ou {telefone}', legal.vars);
+    expect(h).toContain(`mailto:${COFICO.email}`);
+    expect(h).toContain(COFICO.phone);
+  });
+  it('não injeta HTML vindo do texto', () => {
+    expect(renderInline('<script>x</script>', {})).toBe('&lt;script&gt;x&lt;/script&gt;');
+  });
+  it('curinga que não existe fica visível em vez de virar vazio', () => {
+    expect(renderInline('{naoexiste}', {})).toBe('{naoexiste}');
+  });
+});
+
+describe('os dados do controlador são os da COFICO, não da Saporino', () => {
+  it('legal.json e config.ts contam a mesma história', () => {
+    expect(legal.vars.cnpj).toBe(COFICO.cnpj);
+    expect(legal.vars.email).toBe(COFICO.email);
+    expect(legal.vars.telefone).toBe(COFICO.phone);
+  });
+  it('nenhum texto legal menciona Saporino nem o CNPJ dela', () => {
+    for (const t of todosOsTextos) {
+      expect(t.toLowerCase()).not.toContain('saporino');
+      expect(t).not.toContain('61.109.694');
+    }
+  });
+  it('nenhum texto legal cita o fornecedor da embalagem', () => {
+    // Regra do Vlademir: quem vende é a COFICO. Nada de MAK-PLAST nem do endereço dele.
+    for (const t of todosOsTextos) {
+      expect(t.toUpperCase()).not.toContain('MAK-PLAST');
+      expect(t).not.toContain('41.769.332');
+      expect(t.toLowerCase()).not.toContain('caio de brito');
+    }
+  });
+});
+
+describe('as três páginas que a Meta pede existem e dizem o necessário', () => {
+  it('os três slugs, com título e descrição', () => {
+    expect(legal.documentos.map(d => d.slug)).toEqual([...SLUGS_LEGAIS]);
+    for (const d of legal.documentos) {
+      expect(d.titulo).toContain('COFICO');
+      expect(d.descricao.length).toBeGreaterThan(60);
+      expect(d.blocos.length).toBeGreaterThan(5);
+    }
+  });
+
+  it('privacidade: WhatsApp como PLANO, nunca como já ativo', () => {
+    const p = doc('privacidade');
+    const tudo = p.blocos.flatMap(textosDe).join('\n');
+    expect(tudo).toMatch(/WhatsApp Business Platform/);
+    expect(tudo).toMatch(/em prepara|ainda não está em opera/i);
+    // o que NÃO pode estar escrito: que a integração já funciona
+    expect(tudo).not.toMatch(/integração (já )?(está )?(ativa|em opera[çc]ão|funcionando)/i);
+  });
+
+  it('privacidade: finalidades, dados, direitos, retenção e exclusão', () => {
+    const tudo = doc('privacidade').blocos.flatMap(textosDe).join('\n').toLowerCase();
+    for (const exigido of ['finalidade', 'base', 'retenç', 'direito', 'lgpd', 'exclusão', 'transferência internacional', 'meta']) {
+      expect(tudo).toContain(exigido.toLowerCase());
+    }
+  });
+
+  it('exclusão de dados: canal, o que informar, prazo e o que pode ficar', () => {
+    const tudo = doc('exclusao-de-dados').blocos.flatMap(textosDe).join('\n');
+    expect(tudo).toContain('{email}');
+    expect(tudo).toContain('{telefone}');
+    expect(tudo).toMatch(/15 dias/);
+    expect(tudo).toMatch(/ANPD/);
+    expect(tudo).toMatch(/obrigação legal/i);
+  });
+
+  it('cada documento sinaliza o que depende de revisão jurídica', () => {
+    for (const d of legal.documentos) {
+      const avisos = d.blocos.filter(b => b.aviso).map(b => b.aviso!).join('\n');
+      expect(avisos, `documento ${d.slug} sem aviso`).toMatch(/revisão jurídica/i);
+    }
+  });
+});
+
+describe('HTML estático: a política tem de ser legível sem JavaScript', () => {
+  for (const d of legal.documentos) {
+    it(`${d.slug}: traz h1, o texto e a data`, () => {
+      const html = paginaEstatica(d, legal.vars, legal.atualizado);
+      expect(html).toContain(`<h1`);
+      expect(html).toContain(d.h1);
+      expect(html).toContain(legal.atualizado);
+      // o corpo inteiro, não só o título
+      expect(html.length).toBeGreaterThan(3000);
+      // links legais relativos: valem na raiz do domínio COFICO e sob /coficobrasil/
+      expect(html).toContain('href="privacidade"');
+      expect(html).not.toContain('href="/privacidade"');
+      // a razão social não vai no rodapé (regra do rodapé da COFICO)
+      expect(html.split('<footer')[1]).not.toContain(legal.vars.razao);
+    });
+  }
+  it('o conteúdo de cada bloco realmente aparece', () => {
+    const html = paginaEstatica(doc('privacidade'), legal.vars, legal.atualizado);
+    expect(html).toContain('WhatsApp Business Platform');
+    expect(html).toContain(COFICO.cnpj);
+    expect(html).toContain(COFICO.email);
+  });
+});
+
+describe('rotas: cada marca no seu domínio', () => {
+  const COF = 'www.coficobrasil.com.br', SAP = 'www.cafesaporino.com.br';
+
+  it('no domínio da COFICO a política mora na raiz', () => {
+    expect(noDominioCofico(COF)).toBe(true);
+    expect(linkLegal('privacidade', COF)).toBe('/privacidade');
+    expect(rotaLegalCofico('/privacidade', COF)).toBe('privacidade');
+    expect(rotaLegalCofico('/exclusao-de-dados', COF)).toBe('exclusao-de-dados');
+    expect(rotaLegalCofico('/termos/', COF)).toBe('termos');
+  });
+
+  it('no domínio da Saporino, /privacidade NÃO é da COFICO', () => {
+    expect(noDominioCofico(SAP)).toBe(false);
+    expect(rotaLegalCofico('/privacidade', SAP)).toBeNull();
+    expect(linkLegal('privacidade', SAP)).toBe('/coficobrasil/privacidade');
+  });
+
+  it('/coficobrasil/<slug> vale em qualquer domínio (inclusive localhost)', () => {
+    for (const host of [COF, SAP, 'localhost']) {
+      expect(rotaLegalCofico('/coficobrasil/termos', host)).toBe('termos');
+    }
+  });
+
+  it('não confunde outras rotas', () => {
+    for (const p of ['/', '/coficobrasil', '/politica-privacidade', '/termos-servico', '/admin', '/repco']) {
+      expect(rotaLegalCofico(p, SAP)).toBeNull();
+    }
+    // e no domínio da COFICO as rotas da Saporino continuam não sendo páginas legais da COFICO
+    expect(rotaLegalCofico('/politica-privacidade', COF)).toBeNull();
+    expect(rotaLegalCofico('/coficobrasil/qualquer-coisa', COF)).toBeNull();
+  });
+});

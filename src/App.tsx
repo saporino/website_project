@@ -47,6 +47,7 @@ const PromotorDashboard = lazy(() => import('./pages/PromotorDashboard').then(m 
 const RepCoIntelligence = lazy(() => import('./pages/RepCoIntelligence'));
 const RepCoCoverageMap = lazy(() => import('./pages/RepCoCoverageMap'));
 const CoficoBrasilPage = lazy(() => import('./pages/coficobrasil/CoficoBrasilPage'));
+const CoficoLegalPage = lazy(() => import('./pages/coficobrasil/CoficoPolicyPages').then(m => ({ default: m.CoficoLegalPage })));
 const CoffeeLivrePage = lazy(() => import('./pages/coffeelivre/CoffeeLivrePage'));
 const HeroExperiencePage = lazy(() => import('./pages/HeroExperiencePage'));
 import HeroGate from './components/HeroGate'; // ABERTURA (HERO) antes da HOME — import direto: é o LCP, não pode esperar code-split
@@ -56,6 +57,7 @@ import PromoPopup from './components/PromoPopup';
 import { trackVisit } from './lib/trackVisit';
 import StoreLocator from './components/StoreLocator';
 import NotFound from './components/NotFound';
+import { rotaLegalCofico } from './pages/coficobrasil/config';
 
 const logoImage = '/saporino-logo.png';
 
@@ -199,6 +201,13 @@ function AppRouter() {
   if (currentPath === '/para-seu-negocio') return <BusinessPage />;
   if (currentPath === '/nossa-historia' || currentPath === '/sobre') return <HistoryPage />;
   if (currentPath === '/coficobrasil') return <CoficoBrasilPage />;
+  // Páginas legais da COFICO em URL direta (a Meta exige URL, não hash). No domínio da
+  // COFICO moram na raiz; sob o site da Saporino, em /coficobrasil/... — para não servir
+  // política da COFICO em cafesaporino.com.br/privacidade.
+  {
+    const legal = rotaLegalCofico(currentPath, window.location.hostname);
+    if (legal) return <CoficoLegalPage slug={legal} />;
+  }
   if (currentPath === '/coffeelivre' || currentPath.startsWith('/coffeelivre/')) return <CoffeeLivrePage />;
   if (currentPath === '/experiencia') return <HeroExperiencePage />;
 
