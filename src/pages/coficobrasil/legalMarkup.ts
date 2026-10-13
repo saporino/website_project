@@ -13,9 +13,12 @@
 
 export type Vars = Record<string, string>;
 
-export interface Bloco { h2?: string; p?: string; ul?: string[]; aviso?: string }
+export interface Bloco { h2?: string; p?: string; ul?: string[] }
 export interface Documento {
   slug: string; titulo: string; h1: string; descricao: string; blocos: Bloco[];
+  /** Pontos que dependem do jurídico. NÃO são renderizados: política pública não carrega
+   *  tarja de pendência. Saem no relatório em docs/ e são cobrados por teste. */
+  revisaoJuridica: string[];
 }
 
 const escapar = (s: string) =>

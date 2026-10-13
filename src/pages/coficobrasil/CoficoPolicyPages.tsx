@@ -46,12 +46,6 @@ function Linha({ bloco }: { bloco: Bloco }) {
       </ul>
     );
   }
-  if (bloco.aviso) {
-    // Caixa destacada: "ainda não está ativo" e "pendente de revisão jurídica" não podem
-    // passar como parágrafo comum — é justamente o que a Meta e o jurídico vão procurar.
-    return <div className="rounded-lg border border-cofico-ink/30 bg-cofico-ink/5 p-4 text-sm"
-      dangerouslySetInnerHTML={html(bloco.aviso)} />;
-  }
   return <p dangerouslySetInnerHTML={html(bloco.p ?? '')} />;
 }
 

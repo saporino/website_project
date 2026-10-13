@@ -37,14 +37,12 @@ const C = {
   h2: 'text-xl md:text-2xl font-bold text-neutral-900 mt-8 mb-3',
   ul: 'list-disc pl-6',
   li: 'mb-1',
-  aviso: 'rounded-lg border border-cofico-ink/30 bg-cofico-ink/5 p-4 text-sm',
 };
 
 export function corpoDoDocumento(doc, vars) {
   const linha = (b) => {
     if (b.h2) return `<h2 class="${C.h2}">${renderInline(b.h2, vars)}</h2>`;
     if (b.ul) return `<ul class="${C.ul}">${b.ul.map(i => `<li class="${C.li}">${renderInline(i, vars)}</li>`).join('')}</ul>`;
-    if (b.aviso) return `<div class="${C.aviso}">${renderInline(b.aviso, vars)}</div>`;
     return `<p>${renderInline(b.p ?? '', vars)}</p>`;
   };
   return doc.blocos.map(linha).join('\n        ');

@@ -5,7 +5,7 @@ import { renderInline as renderInlineMjs, paginaEstatica, LEGAL } from '../../sc
 import dados from '../pages/coficobrasil/legal.json';
 
 const legal = dados as unknown as { atualizado: string; vars: Record<string, string>; documentos: Documento[] };
-const textosDe = (b: Bloco) => [b.h2, b.p, b.aviso, ...(b.ul ?? [])].filter(Boolean) as string[];
+const textosDe = (b: Bloco) => [b.h2, b.p, ...(b.ul ?? [])].filter(Boolean) as string[];
 const todosOsTextos = legal.documentos.flatMap(d => d.blocos.flatMap(textosDe));
 const doc = (slug: string) => legal.documentos.find(d => d.slug === slug)!;
 
@@ -83,13 +83,30 @@ describe('as três páginas que a Meta pede existem e dizem o necessário', () =
     }
   });
 
-  it('privacidade: WhatsApp como PLANO, nunca como já ativo', () => {
-    const p = doc('privacidade');
-    const tudo = p.blocos.flatMap(textosDe).join('\n');
+  it('privacidade: descreve a MODALIDADE, sem dizer que já opera e sem aviso provisório', () => {
+    const tudo = doc('privacidade').blocos.flatMap(textosDe).join('\n');
     expect(tudo).toMatch(/WhatsApp Business Platform/);
-    expect(tudo).toMatch(/em prepara|ainda não está em opera/i);
-    // o que NÃO pode estar escrito: que a integração já funciona
+    // não pode afirmar que a integração já funciona...
     expect(tudo).not.toMatch(/integração (já )?(está )?(ativa|em opera[çc]ão|funcionando)/i);
+    // ...nem carregar aviso provisório, que era justamente o que se queria eliminar
+    expect(tudo).not.toMatch(/em prepara[çc]ão|ainda não está em opera|por enquanto|provisóri/i);
+    // e precisa deixar claro que descrever não é declarar funcionamento
+    expect(tudo).toMatch(/não uma declaração de que todas as funcionalidades estejam em funcionamento/i);
+  });
+
+  it('privacidade: cobre a operação inteira, não só o site', () => {
+    const tudo = doc('privacidade').blocos.flatMap(textosDe).join('\n').toLowerCase();
+    for (const tema of ['cliente', 'fornecedor', 'representante', 'promotor', 'pedido',
+      'entrega', 'comiss', 'whatsapp', 'cloud api', 'localização', 'automatiza']) {
+      expect(tudo, `falta falar de: ${tema}`).toContain(tema);
+    }
+  });
+
+  it('privacidade: revisão de decisão automatizada e papel de operador', () => {
+    const tudo = doc('privacidade').blocos.flatMap(textosDe).join('\n');
+    expect(tudo).toMatch(/Art\. 20/);
+    expect(tudo).toMatch(/revisão por pessoa natural/i);
+    expect(tudo).toMatch(/operadora|operador/i);   // nem sempre a COFICO é a controladora
   });
 
   it('privacidade: finalidades, dados, direitos, retenção e exclusão', () => {
@@ -108,10 +125,23 @@ describe('as três páginas que a Meta pede existem e dizem o necessário', () =
     expect(tudo).toMatch(/obrigação legal/i);
   });
 
-  it('cada documento sinaliza o que depende de revisão jurídica', () => {
+  it('cada documento lista o que depende de revisão jurídica — FORA da página', () => {
     for (const d of legal.documentos) {
-      const avisos = d.blocos.filter(b => b.aviso).map(b => b.aviso!).join('\n');
-      expect(avisos, `documento ${d.slug} sem aviso`).toMatch(/revisão jurídica/i);
+      expect(d.revisaoJuridica?.length, `documento ${d.slug} sem revisaoJuridica`).toBeGreaterThan(0);
+      for (const ponto of d.revisaoJuridica) expect(ponto.length).toBeGreaterThan(30);
+    }
+  });
+
+  it('nenhum documento carrega tarja de pendência na página pública', () => {
+    // Decisão de 13/10/2026: política definitiva não exibe aviso provisório. O tipo de bloco
+    // `aviso` foi removido do código; este teste impede que volte pelo JSON.
+    for (const d of legal.documentos) {
+      for (const b of d.blocos as unknown as Array<Record<string, unknown>>) {
+        expect(Object.keys(b).some(k => !['h2', 'p', 'ul'].includes(k)),
+          `${d.slug}: bloco com chave desconhecida — ${JSON.stringify(b).slice(0, 80)}`).toBe(false);
+      }
+      const tudo = d.blocos.flatMap(textosDe).join('\n');
+      expect(tudo, `${d.slug} fala de revisão jurídica na página`).not.toMatch(/revisão jurídica/i);
     }
   });
 });

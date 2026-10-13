@@ -46,9 +46,9 @@ if (!existsSync(DIST)) {
     checa('o texto aparece sem executar JavaScript', texto.length > 2500, `${texto.length} caracteres`);
     checa('tem o H1 da página', html.includes(`>${doc.h1}<`));
     checa('tem a data de última atualização', texto.includes(legal.atualizado));
-    const ultimoBloco = [...doc.blocos].reverse().find(b => b.p || b.aviso);
+    const ultimoBloco = [...doc.blocos].reverse().find(b => b.p);
     // Tira a marcação (**negrito**, *ênfase*) e os curingas: no HTML eles já viraram tags/valores.
-    const pedaco = soTexto((ultimoBloco.p || ultimoBloco.aviso)
+    const pedaco = soTexto(ultimoBloco.p
       .replace(/\{(\w+)\}/g, (i, k) => legal.vars[k] ?? i)
       .replace(/\*+/g, '')).slice(0, 48);
     checa('o texto vai até o ÚLTIMO bloco (não é só o cabeçalho)', texto.includes(pedaco), pedaco);
@@ -78,12 +78,20 @@ if (!existsSync(DIST)) {
   const priv = legal.documentos.find(d => d.slug === 'privacidade');
   const textoPriv = priv.blocos.flatMap(b => [b.h2, b.p, b.aviso, ...(b.ul ?? [])]).filter(Boolean).join('\n');
   checa('cita a WhatsApp Business Platform', /WhatsApp Business Platform/.test(textoPriv));
-  checa('diz que AINDA NÃO está em operação', /ainda não está em opera|em prepara/i.test(textoPriv));
   checa('não afirma que a integração já está ativa',
     !/integração (já )?(está )?(ativa|em opera[çc]ão|funcionando)/i.test(textoPriv));
+  checa('SEM aviso provisório na página pública',
+    !/em prepara[çc]ão|ainda não está em opera|por enquanto|provisóri/i.test(textoPriv));
+  checa('SEM tarja de revisão jurídica na página pública', !/revisão jurídica/i.test(textoPriv));
+  checa('as pendências jurídicas estão registradas fora da página',
+    legal.documentos.every(d => Array.isArray(d.revisaoJuridica) && d.revisaoJuridica.length > 0));
+  checa('cobre a operação inteira (cliente, fornecedor, rep, pedido, entrega, comissão)',
+    ['cliente', 'fornecedor', 'representante', 'promotor', 'pedido', 'entrega', 'comiss']
+      .every(t => textoPriv.toLowerCase().includes(t)));
   checa('explica finalidades, dados, base legal, retenção e exclusão',
-    ['Para que serão usados', 'Quais dados serão tratados', 'Bases legais', 'Por quanto tempo', 'exclusão']
+    ['Quais dados tratamos', 'base legal', 'Por quanto tempo guardamos', 'exclusão']
       .every(t => textoPriv.includes(t)));
+  checa('trata decisão automatizada (Art. 20)', /Art\. 20/.test(textoPriv) && /revisão por pessoa natural/i.test(textoPriv));
   checa('aponta a transferência internacional (Meta)', /transferência internacional/i.test(textoPriv));
 
   console.log('\n— roteamento (vercel.json)');
@@ -113,6 +121,14 @@ if (!existsSync(DIST)) {
   }
   checa('robots não bloqueia as páginas legais',
     !legal.documentos.some(d => robots.includes(`Disallow: /${d.slug}`)));
+
+  // As pendências jurídicas NÃO aparecem na página (decisão de 13/10/2026: política
+  // definitiva não carrega tarja). Então elas saem aqui, toda vez que a bancada roda.
+  console.log('\n— pendente de revisão jurídica (fora da página) —');
+  for (const doc of legal.documentos) {
+    console.log(`  /${doc.slug}`);
+    for (const ponto of doc.revisaoJuridica ?? []) console.log(`    · ${ponto}`);
+  }
 
   console.log(`\n${ok} verificações ok, ${falhas.length} falhas.`);
   if (falhas.length) { falhas.forEach(f => console.log('  · ' + f)); process.exitCode = 1; }
