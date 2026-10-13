@@ -91,6 +91,19 @@ if (!existsSync(DIST)) {
   checa('explica finalidades, dados, base legal, retenção e exclusão',
     ['Quais dados tratamos', 'base legal', 'Por quanto tempo guardamos', 'exclusão']
       .every(t => textoPriv.includes(t)));
+  checa('declara a análise de crédito e a autorização específica do birô',
+    /limite de crédito/i.test(textoPriv) && /birô de crédito/i.test(textoPriv)
+    && /Art\. 7º, X/.test(textoPriv) && /não é feita com base em autorização genérica/i.test(textoPriv));
+  checa('não assume como da COFICO equipe de outra empresa',
+    /vinculados à COFICO/.test(textoPriv) && /controladora nesse caso/.test(textoPriv));
+  checa('separa as 4 categorias de monitoramento em campo',
+    ['Localização pontual', 'Registro da visita', 'Status de presença', 'Atividade no sistema']
+      .every(c => textoPriv.includes(c)));
+  checa('entrega: canhoto fotografado, sem assinatura digital',
+    /canhoto ou comprovante assinado/i.test(textoPriv)
+    && /Não coletamos assinatura digital nem biometria/i.test(textoPriv));
+  checa('não promete isolamento técnico que o sistema não tem',
+    /e não uma separação técnica completa/i.test(textoPriv));
   checa('trata decisão automatizada (Art. 20)', /Art\. 20/.test(textoPriv) && /revisão por pessoa natural/i.test(textoPriv));
   checa('aponta a transferência internacional (Meta)', /transferência internacional/i.test(textoPriv));
 

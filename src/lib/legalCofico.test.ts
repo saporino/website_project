@@ -116,6 +116,62 @@ describe('as três páginas que a Meta pede existem e dizem o necessário', () =
     }
   });
 
+  // ——— correções da auditoria de 13/10/2026: cada uma tem o seu teste ———————————————
+
+  it('declara a análise de crédito, com base legal e sem autorização genérica', () => {
+    const tudo = doc('privacidade').blocos.flatMap(textosDe).join('\n');
+    expect(tudo).toMatch(/limite de crédito/i);
+    expect(tudo).toMatch(/birô de crédito/i);
+    expect(tudo).toMatch(/Art\. 7º, X/);                       // proteção do crédito
+    expect(tudo).toMatch(/autorização genérica.{0,30}NÃO basta|não é feita com base em autorização genérica/i);
+  });
+
+  it('não assume como da COFICO o que é de outra empresa', () => {
+    const tudo = doc('privacidade').blocos.flatMap(textosDe).join('\n');
+    // representantes/promotores/motoristas só entram se forem vinculados à COFICO
+    expect(tudo).toMatch(/vinculados à COFICO/);
+    expect(tudo).toMatch(/controladora nesse caso/);
+    // e a seção 9 abre dizendo a quem se aplica
+    expect(tudo).toMatch(/9\.1 A quem esta seção se aplica/);
+  });
+
+  it('separa as quatro categorias de monitoramento em campo', () => {
+    const tudo = doc('privacidade').blocos.flatMap(textosDe).join('\n');
+    for (const cat of ['Localização pontual', 'Registro da visita', 'Status de presença', 'Atividade no sistema']) {
+      expect(tudo, `falta a categoria: ${cat}`).toContain(cat);
+    }
+  });
+
+  it('comprovação de entrega: canhoto fotografado, nunca assinatura digital', () => {
+    const tudo = doc('privacidade').blocos.flatMap(textosDe).join('\n');
+    expect(tudo).toMatch(/canhoto ou comprovante assinado/i);
+    expect(tudo).toMatch(/Não coletamos assinatura digital nem biometria/i);
+  });
+
+  it('não promete isolamento técnico entre empresas que o sistema não tem', () => {
+    const tudo = doc('privacidade').blocos.flatMap(textosDe).join('\n');
+    expect(tudo).toMatch(/controle hoje é por papel de acesso, e não uma separação técnica completa/i);
+    // e não pode voltar a prometer o que não existe
+    expect(tudo).not.toMatch(/isolamento (completo|total) entre empresas/i);
+  });
+
+  it('exclusão: separa prazo de RESPOSTA de prazo de ELIMINAÇÃO', () => {
+    const tudo = doc('exclusao-de-dados').blocos.flatMap(textosDe).join('\n');
+    expect(tudo).toMatch(/Resposta e eliminação são coisas diferentes/i);
+    expect(tudo).toMatch(/Art\. 19, II/);                       // os 15 dias são de confirmação/acesso
+    expect(tudo).toMatch(/cópias de segurança/i);
+    // não pode prometer eliminação em 15 dias
+    expect(tudo).not.toMatch(/elimina\w*.{0,40}15 dias/i);
+  });
+
+  it('as pendências jurídicas cobrem contrato de operador e compartilhamento', () => {
+    const todas = legal.documentos.flatMap(d => d.revisaoJuridica).join('\n');
+    expect(todas).toMatch(/operador de dados \(DPA\)/i);
+    expect(todas).toMatch(/compartilhamento/i);
+    expect(todas).toMatch(/birô de crédito/i);
+    expect(todas).toMatch(/12\.414/);                           // Cadastro Positivo
+  });
+
   it('exclusão de dados: canal, o que informar, prazo e o que pode ficar', () => {
     const tudo = doc('exclusao-de-dados').blocos.flatMap(textosDe).join('\n');
     expect(tudo).toContain('{email}');

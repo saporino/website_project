@@ -86,29 +86,77 @@ entrou de novo:
   sob guarda da COFICO.
 
 ## Pendente de revisão jurídica (fora da página)
-Na versão definitiva, a política **não carrega tarja de pendência** — uma política pública com
-aviso "em revisão" não passa confiança, e a Meta lê a página como ela está. Os pontos que
-dependem do jurídico ficam no campo `revisaoJuridica` de cada documento em `legal.json`, **não
-são renderizados**, e um teste reprova o documento que ficar sem nenhum.
+A política **não carrega tarja de pendência** — política pública com aviso "em revisão" não passa
+confiança. Os pontos ficam no campo `revisaoJuridica` de cada documento, **não são renderizados**,
+e saem no fim de `node scripts/auditoria-paginas-legais.mjs`. **Nada aqui está juridicamente
+validado: tudo depende de revisão profissional.**
 
 **Política de Privacidade** (`/privacidade`)
-- Prazos concretos de retenção por tipo de documento (§13) — montar tabela de retenção com o contador e o jurídico.
+- Análise de crédito (§5.6 e §6): validar as bases legais escolhidas — proteção do crédito (Art. 7º, X), diligências pré-contratuais e obrigação legal — e confirmar que a hipótese de proteção do crédito cobre o uso pretendido.
+- Consulta a birô de crédito: definir o texto da AUTORIZAÇÃO ESPECÍFICA a ser colhida do cliente e conferir a adequação à Lei nº 12.414/2011 e à legislação de proteção ao crédito. Autorização genérica em cadastro NÃO basta.
+- Contrato de operador de dados (DPA) entre a COFICO e cada marca cujos dados ela opera (§3) — a LGPD exige instruções documentadas do controlador. Pré-requisito para operar marca de terceiro.
+- Compartilhamento entre marcas do grupo e infraestrutura compartilhada (§8.2 e §11): definir o enquadramento — operador, controlador ou controladoria conjunta — e o instrumento que o formaliza.
+- Monitoramento de equipe em campo (§9): validar as bases legais por categoria (localização, presença, atividade no sistema) e o texto do aviso prévio a ser dado a quem é monitorado.
+- Prazos concretos de retenção por tipo de documento (§13) — montar a tabela de retenção com o contador e o jurídico.
 - Documentação das salvaguardas de transferência internacional (§12), incluindo os provedores efetivamente contratados.
 - Designação formal do Encarregado/DPO e publicação do nome, se a empresa optar por nomear pessoa identificada (§15).
-- Confirmar as bases legais escolhidas para a geolocalização de representantes e promotores durante a jornada (§9).
-- Confirmar o enquadramento do compartilhamento com marcas representadas: operador, controlador ou controladoria conjunta (§11).
 
 **Termos de Uso** (`/termos`)
 - Eleição de foro (§11) e extensão da limitação de responsabilidade (§9) — confirmar com o jurídico.
 - Verificar se as áreas restritas (§6) exigem termo de uso próprio, assinado no acesso, além destes Termos.
 
 **Como pedir a exclusão dos seus dados** (`/exclusao-de-dados`)
-- Prazo de resposta anunciado (§4) — confirmar o compromisso que a empresa quer assumir publicamente.
+- Prazos do §4: confirmar o compromisso de resposta e o prazo de eliminação efetiva que a empresa quer assumir publicamente, inclusive o ciclo de expiração das cópias de segurança.
 - Lista de retenções obrigatórias (§5) — amarrar à tabela de retenção por tipo de documento, com o contador.
 - Procedimento de verificação de identidade (§3) — definir quando exigir documento, para não criar coleta excessiva.
+- Encaminhamento de pedidos quando a COFICO é operadora (§8) — definir o fluxo e o prazo acordado com cada marca controladora.
 
-Para listar a qualquer momento: `node scripts/auditoria-paginas-legais.mjs` imprime os pontos
-no fim do relatório.
+## Auditoria contra a operação real (13/10/2026)
+
+Antes de publicar a versão definitiva, o texto foi conferido **contra o banco de produção**, não
+contra o que o código permite. O número que mudou a leitura:
+
+| por `company_id` | COFICO |
+|---|---|
+| representantes · clientes · pedidos · paradas de entrega · promotores · contatos de marketing | **0** |
+
+A COFICO não tem registro próprio em nenhuma tabela da operação. O único item na fila de entrega
+dela é **um pedido do Café Saporino** — que é o modelo de operador logístico, e confirma o
+`is_operator: true` no cadastro. A COFICO também está com `commission_model: 'none'`.
+
+Conclusão: a política é da COFICO, mas descrevia a operação **do grupo**. O risco não era prometer
+o que não existe — era **a COFICO assumir publicamente a controladoria de dados que hoje são de
+outra empresa**. As cinco correções abaixo resolvem isso.
+
+### O que foi corrigido
+
+1. **Análise de crédito, que não estava declarada.** O banco tem `credito_score`, `limite_credito`
+   e `score_serasa_pdf_url`, e **7 de 7 clientes têm limite preenchido** (todos da Saporino, nenhum
+   da COFICO). Entrou o §5.6 e um marcador em §6, com as bases legais — **proteção do crédito,
+   Art. 7º, X**, diligências pré-contratuais e obrigação legal — e a ressalva de que a consulta a
+   birô **não se apoia em autorização genérica de cadastro**: depende de autorização própria e da
+   legislação específica.
+
+2. **Equipe própria, não a da outra empresa.** §4, §5.5, §6 e toda a §9 passaram a falar de
+   representantes, promotores e motoristas **vinculados à COFICO**. A §9 abre com "a quem esta seção
+   se aplica" e diz que profissionais de outra empresa são alcançados pela política daquela empresa.
+
+3. **Monitoramento em campo, em quatro categorias separadas.** Em vez de "dados de localização":
+   **localização pontual** (só no momento de um evento registrado), **registro da visita**,
+   **status de presença** e **atividade no sistema** — esta última porque o banco guarda
+   `current_tab`, e isso não estava dito. Com aviso prévio a quem é monitorado.
+
+4. **Comprovação de entrega como ela é.** O sistema guarda `canhoto_photo_url`: **imagem do canhoto
+   assinado em papel**, não assinatura digital. O texto agora diz isso, e declara que **não
+   coletamos assinatura digital nem biometria**.
+
+5. **Isolamento entre empresas: a verdade, não a promessa.** Novo §8.2 diz que parte dos sistemas é
+   compartilhada com outras empresas do grupo e que **"o controle hoje é por papel de acesso, e não
+   uma separação técnica completa entre empresas"**. Um teste impede que a promessa volte.
+
+**Bônus pedido na mesma rodada:** o prazo da página de exclusão deixou de ser "eliminação em 15
+dias". Agora separa **resposta** (os 15 dias do Art. 19, II valem para confirmação e acesso) de
+**eliminação efetiva**, que depende de cópias de segurança e de guarda obrigatória.
 
 ## Verificação
 
