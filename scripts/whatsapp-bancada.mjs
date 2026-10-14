@@ -55,7 +55,18 @@ try {
   ]).select('id, name');
   if (eEmp) throw new Error('empresas: ' + eEmp.message);
   const [A, B] = empresas;
-  lixo.push(() => admin.from('companies').delete().in('id', [A.id, B.id]));
+  // A cadeia de FKs trava em DOIS pontos com 'on delete restrict': wa_numeros segura a
+  // empresa, e wa_conversas segura o numero. Apagar fora de ordem falha em silencio e
+  // deixa lixo no staging - foi o que aconteceu na primeira rodada. De dentro para fora:
+  const limparEmpresas = async (ids) => {
+    for (const t of ['wa_mensagens', 'wa_conversas', 'wa_contatos', 'wa_numeros', 'marketing_contacts']) {
+      const { error } = await admin.from(t).delete().in('company_id', ids);
+      if (error) throw new Error(`${t}: ${error.message}`);
+    }
+    const { error } = await admin.from('companies').delete().in('id', ids);
+    if (error) throw new Error(`companies: ${error.message}`);
+  };
+  lixo.push(() => limparEmpresas([A.id, B.id]));
 
   const { data: numeros, error: eNum } = await admin.from('wa_numeros').insert([
     { phone_number_id: 'PNID-A-' + Date.now(), numero_e164: '551100000001', company_id: A.id, conjunto_credencial: 'bancada_a', rotulo: 'A' },
@@ -195,7 +206,13 @@ try {
   console.error('\nERRO:', e.message);
   falhas.push('excecao: ' + e.message);
 } finally {
-  for (const f of lixo.reverse()) { try { await f(); } catch { /* segue */ } }
+  // Engolir a falha de limpeza foi o que deixou 9 empresas de bancada no staging sem
+  // ninguem ver. Uma bancada que nao consegue limpar o proprio rastro esta mentindo:
+  // agora ela REPROVA e diz qual passo falhou.
+  for (const f of lixo.reverse()) {
+    try { await f(); }
+    catch (e) { falhas.push('limpeza: ' + (e instanceof Error ? e.message : String(e))); }
+  }
   console.log('\ndados de teste removidos.');
 }
 
