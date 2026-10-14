@@ -295,10 +295,10 @@ export default function CoficoBrasilPage() {
             <h2 className="mt-4 text-2xl md:text-3xl font-bold tracking-tight">COFICO RepCo</h2>
             <p className="mt-4 text-neutral-600 text-lg leading-relaxed">
               O <strong className="text-neutral-900 font-semibold">RepCo</strong> é a plataforma
-              própria da COFICO para atendimento e gestão comercial. Desenvolvida e operada pela
-              empresa, ela acompanha o pedido do primeiro contato à entrega: cadastro de cliente,
-              tabela de preços, pedido, rota, comprovação de entrega e o histórico de atendimento
-              de cada cliente.
+              própria da COFICO para atendimento e gestão comercial. Utilizada pela COFICO para
+              organizar suas operações comerciais e de atendimento, ela acompanha o pedido do
+              primeiro contato à entrega: cadastro de cliente, tabela de preços, pedido, rota e
+              comprovação de entrega.
             </p>
             <p className="mt-4 text-neutral-600 leading-relaxed">
               É um sistema de uso interno da nossa equipe comercial e logística — não é vendido
@@ -326,11 +326,11 @@ export default function CoficoBrasilPage() {
                 <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-600 bg-neutral-200 px-2 py-0.5 rounded-full">Em desenvolvimento</span>
               </div>
               <p className="mt-2 text-sm text-neutral-600 leading-relaxed flex-1">
-                Estamos integrando o RepCo à API oficial do WhatsApp Business, da Meta, para que
-                a equipe comercial responda pelo sistema as mensagens que os clientes nos enviam,
-                com o histórico ligado ao cadastro. <strong className="text-neutral-700">Ainda não
-                está em operação</strong> no nosso número comercial — por enquanto o atendimento
-                segue pelo aplicativo, normalmente.
+                Estamos preparando a integração do RepCo à API oficial do WhatsApp Business, da
+                Meta, para que a equipe comercial possa receber e responder pelo sistema as
+                mensagens que os clientes nos enviam. <strong className="text-neutral-700">Ainda
+                não está em operação</strong> no nosso número comercial — o atendimento segue
+                normalmente pelo aplicativo WhatsApp Business.
               </p>
               <a href={linkLegal('privacidade')} className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-cofico-ink hover:underline w-fit">
                 Como tratamos os dados <ArrowRight className="w-4 h-4" aria-hidden="true" />
@@ -496,7 +496,7 @@ export default function CoficoBrasilPage() {
           <div className="mt-10 border-t border-neutral-800 pt-8 text-sm text-neutral-400">
             <p className="font-semibold text-neutral-200">{COFICO.razaoSocial}</p>
             <p className="mt-1">Nome comercial: COFICO Brasil · CNPJ {COFICO.cnpj}</p>
-            <p className="mt-1">{COFICO.endereco}</p>
+            <p className="mt-1">Endereço cadastral: {COFICO.endereco}</p>
             <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
               <a href={linkLegal('privacidade')} className="hover:text-white underline">Política de Privacidade</a>
               <a href={linkLegal('termos')} className="hover:text-white underline">Termos de Uso</a>

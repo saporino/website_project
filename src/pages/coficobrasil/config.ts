@@ -6,7 +6,9 @@ export const COFICO = {
   // Identificacao juridica. Estava repetida em legal.json e em comentarios; agora tem
   // um lugar so, que e o que a pagina e as politicas leem.
   razaoSocial: 'V. Medeiros de Santi Ltda',
-  endereco: 'Várzea Paulista — São Paulo, Brasil',
+  // Endereco CADASTRAL da empresa. Varzea Paulista e o centro de distribuicao, e aparece
+  // nomeado como tal nas outras secoes do site - os dois nunca podem ser confundidos.
+  endereco: 'Rua dos Chorões, 110 — Jardim Primavera, Amparo/SP, CEP 13901-321',
   email: 'sac@coficobrasil.com.br',
   // Número próprio da COFICO. Antes era o pessoal do Vlademir, que agora fica só
   // com a Saporino. Um número por empresa, como as contas do Mercado Pago.
