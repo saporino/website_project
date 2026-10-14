@@ -119,6 +119,30 @@ export async function assumirAtendimento(conversaId: string, assumir: boolean): 
   if (error) throw new Error(error.message);
 }
 
+export interface ResultadoEnvio {
+  ok: boolean; simulado?: boolean; duplicado?: boolean; explicacao?: string; motivo?: string;
+}
+
+/**
+ * Envia a resposta. O token da Meta NUNCA passa por aqui: quem fala com a Meta é a função
+ * de borda, com a sessão da pessoa no cabeçalho.
+ *
+ * `chave` é gerada no navegador e é o que impede o clique duplo de virar duas mensagens
+ * para o cliente — o banco recusa a segunda.
+ */
+export async function enviarMensagem(conversaId: string, texto: string): Promise<ResultadoEnvio> {
+  const chave = crypto.randomUUID();
+  const { data, error } = await supabase.functions.invoke('whatsapp-enviar', {
+    body: { conversa: conversaId, texto, chave },
+  });
+  if (error) {
+    // O corpo do erro traz a explicação em português que a função devolveu.
+    const corpo = await (error as { context?: Response }).context?.json?.().catch(() => null);
+    return { ok: false, explicacao: corpo?.explicacao ?? 'Não foi possível enviar agora.', motivo: corpo?.motivo };
+  }
+  return (data ?? { ok: false, explicacao: 'Resposta vazia do servidor.' }) as ResultadoEnvio;
+}
+
 /** Quem está olhando pode usar a central? Admin, ou papel `atendimento` em alguma empresa. */
 export async function podeAtender(): Promise<{ pode: boolean; admin: boolean }> {
   const [{ data: admin }, { data: papeis }] = await Promise.all([

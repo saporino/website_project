@@ -11,10 +11,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   MessageCircle, Search, Clock, Check, CheckCheck, AlertTriangle, Image, FileText,
-  UserCheck, Send, Phone, Building2, Lock,
+  UserCheck, Send, Phone, Building2, Lock, Loader2,
 } from 'lucide-react';
 import { CONVERSAS_DEMO, ATENDENTES, type ConversaDemo, type MensagemDemo } from './whatsappDemo';
-import { lerCaixa, marcarLida, assumirAtendimento } from './whatsappDados';
+import { lerCaixa, marcarLida, assumirAtendimento, enviarMensagem } from './whatsappDados';
 import { supabase } from '../../lib/supabase';
 
 const MARCA = '#8B2214';
@@ -60,6 +60,8 @@ export default function RepCoWhatsApp({ fonte = 'banco' }: { fonte?: 'banco' | '
   const [conversas, setConversas] = useState<ConversaDemo[]>(demo ? CONVERSAS_DEMO : []);
   const [abertaId, setAbertaId] = useState<string>(demo ? CONVERSAS_DEMO[0].id : '');
   const [carregando, setCarregando] = useState(!demo);
+  const [enviando, setEnviando] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [eu, setEu] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
@@ -145,10 +147,29 @@ export default function RepCoWhatsApp({ fonte = 'banco' }: { fonte?: 'banco' | '
     catch (e) { setErro(e instanceof Error ? e.message : String(e)); }
   }
 
-  function enviar() {
-    // O envio real depende do token de acesso da Meta, que ainda não foi configurado.
-    // Enquanto isso o campo existe e diz a verdade, em vez de fingir que mandou.
-    if (!demo) return;
+  async function enviar() {
+    const conteudo = rascunho.trim();
+    if (!conteudo || !j.aberta || !aberta || enviando) return;
+
+    if (!demo) {
+      // `enviando` trava o botão E a tecla Enter: sem isso, dois cliques rápidos viram
+      // duas mensagens para o cliente. A chave de idempotência é a segunda rede, no banco.
+      setEnviando(true);
+      setAviso(null);
+      setErro(null);
+      try {
+        const r = await enviarMensagem(aberta.id, conteudo);
+        if (!r.ok) { setErro(r.explicacao ?? 'Não foi possível enviar.'); return; }
+        setRascunho('');
+        if (r.duplicado) setAviso('Esta mensagem já tinha sido enviada.');
+        else if (r.simulado) setAviso('Simulado: o token da Meta ainda não foi configurado. Nada saiu para o cliente.');
+        await recarregar();
+      } finally {
+        setEnviando(false);
+      }
+      return;
+    }
+
     const texto = rascunho.trim();
     if (!texto || !j.aberta || !aberta) return;
     const nova: MensagemDemo = {
@@ -324,37 +345,24 @@ export default function RepCoWhatsApp({ fonte = 'banco' }: { fonte?: 'banco' | '
 
           {/* responder */}
           <div className="p-3 border-t border-gray-100">
-            {j.aberta && !demo ? (
-              // O envio real depende do token de acesso da Meta, que ainda não foi
-              // configurado. O campo aparece, mas DIZ A VERDADE em vez de fingir que mandou.
+            {j.aberta ? (
               <div className="space-y-2">
-                <div className="flex items-end gap-2 opacity-60 pointer-events-none">
-                  <textarea rows={2} disabled
-                    placeholder="Escreva a resposta…"
-                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none bg-gray-50" />
-                  <button disabled
-                    className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-4 py-2.5 rounded-lg"
+                <div className="flex items-end gap-2">
+                  <textarea value={rascunho} onChange={e => setRascunho(e.target.value)} rows={2}
+                    disabled={enviando}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void enviar(); } }}
+                    placeholder="Escreva a resposta… (Enter envia, Shift+Enter quebra linha)"
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none disabled:bg-gray-50" />
+                  <button onClick={() => void enviar()} disabled={!rascunho.trim() || enviando}
+                    className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-40"
                     style={{ background: MARCA }}>
-                    <Send className="w-4 h-4" /> Enviar
+                    {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                    {enviando ? 'Enviando…' : 'Enviar'}
                   </button>
                 </div>
-                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  <strong>O envio ainda não está disponível.</strong> Falta configurar o token de acesso da
-                  Meta e as regras de segurança do envio. A janela está aberta ({j.texto.toLowerCase()}) —
-                  por enquanto, responda pelo WhatsApp do celular.
-                </p>
-              </div>
-            ) : j.aberta ? (
-              <div className="flex items-end gap-2">
-                <textarea value={rascunho} onChange={e => setRascunho(e.target.value)} rows={2}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } }}
-                  placeholder="Escreva a resposta… (Enter envia, Shift+Enter quebra linha)"
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none" />
-                <button onClick={enviar} disabled={!rascunho.trim()}
-                  className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-4 py-2.5 rounded-lg disabled:opacity-40"
-                  style={{ background: MARCA }}>
-                  <Send className="w-4 h-4" /> Enviar
-                </button>
+                {aviso && (
+                  <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">{aviso}</p>
+                )}
               </div>
             ) : (
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
