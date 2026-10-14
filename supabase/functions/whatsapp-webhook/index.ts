@@ -120,6 +120,29 @@ Deno.serve(async (req) => {
   const requestId = newRequestId();
   const url = new URL(req.url);
 
+  // ── GET ?diagnostico=1 — o formato do App Secret, sem revelar o valor ────────
+  //
+  // O erro mais comum ao trocar esse segredo é colar com espaço, aspas ou quebra de linha
+  // junto. Isso só apareceria no PRIMEIRO evento real: a Meta assina certo, a gente calcula
+  // errado, devolve 401, e depois de muitas falhas ela desativa a inscrição. Custar uma ida
+  // e volta com a Meta para descobrir um espaço em branco é caro demais.
+  //
+  // Exige o verify token (quem não o tem não chega aqui) e devolve SÓ booleanos. O formato
+  // de um App Secret da Meta — 32 caracteres hexadecimais — é público; o valor, não.
+  if (req.method === 'GET' && url.searchParams.get('diagnostico') === '1') {
+    const t = url.searchParams.get('hub.verify_token');
+    if (!VERIFY_TOKEN || t !== VERIFY_TOKEN) return texto('forbidden', 403);
+    const s = APP_SECRET ?? '';
+    return new Response(JSON.stringify({
+      verify_token_configurado: !!VERIFY_TOKEN,
+      app_secret_configurado: s.length > 0,
+      app_secret_tamanho_32: s.length === 32,
+      app_secret_so_hex: /^[a-f0-9]+$/i.test(s),
+      app_secret_sem_espaco_nas_pontas: s === s.trim(),
+      app_secret_sem_aspas: !/^["']|["']$/.test(s),
+    }, null, 1), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  }
+
   // ── GET: a Meta prova, uma vez, que a URL é nossa ────────────────────────────
   if (req.method === 'GET') {
     const challenge = respostaDoDesafio({
