@@ -3,6 +3,10 @@
 export const COFICO = {
   baseUrl: (import.meta.env.VITE_COFICO_BASE_URL || 'https://www.cafesaporino.com.br/coficobrasil').replace(/\/+$/, ''),
   cnpj: '66.006.929/0001-36',
+  // Identificacao juridica. Estava repetida em legal.json e em comentarios; agora tem
+  // um lugar so, que e o que a pagina e as politicas leem.
+  razaoSocial: 'V. Medeiros de Santi Ltda',
+  endereco: 'Várzea Paulista — São Paulo, Brasil',
   email: 'sac@coficobrasil.com.br',
   // Número próprio da COFICO. Antes era o pessoal do Vlademir, que agora fica só
   // com a Saporino. Um número por empresa, como as contas do Mercado Pago.

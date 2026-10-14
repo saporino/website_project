@@ -15,6 +15,9 @@ const NAV: [string, string][] = [
   ['#marcas', 'Marcas'],
   ['#servicos', 'Serviços'],
   ['#atuacao', 'Atuação'],
+  // Entrada discreta para a secao institucional do RepCo. Sem ela, quem precisa entender
+  // quem opera o atendimento digital da COFICO teria de rolar a pagina inteira as cegas.
+  ['#tecnologia', 'Tecnologia'],
   ['#contato', 'Contato'],
 ];
 

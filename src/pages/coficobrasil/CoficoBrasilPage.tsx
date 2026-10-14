@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   Truck, Cpu, MapPin, Mail, Phone, Instagram,
   ExternalLink, Building2, Store, UtensilsCrossed, Boxes, Briefcase, ArrowRight, Users,
-  X, Play, FileText, Globe, ShoppingBag,
+  X, Play, FileText, Globe, ShoppingBag, MessageCircle,
 } from 'lucide-react';
 import CoficoHeader from './CoficoHeader';
 import CoficoFooter from './CoficoFooter';
@@ -19,7 +19,7 @@ import { CoficoPrivacidade, CoficoTermos } from './CoficoPolicyPages';
 import CoficoCookieConsent from './CoficoCookieConsent';
 import CoficoMarcaLeadForm from './CoficoMarcaLeadForm';
 import AcessoCoffeeLivre from './AcessoCoffeeLivre';
-import { COFICO } from './config';
+import { COFICO, linkLegal } from './config';
 import { fetchCoficoStats, fetchCoficoMarcas } from './coficoClient';
 import { FAZEMOS } from './conteudo';
 
@@ -282,6 +282,64 @@ export default function CoficoBrasilPage() {
         </div>
       </section>
 
+      {/* TECNOLOGIA — o RepCo. Seção institucional, discreta: existe para quem precisa
+          entender quem opera o atendimento digital da COFICO (inclusive a Meta, na
+          verificação de acesso). Só descreve o que já funciona; o que está em
+          desenvolvimento aparece marcado como tal. */}
+      <section id="tecnologia" className="border-t border-neutral-200">
+        <div className="mx-auto max-w-6xl px-6 py-20">
+          <div className="max-w-3xl">
+            <span className="inline-flex items-center gap-1.5 text-cofico-ink text-xs font-semibold uppercase tracking-[0.18em]">
+              <Globe className="w-4 h-4" aria-hidden="true" /> Tecnologia própria
+            </span>
+            <h2 className="mt-4 text-2xl md:text-3xl font-bold tracking-tight">COFICO RepCo</h2>
+            <p className="mt-4 text-neutral-600 text-lg leading-relaxed">
+              O <strong className="text-neutral-900 font-semibold">RepCo</strong> é a plataforma
+              própria da COFICO para atendimento e gestão comercial. Desenvolvida e operada pela
+              empresa, ela acompanha o pedido do primeiro contato à entrega: cadastro de cliente,
+              tabela de preços, pedido, rota, comprovação de entrega e o histórico de atendimento
+              de cada cliente.
+            </p>
+            <p className="mt-4 text-neutral-600 leading-relaxed">
+              É um sistema de uso interno da nossa equipe comercial e logística — não é vendido
+              nem licenciado a terceiros.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-6 md:grid-cols-2">
+            <article className="border border-neutral-200 p-8 flex flex-col">
+              <Boxes className="w-7 h-7 text-cofico-ink" aria-hidden="true" />
+              <div className="mt-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold">Gestão comercial e logística</h3>
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-green-700 bg-green-50 px-2 py-0.5 rounded-full">Em operação</span>
+              </div>
+              <p className="mt-2 text-sm text-neutral-600 leading-relaxed flex-1">
+                Clientes, pedidos, condições comerciais, rotas de entrega e comprovação de
+                recebimento, com acesso separado por empresa e por função de cada pessoa da equipe.
+              </p>
+            </article>
+
+            <article className="border border-neutral-200 p-8 flex flex-col bg-neutral-50">
+              <MessageCircle className="w-7 h-7 text-cofico-ink" aria-hidden="true" />
+              <div className="mt-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold">Atendimento por WhatsApp</h3>
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-neutral-600 bg-neutral-200 px-2 py-0.5 rounded-full">Em desenvolvimento</span>
+              </div>
+              <p className="mt-2 text-sm text-neutral-600 leading-relaxed flex-1">
+                Estamos integrando o RepCo à API oficial do WhatsApp Business, da Meta, para que
+                a equipe comercial responda pelo sistema as mensagens que os clientes nos enviam,
+                com o histórico ligado ao cadastro. <strong className="text-neutral-700">Ainda não
+                está em operação</strong> no nosso número comercial — por enquanto o atendimento
+                segue pelo aplicativo, normalmente.
+              </p>
+              <a href={linkLegal('privacidade')} className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-cofico-ink hover:underline w-fit">
+                Como tratamos os dados <ArrowRight className="w-4 h-4" aria-hidden="true" />
+              </a>
+            </article>
+          </div>
+        </div>
+      </section>
+
       {/* ATUAÇÃO — cobertura e mapa */}
       <section id="atuacao" className="border-t border-neutral-200 bg-neutral-50">
         <div className="mx-auto max-w-6xl px-6 py-20">
@@ -431,6 +489,20 @@ export default function CoficoBrasilPage() {
             <li><a href={COFICO.maps} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:text-white"><MapPin className="w-5 h-5 text-cofico" aria-hidden="true" /> Como chegar <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" /></a></li>
             <li><AcessoCoffeeLivre /></li>
           </ul>
+
+          {/* Identificação da empresa. Estava só no JSON-LD, invisível para quem lê a
+              página — inclusive para um revisor que precisa saber quem responde pelo site.
+              O rodapé continua sem a razão social, como sempre foi. */}
+          <div className="mt-10 border-t border-neutral-800 pt-8 text-sm text-neutral-400">
+            <p className="font-semibold text-neutral-200">{COFICO.razaoSocial}</p>
+            <p className="mt-1">Nome comercial: COFICO Brasil · CNPJ {COFICO.cnpj}</p>
+            <p className="mt-1">{COFICO.endereco}</p>
+            <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
+              <a href={linkLegal('privacidade')} className="hover:text-white underline">Política de Privacidade</a>
+              <a href={linkLegal('termos')} className="hover:text-white underline">Termos de Uso</a>
+              <a href={linkLegal('exclusao-de-dados')} className="hover:text-white underline">Exclusão de dados</a>
+            </p>
+          </div>
         </div>
       </section>
 
