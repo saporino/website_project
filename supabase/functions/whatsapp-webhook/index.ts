@@ -1,0 +1,165 @@
+// Webhook da WhatsApp Cloud API — recebimento de mensagens da COFICO.
+//
+// URL pública: a Meta chama sem JWT, então a função é publicada com --no-verify-jwt e a
+// porta é a ASSINATURA, não um token de plataforma. Mesmo desenho do webhook do Mercado
+// Pago, que já roda em produção.
+//
+// Esta função só faz I/O. Toda a decisão está em `_shared/whatsappProcesso.ts`, com 19
+// testes, e a leitura do evento em `_shared/whatsapp.ts`, com 27. Aqui ficam apenas:
+// crypto, Postgres e HTTP.
+//
+// O service role é usado porque não há usuário logado do outro lado — a Meta não tem
+// sessão. O alcance disso é estreito de propósito: esta função só escreve nas cinco
+// tabelas wa_*, e todo acesso de GENTE continua passando pela RLS (admin ou papel
+// `atendimento` da empresa). Nenhuma leitura daqui vai para fora.
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient, type SupabaseClient } from 'jsr:@supabase/supabase-js@2';
+import { respostaDoDesafio, assinaturaConfere, type StatusDeMensagem } from '../_shared/whatsapp.ts';
+import { processarEvento, paraLog, type Repositorio, type Numero } from '../_shared/whatsappProcesso.ts';
+import { logEdge, newRequestId } from '../_shared/log.ts';
+
+const FN = 'whatsapp-webhook';
+
+// Segredos, por empresa, no mesmo padrão do Mercado Pago: dono explícito no nome, valor
+// NUNCA no banco. Não existe nome genérico — foi assim que se descobriu, em setembro, que
+// o "token genérico" era da Saporino.
+const seg = (n: string) => Deno.env.get(n) ?? undefined;
+const VERIFY_TOKEN = seg('WHATSAPP_COFICO_VERIFY_TOKEN');
+const APP_SECRET = seg('WHATSAPP_COFICO_APP_SECRET');
+
+const texto = (corpo: string, status = 200) =>
+  new Response(corpo, { status, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
+
+/** HMAC-SHA256 do corpo CRU. Reserializar o JSON muda um espaço e a assinatura não bate. */
+async function hmacHex(corpoCru: string, segredo: string): Promise<string> {
+  const chave = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(segredo), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const assinado = await crypto.subtle.sign('HMAC', chave, new TextEncoder().encode(corpoCru));
+  return [...new Uint8Array(assinado)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Liga o processamento às cinco tabelas. Cada método faz uma coisa e devolve o mínimo. */
+function repositorio(db: SupabaseClient): Repositorio {
+  const erro = (onde: string, e: { message: string } | null) => {
+    // A mensagem do Postgres pode citar valores. Fica o código/onde, nunca o conteúdo.
+    if (e) throw new Error(`${onde}: ${String(e.message).slice(0, 60)}`);
+  };
+  return {
+    async guardarEvento(e) {
+      const { error } = await db.from('wa_eventos').insert({
+        assinatura: e.assinatura, corpo: e.corpo, phone_number_id: e.phoneNumberId,
+        company_id: e.companyId, mensagens: e.mensagens, statuses: e.statuses,
+        ignorados: e.ignorados, resultado: 'recebido',
+      });
+      // 23505 = chave única: a Meta já tinha mandado este corpo. Não é falha.
+      if (error?.code === '23505') return 'repetido';
+      erro('guardar evento', error);
+      return 'novo';
+    },
+    async numeroDe(phoneNumberId): Promise<Numero | null> {
+      const { data, error } = await db.from('wa_numeros')
+        .select('id, company_id').eq('phone_number_id', phoneNumberId).eq('ativo', true).maybeSingle();
+      erro('consultar numero', error);
+      return data ? { companyId: data.company_id, numeroId: data.id } : null;
+    },
+    async acharOuCriarContato(companyId, telefone, nomePerfil) {
+      const agora = new Date().toISOString();
+      const { data, error } = await db.from('wa_contatos').upsert({
+        company_id: companyId, telefone_e164: telefone, nome_perfil: nomePerfil,
+        ultima_mensagem_em: agora, atualizado_em: agora,
+      }, { onConflict: 'company_id,telefone_e164' }).select('id').single();
+      erro('contato', error);
+      return data!.id;
+    },
+    async acharOuCriarConversa(companyId, numeroId, contatoId) {
+      const { data, error } = await db.from('wa_conversas').upsert({
+        company_id: companyId, numero_id: numeroId, contato_id: contatoId,
+      }, { onConflict: 'contato_id,numero_id', ignoreDuplicates: false }).select('id').single();
+      erro('conversa', error);
+      return data!.id;
+    },
+    async gravarMensagem(m) {
+      const { error } = await db.from('wa_mensagens').insert({
+        company_id: m.companyId, conversa_id: m.conversaId, id_externo: m.idExterno,
+        direcao: 'entrada', tipo: m.tipo, texto: m.texto,
+        // Guardamos só o ID da mídia na Meta. O arquivo é baixado depois, para o bucket
+        // PRIVADO, por um passo próprio. Nada de link público aqui.
+        midia_id: m.midiaId, midia_mime: m.midiaMime,
+        ocorrida_em: m.ocorridaEm,
+      });
+      if (error?.code === '23505') return 'repetida';   // wamid já existia
+      erro('mensagem', error);
+      return 'nova';
+    },
+    async marcarEntrada(conversaId, quando) {
+      const { error } = await db.rpc('wa_marcar_entrada', { p_conversa: conversaId, p_quando: quando });
+      erro('janela', error);
+    },
+    async atualizarEstado(s: StatusDeMensagem) {
+      // Silencioso quando não conhecemos o wamid: é status de mensagem que não é nossa.
+      const { error } = await db.from('wa_mensagens').update({
+        estado: s.estado, erro_codigo: s.erro ? s.erro.split(' ')[0] : null, erro_texto: s.erro,
+      }).eq('id_externo', s.idExterno);
+      erro('estado', error);
+    },
+    async registrarSaida(companyId, telefone) {
+      const { error } = await db.from('marketing_contacts')
+        .update({ opted_out_at: new Date().toISOString(), consent: false })
+        .eq('company_id', companyId).eq('phone_e164', telefone);
+      erro('opt-out', error);
+    },
+    async fecharEvento(assinatura, resultado, detalhe) {
+      const { error } = await db.from('wa_eventos')
+        .update({ resultado, detalhe }).eq('assinatura', assinatura);
+      erro('fechar evento', error);
+    },
+  };
+}
+
+Deno.serve(async (req) => {
+  const requestId = newRequestId();
+  const url = new URL(req.url);
+
+  // ── GET: a Meta prova, uma vez, que a URL é nossa ────────────────────────────
+  if (req.method === 'GET') {
+    const challenge = respostaDoDesafio({
+      modo: url.searchParams.get('hub.mode'),
+      token: url.searchParams.get('hub.verify_token'),
+      challenge: url.searchParams.get('hub.challenge'),
+    }, VERIFY_TOKEN);
+    logEdge(FN, { requestId, etapa: 'verificacao', aceito: challenge !== null });
+    return challenge !== null ? texto(challenge) : texto('forbidden', 403);
+  }
+
+  if (req.method !== 'POST') return texto('method not allowed', 405);
+
+  // ── POST: assinatura ANTES de ler, interpretar ou gravar qualquer coisa ──────
+  if (!APP_SECRET) {
+    // Sem segredo configurado ninguém entra. 500 (e não 403) porque é falha NOSSA de
+    // configuração, e a Meta reenvia depois que alguém arrumar.
+    logEdge(FN, { requestId, etapa: 'config', erro: 'WHATSAPP_COFICO_APP_SECRET ausente' });
+    return texto('not configured', 500);
+  }
+  const corpoCru = await req.text();
+  const calculado = await hmacHex(corpoCru, APP_SECRET);
+  if (!assinaturaConfere(req.headers.get('x-hub-signature-256'), calculado)) {
+    logEdge(FN, { requestId, etapa: 'assinatura', aceito: false, bytes: corpoCru.length });
+    return texto('invalid signature', 401);          // nada foi lido, nada foi gravado
+  }
+
+  let corpo: unknown;
+  try { corpo = JSON.parse(corpoCru); }
+  catch {
+    logEdge(FN, { requestId, etapa: 'json', erro: 'corpo nao e JSON' });
+    return texto('bad request', 400);                // assinado, mas ilegível: não reenvie
+  }
+
+  const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    { auth: { persistSession: false } });
+
+  // A impressão digital do corpo cru é o próprio HMAC: entrega repetida e idêntica não
+  // vira linha nova, e não precisamos calcular mais nada.
+  const v = await processarEvento(corpo, calculado, repositorio(db));
+  logEdge(FN, { requestId, etapa: 'processado', ...paraLog(v, null) });
+  return texto(v.resultado, v.http);
+});
