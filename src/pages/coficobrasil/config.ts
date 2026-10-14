@@ -17,11 +17,22 @@ export const COFICO = {
   maps: 'https://maps.app.goo.gl/rYKCPWBXWpKzJFZD7',
 } as const;
 
+/** Subdomínio do RepCo. Existe separado porque `repco.coficobrasil.com.br` É um domínio
+ *  da COFICO, mas NÃO é o site institucional dela: a raiz ali abre o portal, não a vitrine.
+ *  Sem esta distinção, qualquer subdomínio cairia na página institucional. */
+export const HOST_REPCO = 'repco.coficobrasil.com.br';
+
+export function noDominioRepCo(host = typeof window === 'undefined' ? '' : window.location.hostname) {
+  return host.toLowerCase().replace(/^www\./, '') === HOST_REPCO;
+}
+
 /** Domínio próprio da COFICO? Lá as páginas legais moram na raiz (/privacidade);
  *  dentro do site da Saporino elas moram sob /coficobrasil/ — senão o link cairia
  *  em cafesaporino.com.br/privacidade, que é da outra marca e não existe. */
 export function noDominioCofico(host = typeof window === 'undefined' ? '' : window.location.hostname) {
   const h = host.toLowerCase();
+  // O subdomínio do RepCo é da COFICO para efeito de marca (título, favicon, páginas
+  // legais), mas NÃO serve a vitrine na raiz — quem decide isso é `noDominioRepCo`.
   return h === 'coficobrasil.com.br' || h.endsWith('.coficobrasil.com.br');
 }
 

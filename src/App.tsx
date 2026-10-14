@@ -60,7 +60,7 @@ import PromoPopup from './components/PromoPopup';
 import { trackVisit } from './lib/trackVisit';
 import StoreLocator from './components/StoreLocator';
 import NotFound from './components/NotFound';
-import { rotaLegalCofico, noDominioCofico } from './pages/coficobrasil/config';
+import { rotaLegalCofico, noDominioCofico, noDominioRepCo } from './pages/coficobrasil/config';
 
 const logoImage = '/saporino-logo.png';
 
@@ -260,7 +260,10 @@ function AppRouter() {
   // Home (default) — rotas conhecidas acima; o resto e 404.
   if (currentPath === '/' || currentPath === '' || currentPath === '/index.html') {
     // No domínio coficobrasil.com.br, a HOME é a página da COFICO (não a loja Saporino).
+    // EXCEÇÃO: repco.coficobrasil.com.br é da COFICO mas NÃO é a vitrine — a raiz ali abre
+    // o portal. Sem isso, o subdomínio do RepCo nasceria mostrando o site institucional.
     const host = window.location.hostname.toLowerCase();
+    if (noDominioRepCo(host)) return <RepCoDashboard />;
     if (host === 'coficobrasil.com.br' || host.endsWith('.coficobrasil.com.br')) return <CoficoBrasilPage />;
     if (heroGate) return <HeroGate onEnter={enterHome} />; // abertura: só o HERO; o clique no CTA entra na home
     return <AppContent />;

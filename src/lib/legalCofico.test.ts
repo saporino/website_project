@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { renderInline, type Bloco, type Documento } from '../pages/coficobrasil/legalMarkup';
-import { COFICO, linkLegal, rotaLegalCofico, noDominioCofico, SLUGS_LEGAIS } from '../pages/coficobrasil/config';
+import { COFICO, linkLegal, rotaLegalCofico, noDominioCofico, noDominioRepCo, SLUGS_LEGAIS } from '../pages/coficobrasil/config';
 import { renderInline as renderInlineMjs, paginaEstatica, LEGAL } from '../../scripts/legal-render.mjs';
 import dados from '../pages/coficobrasil/legal.json';
 
@@ -256,5 +256,29 @@ describe('rotas: cada marca no seu domínio', () => {
     // e no domínio da COFICO as rotas da Saporino continuam não sendo páginas legais da COFICO
     expect(rotaLegalCofico('/politica-privacidade', COF)).toBeNull();
     expect(rotaLegalCofico('/coficobrasil/qualquer-coisa', COF)).toBeNull();
+  });
+});
+
+describe('subdominio do RepCo — preparado, sem DNS ainda', () => {
+  const REPCO = 'repco.coficobrasil.com.br';
+
+  it('repco.coficobrasil.com.br é reconhecido como o portal', () => {
+    expect(noDominioRepCo(REPCO)).toBe(true);
+    expect(noDominioRepCo('www.' + REPCO)).toBe(true);
+    expect(noDominioRepCo('REPCO.COFICOBRASIL.COM.BR')).toBe(true);
+  });
+
+  it('e NÃO confunde com o site institucional nem com outro subdomínio', () => {
+    for (const h of ['coficobrasil.com.br', 'www.coficobrasil.com.br',
+      'loja.coficobrasil.com.br', 'cafesaporino.com.br', 'localhost']) {
+      expect(noDominioRepCo(h), h).toBe(false);
+    }
+  });
+
+  it('continua sendo domínio da COFICO para marca e páginas legais', () => {
+    // O portal usa o favicon, o título e as páginas legais da COFICO — o que muda é só
+    // o que a RAIZ mostra: portal em vez de vitrine.
+    expect(noDominioCofico(REPCO)).toBe(true);
+    expect(rotaLegalCofico('/privacidade', REPCO)).toBe('privacidade');
   });
 });
