@@ -41,3 +41,6 @@ apl.mjs
 .env.staging
 .env.staging.local
 .env.producao
+
+# Arquivo temporario de segredo (procedimento do App Secret da Meta)
+.secret-temp

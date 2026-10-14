@@ -16,13 +16,14 @@ import RepCoMarketPrices from '../components/repco/RepCoMarketPrices';
 import Messenger from '../components/chat/Messenger';
 import RepCoHelp from '../components/repco/RepCoHelp';
 import RepCoRupturas from '../components/repco/RepCoRupturas';
+import RepCoWhatsApp from '../components/repco/RepCoWhatsApp';
 import CompanySwitcher from '../components/CompanySwitcher';
 import { useCompany } from '../contexts/CompanyContext';
 import GuideToggle from '../components/GuideToggle';
 import RepCoCalculatorFab from '../components/repco/RepCoCalculatorFab';
 import { usePresence } from '../hooks/usePresence';
 import { useGeolocation } from '../hooks/useGeolocation';
-import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Home, ClipboardList, Radio, Truck, MoreHorizontal, Map, Store, MessageCircle, HelpCircle, AlertTriangle } from 'lucide-react';
+import { Briefcase, User, Users, ShoppingBag, DollarSign, TrendingUp, Clock, LogOut, ShoppingCart, Home, ClipboardList, Radio, Truck, MoreHorizontal, Map, Store, MessageCircle, MessagesSquare, HelpCircle, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTrainingListener, espelhoTabToRepTab } from '../lib/training';
 
@@ -40,7 +41,7 @@ interface Representative {
   has_personal_delivery: boolean;
 }
 
-type RepCoTab = 'inicio' | 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido' | 'entregas' | 'prospection' | 'mapa' | 'mercado' | 'mensagens' | 'ajuda' | 'rupturas';
+type RepCoTab = 'inicio' | 'profile' | 'clients' | 'orders' | 'commissions' | 'performance' | 'novo_pedido' | 'entregas' | 'prospection' | 'mapa' | 'mercado' | 'mensagens' | 'whatsapp' | 'ajuda' | 'rupturas';
 
 export function RepCoDashboard() {
   const { user, profile, signOut, loading: authLoading } = useAuth();
@@ -51,6 +52,7 @@ export function RepCoDashboard() {
   const [refreshVersion, setRefreshVersion] = useState<Record<RepCoTab, number>>({
     inicio: 0,
     mensagens: 0,
+    whatsapp: 0,
     profile: 0,
     clients: 0,
     orders: 0,
@@ -361,6 +363,9 @@ export function RepCoDashboard() {
     { id: 'mercado', label: 'Mercado', icon: Store },
     { id: 'rupturas', label: 'Rupturas', icon: AlertTriangle },
     { id: 'mensagens', label: 'Mensagens', icon: MessageCircle },
+    // Aba PROPRIA, separada de "Mensagens" (chat interno da equipe). Publicos diferentes,
+    // regras diferentes (a de fora tem janela de 24 h) e acessos diferentes.
+    { id: 'whatsapp', label: 'WhatsApp', icon: MessagesSquare },
     { id: 'ajuda', label: 'Ajuda', icon: HelpCircle },
   ];
   // Mobile: barra inferior corporativa = 4 principais + "Mais" (o resto em sheet)
@@ -498,6 +503,7 @@ export function RepCoDashboard() {
             {activeTab === 'performance' && <RepCoPerformance repId={rep!.id} />}
             {activeTab === 'mercado' && <RepCoMarketPrices />}
             {activeTab === 'mensagens' && <Messenger currentUserId={user!.id} initialConversationId={msgConvId} />}
+            {activeTab === 'whatsapp' && <RepCoWhatsApp />}
             {activeTab === 'ajuda' && <RepCoHelp onContactSupport={() => setActiveTab('mensagens')} />}
             {activeTab === 'rupturas' && (
               <RepCoRupturas repId={rep!.id}

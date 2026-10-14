@@ -47,6 +47,7 @@ const PromotorDashboard = lazy(() => import('./pages/PromotorDashboard').then(m 
 const RepCoIntelligence = lazy(() => import('./pages/RepCoIntelligence'));
 const RepCoCoverageMap = lazy(() => import('./pages/RepCoCoverageMap'));
 const CoficoBrasilPage = lazy(() => import('./pages/coficobrasil/CoficoBrasilPage'));
+const RepCoWhatsAppDemo = lazy(() => import('./components/repco/RepCoWhatsApp'));
 const CoficoLegalPage = lazy(() => import('./pages/coficobrasil/CoficoPolicyPages').then(m => ({ default: m.CoficoLegalPage })));
 const CoficoCookieConsent = lazy(() => import('./pages/coficobrasil/CoficoCookieConsent'));
 const CoffeeLivrePage = lazy(() => import('./pages/coffeelivre/CoffeeLivrePage'));
@@ -220,6 +221,23 @@ function AppRouter() {
   }
   if (currentPath === '/coffeelivre' || currentPath.startsWith('/coffeelivre/')) return <CoffeeLivrePage />;
   if (currentPath === '/experiencia') return <HeroExperiencePage />;
+  // Previa da central de WhatsApp, para avaliar a interface sem precisar de login.
+  // SO EXISTE EM localhost: publicada, a rota simplesmente nao e rota. Dados ficticios,
+  // nenhuma chamada a banco ou a Meta.
+  if (currentPath === '/repco/whatsapp-demo') {
+    const local = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+    if (!local) return <NotFound />;
+    return (
+      <div className="min-h-screen bg-[#f8f7f5] p-4 sm:p-6">
+        <div className="mx-auto max-w-6xl">
+          <p className="text-xs text-gray-500 mb-3">
+            RepCo &rsaquo; <strong>WhatsApp</strong> &mdash; previa de interface (so em localhost)
+          </p>
+          <RepCoWhatsAppDemo />
+        </div>
+      </div>
+    );
+  }
 
   // Payment callback routes
   if (currentPath === '/payment/success') return <PaymentSuccess />;
