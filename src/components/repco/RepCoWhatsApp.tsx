@@ -8,12 +8,14 @@
 // Meta. Nada aqui envia mensagem. Quando for ligada às tabelas `wa_*`, o arquivo de
 // dados sai e a forma do componente não muda — por isso o estado já é o mesmo que a
 // view `vw_wa_caixa` entrega (janela_aberta, janela_minutos, nao_lidas, responsavel).
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   MessageCircle, Search, Clock, Check, CheckCheck, AlertTriangle, Image, FileText,
   UserCheck, Send, Phone, Building2, Lock,
 } from 'lucide-react';
 import { CONVERSAS_DEMO, ATENDENTES, type ConversaDemo, type MensagemDemo } from './whatsappDemo';
+import { lerCaixa, marcarLida, assumirAtendimento } from './whatsappDados';
+import { supabase } from '../../lib/supabase';
 
 const MARCA = '#8B2214';
 const JANELA_MIN = 24 * 60;
@@ -52,14 +54,62 @@ function SeloEstado({ m }: { m: MensagemDemo }) {
   return <Check className="w-3.5 h-3.5 text-gray-400" />;
 }
 
-export default function RepCoWhatsApp() {
-  const [conversas, setConversas] = useState<ConversaDemo[]>(CONVERSAS_DEMO);
-  const [abertaId, setAbertaId] = useState<string>(CONVERSAS_DEMO[0].id);
+/** `demo` desenha as conversas ficticias; `banco` le as tabelas wa_* pela RLS. */
+export default function RepCoWhatsApp({ fonte = 'banco' }: { fonte?: 'banco' | 'demo' }) {
+  const demo = fonte === 'demo';
+  const [conversas, setConversas] = useState<ConversaDemo[]>(demo ? CONVERSAS_DEMO : []);
+  const [abertaId, setAbertaId] = useState<string>(demo ? CONVERSAS_DEMO[0].id : '');
+  const [carregando, setCarregando] = useState(!demo);
+  const [erro, setErro] = useState<string | null>(null);
+  const [eu, setEu] = useState<string | null>(null);
   const [busca, setBusca] = useState('');
   const [rascunho, setRascunho] = useState('');
   const [filtro, setFiltro] = useState<'todas' | 'nao_lidas' | 'minhas'>('todas');
 
-  const EU = ATENDENTES[0];
+  const EU = demo ? ATENDENTES[0] : (eu ?? '—');
+
+  // ─────────────────────────────────────────── carga e tempo real (só no modo banco)
+  const recarregar = useCallback(async () => {
+    try {
+      const { conversas: cs } = await lerCaixa();
+      setConversas(cs);
+      setErro(null);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : String(e));
+    } finally {
+      setCarregando(false);
+    }
+  }, []);
+
+  const primeira = useRef(true);
+  useEffect(() => {
+    if (demo) return;
+    supabase.auth.getUser().then(({ data }) => setEu(data.user?.id ?? null));
+    recarregar();
+    // Mensagem nova tem de aparecer sem ninguém apertar F5: numa tela de atendimento,
+    // recarregar na mão significa cliente esperando sem ninguém saber.
+    const canal = supabase.channel('wa-caixa-' + Math.random().toString(36).slice(2))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wa_mensagens' }, () => recarregar())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'wa_conversas' }, () => recarregar())
+      .subscribe();
+    // Rede de segurança: se um evento do realtime se perder, a tela se corrige sozinha.
+    const relogio = setInterval(recarregar, 60000);
+    return () => { supabase.removeChannel(canal); clearInterval(relogio); };
+  }, [demo, recarregar]);
+
+  // Abre a primeira conversa assim que a caixa chega, sem atropelar a escolha de quem usa.
+  //
+  // Precisa chamar `abrir`, não só `setAbertaId`: a conversa aberta sozinha estava ficando
+  // com o contador de não lidas cheio para sempre, porque marcar como lida só acontecia no
+  // clique. Quem abre a central e lê a mensagem na hora nunca clicaria nela.
+  useEffect(() => {
+    if (primeira.current && conversas.length > 0 && !abertaId) {
+      primeira.current = false;
+      void abrir(conversas[0].id);
+    }
+    // `abrir` é estável o bastante aqui: só usa setState e a RPC.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversas, abertaId]);
 
   const lista = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -71,31 +121,48 @@ export default function RepCoWhatsApp() {
       .sort((a, b) => a.desdeEntrada - b.desdeEntrada);
   }, [conversas, busca, filtro, EU]);
 
-  const aberta = conversas.find(c => c.id === abertaId) ?? lista[0] ?? conversas[0];
-  const j = janela(aberta.desdeEntrada);
+  const aberta = conversas.find(c => c.id === abertaId) ?? lista[0] ?? conversas[0] ?? null;
+  const j = janela(aberta?.desdeEntrada ?? Number.MAX_SAFE_INTEGER);
   const totalNaoLidas = conversas.reduce((s, c) => s + c.naoLidas, 0);
 
-  function abrir(id: string) {
+  async function abrir(id: string) {
     setAbertaId(id);
     setRascunho('');
-    // Abrir zera o contador — é o que `wa_marcar_lida` fará no banco.
     setConversas(cs => cs.map(c => (c.id === id ? { ...c, naoLidas: 0 } : c)));
+    // Quem decide se pode zerar é o banco, pelo papel. A tela só pede.
+    if (!demo) { try { await marcarLida(id); } catch (e) { setErro(String(e)); } }
   }
 
-  function assumir() {
-    setConversas(cs => cs.map(c => (c.id === aberta.id
-      ? { ...c, responsavel: c.responsavel === EU ? null : EU } : c)));
+  async function assumir() {
+    if (!aberta) return;
+    const meu = aberta.responsavel !== null && (demo ? aberta.responsavel === EU : true);
+    if (demo) {
+      setConversas(cs => cs.map(c => (c.id === aberta.id
+        ? { ...c, responsavel: c.responsavel === EU ? null : EU } : c)));
+      return;
+    }
+    try { await assumirAtendimento(aberta.id, !meu); await recarregar(); }
+    catch (e) { setErro(e instanceof Error ? e.message : String(e)); }
   }
 
   function enviar() {
+    // O envio real depende do token de acesso da Meta, que ainda não foi configurado.
+    // Enquanto isso o campo existe e diz a verdade, em vez de fingir que mandou.
+    if (!demo) return;
     const texto = rascunho.trim();
-    if (!texto || !j.aberta) return;
+    if (!texto || !j.aberta || !aberta) return;
     const nova: MensagemDemo = {
       id: 'local-' + Date.now(), direcao: 'saida', texto, ha: 0, estado: 'enviada', autor: EU,
     };
     setConversas(cs => cs.map(c => (c.id === aberta.id
       ? { ...c, mensagens: [...c.mensagens, nova] } : c)));
     setRascunho('');
+  }
+
+  if (!demo && carregando) {
+    return <div className="flex justify-center py-16">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: MARCA }} />
+    </div>;
   }
 
   return (
@@ -111,9 +178,26 @@ export default function RepCoWhatsApp() {
           </p>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-          <Lock className="w-3.5 h-3.5" /> Demonstração — dados fictícios, nada é enviado
+          <Lock className="w-3.5 h-3.5" />
+          {demo ? 'Demonstração — dados fictícios, nada é enviado' : 'Recebendo · envio ainda desligado'}
         </span>
       </div>
+
+      {erro && (
+        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{erro}</p>
+      )}
+
+      {!demo && conversas.length === 0 && (
+        <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
+          <MessageCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+          <p className="font-semibold text-gray-800">Nenhuma conversa ainda.</p>
+          <p className="text-sm text-gray-500 mt-1">
+            Quando alguém escrever para o número da COFICO, a conversa aparece aqui sozinha.
+          </p>
+        </div>
+      )}
+      {!demo && conversas.length === 0 ? null : (
+      <>
 
       <div className="grid gap-4 lg:grid-cols-[22rem_1fr]">
         {/* ─────────────────────────────────── lista de conversas */}
@@ -177,6 +261,11 @@ export default function RepCoWhatsApp() {
         </div>
 
         {/* ─────────────────────────────────── conversa aberta */}
+        {!aberta ? (
+          <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-sm text-gray-400">
+            Escolha uma conversa à esquerda.
+          </div>
+        ) : (
         <div className="bg-white border border-gray-200 rounded-xl flex flex-col max-h-[36rem]">
           {/* quem é */}
           <div className="p-3 border-b border-gray-100 flex flex-wrap items-center gap-3">
@@ -235,7 +324,27 @@ export default function RepCoWhatsApp() {
 
           {/* responder */}
           <div className="p-3 border-t border-gray-100">
-            {j.aberta ? (
+            {j.aberta && !demo ? (
+              // O envio real depende do token de acesso da Meta, que ainda não foi
+              // configurado. O campo aparece, mas DIZ A VERDADE em vez de fingir que mandou.
+              <div className="space-y-2">
+                <div className="flex items-end gap-2 opacity-60 pointer-events-none">
+                  <textarea rows={2} disabled
+                    placeholder="Escreva a resposta…"
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none bg-gray-50" />
+                  <button disabled
+                    className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-4 py-2.5 rounded-lg"
+                    style={{ background: MARCA }}>
+                    <Send className="w-4 h-4" /> Enviar
+                  </button>
+                </div>
+                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  <strong>O envio ainda não está disponível.</strong> Falta configurar o token de acesso da
+                  Meta e as regras de segurança do envio. A janela está aberta ({j.texto.toLowerCase()}) —
+                  por enquanto, responda pelo WhatsApp do celular.
+                </p>
+              </div>
+            ) : j.aberta ? (
               <div className="flex items-end gap-2">
                 <textarea value={rascunho} onChange={e => setRascunho(e.target.value)} rows={2}
                   onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviar(); } }}
@@ -259,11 +368,15 @@ export default function RepCoWhatsApp() {
             )}
           </div>
         </div>
+        )}
       </div>
+      </>
+      )}
 
       <p className="text-[11px] text-gray-400">
-        Demonstração de interface. As conversas acima são fictícias, nenhuma mensagem é enviada e nenhum
-        número real é usado. A integração com a Meta não está ligada.
+        {demo
+          ? 'Demonstração de interface. As conversas acima são fictícias, nenhuma mensagem é enviada e nenhum número real é usado.'
+          : 'Conversas reais, lidas do banco pela sua permissão de acesso. O envio ainda não está ligado: nenhuma mensagem sai daqui.'}
       </p>
     </div>
   );

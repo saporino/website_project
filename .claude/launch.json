@@ -4,14 +4,37 @@
     {
       "name": "web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 5173
     },
     {
       "name": "prod",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "preview", "--", "--port", "4173"],
+      "runtimeArgs": [
+        "run",
+        "preview",
+        "--",
+        "--port",
+        "4173"
+      ],
       "port": 4173
+    },
+    {
+      "name": "staging",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "--mode",
+        "staging",
+        "--port",
+        "5174"
+      ],
+      "port": 5174,
+      "url": "http://localhost:5174",
+      "_nota": "Aponta para o Supabase de STAGING (.env.staging). A raiz e a loja da Saporino porque e um app so; a central fica em /repco/whatsapp."
     }
   ]
 }
