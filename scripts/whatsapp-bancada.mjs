@@ -47,6 +47,15 @@ async function usuario(email, papel, companyId) {
 }
 
 try {
+  // O staging nasceu sem o catalogo de papeis de producao (so tem o que as migrations
+  // criaram). Sem isto, testar "representante nao entra" falha na chave estrangeira em vez
+  // de testar o que interessa.
+  await admin.from('roles').upsert([
+    { code: 'representante', label: 'Representante Comercial' },
+    { code: 'promotor', label: 'Promotor' },
+    { code: 'admin', label: 'Administrador' },
+  ], { onConflict: 'code' });
+
   // ───────────────────────────────────────────────── duas empresas de mentira
   const marca = 'BANCADA-WA-' + Date.now();
   const { data: empresas, error: eEmp } = await admin.from('companies').insert([
@@ -146,6 +155,11 @@ try {
   console.log('\n— quem ve o que (JWT real, nao service role) —');
   const selo = Date.now();
   const semPapel = await usuario(`bancada-wa-sem-${selo}@exemplo.test`, null, null);
+  // O representante comercial NAO atende o WhatsApp externo. Ele vende, lanca pedido e
+  // ve a propria comissao - conversa de cliente com a empresa nao e area dele. Um papel
+  // valido no sistema nao pode virar passe para esta caixa.
+  const repComum = await usuario(`bancada-wa-rep-${selo}@exemplo.test`, 'representante', A.id);
+  const promotor = await usuario(`bancada-wa-promo-${selo}@exemplo.test`, 'promotor', A.id);
   const atendeA = await usuario(`bancada-wa-a-${selo}@exemplo.test`, 'atendimento', A.id);
   const atendeB = await usuario(`bancada-wa-b-${selo}@exemplo.test`, 'atendimento', B.id);
 
@@ -156,6 +170,15 @@ try {
   for (const t of ['wa_numeros', 'wa_contatos', 'wa_conversas', 'wa_mensagens', 'wa_eventos']) {
     checa(`usuario SEM papel nao le ${t}`, (await conta(semPapel, t)) === 0);
   }
+  for (const t of ['wa_contatos', 'wa_conversas', 'wa_mensagens', 'wa_eventos']) {
+    checa(`REPRESENTANTE da mesma empresa nao le ${t}`, (await conta(repComum, t)) === 0);
+    checa(`PROMOTOR da mesma empresa nao le ${t}`, (await conta(promotor, t)) === 0);
+  }
+  const { error: eRep } = await repComum.cli.from('wa_mensagens').insert({
+    company_id: A.id, conversa_id: dadoA.conversa.id, id_externo: 'wamid.rep' + Date.now(),
+    direcao: 'entrada', tipo: 'texto', texto: 'x', ocorrida_em: new Date().toISOString(),
+  });
+  checa('REPRESENTANTE nao escreve na caixa', !!eRep, eRep?.message?.slice(0, 50) ?? 'ESCREVEU!');
   const { data: msgsA } = await atendeA.cli.from('wa_mensagens').select('id, texto');
   checa('atendimento da A ve a conversa da A', (msgsA ?? []).some(m => m.texto === 'SEGREDO-DA-EMPRESA-A'));
   checa('atendimento da A NAO ve a conversa da B', !(msgsA ?? []).some(m => m.texto === 'SEGREDO-DA-EMPRESA-B'),
