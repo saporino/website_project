@@ -27,6 +27,8 @@ const seg = (n: string) => Deno.env.get(n) ?? undefined;
 const VERIFY_TOKEN = seg('WHATSAPP_COFICO_VERIFY_TOKEN');
 const APP_SECRET = seg('WHATSAPP_COFICO_APP_SECRET');
 
+const json = (corpo: unknown, status = 200) =>
+  new Response(JSON.stringify(corpo, null, 1), { status, headers: { 'Content-Type': 'application/json' } });
 const texto = (corpo: string, status = 200) =>
   new Response(corpo, { status, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 
@@ -163,6 +165,39 @@ Deno.serve(async (req) => {
     // A resposta da Graph pode ecoar o token numa mensagem de erro. Nunca deixamos sair.
     const limpo = corpo.replaceAll(APP_SECRET, '«segredo»');
     return new Response(limpo, { status: r.status, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  // ── GET ?diagnostico=token — o token de ENVIO vale? (SÓ LEITURA, nada é enviado) ──
+  //
+  // Descobrir que o token está errado no primeiro disparo real, com a câmera ligada, é o
+  // pior momento possível. Aqui ele é exercido contra a Graph API em modo leitura: se
+  // responde, vale; se não, o erro vem com o código, antes de qualquer mensagem.
+  //
+  // Nenhum segredo sai na resposta — o que a Graph devolver é limpo antes de voltar.
+  if (req.method === 'GET' && url.searchParams.get('diagnostico') === 'token') {
+    const t = url.searchParams.get('hub.verify_token');
+    if (!VERIFY_TOKEN || t !== VERIFY_TOKEN) return texto('forbidden', 403);
+    const ENVIO = seg('WHATSAPP_COFICO_TOKEN');
+    if (!ENVIO) return json({ token_configurado: false });
+    const pnid = url.searchParams.get('phone_number_id') ?? '';
+    const waba = url.searchParams.get('waba') ?? '';
+    const limpar = (s: string) => s.replaceAll(ENVIO, '«token»').replaceAll(APP_SECRET ?? '\u0000', '«segredo»');
+    const ler = async (caminho: string) => {
+      const r = await fetch(`https://graph.facebook.com/v21.0/${caminho}`,
+        { headers: { Authorization: `Bearer ${ENVIO}` } });
+      let corpo: unknown = null;
+      try { corpo = JSON.parse(limpar(await r.text())); } catch { corpo = null; }
+      return { status: r.status, corpo };
+    };
+    // 1) o número: valida o token e `whatsapp_business_messaging` sobre ele
+    const numero = pnid ? await ler(`${pnid}?fields=display_phone_number,verified_name,quality_rating,platform_type,is_on_biz_app,code_verification_status`) : null;
+    // 2) os modelos: valida `whatsapp_business_management` sobre a WABA
+    const modelos = waba ? await ler(`${waba}/message_templates?limit=1&fields=name,status,category`) : null;
+    return json({
+      token_configurado: true,
+      numero: numero ? { http: numero.status, resposta: numero.corpo } : 'phone_number_id nao informado',
+      modelos: modelos ? { http: modelos.status, resposta: modelos.corpo } : 'waba nao informada',
+    });
   }
 
   // ── GET: a Meta prova, uma vez, que a URL é nossa ────────────────────────────

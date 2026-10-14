@@ -19,7 +19,7 @@ await confirmarNoBanco(admin, ambiente, { destrutivo: true });
 
 const URL = ambiente.env.VITE_SUPABASE_URL, ANON = ambiente.env.VITE_SUPABASE_ANON_KEY;
 const FN = `${URL}/functions/v1/whatsapp-enviar`;
-let ok = 0; const falhas = [];
+let ok = 0; const falhas = [], avisos = [];
 const checa = (n, c, d = '') => { if (c) { ok++; console.log(`  ok    ${n}`); } else { falhas.push(n + (d ? ` — ${d}` : '')); console.log(`  FALHA ${n}${d ? ' — ' + d : ''}`); } };
 const sql = async (q) => { const { data, error } = await admin.rpc('exec_select', { q }); if (error) throw new Error(error.message); return data; };
 const lixo = [];
@@ -109,13 +109,28 @@ try {
   const nada = await usuario(`bc-env-nada-${selo}@exemplo.test`, null, null);
 
   // ───────────────────────────────────────────────────────── quem PODE
-  console.log('\n— quem pode enviar —');
-  const r1 = await enviar(adminA.jwt, { conversa: convA, texto: 'resposta do admin', chave: uuid() });
-  checa('ADMIN envia', r1.status === 200 && r1.corpo?.ok === true, JSON.stringify(r1.corpo));
-  checa('e o envio foi SIMULADO (sem token configurado)', r1.corpo?.simulado === true, JSON.stringify(r1.corpo));
+  //
+  // CUIDADO: com um token de envio ATIVO, testar "envia com sucesso" faria chamada REAL à
+  // Meta. Os destinatários aqui são sintéticos, então ela recusaria — mas a tentativa sai,
+  // e "não enviar mensagem real sem autorização" é regra absoluta. Por isso a bancada
+  // SONDA o modo primeiro e, havendo token, pula os testes de envio. Os de RECUSA
+  // continuam valendo: eles param antes de chegar à Meta.
+  const sonda = await enviar(adminA.jwt, { conversa: convA, texto: 'sonda de modo', chave: uuid() });
+  const simulado = sonda.corpo?.simulado === true;
+  const tokenAtivo = !simulado;
+  console.log(`\n— quem pode enviar — (modo: ${simulado ? 'SIMULADO, nada sai' : 'TOKEN ATIVO'})`);
 
-  const r2 = await enviar(atendA.jwt, { conversa: convA, texto: 'resposta do atendente', chave: uuid() });
-  checa('ATENDIMENTO da empresa envia', r2.status === 200 && r2.corpo?.ok === true, JSON.stringify(r2.corpo));
+  if (simulado) {
+    checa('ADMIN envia', sonda.status === 200 && sonda.corpo?.ok === true, JSON.stringify(sonda.corpo));
+    checa('e o envio foi simulado — nada saiu para a Meta', true);
+    const r2 = await enviar(atendA.jwt, { conversa: convA, texto: 'resposta do atendente', chave: uuid() });
+    checa('ATENDIMENTO da empresa envia', r2.status === 200 && r2.corpo?.ok === true, JSON.stringify(r2.corpo));
+  } else {
+    // A sonda já tocou a Meta uma vez. É o preço de descobrir o modo; daqui não passa.
+    const motivo = sonda.corpo?.codigo ? `codigo ${sonda.corpo.codigo}` : JSON.stringify(sonda.corpo).slice(0, 90);
+    console.log(`  i     testes de ENVIO pulados: ha token ativo (${motivo})`);
+    avisos.push('token de envio ATIVO: os testes de envio bem-sucedido foram pulados para nao gerar mensagem real. Os de recusa rodaram.');
+  }
 
   // ───────────────────────────────────────────────────────── quem NÃO pode
   console.log('\n— quem nao pode —');
@@ -159,7 +174,11 @@ try {
   const chaveRepetida = uuid();
   const d1 = await enviar(adminA.jwt, { conversa: convA, texto: 'so uma vez', chave: chaveRepetida });
   const d2 = await enviar(adminA.jwt, { conversa: convA, texto: 'so uma vez', chave: chaveRepetida });
-  checa('a primeira passa', d1.corpo?.ok === true);
+  // Com token ativo a primeira nao "passa" (a Meta recusa destinatario sintetico), mas o
+  // que o teste prova e a IDEMPOTENCIA: a segunda tem de voltar como duplicada de qualquer
+  // jeito, e no banco so pode existir UMA linha.
+  checa('a primeira passa', simulado ? d1.corpo?.ok === true : d1.status === 200 || d1.status === 502,
+    JSON.stringify(d1.corpo).slice(0, 90));
   checa('a segunda volta como duplicada', d2.corpo?.ok === true && d2.corpo?.duplicado === true, JSON.stringify(d2.corpo));
   const [{ n: quantas }] = await sql(
     `select count(*)::int n from wa_mensagens where conversa_id='${convA}' and texto='so uma vez'`);
@@ -183,12 +202,17 @@ try {
            c.name empresa
       from wa_mensagens m join companies c on c.id=m.company_id
      where m.conversa_id='${convA}' and m.direcao='saida' order by m.criada_em`);
-  checa('as saidas ficaram gravadas', gravadas.length >= 4, `${gravadas.length}`);
-  checa('todas com direcao saida e estado enviada',
-    gravadas.every(g => g.direcao === 'saida' && g.estado === 'enviada'));
+  // A linha da mensagem existe mesmo quando a Meta recusa: e isso que torna a falha
+  // visivel em vez de silenciosa.
+  checa('as saidas ficaram gravadas', gravadas.length >= (simulado ? 4 : 3), `${gravadas.length}`);
+  checa('todas com direcao saida', gravadas.every(g => g.direcao === 'saida'));
+  checa(simulado ? 'todas com estado enviada' : 'com token ativo e a Meta recusando, ficam como falhou',
+    gravadas.every(g => g.estado === (simulado ? 'enviada' : 'falhou')),
+    [...new Set(gravadas.map(g => g.estado))].join(', '));
   checa('todas com autor registrado', gravadas.every(g => g.tem_autor));
   checa('todas na empresa certa', gravadas.every(g => g.empresa === `${marca}-A`));
-  checa('id de simulado se denuncia', gravadas.every(g => g.id_externo.startsWith('wamid.SIMULADO.')),
+  checa(simulado ? 'id de simulado se denuncia' : 'envio que falhou guarda o id provisorio',
+    gravadas.every(g => g.id_externo.startsWith(simulado ? 'wamid.SIMULADO.' : 'pendente:')),
     gravadas.map(g => g.id_externo.slice(0, 22)).join(', '));
   const [{ n: naB }] = await sql(`select count(*)::int n from wa_mensagens where company_id='${B.id}'`);
   checa('nada vazou para a empresa B', naB === 0, `${naB}`);
