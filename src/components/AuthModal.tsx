@@ -8,7 +8,7 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMode?: 'login' | 'register';
-  loginContext?: 'client' | 'admin' | 'rep' | 'promotor';
+  loginContext?: 'client' | 'admin' | 'rep' | 'promotor' | 'central';
 }
 
 export const AuthModal = ({ isOpen, onClose, initialMode = 'login', loginContext = 'client' }: AuthModalProps) => {
@@ -119,6 +119,30 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login', loginContext
       setError('Erro ao verificar permissões');
       setLoading(false);
     }
+  };
+
+  // Entrada de ferramenta interna (ex.: a central de WhatsApp). Entra e PRONTO: nao
+  // rejeita administrador e nao redireciona para lugar nenhum.
+  //
+  // Sem isto, a central usava o login da LOJA, que derruba admin de proposito para
+  // empurrar o botao "Admin". Quem entrasse como administrador era desconectado no mesmo
+  // instante e voltava para a tela de login, sem explicacao nenhuma.
+  const handleCentralLogin = async () => {
+    if (!loginData.email || !loginData.password) {
+      setError('Por favor, preencha email e senha');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    const { error } = await signIn(loginData.email, loginData.password);
+    if (error) {
+      setError('Email ou senha incorretos');
+      setLoading(false);
+      return;
+    }
+    onClose();
+    setLoginData({ email: '', password: '' });
+    setLoading(false);
   };
 
   const handleRepLogin = async () => {
@@ -247,7 +271,7 @@ export const AuthModal = ({ isOpen, onClose, initialMode = 'login', loginContext
           )}
 
           {mode === 'login' ? (
-            <form onSubmit={loginContext === 'admin' ? (e) => { e.preventDefault(); handleAdminLogin(); } : loginContext === 'promotor' ? (e) => { e.preventDefault(); handlePromotorLogin(); } : loginContext === 'rep' ? (e) => { e.preventDefault(); handleRepLogin(); } : handleLoginSubmit} className="space-y-6">
+            <form onSubmit={loginContext === 'central' ? (e) => { e.preventDefault(); handleCentralLogin(); } : loginContext === 'admin' ? (e) => { e.preventDefault(); handleAdminLogin(); } : loginContext === 'promotor' ? (e) => { e.preventDefault(); handlePromotorLogin(); } : loginContext === 'rep' ? (e) => { e.preventDefault(); handleRepLogin(); } : handleLoginSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   E-mail *

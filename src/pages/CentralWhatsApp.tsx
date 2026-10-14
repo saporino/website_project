@@ -48,7 +48,7 @@ export default function CentralWhatsApp() {
             Entrar
           </button>
         </div>
-        <AuthModal isOpen={login} onClose={() => setLogin(false)} initialMode="login" />
+        <AuthModal isOpen={login} onClose={() => setLogin(false)} initialMode="login" loginContext="central" />
       </div>
     );
   }
