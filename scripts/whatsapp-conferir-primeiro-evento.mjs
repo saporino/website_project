@@ -27,6 +27,10 @@ const checa = (n, c, d = '') => { if (c) { ok++; console.log(`  ok    ${n}`); } 
 const mascarar = (t) => (t && t.length >= 8) ? t.slice(0, 4) + '•'.repeat(t.length - 8) + t.slice(-4) : '•••';
 
 const PNID_TESTE = '1386100787926214';
+// A amostra "Incoming Message" do painel da Meta usa SEMPRE estes valores ficticios. Ela
+// serve para provar que a URL e a assinatura funcionam - nao para criar conversa. Sem
+// reconhecer isso, o relatorio acusa falha no que e o comportamento correto.
+const PNID_AMOSTRA = '123456123';
 
 // process.exit() no Windows dispara "Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)".
 // Por isso o corpo vive numa funcao: sair dela e um `return`, e o processo termina sozinho.
@@ -56,14 +60,30 @@ const recusados = eventos.filter(e => e.resultado === 'assinatura_invalida');
 checa('nenhum evento marcado como assinatura invalida', recusados.length === 0, `${recusados.length}`);
 
 console.log('\n— 3. a empresa foi identificada? —');
+const amostras = eventos.filter(e => e.phone_number_id === PNID_AMOSTRA);
 const doTeste = eventos.filter(e => e.phone_number_id === PNID_TESTE);
-checa('o evento veio do numero de teste da Meta', doTeste.length > 0,
-  `vieram de: ${[...new Set(eventos.map(e => e.phone_number_id))].join(', ')}`);
-const desconhecidos = eventos.filter(e => e.resultado === 'numero_desconhecido');
-if (desconhecidos.length) {
-  falhas.push('evento com numero desconhecido — falta cadastrar o phone_number_id em wa_numeros');
-  console.log(`  FALHA ${desconhecidos.length} evento(s) com numero desconhecido`);
-} else { ok++; console.log('  ok    nenhum evento ficou sem empresa'); }
+const outros = eventos.filter(e => ![PNID_AMOSTRA, PNID_TESTE].includes(e.phone_number_id));
+
+if (amostras.length) {
+  console.log(`  i     ${amostras.length} evento(s) da AMOSTRA padrao da Meta (phone_number_id ${PNID_AMOSTRA}).`);
+  checa('a amostra foi tratada como numero desconhecido, como deve',
+    amostras.every(e => e.resultado === 'numero_desconhecido'),
+    amostras.map(e => e.resultado).join(', '));
+  checa('a amostra NAO foi associada a nenhuma empresa', amostras.every(e => !e.tem_empresa));
+}
+if (doTeste.length) {
+  checa('evento do numero de teste da COFICO identificou a empresa',
+    doTeste.every(e => e.tem_empresa), doTeste.map(e => e.resultado).join(', '));
+} else if (!amostras.length) {
+  falhas.push('nenhum evento veio do numero de teste nem da amostra padrao');
+  console.log('  FALHA nenhum evento veio do numero de teste nem da amostra padrao');
+} else {
+  avisos.push('so chegou a amostra padrao. Para criar conversa de verdade, mande uma mensagem REAL de um numero autorizado para o numero de teste.');
+}
+if (outros.length) {
+  falhas.push(`evento de numero inesperado: ${[...new Set(outros.map(e => e.phone_number_id))].join(', ')}`);
+  console.log('  FALHA evento de numero inesperado');
+}
 const comErro = eventos.filter(e => e.resultado === 'erro');
 if (comErro.length) avisos.push(`${comErro.length} evento(s) com resultado 'erro': ${comErro[0].detalhe ?? ''}`);
 
@@ -76,7 +96,13 @@ const msgs = await sql(`
     join wa_conversas cv on cv.id = m.conversa_id
     join wa_contatos ct on ct.id = cv.contato_id
    order by m.ocorrida_em desc limit 20`);
-checa('ao menos uma mensagem gravada', msgs.length > 0, `${msgs.length}`);
+const soAmostra = amostras.length > 0 && doTeste.length === 0;
+  if (soAmostra) {
+    console.log('  i     nenhuma mensagem gravada — correto: a amostra nao tem numero cadastrado.');
+    ok++;
+  } else {
+    checa('ao menos uma mensagem gravada', msgs.length > 0, `${msgs.length}`);
+  }
 const porWamid = new Map();
 for (const m of msgs) porWamid.set(m.id_externo, (porWamid.get(m.id_externo) ?? 0) + 1);
 const duplicadas = [...porWamid.entries()].filter(([, n]) => n > 1);
@@ -96,7 +122,8 @@ console.log('\n— 6. o historico ficou salvo? —');
 const caixa = await sql(`
   select nome_perfil, telefone_e164, nao_lidas, janela_aberta, janela_minutos, status
     from vw_wa_caixa order by ultima_entrada_em desc nulls last limit 5`);
-checa('a conversa aparece na caixa de entrada', caixa.length > 0, `${caixa.length}`);
+if (soAmostra) { console.log('  i     caixa vazia — correto: a amostra nao vira conversa.'); ok++; }
+  else checa('a conversa aparece na caixa de entrada', caixa.length > 0, `${caixa.length}`);
 for (const c of caixa) {
   console.log(`    ${(c.nome_perfil ?? '(sem nome)').padEnd(22)} ${mascarar(c.telefone_e164)}  ` +
     `${c.nao_lidas} nao lida(s) · janela ${c.janela_aberta ? 'aberta (' + c.janela_minutos + ' min)' : 'fechada'}`);
@@ -109,6 +136,9 @@ checa('nenhuma mensagem foi ENVIADA pelo sistema', enviadas[0].n === 0, `${envia
   if (avisos.length) { console.log('\navisos:'); avisos.forEach(a => console.log('  ! ' + a)); }
   console.log(`\n${ok} verificacoes ok, ${falhas.length} falhas.`);
   if (falhas.length) { falhas.forEach(f => console.log('  · ' + f)); process.exitCode = 1; }
+  else if (soAmostra) console.log('\nA amostra da Meta entrou certo: ASSINATURA REAL ACEITA, tratada como numero\n'
+    + 'desconhecido, sem criar conversa e sem tocar em nenhuma empresa.\n'
+    + 'Falta so a mensagem REAL, de um numero autorizado para o numero de teste.');
   else console.log('\nO primeiro evento real entrou certo: assinatura aceita, empresa COFICO, sem duplicata, sem mistura.');
 }
 
