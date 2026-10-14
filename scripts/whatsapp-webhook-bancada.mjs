@@ -100,7 +100,7 @@ try {
   // empresa, e wa_conversas segura o numero. Apagar fora de ordem falha em silencio e
   // deixa lixo no staging - foi o que aconteceu na primeira rodada. De dentro para fora:
   const limparEmpresas = async (ids) => {
-    for (const t of ['wa_mensagens', 'wa_conversas', 'wa_contatos', 'wa_numeros', 'marketing_contacts']) {
+    for (const t of ['wa_mensagens', 'wa_conversas', 'wa_contatos', 'wa_numeros', 'wa_eventos', 'marketing_contacts']) {
       const { error } = await admin.from(t).delete().in('company_id', ids);
       if (error) throw new Error(`${t}: ${error.message}`);
     }
