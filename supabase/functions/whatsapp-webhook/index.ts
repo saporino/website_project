@@ -143,6 +143,28 @@ Deno.serve(async (req) => {
     }, null, 1), { status: 200, headers: { 'Content-Type': 'application/json' } });
   }
 
+  // ── GET ?diagnostico=meta — a WABA está inscrita neste app? (SÓ LEITURA) ─────
+  //
+  // Quando a amostra do painel chega mas a mensagem real não, a causa quase sempre é esta:
+  // configurar o webhook no APP e inscrever a WABA no app são dois passos diferentes. O
+  // primeiro faz o botão "Testar" funcionar; só o segundo faz mensagem de verdade chegar.
+  //
+  // Usa o app access token (`id|segredo`), montado aqui dentro e nunca devolvido. Apenas GET
+  // na Graph API: não cria inscrição, não publica nada, não envia mensagem.
+  if (req.method === 'GET' && url.searchParams.get('diagnostico') === 'meta') {
+    const t = url.searchParams.get('hub.verify_token');
+    if (!VERIFY_TOKEN || t !== VERIFY_TOKEN) return texto('forbidden', 403);
+    const appId = url.searchParams.get('app_id') ?? '';
+    const waba = url.searchParams.get('waba') ?? '';
+    if (!APP_SECRET || !appId || !waba) return texto('faltam app_id e waba', 400);
+    const r = await fetch(
+      `https://graph.facebook.com/v21.0/${waba}/subscribed_apps?access_token=${appId}|${APP_SECRET}`);
+    const corpo = await r.text();
+    // A resposta da Graph pode ecoar o token numa mensagem de erro. Nunca deixamos sair.
+    const limpo = corpo.replaceAll(APP_SECRET, '«segredo»');
+    return new Response(limpo, { status: r.status, headers: { 'Content-Type': 'application/json' } });
+  }
+
   // ── GET: a Meta prova, uma vez, que a URL é nossa ────────────────────────────
   if (req.method === 'GET') {
     const challenge = respostaDoDesafio({
@@ -167,7 +189,23 @@ Deno.serve(async (req) => {
   const calculado = await hmacHex(corpoCru, APP_SECRET);
   if (!assinaturaConfere(req.headers.get('x-hub-signature-256'), calculado)) {
     logEdge(FN, { requestId, etapa: 'assinatura', aceito: false, bytes: corpoCru.length });
-    return texto('invalid signature', 401);          // nada foi lido, nada foi gravado
+    // Recusa agora deixa RASTRO. Sem isto não dá para separar "nenhum POST chegou" de
+    // "um POST chegou e foi recusado" — e essa diferença decide se o problema é da Meta
+    // (inscrição, lista de destinatários) ou nosso (segredo errado).
+    //
+    // O CORPO NÃO É GUARDADO: é entrada não verificada, de origem desconhecida. Fica só
+    // o tamanho, se havia cabeçalho de assinatura e o formato dele.
+    try {
+      const cab = req.headers.get('x-hub-signature-256');
+      await createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        { auth: { persistSession: false } })
+        .from('wa_eventos').insert({
+          assinatura: `rejeitado:${crypto.randomUUID()}`,
+          corpo: {}, resultado: 'assinatura_invalida',
+          detalhe: `bytes=${corpoCru.length} cabecalho=${cab ? (/^sha256=[a-f0-9]{64}$/i.test(cab) ? 'formato ok' : 'formato invalido') : 'ausente'}`,
+        });
+    } catch { /* registrar a recusa nunca pode virar erro 500 */ }
+    return texto('invalid signature', 401);          // nada do conteúdo foi aproveitado
   }
 
   let corpo: unknown;
