@@ -181,6 +181,7 @@ Deno.serve(async (req) => {
     if (!ENVIO) return json({ token_configurado: false });
     const pnid = url.searchParams.get('phone_number_id') ?? '';
     const waba = url.searchParams.get('waba') ?? '';
+    const appIdDoDiagnostico = url.searchParams.get('app_id') ?? '';
     const limpar = (s: string) => s.replaceAll(ENVIO, '«token»').replaceAll(APP_SECRET ?? '\u0000', '«segredo»');
     const ler = async (caminho: string) => {
       const r = await fetch(`https://graph.facebook.com/v21.0/${caminho}`,
@@ -193,10 +194,26 @@ Deno.serve(async (req) => {
     const numero = pnid ? await ler(`${pnid}?fields=display_phone_number,verified_name,quality_rating,platform_type,is_on_biz_app,code_verification_status`) : null;
     // 2) os modelos: valida `whatsapp_business_management` sobre a WABA
     const modelos = waba ? await ler(`${waba}/message_templates?limit=1&fields=name,status,category`) : null;
+    // 3) a inscricao: a URL pode estar no ar, o token pode estar bom, e MESMO ASSIM nada
+    //    chegar - porque a WABA deixou de estar inscrita neste app. E a causa mais comum
+    //    de "parou de receber sem ninguem mexer", e so se ve olhando aqui.
+    const inscricao = waba ? await ler(`${waba}/subscribed_apps`) : null;
+    // 4) os CAMPOS que o app assina. A WABA pode estar inscrita no app e, ainda assim,
+    //    o campo `messages` nao estar marcado - e ai nada chega, sem erro nenhum.
+    let campos: unknown = 'app_secret ausente';
+    if (APP_SECRET) {
+      const r = await fetch(
+        `https://graph.facebook.com/v21.0/${appIdDoDiagnostico}/subscriptions?access_token=${appIdDoDiagnostico}|${APP_SECRET}`);
+      let corpo: unknown = null;
+      try { corpo = JSON.parse(limpar(await r.text())); } catch { corpo = null; }
+      campos = { http: r.status, resposta: corpo };
+    }
     return json({
+      campos_assinados: campos,
       token_configurado: true,
       numero: numero ? { http: numero.status, resposta: numero.corpo } : 'phone_number_id nao informado',
       modelos: modelos ? { http: modelos.status, resposta: modelos.corpo } : 'waba nao informada',
+      inscricao: inscricao ? { http: inscricao.status, resposta: inscricao.corpo } : 'waba nao informada',
     });
   }
 
