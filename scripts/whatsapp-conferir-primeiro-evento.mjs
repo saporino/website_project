@@ -129,9 +129,17 @@ for (const c of caixa) {
     `${c.nao_lidas} nao lida(s) · janela ${c.janela_aberta ? 'aberta (' + c.janela_minutos + ' min)' : 'fechada'}`);
 }
 
-console.log('\n— 7. nenhuma mensagem saiu daqui —');
-const enviadas = await sql(`select count(*)::int n from wa_mensagens where direcao='saida'`);
-checa('nenhuma mensagem foi ENVIADA pelo sistema', enviadas[0].n === 0, `${enviadas[0].n}`);
+// Este teste nasceu quando NADA tinha sido enviado, afirmando "zero saidas". Enviar virou
+// funcionalidade, entao a pergunta mudou: o que importa nao e SE saiu, e se saiu com ALGUEM
+// por tras. Mensagem sem autor seria disparo automatico — exatamente o que a COFICO nao faz
+// e o que a Meta nao quer ver.
+console.log('\n— 7. toda saida tem uma pessoa por tras —');
+const [env] = await sql(`select count(*)::int total,
+                                count(*) filter (where enviada_por is null)::int sem_autor,
+                                count(*) filter (where estado='falhou')::int falharam
+                           from wa_mensagens where direcao='saida'`);
+console.log(`    ${env.total} saida(s) · ${env.falharam} com falha registrada`);
+checa('nenhuma saida sem autor humano', env.sem_autor === 0, `${env.sem_autor} sem autor`);
 
   if (avisos.length) { console.log('\navisos:'); avisos.forEach(a => console.log('  ! ' + a)); }
   console.log(`\n${ok} verificacoes ok, ${falhas.length} falhas.`);

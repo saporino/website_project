@@ -200,7 +200,7 @@ export default function RepCoWhatsApp({ fonte = 'banco' }: { fonte?: 'banco' | '
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
           <Lock className="w-3.5 h-3.5" />
-          {demo ? 'Demonstração — dados fictícios, nada é enviado' : 'Recebendo · envio ainda desligado'}
+          {demo ? 'Demonstração — dados fictícios, nada é enviado' : 'Atendimento ao vivo'}
         </span>
       </div>
 
@@ -384,7 +384,7 @@ export default function RepCoWhatsApp({ fonte = 'banco' }: { fonte?: 'banco' | '
       <p className="text-[11px] text-gray-400">
         {demo
           ? 'Demonstração de interface. As conversas acima são fictícias, nenhuma mensagem é enviada e nenhum número real é usado.'
-          : 'Conversas reais, lidas do banco pela sua permissão de acesso. O envio ainda não está ligado: nenhuma mensagem sai daqui.'}
+          : 'Conversas reais, lidas do banco pela sua permissão de acesso. Você só vê as conversas das empresas em que tem acesso.'}
       </p>
     </div>
   );
