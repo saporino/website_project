@@ -12,7 +12,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { linkPortalPJ } from './config';
 import CoficoHeader from './CoficoHeader';
 import CoficoFooter from './CoficoFooter';
-import { Loader2, Building2, Coffee, Package, Mail, Lock, Clock, Check, AlertCircle } from 'lucide-react';
+import { Loader2, Building2, Coffee, Package, Mail, Lock, Clock, Check, AlertCircle, LogOut } from 'lucide-react';
 
 const MARCAS = ['Café Saporino', 'Tropeiro Paulista'];
 
@@ -44,6 +44,8 @@ export default function MinhaEmpresa() {
   const [senha, setSenha] = useState('');
   const [entrando, setEntrando] = useState(false);
   const [erroLogin, setErroLogin] = useState('');
+  const [recuperando, setRecuperando] = useState(false);
+  const [avisoSenha, setAvisoSenha] = useState('');
 
   useEffect(() => {
     if (carregandoAuth) return;
@@ -71,10 +73,28 @@ export default function MinhaEmpresa() {
   }, [user, carregandoAuth]);
 
   async function entrar() {
-    setErroLogin(''); setEntrando(true);
+    setErroLogin(''); setAvisoSenha(''); setEntrando(true);
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha });
     setEntrando(false);
     if (error) setErroLogin('E-mail ou senha incorretos.');
+  }
+
+  /**
+   * Recuperação de senha pelo caminho que o site já usa (`resetPasswordForEmail`
+   * → /reset-password). Nenhum sistema de login novo: é o mesmo do resto.
+   *
+   * A resposta é sempre a mesma, exista a conta ou não. Dizer "este e-mail não
+   * está cadastrado" entrega a terceiros quem é cliente da COFICO.
+   */
+  async function recuperarSenha() {
+    const alvo = email.trim().toLowerCase();
+    if (!alvo) { setErroLogin('Escreva seu e-mail acima e clique de novo.'); return; }
+    setErroLogin(''); setRecuperando(true);
+    await supabase.auth.resetPasswordForEmail(alvo, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    }).catch(() => {});
+    setRecuperando(false);
+    setAvisoSenha(`Se houver uma conta para ${alvo}, o link de nova senha chega em alguns minutos. Confira também o spam.`);
   }
 
   async function alternarMarca(m: string, ligar: boolean) {
@@ -136,10 +156,25 @@ export default function MinhaEmpresa() {
             className="w-full bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold rounded-lg py-3 text-sm disabled:opacity-50 inline-flex items-center justify-center gap-2">
             {entrando && <Loader2 className="w-4 h-4 animate-spin" />} Entrar
           </button>
+
+          {avisoSenha && (
+            <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{avisoSenha}</p>
+          )}
+          <button onClick={recuperarSenha} disabled={recuperando}
+            className="w-full text-xs text-gray-500 hover:text-[#8B2214] disabled:opacity-50">
+            {recuperando ? 'Enviando…' : 'Esqueci minha senha'}
+          </button>
         </div>
-        <p className="text-center text-sm text-gray-500 mt-5">
-          Tem um código de convite? <a href={linkPortalPJ('cadastro')} className="text-[#8B2214] font-semibold hover:underline">Fazer meu cadastro</a>
-        </p>
+        <div className="mt-5 border border-dashed border-gray-300 rounded-xl p-4 text-center">
+          <p className="text-sm font-semibold text-gray-800">Primeiro acesso</p>
+          <p className="text-xs text-gray-500 mt-1 mb-3">
+            Recebeu um código de convite da COFICO Brasil? É por aqui que você começa.
+          </p>
+          <a href={linkPortalPJ('cadastro')}
+            className="inline-block border border-[#8B2214] text-[#8B2214] hover:bg-[#f5f0ef] font-semibold rounded-lg px-5 py-2.5 text-sm transition-colors">
+            Usar meu código de convite
+          </a>
+        </div>
       </div>
     );
   }
@@ -255,8 +290,15 @@ export default function MinhaEmpresa() {
         )}
       </section>
 
-      <button onClick={() => supabase.auth.signOut()}
-        className="text-sm text-gray-400 hover:text-gray-700">Sair</button>
+      <button
+        onClick={async () => {
+          if (!confirm('Sair da sua conta?')) return;
+          await supabase.auth.signOut();
+          window.location.href = linkPortalPJ('minha-empresa');
+        }}
+        className="inline-flex items-center gap-2 border border-gray-300 text-gray-600 hover:border-gray-400 hover:text-gray-900 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors">
+        <LogOut className="w-4 h-4" aria-hidden="true" /> Sair da conta
+      </button>
     </div>
   );
 }
