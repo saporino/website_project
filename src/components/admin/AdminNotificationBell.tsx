@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Bell, BellOff, UserCheck, FileText, ShoppingBag, X, ChevronRight, AlertTriangle, PackageX, Mail, UserPlus } from 'lucide-react';
+import { Bell, BellOff, UserCheck, FileText, ShoppingBag, X, ChevronRight, AlertTriangle, PackageX, Mail, UserPlus, ClipboardCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
 
@@ -27,7 +27,7 @@ const SOUND_KEY = 'admin-bell-sound';
 
 interface Notification {
   id: string;
-  type: 'repco_pending' | 'repco_order_no_nf' | 'repco_boleto_overdue' | 'ecommerce_pending' | 'promotor_pending' | 'ruptura_aberta' | 'b2b_lead_new' | 'candidatura_rep_new';
+  type: 'repco_pending' | 'repco_order_no_nf' | 'repco_boleto_overdue' | 'ecommerce_pending' | 'promotor_pending' | 'ruptura_aberta' | 'b2b_lead_new' | 'candidatura_rep_new' | 'cadastro_pj_pendente';
   title: string;
   description: string;
   count: number;
@@ -86,6 +86,28 @@ export function AdminNotificationBell({ onNavigate }: AdminNotificationBellProps
           count: repPending,
           tab: 'repco',
           icon: UserCheck,
+          color: 'text-amber-600 bg-amber-50',
+        });
+      }
+
+      // 1a. Cadastro PJ da COFICO aguardando decisão.
+      // Conta pela view, que já filtra `origem='autocadastro'` — contar a tabela
+      // direto incluiria as fichas que o representante criou, que não esperam
+      // aprovação nenhuma.
+      const { count: pjPending } = await supabase
+        .from('vw_cadastros_pj')
+        .select('*', { count: 'exact', head: true })
+        .eq('status_cadastro', 'em_analise');
+
+      if (pjPending && pjPending > 0) {
+        items.push({
+          id: 'cadastro_pj_pendente',
+          type: 'cadastro_pj_pendente',
+          title: 'Cadastro PJ aguardando decisão',
+          description: `${pjPending} empresa${pjPending > 1 ? 's' : ''} cadastrada${pjPending > 1 ? 's' : ''} pelo site da COFICO`,
+          count: pjPending,
+          tab: 'repco',
+          icon: ClipboardCheck,
           color: 'text-amber-600 bg-amber-50',
         });
       }

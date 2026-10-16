@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { guide } from '../../lib/guide';
 import PriceListManager from './PriceListManager';
 import RepCoInviteCodes, { RepInviteBadge } from './RepCoInviteCodes';
+import CadastrosPJ from './CadastrosPJ';
 import UserRolesManager from './UserRolesManager';
 import PromotersAdmin from './PromotersAdmin';
 import CoffeeMarketIndex from './CoffeeMarketIndex';
@@ -988,6 +989,7 @@ export function RepCoManagement({ refreshKey = 0 }: { refreshKey?: number }) {
     <div className="space-y-6">
       {/* Só o admin gerencia convites, papéis (RBAC) e promotores. O gerente comercial não vê isto. */}
       {isAdmin && <RepCoInviteCodes />}
+      {isAdmin && <CadastrosPJ refreshKey={refreshKey} />}
       {isAdmin && <UserRolesManager />}
       {isAdmin && <PromotersAdmin />}
       {/* Row 1: Title + Action buttons */}
