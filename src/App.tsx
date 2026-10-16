@@ -49,6 +49,8 @@ const RepCoCoverageMap = lazy(() => import('./pages/RepCoCoverageMap'));
 const CoficoBrasilPage = lazy(() => import('./pages/coficobrasil/CoficoBrasilPage'));
 const CoficoLegalPage = lazy(() => import('./pages/coficobrasil/CoficoPolicyPages').then(m => ({ default: m.CoficoLegalPage })));
 const CoficoCookieConsent = lazy(() => import('./pages/coficobrasil/CoficoCookieConsent'));
+const CadastroPJ = lazy(() => import('./pages/coficobrasil/CadastroPJ'));
+const MinhaEmpresa = lazy(() => import('./pages/coficobrasil/MinhaEmpresa'));
 const CoffeeLivrePage = lazy(() => import('./pages/coffeelivre/CoffeeLivrePage'));
 const HeroExperiencePage = lazy(() => import('./pages/HeroExperiencePage'));
 import HeroGate from './components/HeroGate'; // ABERTURA (HERO) antes da HOME — import direto: é o LCP, não pode esperar code-split
@@ -217,6 +219,18 @@ function AppRouter() {
     const legal = rotaLegalCofico(currentPath, window.location.hostname);
     // Aviso de cookies da COFICO (nunca o da Saporino): e o site dela que esta na tela.
     if (legal) return <><CoficoLegalPage slug={legal} /><CoficoCookieConsent /></>;
+  }
+  // Cadastro e perfil do cliente PJ. So existem no dominio da COFICO (ou sob
+  // /coficobrasil/... no site da Saporino) - cafesaporino.com.br/cadastro NAO e
+  // rota, pelo mesmo motivo das paginas legais: nao servir porta da COFICO na
+  // loja da Saporino.
+  {
+    const naCofico = noDominioCofico();
+    const caminhoPJ = naCofico ? currentPath : currentPath.replace(/^\/coficobrasil/, '');
+    if (naCofico || currentPath.startsWith('/coficobrasil/')) {
+      if (caminhoPJ === '/cadastro') return <><CadastroPJ /><CoficoCookieConsent /></>;
+      if (caminhoPJ === '/minha-empresa') return <><MinhaEmpresa /><CoficoCookieConsent /></>;
+    }
   }
   if (currentPath === '/coffeelivre' || currentPath.startsWith('/coffeelivre/')) return <CoffeeLivrePage />;
   if (currentPath === '/experiencia') return <HeroExperiencePage />;

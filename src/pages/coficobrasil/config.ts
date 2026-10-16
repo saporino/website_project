@@ -41,3 +41,12 @@ export function rotaLegalCofico(caminho: string, host?: string): string | null {
   const alvo = sob ? sob[1] : noDominioCofico(host) ? limpo.slice(1) : '';
   return (SLUGS_LEGAIS as readonly string[]).includes(alvo) ? alvo : null;
 }
+
+/**
+ * Caminho das páginas do cliente PJ, ciente do domínio — mesmo princípio de
+ * `linkLegal`: no domínio da COFICO elas moram na raiz; sob o site da Saporino,
+ * em /coficobrasil/... Link fixo aponta para o lugar errado em metade dos casos.
+ */
+export function linkPortalPJ(caminho: 'cadastro' | 'minha-empresa', host?: string): string {
+  return noDominioCofico(host) ? `/${caminho}` : `/coficobrasil/${caminho}`;
+}
