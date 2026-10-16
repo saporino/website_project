@@ -41,6 +41,83 @@ Deno.serve(async (req) => {
   const APP_SECRET = Deno.env.get("INSTAGRAM_APP_SECRET");
   if (!APP_ID || !APP_SECRET) return html("❌ Configurar INSTAGRAM_APP_ID e INSTAGRAM_APP_SECRET nos secrets do Supabase.");
 
+  // ?diagnostico=1 → o app aceita conta de TERCEIRO, ou só as nossas?
+  //
+  // Um app da Meta em modo Desenvolvimento só autoriza contas que tenham função
+  // nele. Descobrir isso com o cliente do outro lado da linha é a pior hora
+  // possível — a ideia era responder antes.
+  //
+  // ⚠️ NÃO FUNCIONA, e vale saber por quê antes de tentar de novo (16/10/2026):
+  // este app é do tipo "Instagram API with Instagram Login", e o INSTAGRAM_APP_ID
+  // dele NÃO é um app id do Facebook. O graph.facebook.com responde
+  // "Error validating application. Cannot get application info" para qualquer
+  // consulta — inclusive /roles e /permissions. O modo do app, para este tipo,
+  // só se lê no painel: developers.facebook.com → o app → seletor no topo.
+  //
+  // Fica no código porque a mensagem de erro já diz o que fazer, e porque
+  // registra a tentativa: o caminho é o painel, não a Graph API.
+  //
+  // Nunca devolve APP_ID nem APP_SECRET: só o que serve para decidir.
+  if (url.searchParams.get("diagnostico")) {
+    const appToken = APP_ID + "|" + APP_SECRET;
+    const linhas: string[] = [];
+    const graph = async (caminho: string) => {
+      const sep = caminho.includes("?") ? "&" : "?";
+      const r = await fetch("https://graph.facebook.com/v21.0/" + caminho + sep +
+        "access_token=" + encodeURIComponent(appToken));
+      return await r.json().catch(() => ({}));
+    };
+    try {
+      const app = await graph(APP_ID + "?fields=name,company,link");
+      if (app?.error) {
+        linhas.push("NAO CONSEGUI LER O APP: " + app.error.message);
+      } else {
+        linhas.push("App: " + (app.name ?? "(sem nome)"));
+      }
+
+      // Quem tem função no app. Em modo Desenvolvimento, SÓ estas contas autorizam.
+      const roles = await graph(APP_ID + "/roles");
+      const pessoas = Array.isArray(roles?.data) ? roles.data : [];
+      linhas.push("Pessoas com função no app: " + (roles?.error ? "nao consegui ler" : pessoas.length));
+      for (const p of pessoas.slice(0, 15)) {
+        linhas.push("   - " + (p.user ?? p.name ?? p.id ?? "?") + "  (" + (p.role ?? "?") + ")");
+      }
+
+      // O teste que vale: um app em Desenvolvimento NÃO consegue ler a própria
+      // lista de permissões aprovadas no App Review. Em Live, consegue.
+      const perms = await graph(APP_ID + "/permissions");
+      const aprovadas = Array.isArray(perms?.data) ? perms.data : [];
+      linhas.push("");
+      if (perms?.error) {
+        linhas.push("Permissoes aprovadas: nao consegui ler (" + perms.error.message + ")");
+      } else if (aprovadas.length === 0) {
+        linhas.push("Permissoes aprovadas no App Review: NENHUMA");
+        linhas.push(">> Sinal forte de app em MODO DESENVOLVIMENTO.");
+      } else {
+        linhas.push("Permissoes aprovadas no App Review:");
+        for (const p of aprovadas) linhas.push("   - " + (p.permission ?? JSON.stringify(p)));
+        const publica = aprovadas.some((p: Record<string, unknown>) =>
+          String(p.permission ?? "").includes("content_publish"));
+        linhas.push("");
+        linhas.push(publica
+          ? ">> content_publish APROVADO: conta de cliente consegue autorizar."
+          : ">> content_publish NAO aparece aprovado: cliente pode nao conseguir autorizar.");
+      }
+
+      linhas.push("");
+      linhas.push("O QUE FAZER:");
+      linhas.push("  Se o cliente NAO estiver na lista de pessoas com funcao e o app");
+      linhas.push("  estiver em desenvolvimento, adicione o Instagram dele como");
+      linhas.push("  TESTADOR antes de mandar o link:");
+      linhas.push("  developers.facebook.com -> seu app -> Funcoes -> Testadores");
+    } catch (e) {
+      linhas.push("Falhou: " + (e as Error).message);
+    }
+    return new Response(linhas.join("\n"), {
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
+
   // INÍCIO do fluxo: ?start=1&brand=<id> → manda o usuário pro Instagram autorizar
   // (?company=<id> ainda vale: cai na marca principal da empresa)
   if (url.searchParams.get("start")) {
