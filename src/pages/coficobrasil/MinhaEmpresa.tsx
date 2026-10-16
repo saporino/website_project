@@ -414,7 +414,7 @@ export default function MinhaEmpresa() {
       </Secao>
 
       {/* Contatos por departamento */}
-      <Secao titulo="Contatos da empresa" icone={<Users className="w-5 h-5" />}
+      <Secao titulo="Contatos" icone={<Users className="w-5 h-5" />}
         resumo={contatos.length ? `${contatos.length} contato(s)` : null}
         completa={!!completude?.comprador && !!completude?.financeiro && !!completude?.fiscal}
         onSalvar={salvarOsContatos}>

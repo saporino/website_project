@@ -40,11 +40,11 @@ export function Secao({ titulo, icone, resumo, completa, children, onSalvar }: {
   return (
     <section className="bg-white border border-gray-200 rounded-xl p-5">
       <div className="flex items-start justify-between gap-3 mb-3">
-        <h2 className="flex items-center gap-2 font-bold text-gray-900 min-w-0">
+        <h2 className="flex flex-wrap items-center gap-x-2 gap-y-1 font-bold text-gray-900 min-w-0">
           <span className="w-9 h-9 rounded-lg bg-[#f5f0ef] text-[#8B2214] flex items-center justify-center flex-shrink-0">
             {icone}
           </span>
-          <span className="truncate">{titulo}</span>
+          <span>{titulo}</span>
           {completa === false && !editando && (
             <span className="text-[11px] font-semibold bg-amber-100 text-amber-700 rounded-full px-2 py-0.5 flex-shrink-0">falta</span>
           )}

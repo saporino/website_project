@@ -18,6 +18,15 @@ export interface StudioMarca {
   vencidas: Record<string, string | null>;
   /** Quantas postagens por dia esta marca deve ter. 0 desliga a cobrança. */
   metaPostsDia: number;
+  /**
+   * 'propria' = marca da casa. 'cliente' = conta de terceiro que a COFICO
+   * gerencia como serviço. A distinção fica VISÍVEL no seletor: as duas listas
+   * misturadas são o caminho mais curto para um post do cliente sair na conta
+   * da Saporino.
+   */
+  tipo: 'propria' | 'cliente';
+  /** Nome do cliente dono da conta. Nulo quando tipo = propria. */
+  clienteNome: string | null;
 }
 
 export function useStudioMarcas() {
@@ -27,7 +36,7 @@ export function useStudioMarcas() {
   const carregar = useCallback(async () => {
     const [{ data: perfis }, { data: conexoes }] = await Promise.all([
       supabase.from('studio_brand_profiles')
-        .select('id, name, company_id, is_primary, ordem, logo_url, ativa_no_studio, meta_posts_dia, companies!inner(is_active, studio_enabled, is_operator, logo_url, sort_order)')
+        .select('id, name, company_id, is_primary, ordem, logo_url, ativa_no_studio, meta_posts_dia, tipo, cliente_nome, companies!inner(is_active, studio_enabled, is_operator, logo_url, sort_order)')
         .eq('ativa_no_studio', true).eq('companies.is_active', true).eq('companies.studio_enabled', true),
       supabase.from('studio_social_connections').select('brand_id, platform, account_name, status'),
     ]);
@@ -45,6 +54,8 @@ export function useStudioMarcas() {
       contas: contas[p.id] || {},
       vencidas: vencidas[p.id] || {},
       metaPostsDia: Number(p.meta_posts_dia ?? 3),
+      tipo: (p.tipo === 'cliente' ? 'cliente' : 'propria') as 'propria' | 'cliente',
+      clienteNome: p.cliente_nome ?? null,
       _ordem: (p.ordem ?? 100) + (p.companies?.sort_order ?? 0) / 1000,
     }));
     lista.sort((a, b) => a._ordem - b._ordem);

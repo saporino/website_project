@@ -453,6 +453,11 @@ export default function StudioPage() {
     toast.success('Vídeo excluído.');
   }
 
+  // Nossas marcas e contas de cliente em listas separadas — a ordem de cada uma
+  // ja vem do hook (ordem + sort_order da empresa).
+  const marcasProprias = studioMarcas.filter(m => m.tipo !== 'cliente');
+  const marcasClientes = studioMarcas.filter(m => m.tipo === 'cliente');
+
   const processando = videos.filter(v => v.status === 'pending' || v.status === 'processing');
   const concluidos = videos.filter(v => v.status === 'completed');
   const shown = filtro === 'processando' ? processando : filtro === 'concluidos' ? concluidos : videos;
@@ -469,37 +474,53 @@ export default function StudioPage() {
         </div>
       </div>
 
-      {/* Marca do Studio — uma aba por marca: guardrails, contas, campanhas e vídeos separados. */}
+      {/* Marca do Studio — uma aba por marca: guardrails, contas, campanhas e vídeos separados.
+          NOSSAS MARCAS e CONTAS DE CLIENTE ficam em linhas separadas, com rótulo.
+          Misturadas, nada na tela dizia de quem era cada conta — e é assim que um
+          post do cliente sai no perfil da Saporino. Já houve um susto desses. */}
       {studioMarcas.length > 1 && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-semibold text-gray-500">Publicando pela marca:</span>
-          {studioMarcas.map(b => {
-            const ativa = !marcaLivre && activeBrandId === b.id;
-            const arroba = b.contas.instagram;
-            // Conexão vencida é pior que conexão ausente: o post é agendado e falha calado
-            // na hora de publicar. A aba avisa antes de alguém programar em cima dela.
-            const vencida = !arroba && 'instagram' in b.vencidas;
-            const rodape = arroba || (vencida ? `reconectar ${b.vencidas.instagram || 'Instagram'}` : 'sem Instagram');
-            return (
-              <button key={b.id} onClick={() => { setStudioBrandId(b.id); setMarcaLivre(false); }}
-                title={arroba ? `Publica em ${arroba}`
-                  : vencida ? 'A conexão do Instagram caiu. Reconecte na aba Conexões antes de agendar.'
-                  : 'Instagram ainda não conectado (aba Conexões)'}
-                className={`inline-flex flex-col items-start px-3 py-1 rounded-lg text-sm font-medium border leading-tight ${ativa ? 'bg-saporino text-white border-saporino' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
-                <span>{b.name}</span>
-                <span className={`text-[10px] font-normal ${ativa ? 'text-white/80' : arroba ? 'text-gray-400' : vencida ? 'text-red-600 font-semibold' : 'text-amber-600'}`}>{rodape}</span>
-              </button>
-            );
-          })}
-          {/* Só na criação de imagem, e só no admin. Nas outras visões (Marca,
-              Conexões, Campanhas) marca livre não significa nada: elas operam
-              sobre dados cadastrados de uma empresa real. */}
-          {view === 'imagem' && (
-            <button onClick={() => setMarcaLivre(true)}
-              className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium border ${marcaLivre ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
-              Marca livre
-            </button>
-          )}
+        <div className="space-y-2">
+          {([
+            { chave: 'propria', rotulo: 'Publicando pela marca:', lista: marcasProprias },
+            { chave: 'cliente', rotulo: 'Clientes:', lista: marcasClientes },
+          ] as const).filter(g => g.lista.length > 0).map(grupo => (
+            <div key={grupo.chave} className="flex items-center gap-2 flex-wrap">
+              <span className={`text-xs font-semibold ${grupo.chave === 'cliente' ? 'text-[#8B2214]' : 'text-gray-500'}`}>
+                {grupo.rotulo}
+              </span>
+              {grupo.lista.map(b => {
+                const ativa = !marcaLivre && activeBrandId === b.id;
+                const arroba = b.contas.instagram;
+                // Conexão vencida é pior que conexão ausente: o post é agendado e falha calado
+                // na hora de publicar. A aba avisa antes de alguém programar em cima dela.
+                const vencida = !arroba && 'instagram' in b.vencidas;
+                const rodape = arroba || (vencida ? `reconectar ${b.vencidas.instagram || 'Instagram'}` : 'sem Instagram');
+                const ehCliente = b.tipo === 'cliente';
+                return (
+                  <button key={b.id} onClick={() => { setStudioBrandId(b.id); setMarcaLivre(false); }}
+                    title={arroba ? `Publica em ${arroba}`
+                      : vencida ? 'A conexão do Instagram caiu. Reconecte na aba Conexões antes de agendar.'
+                      : 'Instagram ainda não conectado (aba Conexões)'}
+                    className={`inline-flex flex-col items-start px-3 py-1 rounded-lg text-sm font-medium border leading-tight ${
+                      ativa ? 'bg-saporino text-white border-saporino'
+                        : ehCliente ? 'bg-white text-gray-700 border-[#ddd0cc] border-dashed hover:bg-[#f5f0ef]'
+                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
+                    <span>{b.name}</span>
+                    <span className={`text-[10px] font-normal ${ativa ? 'text-white/80' : arroba ? 'text-gray-400' : vencida ? 'text-red-600 font-semibold' : 'text-amber-600'}`}>{rodape}</span>
+                  </button>
+                );
+              })}
+              {/* Só na criação de imagem, e só no admin. Nas outras visões (Marca,
+                  Conexões, Campanhas) marca livre não significa nada: elas operam
+                  sobre dados cadastrados de uma empresa real. */}
+              {grupo.chave === 'propria' && view === 'imagem' && (
+                <button onClick={() => setMarcaLivre(true)}
+                  className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium border ${marcaLivre ? 'bg-[#8B2214] text-white border-[#8B2214]' : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'}`}>
+                  Marca livre
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
