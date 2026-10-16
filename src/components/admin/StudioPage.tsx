@@ -15,7 +15,11 @@ import BrandProfile from '../studio/BrandProfile';
 import ImageStudio from '../studio/ImageStudio';
 import { useStudioMarcas } from '../studio/marcas';
 
-// Saporino Studio — engenharia reversa de vídeos com IA.
+// RepCo Studio — engenharia reversa de vídeos com IA.
+//
+// Nome mudou de "Saporino Studio" em 16/10/2026: o Studio vive dentro do RepCo,
+// quem opera e a COFICO, e ele atende varias marcas e CONTAS DE CLIENTE. Chamar
+// de Saporino contradizia a propria separacao que o seletor faz logo abaixo.
 // PASSO 2: upload + salvar no Storage + listar com status (realtime).
 // Análise (Claude/Whisper) e campanhas entram nos próximos passos.
 type Filtro = 'todos' | 'processando' | 'concluidos';
@@ -469,7 +473,7 @@ export default function StudioPage() {
           <Clapperboard className="w-6 h-6" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Saporino Studio</h1>
+          <h1 className="text-2xl font-bold text-gray-900">RepCo Studio</h1>
           <p className="text-sm text-gray-500">Engenharia reversa de vídeos com IA</p>
         </div>
       </div>
@@ -564,7 +568,7 @@ export default function StudioPage() {
           <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-2.5">
             <div>
               <p className="text-sm font-semibold text-gray-800">Importar do Instagram do concorrente</p>
-              <p className="text-xs text-gray-500">Cola o @ (ou link) → busca os posts que mais bombam → você escolhe quais e só aí a análise Saporino roda. (buscar é barato; cada análise ~US$ {COST_PER_POST.toFixed(2)} · uso pra inspiração)</p>
+              <p className="text-xs text-gray-500">Cola o @ (ou link) → busca os posts que mais bombam → você escolhe quais e só aí a análise roda. (buscar é barato; cada análise ~US$ {COST_PER_POST.toFixed(2)} · uso pra inspiração)</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
