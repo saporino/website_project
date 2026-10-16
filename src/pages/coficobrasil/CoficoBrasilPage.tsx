@@ -490,19 +490,11 @@ export default function CoficoBrasilPage() {
             <li><AcessoCoffeeLivre /></li>
           </ul>
 
-          {/* Identificação da empresa. Estava só no JSON-LD, invisível para quem lê a
-              página — inclusive para um revisor que precisa saber quem responde pelo site.
-              O rodapé continua sem a razão social, como sempre foi. */}
-          <div className="mt-10 border-t border-neutral-800 pt-8 text-sm text-neutral-400">
-            <p className="font-semibold text-neutral-200">{COFICO.razaoSocial}</p>
-            <p className="mt-1">Nome comercial: COFICO Brasil · CNPJ {COFICO.cnpj}</p>
-            <p className="mt-1">Endereço cadastral: {COFICO.endereco}</p>
-            <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
-              <a href={linkLegal('privacidade')} className="hover:text-white underline">Política de Privacidade</a>
-              <a href={linkLegal('termos')} className="hover:text-white underline">Termos de Uso</a>
-              <a href={linkLegal('exclusao-de-dados')} className="hover:text-white underline">Exclusão de dados</a>
-            </p>
-          </div>
+          {/* A identificação da empresa vive no RODAPÉ, em um lugar só. Houve aqui um bloco
+              com razão social, CNPJ, endereço e os três links legais — acrescentado para a
+              verificação da Meta —, mas metade dele repetia o rodapé, que fica duas linhas
+              abaixo. Removido em 16/10/2026. A razão social continua alcançável em um
+              clique: as páginas legais, linkadas no rodapé, a nomeiam. */}
         </div>
       </section>
 

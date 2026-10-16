@@ -11,17 +11,22 @@ const BRAND = '#8B2214';
 // Representante -> repco_generate_invite (role_code default 'representante')
 // Promotor      -> promoter_generate_invite (role_code 'promotor' + company_id)
 // Coffee LiVRE  -> ConvitesCoffeeLivre (convite de uso único que vira conta, Edge Function lv-convite)
-type Role = 'representante' | 'promotor' | 'coffeelivre';
+// Cliente PJ    -> repco_generate_invite_pj (preso ao e-mail, validade em dias)
+type Role = 'representante' | 'promotor' | 'cliente_pj' | 'coffeelivre';
 const ROLES: { value: Role; label: string }[] = [
   { value: 'representante', label: 'Representante de Vendas' },
   { value: 'promotor', label: 'Promotor de Merchandising' },
+  { value: 'cliente_pj', label: 'Cliente PJ (COFICO)' },
   { value: 'coffeelivre', label: 'Coffee LiVRE (convidado)' },
 ];
 type RoleRepco = Exclude<Role, 'coffeelivre'>;
 const roleLabel = (r: Role) => ROLES.find(x => x.value === r)?.label ?? r;
 const roleBadge = (r: RoleRepco) => r === 'promotor'
   ? 'bg-amber-100 text-amber-700'
+  : r === 'cliente_pj'
+  ? 'bg-emerald-100 text-emerald-700'
   : 'bg-[#f5f0ef] text-[#8B2214]';
+const roleCurto = (r: RoleRepco) => r === 'promotor' ? 'Promotor' : r === 'cliente_pj' ? 'Cliente PJ' : 'Representante';
 
 interface Invite {
   code: string; note: string | null; created_at: string; expires_at: string;
@@ -42,19 +47,25 @@ export default function RepCoInviteCodes() {
   const [invites, setInvites] = useState<Invite[]>([]);
   const [role, setRole] = useState<Role>('representante');
   const [note, setNote] = useState('');
+  // Só o convite de cliente PJ usa estes dois: ele nasce preso a um e-mail, e a
+  // validade é maior porque reunir CNPJ, IE e dados bancários não se faz numa tarde.
+  const [email, setEmail] = useState('');
+  const [dias, setDias] = useState(7);
   const [gen, setGen] = useState(false);
   const [fresh, setFresh] = useState<{ code: string; role: RoleRepco } | null>(null);
   const [copied, setCopied] = useState(false);
   const [open, setOpen] = useState(false);
 
   async function load() {
-    const [rep, promo] = await Promise.all([
+    const [rep, promo, pj] = await Promise.all([
       supabase.rpc('repco_list_invites'),
       supabase.rpc('promoter_list_invites'),
+      supabase.rpc('repco_list_invites_pj'),
     ]);
     const merged: Invite[] = [
       ...(((rep.data as Omit<Invite, 'role'>[]) || []).map(i => ({ ...i, role: 'representante' as RoleRepco }))),
       ...(((promo.data as Omit<Invite, 'role'>[]) || []).map(i => ({ ...i, role: 'promotor' as RoleRepco }))),
+      ...(((pj.data as Omit<Invite, 'role'>[]) || []).map(i => ({ ...i, role: 'cliente_pj' as RoleRepco }))),
     ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     setInvites(merged);
   }
@@ -65,11 +76,14 @@ export default function RepCoInviteCodes() {
     setGen(true); setFresh(null); setCopied(false);
     const { data, error } = role === 'promotor'
       ? await supabase.rpc('promoter_generate_invite', { p_note: note.trim() || null, p_company: activeCompanyId })
+      : role === 'cliente_pj'
+      ? await supabase.rpc('repco_generate_invite_pj', {
+          p_note: note.trim() || null, p_email: email.trim(), p_company: activeCompanyId, p_dias: dias })
       : await supabase.rpc('repco_generate_invite', { p_note: note.trim() || null });
     setGen(false);
     if (error) { alert('Erro ao gerar: ' + error.message); return; }
     const code = Array.isArray(data) ? (data[0] as any)?.code : (data as any)?.code;
-    if (code) { setFresh({ code, role }); setNote(''); load(); }
+    if (code) { setFresh({ code, role }); setNote(''); setEmail(''); load(); }
   }
 
   function copy(code: string) {
@@ -79,7 +93,7 @@ export default function RepCoInviteCodes() {
   async function remove(code: string, r: RoleRepco) {
     if (!confirm(`Apagar o código ${code}? Ele não poderá mais ser usado.`)) return;
     // rep usa repco_delete_invite; promotor usa repco_revoke_invite (ambos por código, na mesma tabela).
-    const rpc = r === 'promotor' ? 'repco_revoke_invite' : 'repco_delete_invite';
+    const rpc = r === 'promotor' ? 'repco_revoke_invite' : 'repco_delete_invite';  // cliente_pj usa o delete, mesma tabela
     const { error } = await supabase.rpc(rpc, { p_code: code });
     if (error) { alert('Erro ao apagar: ' + error.message); return; }
     if (fresh?.code === code) setFresh(null);
@@ -98,7 +112,9 @@ export default function RepCoInviteCodes() {
 
       {open && (
         <div className="mt-4 space-y-4">
-          {role !== 'coffeelivre' && (
+          {role === 'cliente_pj' ? (
+            <p className="text-sm text-gray-500">O cliente recebe este código e se cadastra em <span className="font-mono">coficobrasil.com.br/cadastro</span>. O código é <strong>preso ao e-mail</strong> informado e só pode ser usado <strong>uma vez</strong>. O cadastro <strong>não concede crédito, prazo nem limite de compra</strong> — essas condições continuam sendo sua decisão.</p>
+          ) : role !== 'coffeelivre' && (
             <p className="text-sm text-gray-500">Escolha a função, gere o código e envie por WhatsApp. Ele é <strong>válido por 24 horas</strong> e só pode ser usado <strong>uma vez</strong>. O representante digita no cadastro do RepCo; o promotor, em <span className="font-mono">/promotor</span>.</p>
           )}
 
@@ -114,10 +130,26 @@ export default function RepCoInviteCodes() {
 
           {role === 'coffeelivre' ? <ConvitesCoffeeLivre /> : (
             <>
+              {role === 'cliente_pj' && (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input value={email} onChange={e => setEmail(e.target.value)} type="email" required
+                    placeholder="E-mail do comprador (obrigatório)"
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+                  <label className="flex items-center gap-2 text-sm text-gray-600 whitespace-nowrap">
+                    Vale por
+                    <select value={dias} onChange={e => setDias(Number(e.target.value))}
+                      className="border border-gray-300 rounded-lg px-2 py-2 text-sm">
+                      {[3, 7, 15, 30].map(d => <option key={d} value={d}>{d} dias</option>)}
+                    </select>
+                  </label>
+                </div>
+              )}
+
               <div className="flex flex-col sm:flex-row gap-2">
-                <input value={note} onChange={e => setNote(e.target.value)} placeholder="Para quem? (opcional — ex.: João, Zona Leste)"
+                <input value={note} onChange={e => setNote(e.target.value)}
+                  placeholder={role === 'cliente_pj' ? 'Nome da empresa (opcional)' : 'Para quem? (opcional — ex.: João, Zona Leste)'}
                   className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm" />
-                <button onClick={generate} disabled={gen}
+                <button onClick={generate} disabled={gen || (role === 'cliente_pj' && !email.trim())}
                   className="inline-flex items-center justify-center gap-2 text-white text-sm font-semibold px-4 py-2 rounded-lg disabled:opacity-50" style={{ background: BRAND }}>
                   {gen ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Gerar código
                 </button>
@@ -132,7 +164,7 @@ export default function RepCoInviteCodes() {
                       {copied ? <Check className="w-5 h-5 text-green-600" /> : <Copy className="w-5 h-5" />}
                     </button>
                   </div>
-                  <p className="text-[11px] text-gray-400 mt-1 flex items-center justify-center gap-1"><Clock className="w-3 h-3" /> expira em 24 horas · uso único</p>
+                  <p className="text-[11px] text-gray-400 mt-1 flex items-center justify-center gap-1"><Clock className="w-3 h-3" /> {fresh.role === 'cliente_pj' ? `expira em ${dias} dias · uso único · preso ao e-mail` : 'expira em 24 horas · uso único'}</p>
                   <button onClick={() => remove(fresh.code, fresh.role)} className="mt-2 inline-flex items-center gap-1 text-xs text-gray-400 hover:text-red-600">
                     <Trash2 className="w-3.5 h-3.5" /> Apagar este código
                   </button>
@@ -147,7 +179,7 @@ export default function RepCoInviteCodes() {
                     return (
                       <div key={i.code} className="flex items-center gap-2 text-sm border border-gray-100 rounded-lg px-3 py-2">
                         <span className="font-mono font-bold tracking-wider text-gray-800">{i.code}</span>
-                        <span className={`text-[10px] font-semibold rounded px-1.5 py-0.5 ${roleBadge(i.role)}`}>{i.role === 'promotor' ? 'Promotor' : 'Representante'}</span>
+                        <span className={`text-[10px] font-semibold rounded px-1.5 py-0.5 ${roleBadge(i.role)}`}>{roleCurto(i.role)}</span>
                         {i.note && <span className="text-xs text-gray-400 truncate">· {i.note}</span>}
                         <span className={`ml-auto text-[11px] font-semibold rounded-full px-2 py-0.5 ${s.cls}`}>{s.label}</span>
                         <button onClick={() => remove(i.code, i.role)} title="Apagar código" className="text-gray-300 hover:text-red-600 flex-shrink-0">
