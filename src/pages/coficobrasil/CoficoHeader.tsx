@@ -2,7 +2,8 @@
 // "Produtos" abre as linhas que a COFICO vende (café, embalagem, filtro, máquina). Com cada linha
 // virando item de menu a barra passava de sete itens e ficava ilegível.
 import { useState } from 'react';
-import { Menu, X, ChevronDown } from 'lucide-react';
+import { Menu, X, ChevronDown, UserRound } from 'lucide-react';
+import { linkPortalPJ } from './config';
 
 const LINHAS: [string, string][] = [
   ['#loja', 'Cafés'],
@@ -57,6 +58,13 @@ export default function CoficoHeader() {
           {NAV.map(([href, label]) => (
             <a key={href} href={href} className="text-sm font-medium text-neutral-700 hover:text-cofico-ink transition-colors">{label}</a>
           ))}
+          {/* Area do Cliente nao e ancora como os outros: leva a outra pagina e pede login.
+              Por isso tem forma de botao -- parecer um item de menu seria mentir sobre o
+              que acontece no clique. Fica no fim, separado por uma linha. */}
+          <a href={linkPortalPJ('minha-empresa')}
+            className="inline-flex items-center gap-1.5 border-l border-neutral-200 pl-8 text-sm font-semibold text-cofico-ink hover:opacity-70 transition-opacity">
+            <UserRound className="w-4 h-4" aria-hidden="true" /> Área do Cliente
+          </a>
         </nav>
         <button className="md:hidden p-2 text-neutral-700" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label="Abrir menu">
           {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -71,6 +79,10 @@ export default function CoficoHeader() {
           {NAV.map(([href, label]) => (
             <a key={href} href={href} onClick={() => setOpen(false)} className="text-sm font-medium text-neutral-700">{label}</a>
           ))}
+          <a href={linkPortalPJ('minha-empresa')} onClick={() => setOpen(false)}
+            className="mt-1 inline-flex items-center justify-center gap-2 bg-cofico-ink text-white text-sm font-semibold px-5 py-3 rounded-none">
+            <UserRound className="w-4 h-4" aria-hidden="true" /> Área do Cliente
+          </a>
         </nav>
       )}
     </header>
