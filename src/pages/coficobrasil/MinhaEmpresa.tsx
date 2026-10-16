@@ -135,7 +135,14 @@ export default function MinhaEmpresa() {
       <div className="mx-auto w-full max-w-sm">
         <h1 className="text-2xl font-bold text-gray-900 mb-1">Entrar</h1>
         <p className="text-sm text-gray-500 mb-6">Acesse o perfil da sua empresa na COFICO Brasil.</p>
-        <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+        {/* <form> de verdade, com autocomplete declarado. Sem isto o Chrome via uma senha
+            solta, achava uma credencial salva para o domínio e preenchia SÓ a senha — o
+            e-mail ficava vazio, porque sem `autocomplete="username"` ele não consegue parear
+            os dois campos. Resultado: a tela abria com a senha já preenchida e pedindo o
+            e-mail, o que parece defeito (e pode submeter a senha de outra conta).
+            O <form> também dá o Enter para enviar de graça, sem onKeyDown. */}
+        <form className="bg-white border border-gray-200 rounded-xl p-5 space-y-3"
+          onSubmit={(e) => { e.preventDefault(); entrar(); }}>
           {erroLogin && (
             <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2 text-sm">
               <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" /> <span>{erroLogin}</span>
@@ -144,15 +151,16 @@ export default function MinhaEmpresa() {
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input value={email} onChange={e => setEmail(e.target.value)} type="email" placeholder="Seu e-mail"
+              name="email" autoComplete="username" aria-label="Seu e-mail"
               className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2.5 text-sm" />
           </div>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input value={senha} onChange={e => setSenha(e.target.value)} type="password" placeholder="Sua senha"
-              onKeyDown={e => e.key === 'Enter' && entrar()}
+              name="password" autoComplete="current-password" aria-label="Sua senha"
               className="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2.5 text-sm" />
           </div>
-          <button onClick={entrar} disabled={entrando || !email || !senha}
+          <button type="submit" disabled={entrando || !email || !senha}
             className="w-full bg-[#8B2214] hover:bg-[#6d1a10] text-white font-semibold rounded-lg py-3 text-sm disabled:opacity-50 inline-flex items-center justify-center gap-2">
             {entrando && <Loader2 className="w-4 h-4 animate-spin" />} Entrar
           </button>
@@ -160,11 +168,11 @@ export default function MinhaEmpresa() {
           {avisoSenha && (
             <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{avisoSenha}</p>
           )}
-          <button onClick={recuperarSenha} disabled={recuperando}
+          <button type="button" onClick={recuperarSenha} disabled={recuperando}
             className="w-full text-xs text-gray-500 hover:text-[#8B2214] disabled:opacity-50">
             {recuperando ? 'Enviando…' : 'Esqueci minha senha'}
           </button>
-        </div>
+        </form>
         <div className="mt-5 border border-dashed border-gray-300 rounded-xl p-4 text-center">
           <p className="text-sm font-semibold text-gray-800">Primeiro acesso</p>
           <p className="text-xs text-gray-500 mt-1 mb-3">
