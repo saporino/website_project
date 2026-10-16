@@ -22,10 +22,28 @@ function html(msg: string, marca?: string) {
   return new Response(null, { status: 302, headers: { Location: u.toString() } });
 }
 
+/**
+ * Resposta para quem NÃO é da casa — o cliente autorizando a própria conta.
+ *
+ * O `html()` acima joga a pessoa em cafesaporino.com.br/admin. Para nós isso é
+ * o Studio; para o cliente é a tela de login de um painel que não é dele, sem
+ * explicação nenhuma. Foi exatamente o que aconteceu com o Anderson do Fino
+ * Paladar: ele autorizou e "não apareceu nada".
+ *
+ * Texto puro de propósito: o gateway do Supabase entrega HTML de função como
+ * texto, então HTML bonito aqui vira sopa de tags na tela do cliente.
+ */
+function recado(linhas: string[]) {
+  return new Response(linhas.join("\n") + "\n", {
+    status: 200,
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
+}
+
 // state "b:<brand_id>" → a marca; state antigo (company_id) → marca principal da empresa.
 async function marcaDoState(db: any, state: string | null) {
   if (!state) return null;
-  const cols = "id, name, company_id, organization_id";
+  const cols = "id, name, company_id, organization_id, tipo";
   if (state.startsWith("b:")) {
     const { data } = await db.from("studio_brand_profiles").select(cols).eq("id", state.slice(2)).maybeSingle();
     return data;
@@ -137,13 +155,56 @@ Deno.serve(async (req) => {
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state"); // b:<brand_id> ou company_id (legado)
   const err = url.searchParams.get("error_description") || url.searchParams.get("error");
-  if (err) return html(`❌ Instagram recusou: ${err}`);
-  if (!code) return html("❌ Faltou o código de autorização do Instagram.");
+
+  // Tudo o que chega na volta do Instagram vira registro. Sem isto, "não
+  // apareceu nada" é impossível de investigar: o cliente está no navegador
+  // dele, do outro lado da cidade, e a gente não vê.
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const registrar = async (nivel: "info" | "warn" | "error", o_que: string, extra?: Record<string, unknown>) => {
+    try {
+      await supabase.from("edge_logs").insert({
+        function_name: "instagram-oauth", level: nivel, error_text: o_que,
+        meta: { state, tem_code: !!code, erro_do_instagram: err ?? null, ...extra },
+      });
+    } catch { /* fail-open: log não pode derrubar a conexão */ }
+    console.log(`[${nivel}] instagram-oauth: ${o_que}`);
+  };
+
+  await registrar(err ? "warn" : "info", err ? "Instagram voltou com erro" : "Instagram voltou com código");
+
+  if (err) {
+    // Este é o caminho do app em modo Desenvolvimento: a conta não tem função
+    // no app, o Instagram recusa, e até hoje o cliente caía no /admin da
+    // Saporino sem entender nada.
+    return recado([
+      "Não deu para concluir a autorização.",
+      "",
+      "O Instagram respondeu: " + err,
+      "",
+      "Isso costuma acontecer quando a conta ainda não foi liberada para este",
+      "aplicativo. Avise a COFICO Brasil — a liberação leva poucos minutos, e",
+      "depois é só abrir o mesmo link de novo.",
+    ]);
+  }
+  if (!code) {
+    return recado([
+      "Faltou o código de autorização do Instagram.",
+      "",
+      "Abra o link que a COFICO Brasil enviou outra vez, direto — sem copiar",
+      "pedaços do endereço. Se continuar, avise a COFICO Brasil.",
+    ]);
+  }
 
   try {
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const marca = await marcaDoState(supabase, state);
-    if (!marca) return html("❌ Não sei a qual marca ligar esta conta. Volte ao Studio e clique em Conectar na aba da marca.");
+    if (!marca) {
+      await registrar("error", "state não resolveu nenhuma marca");
+      return recado([
+        "Não consegui identificar a conta que você está autorizando.",
+        "",
+        "Avise a COFICO Brasil e peça um link novo.",
+      ]);
+    }
 
     // 1) troca o code por token de CURTA duração (~1h)
     const form = new URLSearchParams({
@@ -179,7 +240,15 @@ Deno.serve(async (req) => {
     const outra = (outras || [])[0] as any;
     if (outra) {
       const nome = outra.studio_brand_profiles?.name || "outra marca";
-      return html(`⚠️ ${username || "Esta conta"} já está ligada à aba <b>${nome}</b>.<br>Para conectar <b>${marca.name}</b>, clique em Conectar de novo e entre com a conta do Instagram de ${marca.name}.`, marca.id);
+      await registrar("warn", "conta ja ligada a outra marca", { conta: username, ja_em: nome, tentou: marca.name });
+      return recado([
+        (username || "Esta conta") + " já está conectada em outra aba (" + nome + ").",
+        "",
+        "Uma conta do Instagram fica ligada a uma marca só — é o que impede",
+        "um post sair no perfil errado.",
+        "",
+        "Para conectar " + marca.name + ", entre com a conta do Instagram dessa marca.",
+      ]);
     }
 
     const { error } = await supabase.from("studio_social_connections").upsert({
@@ -190,8 +259,32 @@ Deno.serve(async (req) => {
     }, { onConflict: "brand_id,platform" });
     if (error) throw new Error(error.message);
 
+    await registrar("info", "conectado", { conta: username, marca: marca.name, tipo: marca.tipo ?? null });
+
+    // Marca da casa volta para o Studio; conta de CLIENTE recebe um recado --
+    // ele nao tem acesso ao /admin da Saporino, e cair la foi o "nao apareceu
+    // nada" do Anderson.
+    if (marca.tipo === "cliente") {
+      return recado([
+        "Pronto! " + (username || "Sua conta") + " foi conectada com sucesso.",
+        "",
+        "A COFICO Brasil já pode preparar e publicar as postagens de " + marca.name + ".",
+        "Você pode fechar esta janela.",
+        "",
+        "Se quiser revogar o acesso um dia: Instagram > Configurações >",
+        "Apps e sites > remover a autorização.",
+      ]);
+    }
     return html(`✅ Instagram ${username || accountId} conectado à marca ${marca.name}.`, marca.id);
   } catch (e) {
-    return html(`❌ Erro ao conectar o Instagram: ${(e as Error).message}`);
+    const msg = (e as Error).message;
+    await registrar("error", "falhou ao conectar: " + msg);
+    return recado([
+      "Não deu para concluir a autorização.",
+      "",
+      "Detalhe técnico: " + msg,
+      "",
+      "Avise a COFICO Brasil com essa mensagem — assim dá para resolver rápido.",
+    ]);
   }
 });
