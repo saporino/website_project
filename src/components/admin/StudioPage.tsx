@@ -550,14 +550,14 @@ export default function StudioPage() {
 
       {/* Visão: Vídeos, Campanhas ou Conexões */}
       <div className="flex bg-white border border-gray-200 rounded-xl text-sm font-semibold overflow-x-auto w-fit max-w-full">
-        {([['videos', 'Vídeos'], ['imagem', 'Criar imagem'], ['agenda', 'Agenda'], ['campanhas', 'Campanhas'], ['marca', 'Marca'], ['conexoes', 'Conexões']] as const).map(([k, l]) => (
+        {([['videos', 'Fotos e vídeos'], ['imagem', 'Criar imagem'], ['agenda', 'Agenda'], ['campanhas', 'Campanhas'], ['marca', 'Marca'], ['conexoes', 'Conexões']] as const).map(([k, l]) => (
           <button key={k} onClick={() => setView(k)} className={`px-4 sm:px-5 py-2 whitespace-nowrap flex-shrink-0 ${view === k ? 'bg-[#8B2214] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>{l}</button>
         ))}
       </div>
 
       {view === 'agenda' ? (
         activeMarca
-          ? <AgendadorPanel brandId={activeMarca.id} brandName={activeMarca.name} />
+          ? <AgendadorPanel brandId={activeMarca.id} brandName={activeMarca.name} onCriarImagem={() => setView('imagem')} />
           : <p className="text-sm text-gray-500">Escolha uma marca para montar a agenda.</p>
       ) : view === 'imagem' ? (
         <ImageStudio companyId={activeCompanyId} marcaId={activeBrandId} avancado marcaLivre={marcaLivre} nomeLivre={nomeLivre} />
