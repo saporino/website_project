@@ -19,7 +19,8 @@ const REF_PRODUCAO = 'rsvoazrkxtdrcjnatzcm';
 const VERSOES = ['20261015100000', '20261015110000', '20261015120000',
                  '20261015130000', '20261015140000', '20261015150000',
                  '20261016100000', '20261016110000',
-                 '20261016120000', '20261016130000'];
+                 '20261016120000', '20261016130000',
+                 '20261017100000', '20261019100000'];
 
 if (!process.argv.includes('--confirmo')) {
   console.log('\nEste comando escreve em PRODUCAO. Rode com --confirmo.\n');
