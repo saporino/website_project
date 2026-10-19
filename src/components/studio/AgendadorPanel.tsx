@@ -67,6 +67,31 @@ function proximosDias(n: number): string[] {
   });
 }
 
+/**
+ * A miniatura, igual à da biblioteca onde ele carrega as artes: clicável para
+ * abrir em tamanho grande, com o mesmo anel ao passar o mouse. Ver a peça
+ * pequena ajuda a reconhecer; poder abrir é o que permite conferir antes de
+ * aprovar.
+ */
+function Miniatura({ arte, url }: { arte?: ArteDisponivel | null; url: string | null }) {
+  const ehVideo = arte?.media_type === 'video' || /\.(mp4|mov|m4v|webm)$/i.test(arte?.titulo ?? '');
+  if (!url) {
+    return (
+      <div className="w-16 h-16 rounded-lg bg-[#f5f0ef] text-[#8B2214] flex items-center justify-center flex-shrink-0">
+        <ImageOff className="w-6 h-6" />
+      </div>
+    );
+  }
+  return (
+    <button type="button" onClick={() => window.open(url, '_blank')} title="Ver em tamanho grande"
+      className="w-16 h-16 rounded-lg bg-[#f5f0ef] overflow-hidden flex-shrink-0 border border-gray-200 hover:ring-2 hover:ring-[#8B2214]">
+      {ehVideo
+        ? <video src={url + '#t=0.1'} muted playsInline preload="metadata" className="w-full h-full object-cover" />
+        : <img src={url} alt={arte?.titulo ?? ''} className="w-full h-full object-cover" />}
+    </button>
+  );
+}
+
 export default function AgendadorPanel({ brandId, brandName, onCriarImagem }: {
   brandId: string; brandName: string; onCriarImagem?: () => void;
 }) {
@@ -116,7 +141,6 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem }: {
 
   /** Todas as artes da marca, já classificadas. */
   const classificadas = useMemo<Arte[]>(() => artes
-    .filter(a => !a.na_fila)
     .map(a => ({
       id: a.video_id, brand_id: a.brand_id, titulo: a.titulo,
       agendamento: a.agendamento ?? classificar({ textoDaArte: a.texto_da_arte, resumo: a.resumo }),
@@ -128,12 +152,20 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem }: {
    * biblioteca. O motor já descartava as publicadas por dentro; o contador é
    * que somava tudo e fazia parecer que havia três semanas de estoque.
    */
-  const recemPublicadas = classificadas.filter(a =>
+  const naFila = classificadas.filter(a => artes.find(x => x.video_id === a.id)?.na_fila);
+  const recemPublicadas = classificadas.filter(a => !naFila.includes(a) &&
     a.publicada_em && (Date.now() - new Date(a.publicada_em).getTime()) / 86400000 < DIAS_PARA_REUSAR);
   const precisamRevisao = classificadas.filter(a =>
-    !recemPublicadas.includes(a) && a.agendamento.confianca < LIMITE_REVISAO);
+    !naFila.includes(a) && !recemPublicadas.includes(a) && a.agendamento.confianca < LIMITE_REVISAO);
   const paraAgendar = classificadas.filter(a =>
-    !recemPublicadas.includes(a) && a.agendamento.confianca >= LIMITE_REVISAO);
+    !naFila.includes(a) && !recemPublicadas.includes(a) && a.agendamento.confianca >= LIMITE_REVISAO);
+  /** O acervo inteiro da marca, com o estado de cada peça. É o que ele abre em "ver quais". */
+  const acervo = [...paraAgendar, ...naFila, ...recemPublicadas, ...precisamRevisao];
+  const estadoDa = (a: Arte) =>
+    naFila.includes(a) ? { txt: 'na agenda', cls: 'bg-amber-100 text-amber-700' }
+    : recemPublicadas.includes(a) ? { txt: 'já publicada', cls: 'bg-gray-100 text-gray-500' }
+    : precisamRevisao.includes(a) ? { txt: 'revisar', cls: 'bg-amber-100 text-amber-700' }
+    : { txt: 'disponível', cls: 'bg-green-100 text-green-700' };
 
   /**
    * Quantas artes servem cada período — a conta que diz até onde o acervo vai.
@@ -326,9 +358,12 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem }: {
           <button onClick={() => setVerAcervo(v => !v)}
             className="inline-flex items-center gap-1.5 hover:text-[#8B2214]">
             <Images className="w-3.5 h-3.5" />
-            <strong className="text-gray-700">{paraAgendar.length}</strong> arte(s) disponíveis
-            <span className="text-gray-400">({verAcervo ? 'ocultar' : 'ver quais'})</span>
+            <strong className="text-gray-700">{paraAgendar.length}</strong> disponível(is) de {acervo.length}
+            <span className="text-gray-400">({verAcervo ? 'ocultar' : 'ver todas'})</span>
           </button>
+          {naFila.length > 0 && (
+            <span className="text-amber-700"><strong>{naFila.length}</strong> na agenda</span>
+          )}
           {recemPublicadas.length > 0 && (
             <span title={`Voltam a ficar disponíveis ${DIAS_PARA_REUSAR} dias depois de publicadas`}>
               <strong className="text-gray-700">{recemPublicadas.length}</strong> já publicada(s)
@@ -348,30 +383,33 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem }: {
       {/* acervo disponível, com a arte à vista */}
       {verAcervo && (
         <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <h3 className="font-bold text-gray-900 mb-1">Artes disponíveis ({paraAgendar.length})</h3>
+          <h3 className="font-bold text-gray-900 mb-1">Acervo de {brandName} ({acervo.length})</h3>
           <p className="text-xs text-gray-500 mb-3">
-            O que o agendador tem para usar. As já publicadas voltam depois de {DIAS_PARA_REUSAR} dias.
+            Todas as artes da marca, com o estado de cada uma. As já publicadas voltam a ficar
+            disponíveis depois de {DIAS_PARA_REUSAR} dias.
           </p>
-          {paraAgendar.length === 0 ? (
-            <p className="text-sm text-gray-500">Nenhuma arte disponível — todas já foram publicadas ou estão na fila.</p>
+          {acervo.length === 0 ? (
+            <p className="text-sm text-gray-500">Nenhuma arte nesta marca ainda.</p>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-              {paraAgendar.map(a => {
+            <div className="grid gap-2 sm:grid-cols-2">
+              {acervo.map(a => {
                 const info = artes.find(x => x.video_id === a.id);
-                const mini = miniDe(info);
+                const st = estadoDa(a);
                 return (
-                  <div key={a.id} className="border border-gray-200 rounded-lg overflow-hidden">
-                    <div className="aspect-square bg-gray-50 flex items-center justify-center">
-                      {mini
-                        ? <img src={mini} alt={a.titulo} className="w-full h-full object-cover" />
-                        : <ImageOff className="w-6 h-6 text-gray-300" />}
-                    </div>
-                    <div className="p-2">
-                      <p className="text-[11px] font-medium text-gray-800 truncate" title={a.titulo}>{a.titulo}</p>
-                      <p className="text-[10px] text-gray-500">
+                  <div key={a.id} className="flex items-start gap-3 border border-gray-200 rounded-lg p-3">
+                    <Miniatura arte={info} url={miniDe(info)} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-gray-900 truncate" title={a.titulo}>{a.titulo}</p>
+                        <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 flex-shrink-0 ${st.cls}`}>{st.txt}</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">
                         {a.agendamento.dia_da_semana ? `só ${a.agendamento.dia_da_semana}` : 'qualquer dia'}
-                        {a.agendamento.periodo ? ` · ${PERIODO_ROTULO[a.agendamento.periodo]}` : ''}
+                        {a.agendamento.periodo ? ` · ${PERIODO_ROTULO[a.agendamento.periodo]}` : ' · qualquer horário'}
                       </p>
+                      {info?.texto_da_arte && (
+                        <p className="text-[11px] text-gray-400 mt-1 line-clamp-2">{info.texto_da_arte}</p>
+                      )}
                     </div>
                   </div>
                 );
@@ -431,13 +469,9 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem }: {
                       <Clock className="w-3.5 h-3.5 text-gray-400" /> {horaLocal(s.sugerido_para)}
                     </span>
                     {/* a arte, não o nome do arquivo */}
-                    <div className="w-16 h-16 rounded-lg bg-gray-50 border border-gray-200 overflow-hidden flex-shrink-0 flex items-center justify-center">
-                      {mini
-                        ? <img src={mini} alt={arte?.titulo ?? ''} className="w-full h-full object-cover" />
-                        : <ImageOff className="w-5 h-5 text-gray-300" />}
-                    </div>
+                    <Miniatura arte={arte} url={mini} />
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-gray-900 truncate">{arte?.titulo ?? '(arte removida)'}</p>
+                      <p className="font-semibold text-gray-900 truncate" title={arte?.titulo}>{arte?.titulo ?? '(arte removida)'}</p>
                       <p className="text-xs text-gray-500 mt-0.5">{s.motivo}</p>
                       {arte?.texto_da_arte && (
                         <p className="text-[11px] text-gray-400 mt-1 line-clamp-2">Texto da arte: {arte.texto_da_arte}</p>
