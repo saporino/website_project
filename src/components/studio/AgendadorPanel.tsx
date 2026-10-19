@@ -96,21 +96,38 @@ export default function AgendadorPanel({ brandId, brandName }: { brandId: string
   }
   useEffect(() => { carregar(); }, [brandId]);
 
-  /** Artes prontas para entrar no calendário, já classificadas. */
-  const paraAgendar = useMemo<Arte[]>(() => artes
+  /** Quantos dias uma arte publicada espera antes de poder voltar. */
+  const DIAS_PARA_REUSAR = 90;
+
+  /** Todas as artes da marca, já classificadas. */
+  const classificadas = useMemo<Arte[]>(() => artes
     .filter(a => !a.na_fila)
     .map(a => ({
       id: a.video_id, brand_id: a.brand_id, titulo: a.titulo,
       // Se a análise ainda não tem o bloco de agendamento, classifica na hora
-      // a partir do texto que a IA já extraiu. É o que torna as 49 artes
-      // antigas utilizáveis sem gastar uma chamada de IA nova.
+      // a partir do texto que a IA já extraiu. É o que torna as artes antigas
+      // utilizáveis sem gastar uma chamada de IA nova.
       agendamento: a.agendamento ?? classificar({
         textoDaArte: a.texto_da_arte, resumo: a.resumo,
       }),
       publicada_em: a.publicada_em,
     })), [artes]);
 
-  const precisamRevisao = paraAgendar.filter(a => a.agendamento.confianca < LIMITE_REVISAO);
+  /**
+   * "Disponível" é o que REALMENTE pode entrar no calendário — não o total da
+   * biblioteca.
+   *
+   * O motor já descartava as publicadas por dentro, então as sugestões sempre
+   * estiveram certas. O CONTADOR é que somava tudo: dizia "40 disponíveis"
+   * numa marca com 22 já publicadas. Quem lê conclui que tem três semanas de
+   * estoque quando tem uma — e isso muda decisão de produção de arte.
+   */
+  const jaPublicadas = classificadas.filter(a =>
+    a.publicada_em && (Date.now() - new Date(a.publicada_em).getTime()) / 86400000 < DIAS_PARA_REUSAR);
+  const precisamRevisao = classificadas.filter(a =>
+    !jaPublicadas.includes(a) && a.agendamento.confianca < LIMITE_REVISAO);
+  const paraAgendar = classificadas.filter(a =>
+    !jaPublicadas.includes(a) && a.agendamento.confianca >= LIMITE_REVISAO);
 
   async function gerar() {
     setGerando(true); setErro('');
@@ -119,8 +136,8 @@ export default function AgendadorPanel({ brandId, brandName }: { brandId: string
       tema: 'desconhecido',
     }));
     const { sugestoes } = montarSugestoes(
-      paraAgendar.filter(a => a.agendamento.confianca >= LIMITE_REVISAO),
-      janelas, jaAgendado, proximosDias(dias),
+      paraAgendar, janelas, jaAgendado, proximosDias(dias),
+      { diasParaReusar: DIAS_PARA_REUSAR },
     );
     if (sugestoes.length === 0) {
       setGerando(false);
@@ -247,6 +264,11 @@ export default function AgendadorPanel({ brandId, brandName }: { brandId: string
 
         <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-gray-500">
           <span><strong className="text-gray-700">{paraAgendar.length}</strong> arte(s) disponíveis</span>
+          {jaPublicadas.length > 0 && (
+            <span title={`Voltam a ficar disponíveis ${DIAS_PARA_REUSAR} dias depois de publicadas`}>
+              <strong className="text-gray-700">{jaPublicadas.length}</strong> já publicada(s)
+            </span>
+          )}
           <span><strong className="text-gray-700">{janelas.length}</strong> janela(s) de horário</span>
           {precisamRevisao.length > 0 && (
             <span className="text-amber-700">

@@ -211,3 +211,36 @@ describe('a explicação', () => {
     expect(sugestoes[0].motivo).not.toMatch(/engajamento|melhor desempenho|mais curtidas/i);
   });
 });
+
+describe('o que conta como DISPONÍVEL', () => {
+  // O contador dizia "40 disponíveis" numa marca com 22 já publicadas. As
+  // sugestões estavam certas (o motor filtrava por dentro), mas o número fazia
+  // o Vlademir achar que tinha três semanas de estoque quando tinha uma.
+  it('arte publicada há pouco não entra no calendário', () => {
+    const ontem = new Date(Date.now() - 86400000).toISOString();
+    const artes = [
+      arte('nova', 'Quem prova, sorri.'),
+      arte('velha', 'Café que acompanha o dia.', MARCA, ontem),
+    ];
+    const { sugestoes } = montarSugestoes(artes, JANELAS, [], [TERCA], { diasParaReusar: 90 });
+    expect(sugestoes.map(s => s.video_id)).toEqual(['nova']);
+  });
+
+  it('arte publicada há muito tempo volta a ficar disponível', () => {
+    const antigo = new Date(Date.now() - 200 * 86400000).toISOString();
+    const artes = [arte('antiga', 'Quem prova, sorri.', MARCA, antigo)];
+    const { sugestoes } = montarSugestoes(artes, JANELAS, [], [TERCA], { diasParaReusar: 90 });
+    expect(sugestoes).toHaveLength(1);
+  });
+
+  it('com TODAS publicadas, não sugere nada — e não inventa', () => {
+    const ontem = new Date(Date.now() - 86400000).toISOString();
+    const artes = [
+      arte('p1', 'Bom dia!', MARCA, ontem),
+      arte('p2', 'Boa noite!', MARCA, ontem),
+    ];
+    const { sugestoes, vazios } = montarSugestoes(artes, JANELAS, [], [TERCA], { diasParaReusar: 90 });
+    expect(sugestoes).toHaveLength(0);
+    expect(vazios).toHaveLength(3);
+  });
+});
