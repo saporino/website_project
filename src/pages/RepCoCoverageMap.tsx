@@ -192,10 +192,35 @@ export default function RepCoCoverageMap() {
           return;
         }
       }
-      const r = await callApify({ action: 'start', ...params });
+      let r = await callApify({ action: 'start', ...params });
+
+      // Passou do teto do mês: não barra mais, AVISA com os números e espera
+      // o sim. O valor sempre aparece antes de gastar — foi a condição do
+      // Vlademir ao abrir o limite: "um aviso até onde vai e o que vai cobrar".
+      if (r.error === 'confirmar_custo') {
+        const linhas = [
+          r.message,
+          '',
+          `Este run:        ~${r.este_run} lugares  ≈  US$ ${Number(r.custo_deste_run_usd).toFixed(2)}`,
+          `Teto do mês:     ${r.teto} lugares`,
+          `Já estimado:     ${r.usado_estimado}  (vieram ${r.usado_real} de verdade)`,
+          `Cobrado no mês:  US$ ${Number(r.custo_mes_real_usd).toFixed(2)}`,
+          '',
+          'A estimativa é o pior caso: conta como se toda busca voltasse cheia,',
+          'e na prática volta bem menos. O valor acima é o teto do que pode ser',
+          'cobrado por este run, não o que será.',
+          '',
+          'Rodar assim mesmo?',
+        ].join('\n');
+        if (!confirm(linhas)) {
+          setMsg('Busca cancelada — nada foi gasto.');
+          return;
+        }
+        r = await callApify({ action: 'start', ...params, confirmado: true });
+      }
+
       if (r.error) {
-        if (r.error === 'budget') setMsg('Orçamento mensal do Apify atingido — ' + (r.message || ''));
-        else if (r.error === 'no_credit') setMsg('Crédito Apify do mês esgotado.');
+        if (r.error === 'no_credit') setMsg('Crédito Apify do mês esgotado.');
         else setMsg('Erro ao disparar Apify: ' + (r.message || r.error));
         return;
       }

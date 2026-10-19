@@ -51,14 +51,53 @@ Deno.serve(async (req) => {
       const placesEstimate = cap * keywords.length;
       const cost = +(placesEstimate * COST_PER_PLACE).toFixed(2);
 
-      // Orcamento mensal (soma do estimado dos runs deste mes)
+      // ── Orçamento mensal ──────────────────────────────────────────────
+      //
+      // Antes isto BARRAVA o run. Deixou de barrar a pedido do Vlademir
+      // (19/10/2026): "não tem problema de cobrar, eu só quero um aviso até
+      // onde vai o limite e o que vai cobrar depois".
+      //
+      // Então agora AVISA e espera confirmação. Nada é gasto sem ele ver o
+      // valor antes — a primeira chamada devolve os números, e só a segunda,
+      // com `confirmado: true`, dispara.
+      //
+      // E há um motivo concreto para ter afrouxado: a estimativa conta
+      // `teto × palavras-chave` e assume que tudo volta cheio. Em outubro ela
+      // contou 1090 enquanto o custo REAL do mês foi US$ 0,20. Estava barrando
+      // por centavos.
       const monthStart = new Date(); monthStart.setUTCDate(1); monthStart.setUTCHours(0, 0, 0, 0);
       const { data: usedRows } = await db.from("prospect_runs")
-        .select("places_estimate").gte("created_at", monthStart.toISOString())
+        .select("places_estimate, places_returned, cost_estimate_usd, cost_actual_usd")
+        .gte("created_at", monthStart.toISOString())
         .in("status", ["running", "done", "queued"]);
-      const used = (usedRows ?? []).reduce((s: number, r: any) => s + (r.places_estimate || 0), 0);
-      if (used + placesEstimate > MONTHLY_PLACES_CAP)
-        return json({ error: "budget", message: `Teto mensal (~${MONTHLY_PLACES_CAP} places) seria estourado. Usado ${used}, este run +${placesEstimate}.` }, 409);
+      const linhas = usedRows ?? [];
+      const soma = (campo: string) => linhas.reduce((s: number, r: any) => s + (Number(r[campo]) || 0), 0);
+      const used = soma("places_estimate");
+      const usedReal = soma("places_returned");
+      const custoMesEstimado = +soma("cost_estimate_usd").toFixed(2);
+      const custoMesReal = +soma("cost_actual_usd").toFixed(2);
+
+      const passaDoTeto = used + placesEstimate > MONTHLY_PLACES_CAP;
+      if (passaDoTeto && body?.confirmado !== true) {
+        return json({
+          error: "confirmar_custo",
+          message:
+            `Este run passa do teto mensal de ~${MONTHLY_PLACES_CAP} lugares.`,
+          teto: MONTHLY_PLACES_CAP,
+          usado_estimado: used,
+          usado_real: usedReal,
+          este_run: placesEstimate,
+          custo_deste_run_usd: cost,
+          custo_mes_estimado_usd: custoMesEstimado,
+          custo_mes_real_usd: custoMesReal,
+          // O número que importa para decidir: a conta até agora costuma sair
+          // MUITO abaixo da estimativa, porque nem toda busca volta cheia.
+          explicacao:
+            `A estimativa é o pior caso (${placesEstimate} lugares = US$ ${cost.toFixed(2)}). ` +
+            `Este mês o estimado foi ${used} e o cobrado de verdade foi US$ ${custoMesReal.toFixed(2)}. ` +
+            `Para rodar assim mesmo, confirme.`,
+        }, 409);
+      }
 
       // registra o run
       const { data: runRow, error: insErr } = await db.from("prospect_runs").insert({

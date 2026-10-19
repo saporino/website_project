@@ -1,3 +1,4 @@
+import AgendadorPanel from '../studio/AgendadorPanel';
 import { useState, useEffect, useCallback } from 'react';
 import { Clapperboard, Download, Loader2, Search, Check, Heart, PlayCircle, MessageCircle, ArrowDownWideNarrow, ChevronRight, ChevronDown, Trash2, X, Megaphone, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -82,7 +83,7 @@ export default function StudioPage() {
   const [filtro, setFiltro] = useState<Filtro>('todos');
   const [modalVideo, setModalVideo] = useState<StudioVideo | null>(null);
   const [modalTab, setModalTab] = useState<'resumo' | 'publicar'>('resumo');
-  const [view, setView] = useState<'videos' | 'imagem' | 'campanhas' | 'conexoes' | 'marca'>('videos');
+  const [view, setView] = useState<'videos' | 'imagem' | 'agenda' | 'campanhas' | 'conexoes' | 'marca'>('videos');
   type IgPost = { uid: string; url: string | null; thumb: string | null; video: string | null; isVideo: boolean; views: number; likes: number; comments: number; ts?: string | null; caption: string; score: number };
   type IgSort = 'eng' | 'views' | 'likes' | 'comments' | 'recent';
   type IgSearch = { id: number; handle: string; type: 'all' | 'video' | 'image'; posts: IgPost[]; ts: number; collapsed: boolean; sort: IgSort; followers?: number | null; postsProfile?: number | null };
@@ -549,12 +550,16 @@ export default function StudioPage() {
 
       {/* Visão: Vídeos, Campanhas ou Conexões */}
       <div className="flex bg-white border border-gray-200 rounded-xl text-sm font-semibold overflow-x-auto w-fit max-w-full">
-        {([['videos', 'Vídeos'], ['imagem', 'Criar imagem'], ['campanhas', 'Campanhas'], ['marca', 'Marca'], ['conexoes', 'Conexões']] as const).map(([k, l]) => (
+        {([['videos', 'Vídeos'], ['imagem', 'Criar imagem'], ['agenda', 'Agenda'], ['campanhas', 'Campanhas'], ['marca', 'Marca'], ['conexoes', 'Conexões']] as const).map(([k, l]) => (
           <button key={k} onClick={() => setView(k)} className={`px-4 sm:px-5 py-2 whitespace-nowrap flex-shrink-0 ${view === k ? 'bg-[#8B2214] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>{l}</button>
         ))}
       </div>
 
-      {view === 'imagem' ? (
+      {view === 'agenda' ? (
+        activeMarca
+          ? <AgendadorPanel brandId={activeMarca.id} brandName={activeMarca.name} />
+          : <p className="text-sm text-gray-500">Escolha uma marca para montar a agenda.</p>
+      ) : view === 'imagem' ? (
         <ImageStudio companyId={activeCompanyId} marcaId={activeBrandId} avancado marcaLivre={marcaLivre} nomeLivre={nomeLivre} />
       ) : view === 'marca' ? (
         <BrandProfile key={activeBrandId ?? ''} brandId={activeBrandId} />
