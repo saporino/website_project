@@ -116,6 +116,11 @@ export function custoDaImagemUSD(model: string, uso: UsoDeImagem | null | undefi
  */
 export const FORMATOS = {
   feed:  { largura: 1088, altura: 1360, proporcao: "4:5",  rotulo: "Instagram Feed" },
+  // 2:3 é o que o briefing do Tropeiro pede. O Instagram CORTA 2:3 para 4:5 no
+  // feed, então a peça precisa ser composta prevendo o corte — por isso a regra
+  // de área segura (80% centrais) vale sobretudo aqui. Fica como escolha dele,
+  // e não como padrão, porque 4:5 continua sendo o retrato que não perde nada.
+  retrato: { largura: 1024, altura: 1536, proporcao: "2:3", rotulo: "Retrato 2:3" },
   story: { largura: 1152, altura: 2048, proporcao: "9:16", rotulo: "Story / WhatsApp Status" },
 } as const;
 

@@ -6,12 +6,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { toast } from 'sonner';
-import { Sparkles, Download, Check, X, RefreshCw, ImagePlus, Loader2, AlertCircle, ChevronDown } from 'lucide-react';
+import { Sparkles, Download, Check, X, RefreshCw, ImagePlus, Loader2, AlertCircle, AlertTriangle, ChevronDown } from 'lucide-react';
 
-type Formato = 'feed' | 'story';
+type Formato = 'feed' | 'retrato' | 'story';
 
 const FORMATOS: { id: Formato; rotulo: string; medida: string; classe: string }[] = [
   { id: 'feed', rotulo: 'Instagram Feed', medida: '4:5 · 1088×1360', classe: 'aspect-[4/5]' },
+  // 2:3 é o formato do briefing da marca. O Instagram corta 2:3 no feed, então
+  // a composição tem de respeitar a área segura — o servidor avisa isso ao
+  // modelo. Fica ao lado do 4:5, que não perde nada no corte.
+  { id: 'retrato', rotulo: 'Retrato 2:3', medida: '2:3 · 1024×1536', classe: 'aspect-[2/3]' },
   { id: 'story', rotulo: 'Story / WhatsApp', medida: '9:16 · 1152×2048', classe: 'aspect-[9/16]' },
 ];
 
@@ -71,7 +75,7 @@ const ATALHOS = [
 ];
 
 /** Uma marca cadastrada da empresa, ou o modo livre. */
-interface Marca { id: string; name: string; organization_id: string | null }
+interface Marca { id: string; name: string; organization_id: string | null; ativo_oficial_path?: string | null }
 
 // Custo medido em produção: US$ 0,043 de direção criativa + US$ 0,061 de
 // imagem. Serve para o cliente saber quanto vai gastar ANTES de clicar, e não
@@ -133,7 +137,35 @@ export default function ImageStudio({ companyId, marcaId = null, avancado = fals
 
   // A marca da peça vem do seletor do topo, e só de lá. Uma seleção visível,
   // um lugar para errar.
+  /**
+   * Guarda a embalagem anexada como a oficial DESTA marca.
+   *
+   * Depois disto ele não precisa mais anexar: toda peça da marca já sai com a
+   * embalagem certa. Era a falta disto que fazia uma geração de "bom dia do
+   * Tropeiro" voltar como foto genérica de café — a embalagem existe, mas o
+   * Studio exigia que ele lembrasse de anexá-la toda vez.
+   *
+   * A conferência de marca vive no banco (gatilho), não aqui: um ativo de
+   * outra marca é recusado lá, que é onde a trava precisa estar.
+   */
+  async function guardarComoOficial(path: string) {
+    if (!brandId) return;
+    const { error } = await supabase.from('studio_brand_profiles')
+      .update({ ativo_oficial_path: path }).eq('id', brandId);
+    if (error) { toast.error(error.message); return; }
+    setMarcas(prev => prev.map(m => m.id === brandId ? { ...m, ativo_oficial_path: path } : m));
+    toast.success(`Embalagem oficial de ${marcaAtual} guardada. Ela entra sozinha nas próximas peças.`);
+  }
+
   const modoMarca = marcaLivre ? 'livre' : 'perfil';
+  // A embalagem oficial guardada na marca. Quando existe, ela entra sozinha na
+  // geração — e quando não existe, a IA é PROIBIDA de desenhar embalagem
+  // identificável, e a peça sai genérica. Ele precisa saber disso ANTES de
+  // clicar em gerar, não depois de pagar e olhar o resultado.
+  const oficialDaMarca = marcaLivre
+    ? null
+    : (marcas.find(m => m.id === brandId)?.ativo_oficial_path ?? null);
+  const anexouAlgo = ativos.some(a => a.path);
   const marcaAtual = marcaLivre ? nomeLivre.trim() : (marcas.find(m => m.id === brandId)?.name ?? '');
 
   // As marcas da empresa. A lista pode vir vazia, e nesse caso marca livre é o
@@ -141,7 +173,7 @@ export default function ImageStudio({ companyId, marcaId = null, avancado = fals
   useEffect(() => {
     if (!companyId) { setMarcas([]); return; }
     supabase.from('studio_brand_profiles')
-      .select('id, name, organization_id').eq('company_id', companyId).order('is_primary', { ascending: false })
+      .select('id, name, organization_id, ativo_oficial_path').eq('company_id', companyId).order('is_primary', { ascending: false })
       .then(({ data }) => {
         const lista = (data as Marca[]) ?? [];
         setMarcas(lista);
@@ -463,6 +495,15 @@ export default function ImageStudio({ companyId, marcaId = null, avancado = fals
                       }`}>
                       {a.papel === 'oficial' ? 'oficial' : 'inspiração'}
                     </button>
+                    {/* Guardar UMA vez e nunca mais anexar. Era a falta disto
+                        que fazia a peça sair genérica quando ele esquecia. */}
+                    {!marcaLivre && brandId && a.path && a.papel === 'oficial' && oficialDaMarca !== a.path && (
+                      <button type="button" onClick={() => guardarComoOficial(a.path!)}
+                        title={'Guardar como embalagem oficial de ' + marcaAtual}
+                        className="absolute inset-x-0 bottom-4 bg-black/70 py-0.5 text-[8px] font-semibold uppercase tracking-wide text-white hover:bg-black/85">
+                        fixar na marca
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -488,6 +529,32 @@ export default function ImageStudio({ companyId, marcaId = null, avancado = fals
             entram como <strong>inspiração</strong>, que orienta composição e estilo, nunca a marca.
             Toque no rótulo para trocar. A IA recria a imagem, então confira a embalagem antes de publicar.
           </p>
+
+          {/* ⚠️ O QUE ACONTECE QUANDO NÃO HÁ EMBALAGEM — dito ANTES de gastar.
+              Sem ativo oficial, a IA é PROIBIDA de desenhar embalagem
+              identificável (rótulo inventado é o erro mais caro daqui). O
+              efeito era uma foto genérica de café, cobrada igual, e ele só
+              descobria olhando o resultado. */}
+          {!marcaLivre && brandId && !anexouAlgo && (
+            oficialDaMarca ? (
+              <p className="mt-2 flex items-start gap-1.5 rounded-md bg-[#f5f0ef] px-2.5 py-2 text-[11px] leading-relaxed text-[#8B2214]">
+                <Check className="mt-0.5 h-3 w-3 flex-shrink-0" />
+                <span>
+                  A embalagem oficial de <strong>{marcaAtual}</strong> entra sozinha nesta peça.
+                  Anexe algo acima só se quiser outro produto da linha.
+                </span>
+              </p>
+            ) : (
+              <p className="mt-2 flex items-start gap-1.5 rounded-md bg-amber-50 px-2.5 py-2 text-[11px] leading-relaxed text-amber-900">
+                <AlertTriangle className="mt-0.5 h-3 w-3 flex-shrink-0" />
+                <span>
+                  <strong>{marcaAtual || 'Esta marca'}</strong> não tem embalagem oficial guardada.
+                  Sem ela a IA não pode mostrar o pacote — a peça sai com café genérico.
+                  Anexe a embalagem acima e guarde como oficial: ela passa a entrar sozinha.
+                </span>
+              </p>
+            )
+          )}
         </div>
 
         {avancado && (

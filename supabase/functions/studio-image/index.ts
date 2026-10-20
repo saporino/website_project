@@ -40,7 +40,7 @@ const json = (b: unknown, s = 200) =>
  * explícita quando há referência anexada — mas ver a nota de honestidade no
  * retorno: instrução não é garantia.
  */
-function montarPrompt(brief: string, formato: FormatoId, guardrails: unknown, marca: string, temReferencia: boolean): string {
+function montarPrompt(brief: string, formato: FormatoId, guardrails: unknown, marca: string, temReferencia: boolean, modoTexto: ModoTextoId): string {
   const f = FORMATOS[formato];
   const g = guardrails && Object.keys(guardrails as object).length
     ? `\n\nIDENTIDADE DA MARCA (obedeça; não invente nada fora disto):\n${JSON.stringify(guardrails).slice(0, 4000)}`
@@ -50,12 +50,48 @@ function montarPrompt(brief: string, formato: FormatoId, guardrails: unknown, ma
     ? `\n\nUSO DA IMAGEM DE REFERÊNCIA: a imagem anexada mostra um produto/embalagem REAL da marca. Mantenha o produto fiel ao que está na referência — mesma embalagem, mesmas cores, mesmos textos e mesmo logotipo. NÃO redesenhe o rótulo, NÃO traduza nem reescreva palavras da embalagem, NÃO altere o peso indicado e NÃO crie uma variação "parecida". Você pode criar livremente o cenário, a luz, a superfície, o fundo e os elementos ao redor.`
     : `\n\nSEM ATIVO OFICIAL: não desenhe logotipo, marca, rótulo com texto legível ou embalagem identificável. Se a composição pedir um pacote, mostre-o desfocado, cortado ou de costas. Texto inventado numa embalagem é o erro mais caro que você pode cometer aqui.`;
 
+  // ⚠️ AQUI MORAVAM DUAS ORDENS QUE SE CONTRADIZIAM.
+  //
+  // O prompt pedia "composição limpa com respiro para texto ser aplicado
+  // depois" e "evite texto artificial na imagem" — enquanto o Diretor, em
+  // paralelo, escrevia uma headline para a peça. O modelo resolvia o conflito
+  // do jeito mais seguro que existe: foto de banco de imagens e uma caixinha
+  // escura de legenda num canto.
+  //
+  // Era essa a distância entre o que o Studio entregava e uma peça de verdade,
+  // onde a tipografia É a composição: grande, hierarquizada, com a luz da cena
+  // batendo nela. O modelo sempre soube fazer — eu é que mandava não fazer.
+  //
+  // Agora a ordem é uma só, e depende do modo que ele escolheu.
+  const texto = modoTexto === "sem_texto"
+    ? `\n\nSEM TEXTO NA ARTE: não escreva nada na imagem. Deixe uma área de respiro ` +
+      `clara para a frase ser aplicada depois por quem publica.`
+    : `\n\nO TEXTO É A COMPOSIÇÃO, NÃO UMA LEGENDA. A frase principal entra grande e ` +
+      `dominante, com hierarquia tipográfica de verdade (headline forte, apoio menor). ` +
+      `Integre-a à cena: mesma luz, mesma profundidade, peso visual compatível com o ` +
+      `produto. NÃO use caixa, tarja, retângulo escuro nem faixa de legenda sobre a foto ` +
+      `— isso é recurso de quem aplica texto depois, e aqui o texto nasce junto com a ` +
+      `imagem. Ortografia impecável em português do Brasil: acentuação correta, nenhuma ` +
+      `letra trocada ou repetida.`
+
+  // ÁREA SEGURA — só faz sentido quando o formato é cortado depois.
+  //
+  // O Instagram corta 2:3 para 4:5 no feed. Gerar em 2:3 sem avisar o modelo
+  // disso trocaria só o tamanho do arquivo e mandaria a manchete para fora do
+  // quadro na hora da publicação. A regra é do briefing da marca.
+  const corte = f.proporcao === "2:3"
+    ? `\n\nÁREA SEGURA (o feed vai cortar esta peça): todo elemento importante — manchete, ` +
+      `produto, logotipo — dentro dos 80% centrais da ALTURA. Os 10% de cima e os 10% de ` +
+      `baixo levam só fundo. Nada importante a menos de 8% das bordas laterais.`
+    : "";
+
   return (
     `Fotografia publicitária profissional para ${f.rotulo} (${f.proporcao}), marca de café ${marca}.\n\n` +
     `PEDIDO DE QUEM ENCOMENDOU:\n"""${brief.slice(0, 1500)}"""` +
     g + referencia +
-    `\n\nPADRÃO: qualidade comercial, luz natural e crível, composição limpa com respiro para texto ser aplicado depois. ` +
-    `Evite estética genérica de banco de imagens, evite aparência de render 3D e evite texto artificial na imagem.`
+    texto + corte +
+    `\n\nPADRÃO: qualidade comercial, luz natural e crível. ` +
+    `Evite estética genérica de banco de imagens e evite aparência de render 3D.`
   );
 }
 
@@ -161,7 +197,12 @@ Deno.serve(async (req: Request) => {
     const listaRef: string[] = Array.isArray(body?.reference_paths)
       ? body.reference_paths.map(String).filter(Boolean).slice(0, 4)
       : (body?.reference_path ? [String(body.reference_path)] : []);
-    const referencePath = listaRef[0] ?? null;
+    // `let`, e não `const`: a embalagem oficial da marca pode entrar na lista
+    // mais abaixo (quando nada foi anexado à mão), e tudo o que é DERIVADO da
+    // lista tem de acompanhar. Congelado aqui, o anexo automático entraria na
+    // chamada mas o prompt continuaria dizendo "SEM ATIVO OFICIAL" e o modelo
+    // de edição nem seria escolhido — funcionaria pela metade, em silêncio.
+    let referencePath = listaRef[0] ?? null;
     const parentId = body?.parent_id ? String(body.parent_id) : null;
     companyId = body?.company_id ? String(body.company_id) : null;
     // Tipo vem de ATALHO, nunca digitado — é o que permite selecionar só as
@@ -181,7 +222,7 @@ Deno.serve(async (req: Request) => {
     // PRIMEIRO anexo é oficial; do segundo em diante, inspiração. Antes tudo
     // nascia "oficial" e uma referência amarela de post entrava como se fosse
     // a embalagem real da marca. Segunda imagem quase nunca é a embalagem.
-    const papeis: PapelDoAtivo[] = listaRef.map((_, i) => {
+    let papeis: PapelDoAtivo[] = listaRef.map((_, i) => {
       const dito = Array.isArray(body?.reference_roles) ? body.reference_roles[i] : undefined;
       if (dito === "oficial" || dito === "inspiracao") return dito;
       return i === 0 ? "oficial" : "inspiracao";
@@ -224,7 +265,7 @@ Deno.serve(async (req: Request) => {
     // empresa, e o DNA dessa marca virava a verdade da peça mesmo com a
     // embalagem de outra marca anexada. Agora a marca é escolha explícita, e
     // não haver marca resolvida IMPEDE a geração em vez de adivinhar.
-    let brand: { id: string; name: string; guardrails: unknown } | null = null;
+    let brand: { id: string; name: string; guardrails: unknown; ativo_oficial_path: string | null } | null = null;
     let marca: string;
 
     if (modoMarca === "livre") {
@@ -245,7 +286,7 @@ Deno.serve(async (req: Request) => {
       marca = nomeLivre;
     } else {
       const consulta = db.from("studio_brand_profiles")
-        .select("id, name, guardrails").eq("company_id", companyId);
+        .select("id, name, guardrails, ativo_oficial_path").eq("company_id", companyId);
       const { data: achada } = brandIdPedido
         ? await consulta.eq("id", brandIdPedido).maybeSingle()
         : await consulta.order("is_primary", { ascending: false }).limit(1).maybeSingle();
@@ -260,6 +301,26 @@ Deno.serve(async (req: Request) => {
         }, 400);
       }
       marca = brand.name;
+    }
+
+    // ---- A EMBALAGEM OFICIAL DA MARCA ENTRA SOZINHA ----
+    //
+    // Sem ativo anexado, o prompt PROÍBE desenhar embalagem identificável — e
+    // essa trava está certa, porque rótulo inventado é o erro mais caro daqui.
+    // O efeito colateral é que esquecer de anexar devolvia uma foto genérica de
+    // café, cobrada igual. Foi o que ele recebeu pedindo "bom dia do Tropeiro
+    // Paulista": a embalagem existe no sistema, e a peça saiu sem ela.
+    //
+    // Quem anexa à mão continua mandando: pode ser um produto específico da
+    // linha, e adivinhar por cima da escolha dele seria pior.
+    let ativoAutomatico = false;
+    if (!listaRef.length && brand?.ativo_oficial_path) {
+      listaRef.push(brand.ativo_oficial_path);
+      // O que DERIVA da lista precisa ser refeito aqui, senão o anexo entra na
+      // chamada e o resto do caminho segue achando que não há embalagem.
+      referencePath = listaRef[0];
+      papeis = ["oficial"];
+      ativoAutomatico = true;
     }
 
     // ---- Trava: o ativo oficial tem de ser desta marca ----
@@ -293,7 +354,7 @@ Deno.serve(async (req: Request) => {
     // e um prompt profissional. Se o Diretor falhar, a geração NÃO para: cai
     // no prompt montado por regra, que é pior mas funciona. Perder a imagem
     // porque a etapa de texto tropeçou seria trocar um problema por outro.
-    let prompt = montarPrompt(brief, formato, brand?.guardrails, marca, !!referencePath);
+    let prompt = montarPrompt(brief, formato, brand?.guardrails, marca, !!referencePath, modoTexto);
     let briefing: Record<string, unknown> | null = null;
     // 'success' | 'fallback'. Precisa aparecer no registro: sem isso, cinco
     // falhas seguidas passaram despercebidas e a imagem saiu do prompt de
@@ -495,6 +556,7 @@ Deno.serve(async (req: Request) => {
         format: formato, content_type: tipo, brief, prompt, briefing,
         creative_director_status: diretorStatus,
         reference_path: referencePath, reference_paths: listaRef.length ? listaRef : null,
+        ativo_automatico: ativoAutomatico,
         reference_roles: papeis.length ? papeis : null,
         style: estilo ?? null, text_mode: modoTexto, handle,
         brand_mode: modoMarca, brand_name: marca,
