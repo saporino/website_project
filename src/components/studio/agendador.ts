@@ -32,6 +32,14 @@ export interface Agendamento {
 }
 
 /** Abaixo disto a arte não entra no calendário sozinha — vai para revisão. */
+/**
+ * O balde onde cai a peça sem assunto reconhecido.
+ *
+ * NÃO é um tema: é a ausência de um. A trava de repetição precisa saber a
+ * diferença, senão uma arte genérica barra todas as outras genéricas.
+ */
+export const SEM_TEMA = 'generico';
+
 export const LIMITE_REVISAO = 0.6;
 
 // ---------------------------------------------------------------------
@@ -144,7 +152,7 @@ export function classificar(entrada: {
   }
 
   // --- tema ---
-  let tema = temaPeriodo ?? 'generico';
+  let tema = temaPeriodo ?? SEM_TEMA;
   if (!temaPeriodo) {
     for (const t of TEMAS) {
       if (t.padroes.some(r => r.test(tudo))) { tema = t.tema; break; }
@@ -166,7 +174,7 @@ export function classificar(entrada: {
   // temporal, é perene de verdade — e isso é uma conclusão, não um chute.
   if (!daArte && !resto) {
     return {
-      dia_da_semana: null, periodo: null, temporalidade: 'perene', tema: 'generico',
+      dia_da_semana: null, periodo: null, temporalidade: 'perene', tema: SEM_TEMA,
       data_especifica: null, confianca: 0.3,
       justificativa: 'Não há texto analisado para esta arte. Precisa de revisão.',
     };
@@ -217,7 +225,9 @@ export interface JaAgendado {
   brand_id: string;
   video_id: string;
   quando: string;   // ISO
-  tema: string;
+  /** Opcional de propósito: nem todo agendamento guarda o assunto, e inventar
+   *  um (o período, por exemplo) faz a trava de repetição bloquear por engano. */
+  tema?: string | null;
 }
 
 export interface Sugestao {
@@ -322,6 +332,20 @@ export function montarSugestoes(
       const quando = `${diaISO.slice(0, 10)}T${janela.hora}:00-03:00`;
       const referencia = new Date(quando);
 
+      // ⚠️ JANELA JÁ OCUPADA NÃO RECEBE OUTRA ARTE.
+      //
+      // Sem isto, clicar "Gerar sugestões" duas vezes empilhava: o dia 19
+      // ficou com duas peças às 08:00, duas às 15:00 — e ainda acusava falta
+      // às 19:00. Cada rodada só enxergava o que estava APROVADO e ignorava o
+      // que já tinha sido proposto.
+      //
+      // Horário cheio também não entra na lista de vazios: ele não está vazio,
+      // está decidido.
+      const jaTemNesteHorario = ocupado.some(o =>
+        o.brand_id === janela.brand_id &&
+        Math.abs(new Date(o.quando).getTime() - referencia.getTime()) < 60_000);
+      if (jaTemNesteHorario) continue;
+
       const candidatas = artes.filter(a => {
         // marca — uma arte NUNCA sai na conta de outra marca
         if (a.brand_id !== janela.brand_id) return false;
@@ -343,9 +367,25 @@ export function montarSugestoes(
         if (diasDesde(a.publicada_em, referencia) < diasParaReusar) return false;
         const jaNoCalendario = ocupado.some(o => o.video_id === a.id && o.brand_id === a.brand_id);
         if (jaNoCalendario) return false;
-        const temaPerto = ocupado.some(o =>
+        // ⚠️ "GENÉRICO" NÃO É UM TEMA — É A AUSÊNCIA DE UM.
+        //
+        // A trava de repetição existe para não sair dois "bom dia" no mesmo
+        // dia. Mas toda peça sem assunto reconhecido cai no balde `generico`,
+        // e comparar balde com balde dava "mesmo tema": a PRIMEIRA arte
+        // genérica a entrar barrava TODAS as outras por dois dias.
+        //
+        // Era isto que ele via na tela: dezoito artes disponíveis, a agenda
+        // colocava uma e escrevia "nenhuma arte adequada" nos outros horários.
+        // O relatório de falta estava mentindo, e mandando gerar arte nova que
+        // não era necessária.
+        //
+        // Duas peças sem tema são duas peças diferentes. Comparar só quando há
+        // assunto de verdade dos dois lados.
+        const temaReal = (t?: string | null) => (t && t !== SEM_TEMA ? t : null);
+        const meuTema = temaReal(a.agendamento.tema);
+        const temaPerto = !!meuTema && ocupado.some(o =>
           o.brand_id === a.brand_id &&
-          o.tema === a.agendamento.tema &&
+          temaReal(o.tema) === meuTema &&
           Math.abs(diasDesde(o.quando, referencia)) < diasEntreMesmoTema);
         if (temaPerto) return false;
 

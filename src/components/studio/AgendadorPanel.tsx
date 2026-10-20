@@ -15,7 +15,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import {
   CalendarClock, Sparkles, Check, X, Loader2, RefreshCw, AlertTriangle,
-  Clock, ImageOff, Images, Wand2, Shuffle,
+  Clock, ImageOff, Images, Wand2, Shuffle, Upload,
 } from 'lucide-react';
 import {
   classificar, montarSugestoes, assinatura, LIMITE_REVISAO,
@@ -92,8 +92,12 @@ function Miniatura({ arte, url }: { arte?: ArteDisponivel | null; url: string | 
   );
 }
 
-export default function AgendadorPanel({ brandId, brandName, onCriarImagem }: {
-  brandId: string; brandName: string; onCriarImagem?: () => void;
+export default function AgendadorPanel({ brandId, brandName, onCriarImagem, onCarregarArte }: {
+  brandId: string; brandName: string;
+  /** Leva para "Criar imagem" — quando a arte ainda não existe. */
+  onCriarImagem?: () => void;
+  /** Leva para "Fotos e vídeos" — quando ele já tem a arte pronta no computador. */
+  onCarregarArte?: () => void;
 }) {
   const [artes, setArtes] = useState<ArteDisponivel[]>([]);
   const [janelas, setJanelas] = useState<Janela[]>([]);
@@ -191,9 +195,27 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem }: {
         .eq('brand_id', brandId).eq('status', 'sugerida');
     }
 
-    const aprovadas = salvas.filter(s => s.status === 'aprovada');
-    const jaAgendado = aprovadas.map(s => ({
-      brand_id: s.brand_id, video_id: s.video_id, quando: s.sugerido_para, tema: 'aprovada',
+    // TUDO o que já está no calendário conta como ocupado — proposto e
+    // aprovado. Antes só as aprovadas entravam aqui, e por isso um segundo
+    // clique em "Gerar sugestões" empilhava duas artes no mesmo horário.
+    // Em "gerar outra seleção" as propostas acabaram de ser apagadas acima,
+    // então sobram só as aprovadas — que é o certo: elas não se mexem.
+    const { data: atuais } = await supabase.from('studio_sugestoes')
+      .select('brand_id, video_id, sugerido_para, periodo')
+      .eq('brand_id', brandId).in('status', ['sugerida', 'aprovada']);
+    // O TEMA VEM DA ARTE, não da linha do banco.
+    //
+    // `studio_sugestoes` não guarda o assunto da peça, e preencher com o
+    // período (que foi o que fiz primeiro) faria a trava de repetição bloquear
+    // por horário — inventar dado é pior do que não ter. A arte, porém, está
+    // aqui no acervo e já foi classificada: é dela que o tema sai.
+    //
+    // Sem isto, dois cliques separados em "Gerar sugestões" podiam pôr dois
+    // "bom dia" no mesmo dia — exatamente o que a regra existe para impedir.
+    const temaDaArte = new Map(acervo.map(a => [a.id, a.agendamento.tema]));
+    const jaAgendado = ((atuais as any[]) ?? []).map(x => ({
+      brand_id: x.brand_id, video_id: x.video_id, quando: x.sugerido_para,
+      tema: temaDaArte.get(x.video_id) ?? null,
     }));
 
     // Embaralhar antes muda a seleção quando há mais artes que janelas — é o
@@ -437,12 +459,20 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem }: {
               </li>
             ))}
           </ul>
-          {onCriarImagem && (
-            <button onClick={onCriarImagem}
-              className="inline-flex items-center gap-2 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg">
-              <Wand2 className="w-4 h-4" /> Criar imagem agora
-            </button>
-          )}
+          <div className="flex flex-wrap gap-2">
+            {onCarregarArte && (
+              <button onClick={onCarregarArte}
+                className="inline-flex items-center gap-2 border border-[#8B2214] text-[#8B2214] hover:bg-[#f5f0ef] text-sm font-semibold px-4 py-2 rounded-lg">
+                <Upload className="w-4 h-4" /> Carregar arte pronta
+              </button>
+            )}
+            {onCriarImagem && (
+              <button onClick={onCriarImagem}
+                className="inline-flex items-center gap-2 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-sm font-semibold px-4 py-2 rounded-lg">
+                <Wand2 className="w-4 h-4" /> Criar com IA
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -512,12 +542,20 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem }: {
                 <p className="text-sm text-gray-500">
                   Sem arte de <strong>{PERIODO_ROTULO[v.periodo] ?? v.periodo}</strong> disponível para este dia.
                 </p>
-                {onCriarImagem && (
-                  <button onClick={onCriarImagem}
-                    className="ml-auto inline-flex items-center gap-1.5 text-xs font-semibold text-[#8B2214] hover:underline flex-shrink-0">
-                    <Wand2 className="w-3.5 h-3.5" /> Criar uma
-                  </button>
-                )}
+                <span className="ml-auto flex items-center gap-3 flex-shrink-0">
+                  {onCarregarArte && (
+                    <button onClick={onCarregarArte} title="Já tenho a arte pronta no computador"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-[#8B2214] hover:underline">
+                      <Upload className="w-3.5 h-3.5" /> Carregar uma
+                    </button>
+                  )}
+                  {onCriarImagem && (
+                    <button onClick={onCriarImagem} title="Gerar a arte com IA"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#8B2214] hover:underline">
+                      <Wand2 className="w-3.5 h-3.5" /> Criar uma
+                    </button>
+                  )}
+                </span>
               </div>
             ))}
           </div>

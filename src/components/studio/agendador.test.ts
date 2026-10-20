@@ -244,3 +244,40 @@ describe('o que conta como DISPONÍVEL', () => {
     expect(vazios).toHaveLength(3);
   });
 });
+
+// O defeito que ele achou na tela em 19/10/2026: clicou em "Gerar sugestoes"
+// duas vezes e o dia 19 ficou com CINCO artes -- duas as 08:00, duas as 15:00.
+// A rodada nova empilhava em cima das pendentes em vez de enxergar o horario
+// como ocupado. O limite por dia nao e um numero: e uma arte por janela.
+describe('gerar duas vezes nao empilha no mesmo horario', () => {
+  const seis = [
+    arte('g1', 'Quem prova, sorri.'), arte('g2', 'Cafe fresquinho todo dia.'),
+    arte('g3', 'O sabor que acompanha voce.'), arte('g4', 'Pausa merecida.'),
+    arte('g5', 'Cafe de verdade.'), arte('g6', 'Para quem gosta de cafe forte.'),
+  ];
+
+  it('a primeira rodada nunca passa de uma arte por janela', () => {
+    const { sugestoes } = montarSugestoes(seis, JANELAS, [], [TERCA]);
+    expect(sugestoes.length).toBeLessThanOrEqual(JANELAS.length);
+    const horarios = sugestoes.map(s => s.quando);
+    expect(new Set(horarios).size).toBe(horarios.length);
+  });
+
+  it('a segunda rodada nao acrescenta nada no dia que ja esta cheio', () => {
+    const primeira = montarSugestoes(seis, JANELAS, [], [TERCA]).sugestoes;
+    const ocupado = primeira.map(s => ({
+      brand_id: s.brand_id, video_id: s.video_id, quando: s.quando,
+    }));
+    const { sugestoes } = montarSugestoes(seis, JANELAS, ocupado, [TERCA]);
+    expect(sugestoes).toHaveLength(0);
+  });
+
+  it('as artes que sobraram vao para o dia seguinte, nao para o mesmo dia', () => {
+    const primeira = montarSugestoes(seis, JANELAS, [], [TERCA]).sugestoes;
+    const ocupado = primeira.map(s => ({
+      brand_id: s.brand_id, video_id: s.video_id, quando: s.quando,
+    }));
+    const { sugestoes } = montarSugestoes(seis, JANELAS, ocupado, [TERCA, QUARTA]);
+    expect(sugestoes.every(s => s.quando.startsWith(QUARTA))).toBe(true);
+  });
+});
