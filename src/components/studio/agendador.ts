@@ -298,6 +298,100 @@ export interface OpcoesSugestao {
  * Quando nada sobra, o horário fica VAZIO e com motivo. Preencher por preencher
  * é exatamente o que o Vlademir pediu para não acontecer.
  */
+/**
+ * Os próximos N dias, a partir de HOJE, no fuso de quem opera.
+ *
+ * Estava dentro do componente, onde nenhum teste alcançava — e foi por isso
+ * que a pergunta "a agenda está gerando para ontem?" não tinha como ser
+ * respondida por teste. Aqui ela tem.
+ *
+ * ⚠️ Usa getFullYear/getMonth/getDate, nunca toISOString(). No Brasil
+ * (UTC-3), `new Date().toISOString().slice(0,10)` devolve o dia SEGUINTE
+ * depois das 21h — a conta que produz agenda no dia errado. Somar ao
+ * `getDate()` resolve virada de mês e de ano sozinho: 31+1 vira dia 1 do mês
+ * seguinte, e 31/12+1 vira 1/1 do ano seguinte, por conta do próprio Date.
+ */
+export function proximosDias(n: number, hoje: Date = new Date()): string[] {
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + i);
+    return [
+      d.getFullYear(),
+      String(d.getMonth() + 1).padStart(2, '0'),
+      String(d.getDate()).padStart(2, '0'),
+    ].join('-');
+  });
+}
+
+/**
+ * O que venceu: sugestão cuja hora já passou e que ninguém aprovou.
+ *
+ * ================== POR QUE ISTO EXISTE ==================
+ *
+ * Ele perguntou: "se está lá para ser publicada hoje, e não foi, encaixa na
+ * próxima, mas não no que já está agendado para amanhã — joga pra frente".
+ *
+ * Antes, a sugestão vencida ficava parada no dia que passou, ocupando a arte
+ * e sujando a tela. Foi o que ele viu: o dia 19 ainda na agenda no dia 20.
+ *
+ * ================== A REGRA ==================
+ *
+ * A data NÃO é empurrada. Empurrar um dia jogaria "Comece sua terça-feira"
+ * na quarta, e um "bom dia" às 19h — que é o erro que o agendador inteiro
+ * existe para evitar.
+ *
+ * O que volta para a fila é a ARTE. Na próxima montagem ela disputa os
+ * horários livres como qualquer outra, respeitando dia e período que a peça
+ * exige. Nada que já está agendado perde o lugar: janela ocupada continua
+ * ocupada, e a arte vencida vai para a PRÓXIMA livre.
+ *
+ * ================== O QUE NUNCA VENCE ==================
+ *
+ * Sugestão APROVADA. Aprovar já criou campanha, com data firmada — isso é
+ * compromisso, não proposta, e mexer nele sem pedir seria decidir no lugar
+ * dele.
+ */
+export function vencidas<T extends { quando: string; status?: string | null }>(
+  fila: T[],
+  agora: Date = new Date(),
+): T[] {
+  return fila.filter(s => {
+    if (s.status && s.status !== 'sugerida') return false;   // aprovada não vence
+    const t = new Date(s.quando).getTime();
+    return Number.isFinite(t) && t < agora.getTime();
+  });
+}
+
+/**
+ * Faz sentido ainda sugerir para HOJE?
+ *
+ * Depois da última janela do dia, não: a sugestão nasceria vencida. É o
+ * defeito ao contrário — em vez de encontrar o passado na tela, ele
+ * encontraria uma proposta impossível de cumprir.
+ */
+export function aindaCabeHoje(janelas: Janela[], agora: Date = new Date()): boolean {
+  const ativas = janelas.filter(j => j.ativa);
+  if (!ativas.length) return false;
+  const horas = ativas.map(j => j.hora).sort();
+  const ultima = horas[horas.length - 1];
+  const [h, m] = ultima.split(':').map(Number);
+  const limite = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), h, m);
+  return agora.getTime() < limite.getTime();
+}
+
+/**
+ * Os dias a programar, pulando hoje quando o dia já acabou.
+ *
+ * Usa `proximosDias`, que é quem sabe virar mês e ano.
+ */
+export function diasParaProgramar(
+  n: number,
+  janelas: Janela[],
+  agora: Date = new Date(),
+): string[] {
+  const dias = proximosDias(n + 1, agora);
+  return aindaCabeHoje(janelas, agora) ? dias.slice(0, n) : dias.slice(1, n + 1);
+}
+
 export function montarSugestoes(
   artes: Arte[],
   janelas: Janela[],

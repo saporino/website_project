@@ -18,7 +18,7 @@ import {
   Clock, ImageOff, Images, Wand2, Shuffle, Upload,
 } from 'lucide-react';
 import {
-  classificar, montarSugestoes, assinatura, LIMITE_REVISAO,
+  classificar, montarSugestoes, assinatura, LIMITE_REVISAO, diasParaProgramar, vencidas,
   type Arte, type Janela, type Agendamento, type Vazio,
 } from './agendador';
 
@@ -59,13 +59,6 @@ function rotuloDia(iso: string): string {
   const dt = new Date(a, m - 1, d);
   return `${DIAS_PT[dt.getDay()]}, ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`;
 }
-function proximosDias(n: number): string[] {
-  const hoje = new Date();
-  return Array.from({ length: n }, (_, i) => {
-    const d = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + i);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  });
-}
 
 /**
  * A miniatura, igual à da biblioteca onde ele carrega as artes: clicável para
@@ -102,6 +95,9 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem, onCa
   const [artes, setArtes] = useState<ArteDisponivel[]>([]);
   const [janelas, setJanelas] = useState<Janela[]>([]);
   const [salvas, setSalvas] = useState<SugestaoSalva[]>([]);
+  /** Quantas artes voltaram para a fila por terem vencido. Aparece como aviso:
+   *  ele precisa saber que a agenda se reorganizou, e por quê. */
+  const [devolvidas, setDevolvidas] = useState(0);
   const [vazios, setVazios] = useState<Vazio[]>([]);
   const [miniaturas, setMiniaturas] = useState<Map<string, string>>(new Map());
   const [carregando, setCarregando] = useState(true);
@@ -201,8 +197,31 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem, onCa
     // Em "gerar outra seleção" as propostas acabaram de ser apagadas acima,
     // então sobram só as aprovadas — que é o certo: elas não se mexem.
     const { data: atuais } = await supabase.from('studio_sugestoes')
-      .select('brand_id, video_id, sugerido_para, periodo')
+      .select('id, brand_id, video_id, sugerido_para, periodo, status')
       .eq('brand_id', brandId).in('status', ['sugerida', 'aprovada']);
+
+    // ---- O QUE VENCEU VOLTA PARA A FILA ----
+    //
+    // "se está lá para ser publicada hoje, e não foi, encaixa na próxima, mas
+    // não no que já está agendado para amanhã — joga pra frente."
+    //
+    // A data NÃO é empurrada: empurrar um dia jogaria "boa terça" na quarta e
+    // um "bom dia" às 19h. O que volta é a ARTE, que disputa os horários
+    // livres de novo respeitando o que a peça exige. Nada que já está marcado
+    // perde o lugar — janela ocupada continua ocupada, e a vencida vai para a
+    // PRÓXIMA livre.
+    //
+    // Aprovada nunca vence: já virou campanha com data firmada.
+    const expiradas = vencidas(
+      ((atuais as any[]) ?? []).map(x => ({ ...x, quando: x.sugerido_para })),
+    );
+    if (expiradas.length) {
+      await supabase.from('studio_sugestoes').delete().in('id', expiradas.map(x => x.id));
+      setDevolvidas(expiradas.length);
+    } else {
+      setDevolvidas(0);
+    }
+    const expiradasIds = new Set(expiradas.map(x => x.id));
     // O TEMA VEM DA ARTE, não da linha do banco.
     //
     // `studio_sugestoes` não guarda o assunto da peça, e preencher com o
@@ -213,16 +232,20 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem, onCa
     // Sem isto, dois cliques separados em "Gerar sugestões" podiam pôr dois
     // "bom dia" no mesmo dia — exatamente o que a regra existe para impedir.
     const temaDaArte = new Map(acervo.map(a => [a.id, a.agendamento.tema]));
-    const jaAgendado = ((atuais as any[]) ?? []).map(x => ({
-      brand_id: x.brand_id, video_id: x.video_id, quando: x.sugerido_para,
-      tema: temaDaArte.get(x.video_id) ?? null,
-    }));
+    const jaAgendado = ((atuais as any[]) ?? [])
+      .filter(x => !expiradasIds.has(x.id))   // o que venceu não ocupa mais nada
+      .map(x => ({
+        brand_id: x.brand_id, video_id: x.video_id, quando: x.sugerido_para,
+        tema: temaDaArte.get(x.video_id) ?? null,
+      }));
 
     // Embaralhar antes muda a seleção quando há mais artes que janelas — é o
     // que faz "gerar outra" trazer peças diferentes, e não as mesmas.
     const fila = outraSelecao ? [...paraAgendar].sort(() => Math.random() - 0.5) : paraAgendar;
 
-    const r = montarSugestoes(fila, janelas, jaAgendado, proximosDias(dias),
+    // `diasParaProgramar` pula hoje depois da última janela: sugerir para as
+    // 08:00 às 21h nasceria vencido, que é o defeito ao contrário.
+    const r = montarSugestoes(fila, janelas, jaAgendado, diasParaProgramar(dias, janelas),
       { diasParaReusar: DIAS_PARA_REUSAR });
     setVazios(r.vazios);
 
@@ -438,6 +461,28 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem, onCa
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {/* ⚠️ A AGENDA SE REORGANIZOU — e ele precisa saber por quê.
+          Arte que estava marcada para um horário já passado volta para a fila
+          e disputa os próximos horários LIVRES. Nada que já estava agendado
+          perde o lugar, e aprovada nunca é tocada. Reorganizar em silêncio
+          seria pior que não reorganizar: ele abriria a agenda sem entender o
+          que mudou. */}
+      {devolvidas > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+          <Clock className="w-5 h-5 text-amber-700 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-amber-900">
+              {devolvidas} arte(s) voltaram para a fila
+            </p>
+            <p className="text-sm text-amber-800 mt-0.5">
+              O horário delas passou sem aprovação. Elas foram <strong>jogadas para frente</strong>,
+              para os próximos horários livres — nada que já estava agendado saiu do lugar,
+              e peça aprovada não foi tocada.
+            </p>
+          </div>
         </div>
       )}
 

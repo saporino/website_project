@@ -4,7 +4,7 @@
 // sem banco e sem publicar nada.
 import { describe, it, expect } from 'vitest';
 import {
-  classificar, montarSugestoes, assinatura, diaDaSemanaEm, LIMITE_REVISAO,
+  classificar, montarSugestoes, assinatura, diaDaSemanaEm, LIMITE_REVISAO, proximosDias, vencidas, aindaCabeHoje, diasParaProgramar,
   type Arte, type Janela,
 } from './agendador';
 
@@ -279,5 +279,149 @@ describe('gerar duas vezes nao empilha no mesmo horario', () => {
     }));
     const { sugestoes } = montarSugestoes(seis, JANELAS, ocupado, [TERCA, QUARTA]);
     expect(sugestoes.every(s => s.quando.startsWith(QUARTA))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------
+// Os defeitos que ele viu na tela em 20/10/2026
+// ---------------------------------------------------------------------
+describe('a data da agenda — nunca gerar para ontem', () => {
+  it('no dia 20 a agenda comeca no dia 20, nunca no 19', () => {
+    const vinte = new Date(2026, 9, 20, 22, 30);   // 22h30 de 20/10
+    expect(proximosDias(3, vinte)).toEqual(['2026-10-20', '2026-10-21', '2026-10-22']);
+  });
+
+  // A conta errada: `toISOString()` no Brasil devolve o dia seguinte depois
+  // das 21h, porque converte para UTC. Este teste trava a conta certa.
+  it('as 23h o dia continua sendo hoje, nao amanha', () => {
+    const tarde = new Date(2026, 9, 20, 23, 59);
+    expect(proximosDias(1, tarde)[0]).toBe('2026-10-20');
+    expect(new Date(2026, 9, 20, 23, 59).toISOString().slice(0, 10)).toBe('2026-10-21');
+  });
+
+  it('a madrugada tambem: 00h05 e hoje', () => {
+    expect(proximosDias(1, new Date(2026, 9, 20, 0, 5))[0]).toBe('2026-10-20');
+  });
+
+  it('virada de mes', () => {
+    expect(proximosDias(3, new Date(2026, 9, 31))).toEqual(['2026-10-31', '2026-11-01', '2026-11-02']);
+  });
+
+  it('virada de ano', () => {
+    expect(proximosDias(3, new Date(2026, 11, 31))).toEqual(['2026-12-31', '2027-01-01', '2027-01-02']);
+  });
+
+  it('ano bissexto', () => {
+    expect(proximosDias(2, new Date(2028, 1, 28))).toEqual(['2028-02-28', '2028-02-29']);
+  });
+});
+
+describe('o teto de tres por dia, sob repeticao e concorrencia', () => {
+  const seis = [
+    arte('t1', 'Quem prova, sorri.'), arte('t2', 'Cafe fresquinho.'),
+    arte('t3', 'O sabor que acompanha.'), arte('t4', 'Pausa merecida.'),
+    arte('t5', 'Cafe de verdade.'), arte('t6', 'Para quem gosta de forte.'),
+  ];
+  const paraOcupado = (s: ReturnType<typeof montarSugestoes>['sugestoes']) =>
+    s.map(x => ({ brand_id: x.brand_id, video_id: x.video_id, quando: x.quando }));
+
+  it('uma rodada nunca passa de uma arte por janela', () => {
+    const r = montarSugestoes(seis, JANELAS, [], [TERCA]);
+    expect(r.sugestoes.length).toBeLessThanOrEqual(JANELAS.length);
+    expect(new Set(r.sugestoes.map(s => s.quando)).size).toBe(r.sugestoes.length);
+  });
+
+  // O caso dele: gerou duas vezes e o dia ficou com cinco.
+  it('TRES rodadas seguidas no mesmo dia nao acrescentam nada', () => {
+    const um = montarSugestoes(seis, JANELAS, [], [TERCA]).sugestoes;
+    const dois = montarSugestoes(seis, JANELAS, paraOcupado(um), [TERCA]).sugestoes;
+    const tres = montarSugestoes(seis, JANELAS, paraOcupado([...um, ...dois]), [TERCA]).sugestoes;
+    expect(dois).toHaveLength(0);
+    expect(tres).toHaveLength(0);
+    expect(um.length + dois.length + tres.length).toBeLessThanOrEqual(3);
+  });
+
+  // Duas abas abertas: as duas leem o banco ANTES de qualquer gravacao, e
+  // por isso as duas enxergam o dia vazio. E a trava do banco que resolve
+  // este caso — o codigo sozinho nao tem como. O teste registra o limite.
+  it('duas execucoes SIMULTANEAS produzem o mesmo plano, nao dois planos', () => {
+    const a = montarSugestoes(seis, JANELAS, [], [TERCA]).sugestoes;
+    const b = montarSugestoes(seis, JANELAS, [], [TERCA]).sugestoes;
+    expect(a.map(x => x.quando).sort()).toEqual(b.map(x => x.quando).sort());
+    expect(a.map(x => x.video_id)).toEqual(b.map(x => x.video_id));
+  });
+
+  it('horario ja ocupado nao e reutilizado, mesmo com arte sobrando', () => {
+    const ocupado = [{ brand_id: MARCA, video_id: 'outra', quando: `${TERCA}T08:00:00-03:00` }];
+    const r = montarSugestoes(seis, JANELAS, ocupado, [TERCA]);
+    expect(r.sugestoes.some(s => s.hora === '08:00')).toBe(false);
+    expect(r.vazios.some(v => v.hora === '08:00')).toBe(false);   // cheio, nao vazio
+  });
+
+  it('o que sobra vai para o dia seguinte', () => {
+    const um = montarSugestoes(seis, JANELAS, [], [TERCA]).sugestoes;
+    const r = montarSugestoes(seis, JANELAS, paraOcupado(um), [TERCA, QUARTA]);
+    expect(r.sugestoes.every(s => s.quando.startsWith(QUARTA))).toBe(true);
+  });
+});
+
+describe('o que vence volta para a fila, sem atropelar ninguem', () => {
+  const AGORA = new Date(2026, 9, 20, 21, 0);   // 20/10 as 21h, depois da ultima janela
+
+  it('sugestao cuja hora passou e vencida', () => {
+    const fila = [
+      { quando: '2026-10-20T08:00:00-03:00', status: 'sugerida' },
+      { quando: '2026-10-20T15:00:00-03:00', status: 'sugerida' },
+      { quando: '2026-10-21T08:00:00-03:00', status: 'sugerida' },
+    ];
+    expect(vencidas(fila, AGORA)).toHaveLength(2);
+  });
+
+  // Aprovar ja criou campanha com data firmada. Nao e proposta, e compromisso.
+  it('APROVADA nunca vence, mesmo com a hora passada', () => {
+    const fila = [
+      { quando: '2026-10-19T08:00:00-03:00', status: 'aprovada' },
+      { quando: '2026-10-19T15:00:00-03:00', status: 'sugerida' },
+    ];
+    const v = vencidas(fila, AGORA);
+    expect(v).toHaveLength(1);
+    expect(v[0].status).toBe('sugerida');
+  });
+
+  it('depois da ultima janela, hoje nao recebe mais nada', () => {
+    expect(aindaCabeHoje(JANELAS, new Date(2026, 9, 20, 21, 0))).toBe(false);
+    expect(aindaCabeHoje(JANELAS, new Date(2026, 9, 20, 7, 0))).toBe(true);
+    expect(aindaCabeHoje(JANELAS, new Date(2026, 9, 20, 18, 59))).toBe(true);
+  });
+
+  it('as 21h a programacao comeca AMANHA, nao hoje', () => {
+    expect(diasParaProgramar(3, JANELAS, new Date(2026, 9, 20, 21, 0)))
+      .toEqual(['2026-10-21', '2026-10-22', '2026-10-23']);
+  });
+
+  it('de manha a programacao comeca HOJE', () => {
+    expect(diasParaProgramar(3, JANELAS, new Date(2026, 9, 20, 7, 0)))
+      .toEqual(['2026-10-20', '2026-10-21', '2026-10-22']);
+  });
+
+  it('e a virada de mes continua certa mesmo pulando hoje', () => {
+    expect(diasParaProgramar(2, JANELAS, new Date(2026, 9, 31, 22, 0)))
+      .toEqual(['2026-11-01', '2026-11-02']);
+  });
+
+  // O caso exato que ele descreveu.
+  it('a arte vencida vai para o proximo dia LIVRE, sem tirar ninguem do lugar', () => {
+    const artes = [arte('v1', 'Quem prova, sorri.'), arte('v2', 'Cafe fresquinho.'),
+                   arte('v3', 'O sabor que acompanha.')];
+    // 21/10 ja esta cheio com outras artes.
+    const cheio = JANELAS.map(j => ({
+      brand_id: MARCA, video_id: 'ja-' + j.hora, quando: `2026-10-21T${j.hora}:00-03:00`,
+    }));
+    const r = montarSugestoes(artes, JANELAS, cheio, ['2026-10-21', '2026-10-22']);
+    // nada caiu no 21, que estava cheio
+    expect(r.sugestoes.some(s => s.quando.startsWith('2026-10-21'))).toBe(false);
+    // e tudo foi para o 22, que estava livre
+    expect(r.sugestoes.every(s => s.quando.startsWith('2026-10-22'))).toBe(true);
+    expect(r.sugestoes.length).toBe(3);
   });
 });
