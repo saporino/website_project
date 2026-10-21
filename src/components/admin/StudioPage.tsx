@@ -557,7 +557,7 @@ export default function StudioPage() {
 
       {view === 'agenda' ? (
         activeMarca
-          ? <AgendadorPanel brandId={activeMarca.id} brandName={activeMarca.name} onCriarImagem={() => setView('imagem')} onCarregarArte={() => setView('videos')} />
+          ? <AgendadorPanel brandId={activeMarca.id} brandName={activeMarca.name} companyId={activeCompanyId} onCriarImagem={() => setView('imagem')} onCarregarArte={() => setView('videos')} />
           : <p className="text-sm text-gray-500">Escolha uma marca para montar a agenda.</p>
       ) : view === 'imagem' ? (
         <ImageStudio companyId={activeCompanyId} marcaId={activeBrandId} avancado marcaLivre={marcaLivre} nomeLivre={nomeLivre} />

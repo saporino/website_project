@@ -26,6 +26,10 @@ interface ArteDisponivel {
   video_id: string; brand_id: string; marca: string; titulo: string;
   thumbnail_path: string | null; storage_path: string | null; media_type: string | null;
   agendamento: Agendamento | null;
+  /** O texto pronto por rede, vindo da análise. A agenda publicava em branco
+   *  porque nunca leu isto — e a legenda já existia desde sempre. */
+  legendas?: Record<string, string> | null;
+  hashtags?: string[] | null;
   texto_da_arte: string | null; resumo: string | null;
   publicada_em: string | null; na_fila: boolean;
 }
@@ -85,8 +89,10 @@ function Miniatura({ arte, url }: { arte?: ArteDisponivel | null; url: string | 
   );
 }
 
-export default function AgendadorPanel({ brandId, brandName, onCriarImagem, onCarregarArte }: {
+export default function AgendadorPanel({ brandId, brandName, companyId, onCriarImagem, onCarregarArte }: {
   brandId: string; brandName: string;
+  /** Necessário para o gerador de legenda, que lê a identidade da marca. */
+  companyId?: string | null;
   /** Leva para "Criar imagem" — quando a arte ainda não existe. */
   onCriarImagem?: () => void;
   /** Leva para "Fotos e vídeos" — quando ele já tem a arte pronta no computador. */
@@ -97,6 +103,13 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem, onCa
   const [salvas, setSalvas] = useState<SugestaoSalva[]>([]);
   /** Quantas artes voltaram para a fila por terem vencido. Aparece como aviso:
    *  ele precisa saber que a agenda se reorganizou, e por quê. */
+  /** Qual legenda está aberta para edição, e o texto em digitação.
+   *  Texto ruim agendado publica igual — ele precisa poder mudar sem perder
+   *  o horário já decidido. */
+  const [editando, setEditando] = useState<string | null>(null);
+  const [rascunho, setRascunho] = useState('');
+  const [gerandoTexto, setGerandoTexto] = useState(false);
+
   const [devolvidas, setDevolvidas] = useState(0);
   const [vazios, setVazios] = useState<Vazio[]>([]);
   const [miniaturas, setMiniaturas] = useState<Map<string, string>>(new Map());
@@ -113,7 +126,12 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem, onCa
       supabase.from('vw_studio_artes_disponiveis').select('*').eq('brand_id', brandId),
       supabase.from('studio_janelas').select('*').eq('brand_id', brandId).eq('ativa', true),
       supabase.from('studio_sugestoes').select('*').eq('brand_id', brandId)
-        .in('status', ['sugerida', 'aprovada', 'revisar']).order('sugerido_para'),
+        // 'publicada' entra de propósito: ela saiu da FILA DE APROVAÇÃO, mas
+        // continua no calendário, no horário dela. É o que ele pediu — "ver o
+        // que já está e mudar o estilo de foto". Calendário sem o que já saiu
+        // é calendário cego: não dá para decidir o estilo do que vem olhando
+        // só para buracos.
+        .in('status', ['sugerida', 'aprovada', 'revisar', 'publicada']).order('sugerido_para'),
     ]);
     const lista = (a as ArteDisponivel[]) ?? [];
     setArtes(lista);
@@ -196,6 +214,9 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem, onCa
     // clique em "Gerar sugestões" empilhava duas artes no mesmo horário.
     // Em "gerar outra seleção" as propostas acabaram de ser apagadas acima,
     // então sobram só as aprovadas — que é o certo: elas não se mexem.
+    // Aqui NÃO entra 'publicada': ela já cumpriu e não ocupa mais a janela.
+    // O horário dela fica livre para a semana seguinte — senão uma semana
+    // publicada impediria agendar a próxima no mesmo horário.
     const { data: atuais } = await supabase.from('studio_sugestoes')
       .select('id, brand_id, video_id, sugerido_para, periodo, status')
       .eq('brand_id', brandId).in('status', ['sugerida', 'aprovada']);
@@ -259,6 +280,9 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem, onCa
         brand_id: s.brand_id, video_id: s.video_id, plataforma: s.plataforma,
         sugerido_para: s.quando, periodo: s.periodo, motivo: s.motivo,
         confianca: s.confianca, status: 'sugerida',
+        // A sugestão nasce COM o texto. Sem isto ela nascia com legenda nula,
+        // a aprovação gravava `content: ''` e a peça ia ao ar em branco.
+        legenda: legendaDaArte(artes.find(a => a.video_id === s.video_id), s.plataforma),
       })),
     );
     setGerando(false);
@@ -266,13 +290,108 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem, onCa
     carregar();
   }
 
+  /**
+   * Troca o texto de uma publicação JÁ AGENDADA, sem tirá-la da agenda.
+   *
+   * ⚠️ O ROBÔ PUBLICA `studio_campaigns.content`, não a legenda da sugestão.
+   * Gravar só na sugestão mudaria o que aparece na tela e NÃO mudaria o que
+   * vai ao ar — a mesma falha calada do `media_path`, que fez campanha ficar
+   * "agendada" para sempre sem publicar. Por isso os dois são atualizados,
+   * e a campanha primeiro: se ela falhar, nada é dito como feito.
+   *
+   * A ASSINATURA é refeita. Ela existe para registrar o que foi aprovado; se
+   * o texto muda e a assinatura fica, o registro passa a mentir.
+   *
+   * `scheduled_at` não é tocado: o horário foi decidido e continua valendo.
+   */
+  /**
+   * O texto que vai junto com a arte, montado do que a análise já produziu.
+   *
+   * A legenda da rede já traz hashtags dentro; as do campo `hashtags` são
+   * acrescentadas só quando NÃO estão lá, para não repetir a mesma tag duas
+   * vezes no post. É o mesmo critério da tela de análise.
+   */
+  function legendaDaArte(arte: ArteDisponivel | undefined, rede: string): string {
+    if (!arte) return '';
+    const base = (arte.legendas?.[rede] ?? arte.legendas?.instagram ?? '').trim();
+    if (!base) return '';
+    const jaTem = (t: string) => base.toLowerCase().includes(t.toLowerCase());
+    const extras = (arte.hashtags ?? []).filter(t => t && !jaTem(t)).slice(0, 6);
+    return extras.length ? `${base}\n\n${extras.join(' ')}` : base;
+  }
+
+  async function salvarLegenda(s: SugestaoSalva) {
+    const texto = rascunho.trim();
+    setAgindo(s.id); setErro('');
+
+    if (s.campaign_id) {
+      const { error } = await supabase.from('studio_campaigns')
+        .update({ content: texto }).eq('id', s.campaign_id);
+      if (error) { setAgindo(null); setErro('Não salvou na campanha: ' + error.message); return; }
+    }
+
+    const { error: eS } = await supabase.from('studio_sugestoes').update({
+      legenda: texto,
+      assinatura: assinatura({
+        video_id: s.video_id, legenda: texto, brand_id: s.brand_id,
+        plataforma: s.plataforma, quando: s.sugerido_para,
+      }),
+    }).eq('id', s.id);
+
+    setAgindo(null);
+    if (eS) { setErro(eS.message); return; }
+    setEditando(null);
+    carregar();
+  }
+
+  /** Pede outro texto à IA para a mesma arte. Não grava sozinho: o texto volta
+   *  para a caixa e ele decide se fica. Gerar e salvar na mesma tecla tiraria
+   *  dele a chance de ler antes. */
+  async function gerarOutroTexto(s: SugestaoSalva) {
+    const arte = artes.find(a => a.video_id === s.video_id);
+    setGerandoTexto(true); setErro('');
+    try {
+      const { data, error } = await supabase.functions.invoke('studio-caption', {
+        body: {
+          company_id: companyId ?? null,
+          brand_id: s.brand_id,
+          media_path: arte?.storage_path ?? null,
+          network: s.plataforma ?? 'instagram',
+          current: rascunho || s.legenda || '',
+          action: rascunho || s.legenda ? 'refine' : 'generate',
+          notes: arte?.texto_da_arte ?? null,
+        },
+      });
+      if (error) throw new Error(error.message);
+      const novo = (data as any)?.caption ?? (data as any)?.legenda ?? (data as any)?.text;
+      if (!novo) throw new Error('A IA não devolveu texto.');
+      setRascunho(String(novo));
+    } catch (e) {
+      setErro('Não gerou outro texto: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setGerandoTexto(false);
+    }
+  }
+
   async function aprovar(s: SugestaoSalva) {
     setAgindo(s.id); setErro('');
     const arte = artes.find(a => a.video_id === s.video_id);
+
+    // ⚠️ ÚLTIMA PORTA ANTES DO AR.
+    // Em 21/10 uma peça foi publicada no Instagram SEM TEXTO NENHUM porque
+    // `s.legenda` era nula e ninguém conferia. O banco agora recusa, mas o
+    // erro tem de aparecer aqui, com o que fazer — e não como falha crua de
+    // constraint depois que ele já clicou em aprovar.
+    const texto = (s.legenda ?? '').trim() || legendaDaArte(arte, s.plataforma);
+    if (!texto) {
+      setAgindo(null);
+      setErro('Esta peça não tem texto. Clique em "escrever o texto" no cartão antes de aprovar — publicar em branco não dá.');
+      return;
+    }
     const { data: campanha, error: eC } = await supabase.from('studio_campaigns').insert({
       video_id: s.video_id, brand_id: s.brand_id, platform: s.plataforma,
       title: arte?.titulo ?? 'Publicação agendada',
-      content: s.legenda ?? '', status: 'scheduled', scheduled_at: s.sugerido_para,
+      content: texto, status: 'scheduled', scheduled_at: s.sugerido_para,
       // SEM media_path o robô `publish-scheduled` IGNORA a campanha: ele filtra
       // por media_path não nulo. A campanha nascia e nunca publicava, calada.
       media_path: arte?.storage_path ?? null,
@@ -285,9 +404,10 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem, onCa
       status: 'aprovada', campaign_id: campanha.id,
       aprovado_por: u.user?.id ?? null, aprovado_em: new Date().toISOString(),
       assinatura: assinatura({
-        video_id: s.video_id, legenda: s.legenda ?? '', brand_id: s.brand_id,
+        video_id: s.video_id, legenda: texto, brand_id: s.brand_id,
         plataforma: s.plataforma, quando: s.sugerido_para,
       }),
+      legenda: texto,
     }).eq('id', s.id);
     setAgindo(null);
     if (eS) { setErro(eS.message); return; }
@@ -536,9 +656,16 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem, onCa
             {sugestoes.sort((a, b) => a.sugerido_para.localeCompare(b.sugerido_para)).map(s => {
               const arte = artes.find(a => a.video_id === s.video_id);
               const mini = miniDe(arte);
+              // Três estados na mesma lista, e a diferença entre eles tem de
+              // ser visível de relance: publicada é HISTÓRICO (não pede nada),
+              // aprovada está ESPERANDO a hora, sugerida PEDE decisão.
+              const publicada = s.status === 'publicada';
               const aprovada = s.status === 'aprovada';
               return (
-                <div key={s.id} className={`border rounded-lg p-3 ${aprovada ? 'border-green-200 bg-green-50/40' : 'border-gray-200'}`}>
+                <div key={s.id} className={`border rounded-lg p-3 ${
+                  publicada ? 'border-gray-200 bg-gray-50 opacity-75'
+                  : aprovada ? 'border-green-200 bg-green-50/40'
+                  : 'border-gray-200'}`}>
                   <div className="flex items-start gap-3">
                     <span className="flex items-center gap-1 text-sm font-bold text-gray-900 flex-shrink-0 pt-0.5">
                       <Clock className="w-3.5 h-3.5 text-gray-400" /> {horaLocal(s.sugerido_para)}
@@ -553,11 +680,61 @@ export default function AgendadorPanel({ brandId, brandName, onCriarImagem, onCa
                       )}
                     </div>
                     <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 flex-shrink-0 ${
-                      aprovada ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                      {aprovada ? 'aprovada' : PERIODO_ROTULO[s.periodo] ?? s.periodo}
+                      publicada ? 'bg-gray-200 text-gray-600'
+                      : aprovada ? 'bg-green-100 text-green-700'
+                      : 'bg-amber-100 text-amber-700'}`}>
+                      {publicada ? 'publicada' : aprovada ? 'aprovada' : PERIODO_ROTULO[s.periodo] ?? s.periodo}
                     </span>
                   </div>
-                  {!aprovada ? (
+                  {/* ---- O TEXTO QUE VAI AO AR ----
+                      Ele pediu: "se eu for lá e ler o que a IA gerou e não
+                      gostar, devo ter a opção de mudar ou gerar um novo texto,
+                      não sai da linha do agendamento". O horário fica onde
+                      está; só o texto muda. Publicada não edita — já saiu. */}
+                  {!publicada && (
+                    editando === s.id ? (
+                      <div className="mt-2.5 border-t border-gray-100 pt-2.5 space-y-2">
+                        <textarea
+                          value={rascunho}
+                          onChange={e => setRascunho(e.target.value)}
+                          rows={5}
+                          placeholder="O texto que vai junto com a arte…"
+                          className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#8B2214]/30"
+                        />
+                        <div className="flex flex-wrap gap-2">
+                          <button onClick={() => salvarLegenda(s)} disabled={agindo === s.id}
+                            className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-xs font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50">
+                            {agindo === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                            Salvar texto
+                          </button>
+                          <button onClick={() => gerarOutroTexto(s)} disabled={gerandoTexto}
+                            className="inline-flex items-center gap-1.5 border border-gray-300 text-gray-700 hover:border-[#8B2214] hover:text-[#8B2214] text-xs font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50">
+                            {gerandoTexto ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                            Gerar outro texto
+                          </button>
+                          <button onClick={() => setEditando(null)}
+                            className="text-xs font-semibold text-gray-500 hover:text-gray-700 px-2">
+                            cancelar
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-gray-400">
+                          O horário não muda. Salvar atualiza o que o robô vai publicar.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="mt-2.5 border-t border-gray-100 pt-2.5">
+                        <p className="text-xs text-gray-600 whitespace-pre-wrap line-clamp-3">
+                          {s.legenda?.trim() || <span className="text-gray-400 italic">sem texto ainda</span>}
+                        </p>
+                        <button onClick={() => { setEditando(s.id); setRascunho(s.legenda ?? ''); }}
+                          className="mt-1.5 text-xs font-semibold text-[#8B2214] hover:underline">
+                          {s.legenda?.trim() ? 'mudar o texto' : 'escrever o texto'}
+                        </button>
+                      </div>
+                    )
+                  )}
+
+                  {publicada ? null : !aprovada ? (
                     <div className="mt-2.5 flex flex-wrap gap-2 border-t border-gray-100 pt-2.5">
                       <button onClick={() => aprovar(s)} disabled={agindo === s.id}
                         className="inline-flex items-center gap-1.5 bg-[#8B2214] hover:bg-[#6d1a10] text-white text-xs font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50">

@@ -21,7 +21,12 @@ interface LinhaColetada {
 }
 
 describe.skipIf(!existsSync(ARQUIVO))('régua aplicada à coleta real', () => {
-  const linhas: LinhaColetada[] = JSON.parse(readFileSync(ARQUIVO, 'utf8'));
+  // `describe.skipIf` ainda PERCORRE o corpo para coletar os testes, entao
+  // ler o arquivo aqui quebrava a suite inteira quando ele nao existia — e
+  // ele nao existe por padrao: e artefato local, fora do git.
+  const linhas: LinhaColetada[] = existsSync(ARQUIVO)
+    ? JSON.parse(readFileSync(ARQUIVO, 'utf8'))
+    : [];
 
   // Reagrupa por ficha: na coleta, cada OFERTA virou uma linha — e era
   // exatamente isso que inflava a mediana.
