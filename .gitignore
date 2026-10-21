@@ -45,3 +45,8 @@ apl.mjs
 # Arquivo temporario de segredo (procedimento do App Secret da Meta)
 .secret-temp
 backups/
+
+# artefatos de coleta local, nao versionados
+ml-coleta-cafe.json
+regua-preco-cafe.txt
+casa-cofico.png

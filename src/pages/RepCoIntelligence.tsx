@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { DollarSign, ShoppingBag, MapPin, Coffee, Lock, ArrowLeft, TrendingUp } from 'lucide-react';
+import { DollarSign, ShoppingBag, MapPin, Coffee, Lock, ArrowLeft, TrendingUp, Store } from 'lucide-react';
+import CasaCoficoPanel from '../components/repco/CasaCoficoPanel';
 import { MapContainer, TileLayer, CircleMarker, Tooltip } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -35,6 +36,10 @@ function goBack() {
 
 export default function RepCoIntelligence() {
   const { profile, loading } = useAuth();
+  /** Sub-aba. 'proprio' = nossas vendas; 'casa' = preço nos marketplaces.
+   *  São duas perguntas diferentes e por isso não dividem a mesma tela:
+   *  "como eu vendo" e "por quanto o mercado vende". */
+  const [aba, setAba] = useState<'proprio' | 'casa'>('proprio');
   const [busy, setBusy] = useState(true);
   const [area, setArea] = useState<Row[]>([]);
   const [linha, setLinha] = useState<Row[]>([]);
@@ -117,7 +122,22 @@ export default function RepCoIntelligence() {
           </div>
         </div>
 
-        {busy ? <Center><div className="animate-spin rounded-full h-10 w-10 border-b-4" style={{ borderColor: PRIMARY }} /></Center> : (
+        {/* As duas leituras da Inteligência. CASA COFICO é o nome comercial
+            das nossas lojas em marketplace — não um sistema à parte. */}
+        <div className="flex gap-1 border-b border-gray-200">
+          {([['proprio', 'Nossas vendas', <TrendingUp key="a" className="w-4 h-4" />],
+             ['casa', 'CASA COFICO', <Store key="b" className="w-4 h-4" />]] as const).map(([id, rotulo, icone]) => (
+            <button key={id} onClick={() => setAba(id as 'proprio' | 'casa')}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+                aba === id
+                  ? 'border-[#8B2214] text-[#8B2214]'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+              {icone} {rotulo}
+            </button>
+          ))}
+        </div>
+
+        {aba === 'casa' ? <CasaCoficoPanel /> : busy ? <Center><div className="animate-spin rounded-full h-10 w-10 border-b-4" style={{ borderColor: PRIMARY }} /></Center> : (
           <>
             {/* KPIs */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
