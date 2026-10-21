@@ -112,7 +112,6 @@ export default function AgendadorPanel({ brandId, brandName, companyId, onCriarI
   const [gerandoTexto, setGerandoTexto] = useState(false);
 
   const [devolvidas, setDevolvidas] = useState(0);
-  const [vazios, setVazios] = useState<Vazio[]>([]);
   const [miniaturas, setMiniaturas] = useState<Map<string, string>>(new Map());
   const [carregando, setCarregando] = useState(true);
   const [gerando, setGerando] = useState(false);
@@ -186,18 +185,6 @@ export default function AgendadorPanel({ brandId, brandName, companyId, onCriarI
     : precisamRevisao.includes(a) ? { txt: 'revisar', cls: 'bg-amber-100 text-amber-700' }
     : { txt: 'disponível', cls: 'bg-green-100 text-green-700' };
 
-  /**
-   * Quantas artes servem cada período — a conta que diz até onde o acervo vai.
-   * Arte sem período definido serve a qualquer janela, então entra nos três.
-   */
-  const acervoPorPeriodo = useMemo(() => {
-    const c: Record<string, number> = { manha: 0, tarde: 0, noite: 0 };
-    for (const a of paraAgendar) {
-      if (a.agendamento.periodo) c[a.agendamento.periodo]++;
-      else { c.manha++; c.tarde++; c.noite++; }
-    }
-    return c;
-  }, [paraAgendar]);
 
   async function gerar(outraSelecao = false) {
     setGerando(true); setErro('');
@@ -269,7 +256,6 @@ export default function AgendadorPanel({ brandId, brandName, companyId, onCriarI
     // 08:00 às 21h nasceria vencido, que é o defeito ao contrário.
     const r = montarSugestoes(fila, janelas, jaAgendado, diasParaProgramar(dias, janelas),
       { diasParaReusar: DIAS_PARA_REUSAR });
-    setVazios(r.vazios);
 
     if (r.sugestoes.length === 0) {
       setGerando(false);
@@ -452,7 +438,21 @@ export default function AgendadorPanel({ brandId, brandName, companyId, onCriarI
     for (const s of pendentes) await aprovar(s);
   }
 
-  /** Calendário: sugestões e horários vazios, juntos, na ordem do dia. */
+  /**
+   * O CALENDÁRIO INTEIRO — todos os dias do período, todas as janelas.
+   *
+   * ⚠️ ANTES, O BURACO SUMIA AO ATUALIZAR A PÁGINA.
+   *
+   * Os horários vazios vinham só do resultado da última geração, guardados em
+   * memória. Recarregar a tela apagava a lista, e o dia 27 mostrava 08:00 e
+   * 15:00 sem dizer que as 19:00 estavam abertas — o espaço não aparecia
+   * vazio, ele simplesmente não existia. O bloco "faltou arte para N
+   * horários" sumia junto, justamente quando ele precisava dele para saber o
+   * que criar.
+   *
+   * Agora é calculado na hora de mostrar, a partir dos dias pedidos e das
+   * janelas da marca. Abrir a página amanhã mostra o mesmo que hoje.
+   */
   const porDia = useMemo(() => {
     const m = new Map<string, { sugestoes: SugestaoSalva[]; vazios: Vazio[] }>();
     const garante = (d: string) => {
@@ -460,18 +460,82 @@ export default function AgendadorPanel({ brandId, brandName, companyId, onCriarI
       return m.get(d)!;
     };
     for (const s of salvas) garante(diaLocal(s.sugerido_para)).sugestoes.push(s);
-    for (const v of vazios) garante(diaLocal(v.quando)).vazios.push(v);
+
+    // Os dias do período pedido, pulando hoje depois da última janela — a
+    // mesma conta que a geração usa, para a tela não prometer o que o
+    // agendador não faria.
+    const ativas = janelas.filter(j => j.ativa);
+    for (const dia of diasParaProgramar(dias, ativas)) {
+      const doDia = garante(dia);
+      const indiceDia = new Date(dia + 'T12:00:00').getDay();
+      for (const j of ativas) {
+        if (j.dia_semana !== null && j.dia_semana !== indiceDia) continue;
+        const quando = `${dia}T${j.hora}:00-03:00`;
+        const ocupado = doDia.sugestoes.some(
+          s => Math.abs(new Date(s.sugerido_para).getTime() - new Date(quando).getTime()) < 60_000);
+        if (ocupado) continue;
+        doDia.vazios.push({
+          brand_id: j.brand_id, quando, hora: j.hora, periodo: j.periodo,
+          motivo: 'Nenhuma arte adequada para este dia e horário.',
+        });
+      }
+      doDia.vazios.sort((a, b) => a.hora.localeCompare(b.hora));
+    }
     return [...m.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [salvas, vazios]);
+  }, [salvas, janelas, dias]);
+
+  /** Todos os vazios do período, para os contadores. Substitui a lista que
+   *  vinha da geração e evaporava. */
+  const vaziosVivos = useMemo(
+    () => porDia.flatMap(([, d]) => d.vazios), [porDia]);
 
   const pendentes = salvas.filter(s => s.status === 'sugerida').length;
 
   /** O que faltou, por período — vira o pedido de criação. */
-  const faltamPorPeriodo = useMemo(() => {
-    const c = new Map<string, number>();
-    for (const v of vazios) c.set(v.periodo, (c.get(v.periodo) ?? 0) + 1);
-    return [...c.entries()].sort((a, b) => b[1] - a[1]);
-  }, [vazios]);
+  /**
+   * O BALANÇO POR PERÍODO: o que falta, o que tem, e o que sobra.
+   *
+   * Pedido dele: "se faltam 8 e eu gerei 9, ela fica no próximo bloco de 14
+   * dias" — e "conforme vai agendando ele vai atualizando, se eu carregar 1
+   * noite ele vira 7".
+   *
+   * As duas pontas importam. Só mostrar o que falta esconde que ele já tem
+   * arte parada esperando vaga; só mostrar o que tem esconde o buraco. Ver os
+   * dois lado a lado é o que permite decidir se cria mais uma ou se já pode
+   * parar.
+   *
+   * A nona arte de noite não se perde nem é descartada: ela continua
+   * disponível no acervo e entra no próximo período — a tela só deixa isso
+   * explícito, em vez de ele descobrir que sobrou quando o painel não mudar.
+   */
+  const balancoPorPeriodo = useMemo(() => {
+    const falta = new Map<string, number>();
+    for (const v of vaziosVivos) falta.set(v.periodo, (falta.get(v.periodo) ?? 0) + 1);
+
+    const tem = new Map<string, number>();
+    for (const a of paraAgendar) {
+      // Peça sem período declarado serve em qualquer janela: conta como
+      // coringa, não como sobra de um período específico.
+      const p = a.agendamento.periodo ?? 'qualquer';
+      tem.set(p, (tem.get(p) ?? 0) + 1);
+    }
+
+    const periodos = new Set([...falta.keys(), ...tem.keys()]);
+    periodos.delete('qualquer');
+
+    const linhas = [...periodos].map(p => {
+      const f = falta.get(p) ?? 0;
+      const t = tem.get(p) ?? 0;
+      return { periodo: p, falta: f, tem: t, sobra: Math.max(0, t - f) };
+    }).sort((a, b) => b.falta - a.falta);
+
+    return { linhas, coringas: tem.get('qualquer') ?? 0 };
+  }, [vaziosVivos, paraAgendar]);
+
+  /** Mantido para quem lê de fora: só o que falta, por período. */
+  const faltamPorPeriodo = useMemo(
+    () => balancoPorPeriodo.linhas.filter(l => l.falta > 0).map(l => [l.periodo, l.falta] as const),
+    [balancoPorPeriodo]);
 
   const janelasPorDia = janelas.filter(j => j.dia_semana === null).length || janelas.length;
   /** Até quantos dias o acervo cobre, se tudo encaixasse. É o teto otimista. */
@@ -553,15 +617,56 @@ export default function AgendadorPanel({ brandId, brandName, companyId, onCriarI
               <strong className="text-gray-700">{recemPublicadas.length}</strong> já publicada(s)
             </span>
           )}
-          <span>
-            Serve: <strong className="text-gray-700">{acervoPorPeriodo.manha}</strong> manhã ·{' '}
-            <strong className="text-gray-700">{acervoPorPeriodo.tarde}</strong> tarde ·{' '}
-            <strong className="text-gray-700">{acervoPorPeriodo.noite}</strong> noite
-          </span>
           {precisamRevisao.length > 0 && (
             <span className="text-amber-700"><strong>{precisamRevisao.length}</strong> precisam de revisão</span>
           )}
         </div>
+
+        {/* ---- O BALANÇO, no lugar onde ele olha primeiro ----
+            Antes dizia só "Serve: 0 manhã · 0 tarde · 0 noite", que conta o
+            que TEM e esconde o que FALTA. Ver os dois lado a lado é o que
+            permite decidir se cria mais uma ou se já pode parar — e o que
+            mostra os {dias} dias fechando conforme ele carrega arte. */}
+        {balancoPorPeriodo.linhas.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-gray-200">
+            <p className="text-xs text-gray-500 mb-2">
+              Para fechar os {dias} dias:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {balancoPorPeriodo.linhas.map(l => {
+                const fechado = l.falta === 0;
+                return (
+                  <div key={l.periodo} className={`rounded-lg border px-3 py-2 ${
+                    fechado ? 'border-green-200 bg-green-50/50' : 'border-[#ddd0cc] bg-[#f5f0ef]'}`}>
+                    <p className="text-xs font-semibold text-gray-700 capitalize">
+                      {PERIODO_ROTULO[l.periodo] ?? l.periodo}
+                    </p>
+                    <p className={`text-sm font-bold ${fechado ? 'text-green-700' : 'text-[#8B2214]'}`}>
+                      {fechado
+                        ? 'completo'
+                        : <>faltam {l.falta}</>}
+                    </p>
+                    <p className="text-[11px] text-gray-500">
+                      {l.tem} pronta(s)
+                      {/* A arte que sobra NÃO se perde: fica no acervo e entra
+                          no período seguinte. Dizer isso evita a impressão de
+                          que o trabalho dele foi descartado. */}
+                      {l.sobra > 0 && (
+                        <> · <strong className="text-gray-700">{l.sobra}</strong> para o próximo período</>
+                      )}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+            {balancoPorPeriodo.coringas > 0 && (
+              <p className="text-[11px] text-gray-500 mt-2">
+                <strong className="text-gray-700">{balancoPorPeriodo.coringas}</strong> arte(s) sem
+                horário definido — servem em qualquer janela.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* acervo disponível, com a arte à vista */}
@@ -629,7 +734,7 @@ export default function AgendadorPanel({ brandId, brandName, companyId, onCriarI
       {faltamPorPeriodo.length > 0 && (
         <div className="bg-white border border-[#ddd0cc] rounded-xl p-5">
           <h3 className="flex items-center gap-2 font-bold text-gray-900 mb-1">
-            <Wand2 className="w-5 h-5 text-[#8B2214]" /> Faltou arte para {vazios.length} horário(s)
+            <Wand2 className="w-5 h-5 text-[#8B2214]" /> Faltou arte para {vaziosVivos.length} horário(s)
           </h3>
           <p className="text-sm text-gray-600 mb-3">
             Deixei vazios de propósito — publicar a peça errada é pior que não publicar.
