@@ -21,6 +21,7 @@ import {
   classificar, montarSugestoes, assinatura, LIMITE_REVISAO, diasParaProgramar, vencidas,
   type Arte, type Janela, type Agendamento, type Vazio,
 } from './agendador';
+import { montarHashtags, trocarHashtags } from '../../lib/hashtagsCafe';
 
 interface ArteDisponivel {
   video_id: string; brand_id: string; marca: string; titulo: string;
@@ -311,13 +312,31 @@ export default function AgendadorPanel({ brandId, brandName, companyId, onCriarI
    * acrescentadas só quando NÃO estão lá, para não repetir a mesma tag duas
    * vezes no post. É o mesmo critério da tela de análise.
    */
+  /** A tag da marca, a partir do nome: "Café Tropeiro Paulista" vira
+   *  #cafetropeiropaulista. É a única fixa — é a nossa casa. */
+  const marcaTag = useMemo(() => {
+    const limpo = brandName.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    return limpo ? '#' + limpo : null;
+  }, [brandName]);
+
+  /** As tags já usadas no que está agendado. Entram como "evite", para a
+   *  rotação não cair de novo onde acabou de passar. */
+  const tagsRecentes = useMemo(
+    () => salvas.flatMap(x => (x.legenda ?? '').match(/#[^\s#]+/g) ?? []),
+    [salvas]);
+
   function legendaDaArte(arte: ArteDisponivel | undefined, rede: string): string {
     if (!arte) return '';
     const base = (arte.legendas?.[rede] ?? arte.legendas?.instagram ?? '').trim();
     if (!base) return '';
-    const jaTem = (t: string) => base.toLowerCase().includes(t.toLowerCase());
-    const extras = (arte.hashtags ?? []).filter(t => t && !jaTem(t)).slice(0, 6);
-    return extras.length ? `${base}\n\n${extras.join(' ')}` : base;
+    // ⚠️ AS TAGS DA ANÁLISE SÃO REPETITIVAS, e isso foi medido: nas 22 peças
+    // agendadas, #CaféForte e #RitualDoCafé apareciam em 19. Bloco idêntico em
+    // posts seguidos o Instagram trata como spam. O corpo do texto é dela e
+    // continua sendo; só o bloco de tags é refeito, com rotação por peça.
+    return trocarHashtags(base, montarHashtags(arte.video_id, {
+      daMarca: marcaTag, recentes: tagsRecentes,
+    }));
   }
 
   async function salvarLegenda(s: SugestaoSalva) {
