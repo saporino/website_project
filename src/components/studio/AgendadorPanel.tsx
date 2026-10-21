@@ -107,6 +107,9 @@ export default function AgendadorPanel({ brandId, brandName, companyId, onCriarI
   /** Qual legenda está aberta para edição, e o texto em digitação.
    *  Texto ruim agendado publica igual — ele precisa poder mudar sem perder
    *  o horário já decidido. */
+  /** Qual texto acabou de ser copiado — o aviso dura dois segundos. Sem ele,
+   *  clicar em "copiar" não dá sinal nenhum e a pessoa clica de novo. */
+  const [copiada, setCopiada] = useState<string | null>(null);
   const [editando, setEditando] = useState<string | null>(null);
   const [rascunho, setRascunho] = useState('');
   const [gerandoTexto, setGerandoTexto] = useState(false);
@@ -800,7 +803,7 @@ export default function AgendadorPanel({ brandId, brandName, companyId, onCriarI
                       <p className="font-semibold text-gray-900 truncate" title={arte?.titulo}>{arte?.titulo ?? '(arte removida)'}</p>
                       <p className="text-xs text-gray-500 mt-0.5">{s.motivo}</p>
                       {arte?.texto_da_arte && (
-                        <p className="text-[11px] text-gray-400 mt-1 line-clamp-2">Texto da arte: {arte.texto_da_arte}</p>
+                        <p className="text-[11px] text-gray-400 mt-1">Texto da arte: {arte.texto_da_arte}</p>
                       )}
                     </div>
                     <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 flex-shrink-0 ${
@@ -815,6 +818,59 @@ export default function AgendadorPanel({ brandId, brandName, companyId, onCriarI
                       gostar, devo ter a opção de mudar ou gerar um novo texto,
                       não sai da linha do agendamento". O horário fica onde
                       está; só o texto muda. Publicada não edita — já saiu. */}
+                  {/* PUBLICADA: o texto fica à vista para ler e copiar.
+                      Eu havia escondido o bloco inteiro pensando "não há o que
+                      decidir sobre o passado" — e esqueci que ele pode querer
+                      reaproveitar o que deu certo. Não há botão de editar
+                      porque isso já saiu; mudar aqui não mudaria nada no ar. */}
+                  {publicada && (
+                    <div className="mt-2.5 border-t border-gray-100 pt-2.5">
+                      {s.legenda?.trim() ? (
+                        <>
+                          <p className="text-xs text-gray-600 whitespace-pre-wrap">{s.legenda}</p>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard?.writeText(s.legenda ?? '');
+                              setCopiada(s.id);
+                              setTimeout(() => setCopiada(null), 2000);
+                            }}
+                            className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-[#8B2214] hover:underline">
+                            {copiada === s.id ? <><Check className="w-3 h-3" /> copiado</> : 'copiar o texto'}
+                          </button>
+                        </>
+                      ) : (
+                        <div className="rounded-lg bg-amber-50 border border-amber-200 p-2.5">
+                          <p className="text-xs font-semibold text-amber-900">
+                            Esta peça foi publicada <strong>sem texto</strong> — o defeito corrigido em 21/10.
+                          </p>
+                          {/* O texto que DEVERIA ter ido. O post está no ar sem
+                              legenda; copiar daqui e colar no Instagram
+                              conserta o que já saiu, que é o que ele pode
+                              fazer hoje — o sistema não edita post publicado. */}
+                          {legendaDaArte(arte, s.plataforma) && (
+                            <>
+                              <p className="text-[11px] text-amber-800 mt-1.5 mb-1">
+                                O texto que deveria ter ido — copie e cole no post:
+                              </p>
+                              <p className="text-xs text-gray-700 whitespace-pre-wrap bg-white rounded p-2 border border-amber-100">
+                                {legendaDaArte(arte, s.plataforma)}
+                              </p>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard?.writeText(legendaDaArte(arte, s.plataforma));
+                                  setCopiada(s.id);
+                                  setTimeout(() => setCopiada(null), 2000);
+                                }}
+                                className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-[#8B2214] hover:underline">
+                                {copiada === s.id ? <><Check className="w-3 h-3" /> copiado</> : 'copiar o texto'}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {!publicada && (
                     editando === s.id ? (
                       <div className="mt-2.5 border-t border-gray-100 pt-2.5 space-y-2">
