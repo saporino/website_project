@@ -51,11 +51,21 @@ export interface CaixaDoBanco { conversas: ConversaDemo[]; empresas: number; }
  * natureza (o que importa é o que está aberto), e uma consulta por conversa viraria dezenas
  * de idas ao banco só para pintar a lista.
  */
-export async function lerCaixa(limite = 100): Promise<CaixaDoBanco> {
-  const { data: caixa, error } = await supabase
+export async function lerCaixa(limite = 100, companyId?: string | null): Promise<CaixaDoBanco> {
+  // ⚠️ FILTRA PELA EMPRESA ESCOLHIDA NO TOPO.
+  //
+  // A RLS garante que ninguém veja conversa de empresa onde não tem papel —
+  // mas quem tem papel em DUAS via as duas misturadas, debaixo de um título
+  // que dizia "COFICO" fixo. Trocar a empresa no seletor não mudava nada.
+  //
+  // Conversa de cliente é da empresa que atende. Misturar Saporino com COFICO
+  // na mesma caixa é o caminho curto para responder pela marca errada.
+  let consulta = supabase
     .from('vw_wa_caixa').select('*')
     .order('ultima_entrada_em', { ascending: false, nullsFirst: false })
     .limit(limite);
+  if (companyId) consulta = consulta.eq('company_id', companyId);
+  const { data: caixa, error } = await consulta;
   if (error) throw new Error(error.message);
   const linhas = (caixa ?? []) as LinhaDaCaixa[];
   if (linhas.length === 0) return { conversas: [], empresas: 0 };

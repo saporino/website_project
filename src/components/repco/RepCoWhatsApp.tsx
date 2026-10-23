@@ -1,4 +1,5 @@
-// RepCo › WhatsApp — central de atendimento dos contatos EXTERNOS da COFICO.
+// RepCo › WhatsApp — central de atendimento dos contatos EXTERNOS da empresa
+// escolhida no seletor do topo.
 //
 // Aba própria, separada de "Mensagens" (que é o chat interno da equipe). São públicos
 // diferentes, regras diferentes e acessos diferentes: misturar convida ao erro de
@@ -16,6 +17,7 @@ import {
 import { CONVERSAS_DEMO, ATENDENTES, type ConversaDemo, type MensagemDemo } from './whatsappDemo';
 import { lerCaixa, marcarLida, assumirAtendimento, enviarMensagem } from './whatsappDados';
 import { supabase } from '../../lib/supabase';
+import { useCompany } from '../../contexts/CompanyContext';
 
 const MARCA = '#8B2214';
 const JANELA_MIN = 24 * 60;
@@ -56,6 +58,29 @@ function SeloEstado({ m }: { m: MensagemDemo }) {
 
 /** `demo` desenha as conversas ficticias; `banco` le as tabelas wa_* pela RLS. */
 export default function RepCoWhatsApp({ fonte = 'banco' }: { fonte?: 'banco' | 'demo' }) {
+  // A empresa do seletor do topo. O título dizia "COFICO" fixo e a caixa
+  // mostrava tudo: trocar de empresa não mudava nada na tela.
+  const { activeCompanyId, activeCompany, companies } = useCompany();
+  const nomeEmpresa = activeCompany?.fantasia || activeCompany?.name || 'esta empresa';
+
+  /**
+   * ⚠️ O NÚMERO DE WHATSAPP É DA COFICO. Só dela, hoje.
+   *
+   * O título dizia "WhatsApp — COFICO" fixo, e a caixa mostrava tudo. Trocar
+   * a empresa no topo não mudava nada — parecia defeito, e era. Mas corrigir
+   * só o título teria criado um erro pior: sugerir que a Saporino tem um
+   * WhatsApp, quando ela não tem.
+   *
+   * A caixa filtra por empresa — o banco já tem `company_id` em `wa_numeros`,
+   * e no dia em que a Saporino tiver um número a tela funciona sozinha. Até
+   * lá, estando noutra empresa, a tela DIZ de quem é o número em vez de
+   * mostrar uma caixa vazia sem explicação.
+   */
+  const donoDoNumero = useMemo(
+    () => (companies ?? []).find(c =>
+      /cofico/i.test(c.fantasia ?? '') || /cofico/i.test(c.name ?? '')),
+    [companies]);
+  const ehDonoDoNumero = !!donoDoNumero && donoDoNumero.id === activeCompanyId;
   const demo = fonte === 'demo';
   const [conversas, setConversas] = useState<ConversaDemo[]>(demo ? CONVERSAS_DEMO : []);
   const [abertaId, setAbertaId] = useState<string>(demo ? CONVERSAS_DEMO[0].id : '');
@@ -73,19 +98,31 @@ export default function RepCoWhatsApp({ fonte = 'banco' }: { fonte?: 'banco' | '
   // ─────────────────────────────────────────── carga e tempo real (só no modo banco)
   const recarregar = useCallback(async () => {
     try {
-      const { conversas: cs } = await lerCaixa();
+      const { conversas: cs } = await lerCaixa(100, activeCompanyId);
       setConversas(cs);
       setErro(null);
     } catch (e) {
-      setErro(e instanceof Error ? e.message : String(e));
+      // ⚠️ O ERRO CRU DO POSTGRES NÃO AJUDA NINGUÉM.
+      //
+      // Ele viu "Could not find the table 'public.vw_wa_caixa' in the schema
+      // cache" e não tinha como saber o que fazer com isso. A causa é
+      // conhecida: as tabelas do WhatsApp existem em staging e ainda não
+      // foram aplicadas em produção. Dizer isso em português é o mínimo.
+      const msg = e instanceof Error ? e.message : String(e);
+      setErro(/vw_wa_caixa|wa_conversas|schema cache/i.test(msg)
+        ? 'O WhatsApp ainda não está no ar nesta instalação — as tabelas existem em teste e faltam ser aplicadas aqui. Nenhuma conversa foi perdida; a central passa a funcionar assim que isso for feito.'
+        : msg);
     } finally {
       setCarregando(false);
     }
-  }, []);
+  }, [activeCompanyId]);
 
   const primeira = useRef(true);
   useEffect(() => {
     if (demo) return;
+    // Trocar a empresa no topo tem de trocar a caixa. `recarregar` depende de
+    // `activeCompanyId`, então este efeito roda de novo quando ele muda.
+    setCarregando(true);
     supabase.auth.getUser().then(({ data }) => setEu(data.user?.id ?? null));
     recarregar();
     // Mensagem nova tem de aparecer sem ninguém apertar F5: numa tela de atendimento,
@@ -192,10 +229,10 @@ export default function RepCoWhatsApp({ fonte = 'banco' }: { fonte?: 'banco' | '
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-            <MessageCircle className="w-5 h-5" style={{ color: MARCA }} /> WhatsApp — COFICO
+            <MessageCircle className="w-5 h-5" style={{ color: MARCA }} /> WhatsApp — {nomeEmpresa}
           </h3>
           <p className="text-sm text-gray-500">
-            {conversas.length} conversas · {totalNaoLidas} não lidas · contatos de fora da empresa
+            {conversas.length} conversas · {totalNaoLidas} não lidas · contatos de fora da {nomeEmpresa}
           </p>
         </div>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
@@ -211,10 +248,44 @@ export default function RepCoWhatsApp({ fonte = 'banco' }: { fonte?: 'banco' | '
       {!demo && conversas.length === 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-8 text-center">
           <MessageCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-          <p className="font-semibold text-gray-800">Nenhuma conversa ainda.</p>
-          <p className="text-sm text-gray-500 mt-1">
-            Quando alguém escrever para o número da COFICO, a conversa aparece aqui sozinha.
-          </p>
+          {ehDonoDoNumero || !donoDoNumero ? (
+            <>
+              <p className="font-semibold text-gray-800">Nenhuma conversa ainda.</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Quando alguém escrever para o número, a conversa aparece aqui sozinha.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="font-semibold text-gray-800">
+                {nomeEmpresa} ainda não tem WhatsApp próprio.
+              </p>
+              <p className="text-sm text-gray-500 mt-1">
+                Hoje o número atendido aqui é da{' '}
+                <strong>{donoDoNumero.fantasia || donoDoNumero.name}</strong>.
+                Troque a empresa no topo para ver as conversas dela.
+              </p>
+              {/* ⚠️ A ESTRUTURA JÁ ESTÁ PRONTA para a segunda empresa.
+                  `wa_numeros` tem `company_id`, o `phone_number_id` do evento
+                  decide o dono da mensagem, e não existe empresa padrão. Esta
+                  tela filtra pela empresa do topo. Falta só a linha do número.
+                  Dizer isso aqui evita a pergunta "e quando a Saporino tiver
+                  o dela, vai dar trabalho?". Não vai. */}
+              <div className="mt-4 text-left text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-lg p-3 max-w-md mx-auto">
+                <p className="font-semibold text-gray-700 mb-1">
+                  Quando {nomeEmpresa} tiver um número, a central já o atende.
+                </p>
+                <p>
+                  Nada precisa ser reprogramado: cada mensagem chega com o
+                  identificador do número que a recebeu, e é ele que diz de qual
+                  empresa ela é. São três passos — cadastrar o número na Meta,
+                  registrar o token nos secrets e incluir a linha em
+                  <code className="mx-1 bg-white px-1 rounded border">wa_numeros</code>
+                  apontando para {nomeEmpresa}.
+                </p>
+              </div>
+            </>
+          )}
         </div>
       )}
       {!demo && conversas.length === 0 ? null : (
