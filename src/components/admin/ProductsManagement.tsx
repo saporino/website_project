@@ -4,6 +4,7 @@ import { Plus, Edit, Trash2, Save, X, Image as ImageIcon, ChevronUp, ChevronDown
 import JsBarcode from 'jsbarcode';
 import { useCompany } from '../../contexts/CompanyContext';
 import KitBuilder from './KitBuilder';
+import PrecoPorCanal from './PrecoPorCanal';
 import { textoEmFardos } from '../../lib/estoque';
 
 interface Product {
@@ -666,14 +667,22 @@ export function ProductsManagement() {
                       </button>
                     </div>
                     <span className="text-xs font-semibold text-gray-400 w-5 text-center" title="Posição">{idx + 1}</span>
+                    {/* Botão só de ícone precisa de nome: sem `aria-label` o
+                        leitor de tela anuncia "botão" e pronto — e a bancada
+                        também não tem como encontrá-lo. O nome traz o produto
+                        junto porque a tela tem um par destes por linha. */}
                     <button
                       onClick={() => handleEdit(product)}
+                      title={`Editar ${product.name}`}
+                      aria-label={`Editar ${product.name}`}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     >
                       <Edit className="w-5 h-5" />
                     </button>
                     <button
                       onClick={() => handleDelete(product.id)}
+                      title={`Excluir ${product.name}`}
+                      aria-label={`Excluir ${product.name}`}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                     >
                       <Trash2 className="w-5 h-5" />
@@ -1002,6 +1011,10 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             </button>
           </div>
         </div>
+
+        {/* Preço por canal. Só na edição: o produto precisa existir (e ter id)
+            antes de ganhar preço em cada canal. */}
+        {editingId && <PrecoPorCanal productId={editingId} />}
 
         {/* PORTFÓLIO ≠ VITRINE.
             Desativar tira da venda; descontinuar tira da história. O rodapé

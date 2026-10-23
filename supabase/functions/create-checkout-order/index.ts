@@ -99,6 +99,24 @@ Deno.serve(async (req: Request) => {
     const { data: prods, error: prodErr } = await supabase
       .from('products').select('id, name, price, promotional_price, is_active, kit_quantity').in('id', ids);
     if (prodErr) throw prodErr;
+
+    // PREÇO POR CANAL. Este checkout é o da LOJA B2C — canal 'saporino', fixo.
+    //
+    // Enquanto ninguém cadastrar preço de canal, `vw_precos_por_canal` devolve
+    // para a Saporino exatamente `products.price` / `promotional_price`, que é o
+    // que este código já cobrava: nada muda hoje. Mas no dia em que a Saporino
+    // ganhar preço próprio de canal, é ELE que tem de ser cobrado — e a conta
+    // precisa sair daqui, do servidor, não da tela. Uma chamada de API fora do
+    // site cobraria o preço antigo se esta leitura ficasse só no React.
+    const CANAL_DESTA_LOJA = 'saporino';
+    const { data: precosCanal } = await supabase
+      .from('vw_precos_por_canal')
+      .select('product_id, preco_final, definido')
+      .eq('canal', CANAL_DESTA_LOJA).in('product_id', ids);
+    const precoDoCanal = new Map<string, { preco_final: number | null; definido: boolean }>(
+      (precosCanal ?? []).map((l: { product_id: string; preco_final: number | null; definido: boolean }) =>
+        [l.product_id, { preco_final: l.preco_final, definido: l.definido }]));
+
     const byId = new Map<string, ProductInfo>();
     // Quantos pacotes de 500 g cada linha representa. Um fardo é 1 item e
     // 10 pacotes — contar itens faria o frete ser cotado para 0,5 kg.
@@ -108,9 +126,15 @@ Deno.serve(async (req: Request) => {
       // cliente veria o desconto na loja e pagaria o preço cheio na hora.
       const promo = Number(p.promotional_price ?? 0);
       const cheio = Number(p.price);
+      const doProduto = promo > 0 && promo < cheio ? promo : cheio;
+
+      // O canal manda. Sem preço definido no canal, o produto NÃO é vendável
+      // aqui — e `price: 0` faz `priceCheckout` recusar a linha, em vez de
+      // cobrar um valor adivinhado. É melhor a venda falhar do que sair errada.
+      const doCanal = precoDoCanal.get(p.id);
       byId.set(p.id, {
         id: p.id, name: p.name,
-        price: promo > 0 && promo < cheio ? promo : cheio,
+        price: doCanal ? (doCanal.definido ? Number(doCanal.preco_final) : 0) : doProduto,
         is_active: !!p.is_active,
       });
       pacotesPorProduto.set(p.id, Number(p.kit_quantity) || 1);
@@ -135,6 +159,20 @@ Deno.serve(async (req: Request) => {
           code: 'SEM_ESTOQUE',
         }, 409);
       }
+    }
+
+    // Sem preço no canal, a venda para aqui — com uma frase que diz o que houve.
+    // Deixar cair no BAD_PRICE genérico ("Preço oficial inválido") faria o
+    // cliente ver um erro técnico por uma falha de cadastro nossa.
+    const semPrecoNoCanal = (prods || [])
+      .filter((p) => precoDoCanal.has(p.id) && !precoDoCanal.get(p.id)!.definido);
+    if (semPrecoNoCanal.length > 0) {
+      return json({
+        error: semPrecoNoCanal.length === 1
+          ? `${semPrecoNoCanal[0].name} está sem preço nesta loja no momento.`
+          : 'Alguns itens do seu carrinho estão sem preço nesta loja no momento.',
+        code: 'SEM_PRECO_NO_CANAL',
+      }, 409);
     }
 
     const priced = priceCheckout(items, byId);
