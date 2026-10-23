@@ -62,7 +62,7 @@ import PromoPopup from './components/PromoPopup';
 import { trackVisit } from './lib/trackVisit';
 import StoreLocator from './components/StoreLocator';
 import NotFound from './components/NotFound';
-import { rotaLegalCofico, noDominioCofico, noDominioRepCo } from './pages/coficobrasil/config';
+import { rotaLegalCofico, noDominioCofico, noDominioRepCo, linkTrabalheConosco } from './pages/coficobrasil/config';
 
 const logoImage = '/saporino-logo.png';
 
@@ -206,7 +206,18 @@ function AppRouter() {
   if (currentPath === '/termos-servico') return <TermsOfService />;
   if (currentPath === '/politica-assinatura') return <SubscriptionPolicy />;
   if (currentPath === '/politica-cookies') return <CookiePolicy />;
-  if (currentPath === '/trabalhe-conosco') return <CareersPage />;
+  // TRABALHE CONOSCO É DA COFICO. No domínio da Saporino esta rota não serve a
+  // página: manda a pessoa para a COFICO. Quem contrata é a COFICO, a vaga é
+  // dela e o formulário é dela — servir isso em cafesaporino.com.br era o mesmo
+  // vazamento de marca que as páginas legais já evitam.
+  //
+  // É redirecionamento, não 404: o endereço antigo circula (rodapé, prints,
+  // mensagens) e quem clicar tem de chegar na vaga, não num erro.
+  if (currentPath === '/trabalhe-conosco') {
+    const destino = linkTrabalheConosco();
+    if (destino.startsWith('http')) { window.location.replace(destino); return null; }
+    return <CareersPage />;
+  }
   if (currentPath === '/imprensa') return <PressPage />;
   if (currentPath.startsWith('/marcas/')) return <BrandPage slug={currentPath.split('/')[2] || ''} />;
   if (currentPath === '/marca-propria') return <PrivateLabelPage />;
@@ -2064,14 +2075,35 @@ const Footer = ({ scrollToSection }: any) => {
   useEffect(() => {
     if (!storeCompanyId) return;
     const fetchProducts = async () => {
-      // mostra os cafes mesmo quando inativos/esgotados; esconde os desligados da loja
+      // "NOSSOS CAFÉS" É PORTFÓLIO, NÃO VITRINE.
+      //
+      // Esta lista responde "que cafés a Saporino faz", e não "o que dá para
+      // comprar agora". Por isso ela IGNORA de propósito duas coisas que mandam
+      // na vitrine: estoque zerado e `is_active` desligado. Um café esgotado ou
+      // fora de venda hoje continua sendo nosso café — some da vitrine, fica aqui.
+      //
+      // Mas `hidden_from_store` CONTINUA valendo, e a diferença é intencional:
+      // desativar é "não estou vendendo agora", esconder é "não quero isto no
+      // site". São dois pedidos diferentes. Hoje o que está escondido é produto
+      // de teste ("teste R$ 1,00"), café de terceiro e item que nem é café
+      // ("Xícara"); tratar esconder como se fosse esgotar colocaria tudo isso
+      // no rodapé do site público.
+      //
+      // Para tirar do portfólio um café que existe de verdade, a chave é
+      // DESCONTINUADO — e aí ele sai daqui mesmo estando visível na loja.
+      //
+      // E kit não é café: "Kit 2 × 500 g", "Kit 3 × 500 g" e o fardo são
+      // embalagens do MESMO Tropeiro Paulista. Listá-los enchia o rodapé de
+      // repetição e escondia os cafés de verdade — era o Tropeiro cinco vezes.
       const { data } = await supabase
         .from('products')
         .select('*')
         .eq('company_id', storeCompanyId)
+        .eq('discontinued', false)
         .eq('hidden_from_store', false)
+        .is('kit_of_product_id', null)
         .order('display_order', { ascending: true })
-        .limit(6);
+        .limit(12);
       if (data) setProducts(data);
     };
     fetchProducts();
@@ -2197,9 +2229,11 @@ const Footer = ({ scrollToSection }: any) => {
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => handleNavigation('/trabalhe-conosco')} className="text-white/80 hover:text-white transition-colors text-sm">
+                  {/* Sai do site: quem contrata é a COFICO, e a página é dela.
+                      Ver `linkTrabalheConosco`. */}
+                  <a href={linkTrabalheConosco()} className="text-white/80 hover:text-white transition-colors text-sm">
                     Trabalhe Conosco
-                  </button>
+                  </a>
                 </li>
                 <li>
                   <button onClick={() => handleNavigation('/imprensa')} className="text-white/80 hover:text-white transition-colors text-sm">

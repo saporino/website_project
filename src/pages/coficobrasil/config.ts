@@ -61,3 +61,23 @@ export function rotaLegalCofico(caminho: string, host?: string): string | null {
 export function linkPortalPJ(caminho: 'cadastro' | 'minha-empresa', host?: string): string {
   return noDominioCofico(host) ? `/${caminho}` : `/coficobrasil/${caminho}`;
 }
+
+/** Domínio público da COFICO, para link ABSOLUTO vindo do site da Saporino. */
+export const COFICO_URL = 'https://www.coficobrasil.com.br';
+
+/**
+ * "Trabalhe conosco" é da COFICO — ela é a empregadora, a vaga é dela, o texto
+ * é dela e o formulário é dela. A página estava morando em
+ * cafesaporino.com.br/trabalhe-conosco, com a marca COFICO dentro do site da
+ * Saporino: exatamente o vazamento de marca que as páginas legais já evitam.
+ *
+ * Do site da Saporino o link é ABSOLUTO e troca de domínio de propósito — quem
+ * clica tem de chegar na COFICO, não numa página da COFICO hospedada na
+ * Saporino. No domínio da COFICO (e em localhost, para dar para testar) é
+ * caminho relativo normal.
+ */
+export function linkTrabalheConosco(host?: string): string {
+  const h = (host ?? (typeof window === 'undefined' ? '' : window.location.hostname)).toLowerCase();
+  const local = ['localhost', '127.0.0.1', '[::1]'].includes(h);
+  return noDominioCofico(h) || local ? '/trabalhe-conosco' : `${COFICO_URL}/trabalhe-conosco`;
+}

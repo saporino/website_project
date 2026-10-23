@@ -740,16 +740,23 @@ export const CareersPage = () => {
           ))}
         </ul>
 
-        {/* O que oferecemos — Saporino */}
+        {/* O que oferecemos.
+            O cartão dizia "Linha Café Saporino" e um 5% seco. Mas a COFICO
+            distribui mais de uma linha, e quem se candidata vai vender todas —
+            prender a oferta a uma marca só vende menos do que a empresa tem.
+            A faixa (3% a 8%) é o que o candidato precisa saber antes de
+            conversar; o valor exato depende da linha e sai na proposta. */}
         <h2 className="mt-16 text-2xl font-bold text-gray-900">O que oferecemos</h2>
         <div className="mt-6 grid items-start gap-5 md:grid-cols-2">
           <div className="rounded-2xl border border-gray-200 border-l-4 border-l-cofico-ink p-6">
-            <p className="text-sm font-bold uppercase tracking-wide text-cofico-ink">Comissão — Linha Café Saporino</p>
-            <p className="mt-2 text-3xl font-bold text-gray-900">5%<span className="text-base font-medium text-gray-500"> sobre vendas pagas</span></p>
+            <p className="text-sm font-bold uppercase tracking-wide text-cofico-ink">Comissão — nossas linhas de café</p>
+            <p className="mt-2 text-3xl font-bold text-gray-900">3% a 8%<span className="text-base font-medium text-gray-500"> sobre vendas pagas</span></p>
             <ul className="mt-3 space-y-1.5 text-sm text-gray-700">
+              <li>5% é a base na maioria das linhas</li>
               <li>+ 0,5% adicional em pagamentos via PIX</li>
               <li>+ possibilidade de até 8% com entrega própria (após 90 dias)</li>
             </ul>
+            <p className="mt-3 text-xs text-gray-500">O percentual exato depende da linha vendida.</p>
           </div>
           <ul className="space-y-2 text-sm text-gray-700">
             {OFERECEMOS_LISTA.map(x => <li key={x} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-cofico-ink" />{x}</li>)}

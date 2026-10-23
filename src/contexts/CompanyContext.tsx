@@ -11,22 +11,54 @@ export interface Company {
   cofico_visivel?: boolean;
 }
 
+/**
+ * ESCOPO = modo de trabalho, não empresa.
+ *
+ * 'uma'   → o de sempre: a tela mostra e grava na empresa do seletor.
+ * 'todas' → modo de CONTROLE: as telas preparadas mostram o conjunto, de todas
+ *           as empresas de uma vez, para não obrigar a cadastrar a mesma coisa
+ *           duas vezes (foi o pedido: "não ter que colocar inventário na
+ *           Saporino e na COFICO, trabalho dobrado").
+ *
+ * ⚠️ A TRAVA QUE SEGURA ISTO DE PÉ: mesmo em 'todas', `activeCompanyId`
+ * CONTINUA SENDO UMA EMPRESA REAL. Nunca vira null nem um valor sentinela.
+ *
+ * O motivo é concreto: 27 pontos do app gravam `company_id: activeCompanyId`, e
+ * 35 telas filtram por ele sem saber que este modo existe. Se o seletor pudesse
+ * devolver "todas", `eq('company_id','todas')` nem é UUID — as telas quebrariam,
+ * e as que não quebrassem gravariam dado sem dono. Dado órfão num banco
+ * multi-empresa não tem conserto barato.
+ *
+ * Então quem quer o conjunto PEDE por ele, olhando `escopo`. Quem não pede
+ * continua exatamente como antes. E na hora de CRIAR, o modo 'todas' não
+ * escolhe empresa por ninguém: a tela pergunta. Fail closed, igual à regra do
+ * recebedor por empresa faturadora.
+ */
+export type EscopoEmpresa = 'uma' | 'todas';
+
 interface Ctx {
   companies: Company[];
   activeCompanyId: string | null;
   activeCompany: Company | null;
   storeCompanyId: string | null; // empresa da loja B2C (Saporino)
   setActiveCompanyId: (id: string) => void;
+  escopo: EscopoEmpresa;
+  setEscopo: (e: EscopoEmpresa) => void;
+  /** Atalho de leitura para as telas preparadas. */
+  vendoTodas: boolean;
   reloadCompanies: () => Promise<void>;
   loading: boolean;
 }
 
 const CompanyContext = createContext<Ctx | undefined>(undefined);
 const LS_KEY = 'active-company-id';
+const LS_ESCOPO = 'active-company-escopo';
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [activeCompanyId, setActive] = useState<string | null>(() => localStorage.getItem(LS_KEY));
+  const [escopo, setEscopoState] = useState<EscopoEmpresa>(
+    () => (localStorage.getItem(LS_ESCOPO) === 'todas' ? 'todas' : 'uma'));
   const [loading, setLoading] = useState(true);
 
   async function load() {
@@ -52,12 +84,25 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
   }
   useEffect(() => { load(); }, []);
 
-  const setActiveCompanyId = (id: string) => { localStorage.setItem(LS_KEY, id); setActive(id); };
+  // Escolher uma empresa é sempre sair do modo de controle: ninguém clica em
+  // "CAFE SAPORINO" querendo continuar vendo as duas.
+  const setActiveCompanyId = (id: string) => {
+    localStorage.setItem(LS_KEY, id);
+    localStorage.setItem(LS_ESCOPO, 'uma');
+    setActive(id);
+    setEscopoState('uma');
+  };
+  const setEscopo = (e: EscopoEmpresa) => { localStorage.setItem(LS_ESCOPO, e); setEscopoState(e); };
+
   const activeCompany = companies.find(c => c.id === activeCompanyId) || null;
   const storeCompanyId = (companies.find(c => c.is_b2c) || companies[0])?.id || null;
 
   return (
-    <CompanyContext.Provider value={{ companies, activeCompanyId, activeCompany, storeCompanyId, setActiveCompanyId, reloadCompanies: load, loading }}>
+    <CompanyContext.Provider value={{
+      companies, activeCompanyId, activeCompany, storeCompanyId, setActiveCompanyId,
+      escopo, setEscopo, vendoTodas: escopo === 'todas',
+      reloadCompanies: load, loading,
+    }}>
       {children}
     </CompanyContext.Provider>
   );

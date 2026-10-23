@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Edit, Trash2, Save, X, Image as ImageIcon, ChevronUp, ChevronDown, Eye, EyeOff, Check, Copy } from 'lucide-react';
+import { Plus, Edit, Trash2, Save, X, Image as ImageIcon, ChevronUp, ChevronDown, Eye, EyeOff, Check, Copy, Building2 } from 'lucide-react';
 import JsBarcode from 'jsbarcode';
 import { useCompany } from '../../contexts/CompanyContext';
 import KitBuilder from './KitBuilder';
@@ -34,6 +34,10 @@ interface Product {
   sku?: string | null;
   pj_only?: boolean;
   sales_channels?: string[];
+  /** Saiu do portfólio de vez — diferente de `is_active` (fora de venda agora). */
+  discontinued?: boolean;
+  /** Dono do produto. Só é lido; a edição de ficha nunca o altera. */
+  company_id?: string | null;
 }
 
 function BarcodeDisplay({ value }: { value: string }) {
@@ -52,7 +56,14 @@ function BarcodeDisplay({ value }: { value: string }) {
 }
 
 export function ProductsManagement() {
-  const { activeCompanyId } = useCompany();
+  const { activeCompanyId, companies, vendoTodas } = useCompany();
+  // No modo de controle a lista mostra as duas empresas de uma vez, mas CRIAR
+  // continua exigindo dono: `empresaDoForm` é quem vai no `company_id`, e fica
+  // vazia de propósito até alguém escolher. Nenhum produto nasce sem empresa.
+  const [empresaDoForm, setEmpresaDoForm] = useState<string | null>(null);
+  const empresaAlvo = vendoTodas ? empresaDoForm : activeCompanyId;
+  const nomeDaEmpresa = (id: string | null) =>
+    companies.find(c => c.id === id)?.fantasia || companies.find(c => c.id === id)?.name || '—';
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeBatches, setActiveBatches] = useState<Record<string, string[]>>({});
@@ -89,7 +100,7 @@ export function ProductsManagement() {
   const [imageMode, setImageMode] = useState<'upload' | 'url'>('url');
   const [uploading, setUploading] = useState(false);
 
-  useEffect(() => { if (activeCompanyId) loadProducts(); }, [activeCompanyId]);
+  useEffect(() => { if (activeCompanyId) loadProducts(); }, [activeCompanyId, vendoTodas]);
 
   useEffect(() => {
     if (!editingId) { setHasLots(false); return; }
@@ -102,11 +113,15 @@ export function ProductsManagement() {
 
   const loadProducts = async () => {
     try {
+      // No modo de controle não se filtra por empresa: a RLS continua sendo o
+      // limite do que a pessoa pode ver. Tirar o `.eq` aqui não abre nada que a
+      // RLS já não autorizasse — só deixa de esconder o que ela autoriza.
+      const porEmpresa = <T,>(q: T): T => (vendoTodas ? q : (q as any).eq('company_id', activeCompanyId));
       const [{ data, error }, { data: batches }] = await Promise.all([
         // A visão traz `disponivel`: para o kit é o estoque do café dividido
         // pelo tamanho. Sem ela a lista mostrava todo kit como "esgotado".
-        supabase.from('products_com_disponibilidade').select('*').eq('company_id', activeCompanyId).order('display_order', { ascending: true }),
-        supabase.from('green_coffee_lots').select('product_id,batch_number,status').eq('status', 'active').eq('company_id', activeCompanyId)
+        porEmpresa(supabase.from('products_com_disponibilidade').select('*')).order('display_order', { ascending: true }),
+        porEmpresa(supabase.from('green_coffee_lots').select('product_id,batch_number,status').eq('status', 'active'))
       ]);
 
       if (error) throw error;
@@ -200,6 +215,10 @@ export function ProductsManagement() {
   const [clonandoAgora, setClonandoAgora] = useState(false);
 
   const abrirClonagem = async () => {
+    // Clonar é "copiar da outra marca PARA ESTA empresa". No modo de controle não
+    // existe "esta empresa" — a cópia nasceria sem dono definido. Em vez de
+    // escolher por ele, a tela manda escolher.
+    if (vendoTodas) { alert('Escolha a empresa que vai receber a cópia antes de clonar.'); return; }
     setClonando(true); setDoOutro(null); setBuscaClone(''); setEscolhidos(new Set());
     const { data } = await supabase
       .from('products')
@@ -257,7 +276,11 @@ export function ProductsManagement() {
         weight_grams: formData.weight_grams || 500,
         // stock removido — controlado exclusivamente pelos lotes ativos
         is_active: formData.is_active,
-        company_id: activeCompanyId,
+        // ⚠️ `company_id` NÃO entra aqui de propósito. Este payload também serve
+        // ao update, e mandar a empresa do seletor junto TRANSFERIRIA o produto
+        // de dono ao salvar — editar um café da COFICO no modo de controle o
+        // mudaria para a Saporino sem ninguém pedir. A empresa é decidida uma
+        // vez, no insert, e nunca mais é tocada por uma edição de ficha.
         hidden_from_store: formData.hidden_from_store ?? false,
         category: formData.category || 'café',
         product_line: (formData.product_line || '').trim() || null,
@@ -272,13 +295,17 @@ export function ProductsManagement() {
         barcode: (formData as any).barcode || null,
         sku: (formData as any).sku?.trim() || null,
         pj_only: !!formData.pj_only,
+        discontinued: !!formData.discontinued,
         sales_channels: formData.sales_channels ?? [],
       };
 
       if (isAdding) {
+        // Fail closed: sem empresa definida, o produto não nasce. No modo de
+        // controle `empresaAlvo` só tem valor depois que alguém escolheu.
+        if (!empresaAlvo) { alert('Escolha de qual empresa é este produto antes de salvar.'); return; }
         const { data, error } = await supabase
           .from('products')
-          .insert([payload])
+          .insert([{ ...payload, company_id: empresaAlvo }])
           .select()
           .single();
 
@@ -515,6 +542,35 @@ export function ProductsManagement() {
       {isAdding && (
         <div className="bg-white border-2 border-[#a4240e] rounded-xl p-6 mb-6 shadow-lg">
           <h3 className="text-xl font-bold text-gray-900 mb-6">Novo Produto</h3>
+
+          {/* MODO DE CONTROLE: nenhum produto nasce sem dono. A lista mostra as
+              duas empresas juntas, mas criar continua sendo um ato de UMA
+              empresa — é ela que fatura, que tem o lote e que paga a comissão. */}
+          {vendoTodas && (
+            <div className="mb-6 rounded-xl border-2 border-dashed border-[#8B2214]/40 bg-[#f5f0ef] p-4">
+              <label className="block text-sm font-semibold text-gray-800 mb-2">
+                De qual empresa é este produto? <span className="text-[#8B2214]">*</span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {companies.map(c => (
+                  <button key={c.id} type="button" onClick={() => setEmpresaDoForm(c.id)}
+                    className={`inline-flex items-center gap-2 rounded-lg border-2 px-3 py-2 text-sm font-semibold transition-all ${
+                      empresaDoForm === c.id ? 'border-[#8B2214] bg-white text-[#8B2214]' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}>
+                    {c.logo_url
+                      ? <img src={c.logo_url} alt="" className="h-5 w-5 rounded object-contain" />
+                      : <Building2 className="h-4 w-4 text-gray-400" />}
+                    {c.fantasia || c.name}
+                  </button>
+                ))}
+              </div>
+              {!empresaDoForm && (
+                <p className="mt-2 text-xs text-[#8B2214]">
+                  Escolha a empresa — o produto não é salvo sem ela.
+                </p>
+              )}
+            </div>
+          )}
+
           <ProductForm
             formData={formData}
             setFormData={setFormData}
@@ -555,6 +611,14 @@ export function ProductsManagement() {
                   <div className="flex-1">
                     <div className="flex items-center space-x-2 mb-2">
                       <h3 className="text-xl font-bold text-gray-900">{product.name}</h3>
+                      {/* No modo de controle a mesma lista traz as duas empresas, e
+                          há café com nome igual nas duas. Sem este selo, "Tropeiro
+                          Paulista Tradicional" aparece duas vezes sem explicação. */}
+                      {vendoTodas && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-[#f5f0ef] text-[#8B2214] text-xs font-semibold rounded">
+                          <Building2 className="w-3 h-3" /> {nomeDaEmpresa(product.company_id ?? null)}
+                        </span>
+                      )}
                       {product.featured && (
                         <span className="px-2 py-1 bg-[#a4240e] text-white text-xs font-semibold rounded">
                           Destaque
@@ -935,6 +999,30 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             <button type="button" onClick={() => setFormData({ ...formData, pj_only: !formData.pj_only })} role="switch" aria-checked={!!formData.pj_only}
               className={`relative w-14 h-8 rounded-full transition-colors flex-shrink-0 ml-2 ${formData.pj_only ? 'bg-green-500' : 'bg-gray-300'}`}>
               <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${formData.pj_only ? 'translate-x-6' : ''}`} />
+            </button>
+          </div>
+        </div>
+
+        {/* PORTFÓLIO ≠ VITRINE.
+            Desativar tira da venda; descontinuar tira da história. O rodapé
+            "Nossos cafés" lista o portfólio, então só esta chave o remove de
+            lá — esgotar o estoque ou desativar não remove, e é assim que
+            tem de ser: café sem estoque hoje continua sendo nosso café. */}
+        <div className="md:col-span-2">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Portfólio</label>
+          <div className="flex items-center justify-between border border-gray-200 rounded-lg p-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-800">Descontinuado</p>
+              <p className="text-xs text-gray-500">
+                {formData.discontinued
+                  ? 'Fora do portfólio: sai de "Nossos cafés" no rodapé do site.'
+                  : 'No portfólio: aparece em "Nossos cafés" mesmo esgotado ou desativado.'}
+              </p>
+            </div>
+            <button type="button" onClick={() => setFormData({ ...formData, discontinued: !formData.discontinued })}
+              role="switch" aria-checked={!!formData.discontinued}
+              className={`relative w-14 h-8 rounded-full transition-colors flex-shrink-0 ml-2 ${formData.discontinued ? 'bg-[#8B2214]' : 'bg-gray-300'}`}>
+              <span className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full shadow transition-transform ${formData.discontinued ? 'translate-x-6' : ''}`} />
             </button>
           </div>
         </div>

@@ -153,7 +153,12 @@ export default function CoficoBrasilPage() {
                 onError={(e) => { const t = e.currentTarget; if (!t.dataset.fb) { t.dataset.fb = '1'; t.src = '/saporino-logo.png'; } }} />
               <h3 className="mt-5 text-lg font-semibold">Café Saporino</h3>
               <p className="mt-1 text-sm text-neutral-500">Distribuição exclusiva no Estado de São Paulo</p>
-              <p className="mt-4 text-sm text-neutral-700 font-medium">Saporino Clássico Tradicional 100% Arábica · Café Serrão (Tradicional e Extra Forte)</p>
+              {/* Café Serrão SAIU daqui: é marca própria, não produto do Saporino.
+                  Vai ganhar card próprio (Tradicional e Extra Forte), como o
+                  Tropeiro Paulista, assim que o logo chegar. Até lá não aparece
+                  em lugar nenhum — marca de verdade não entra como nota de rodapé
+                  de outra marca. */}
+              <p className="mt-4 text-sm text-neutral-700 font-medium">Saporino Clássico Tradicional 100% Arábica</p>
             </article>
             <article className="border border-neutral-200 p-8">
               <img src="/cofico/tropeiro-paulista.webp" alt="Café Tropeiro Paulista" className="h-28 w-auto object-contain" />

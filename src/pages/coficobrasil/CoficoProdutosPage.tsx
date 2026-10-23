@@ -28,8 +28,9 @@ const CATALOGO: { marca: string; produtos: CatalogoProduto[] }[] = [
       { nome: 'Saporino Clássico Tradicional', cat: 'Café Moído', desc: 'Café tradicional de torra média, com sabor equilibrado, aroma marcante e bebida suave, ideal para o consumo diário.', peso: '500g', img: '/cofico/saporino-classico.png', fallback: '/saporino-logo.png' },
       { nome: 'Tropeiro Paulista Tradicional', cat: 'Café Moído', desc: 'Café Tropeiro Paulista de torra média escura, encorpado e intenso, inspirado no sabor do café da roça.', peso: '500g', img: '/cofico/tropeiro-tradicional.png', fallback: '/saporino-logo.png' },
       { nome: 'Tropeiro Paulista Extra Forte', cat: 'Café Moído', desc: 'Torra escura, encorpado e intenso — para quem aprecia café forte.', peso: '500g', img: '/cofico/tropeiro-extra-forte.png', fallback: '/saporino-logo.png' },
-      { nome: 'Café Serrão Tradicional', cat: 'Café Moído', desc: 'Torra média, sabor equilibrado e bebida suave.', peso: '500g', img: '/cofico/serrao-tradicional.png', fallback: '/saporino-logo.png' },
-      { nome: 'Café Serrão Extra Forte', cat: 'Café Moído', desc: 'Torra escura, encorpado e marcante.', peso: '500g', img: '/cofico/serrao-extra-forte.png', fallback: '/saporino-logo.png' },
+      // Café Serrão saiu desta lista: não é produto do Saporino, é MARCA PRÓPRIA,
+      // e vai virar grupo próprio (Tradicional e Extra Forte) como o Tropeiro
+      // Paulista, assim que o logo e a arte chegarem.
     ],
   },
   {

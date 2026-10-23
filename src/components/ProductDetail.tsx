@@ -86,15 +86,10 @@ export default function ProductDetail({ product, onBack, onAddToCart, isAdded, o
         <div className="md:w-1/2 border-r border-gray-50">
           {/* Imagem ativa */}
           <div className="relative aspect-square flex items-center justify-center p-10 sm:p-16 bg-white">
-            {/* Mesmo selo da vitrine, para o cliente não perder o desconto de
-                vista ao abrir o produto. */}
-            {(product as any).emPromocao && (
-              <div className="absolute top-4 left-4 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-[#8B2214] text-white shadow-lg sm:h-16 sm:w-16">
-                <span className="text-sm font-bold sm:text-base">
-                  −{Math.round((1 - product.price / Number((product as any).precoCheio)) * 100)}%
-                </span>
-              </div>
-            )}
+            {/* O selo de desconto SAIU daqui e foi para junto do preço.
+                Na vitrine ele vive na foto porque é lá que o olho passa; aberta
+                a página, o cliente olha o preço, e um círculo no canto da foto
+                fica longe demais do número que ele está decidindo. */}
             <img
               src={activeImg}
               alt={product.name}
@@ -145,6 +140,12 @@ export default function ProductDetail({ product, onBack, onAddToCart, isAdded, o
             <span className="text-xl font-bold text-gray-900">
               R$ {price.toFixed(2).replace(".", ",")}
             </span>
+            {/* O quanto ele economiza, encostado no quanto ele paga. */}
+            {(product as any).emPromocao && purchase !== "assinatura" && (
+              <span className="rounded-full bg-[#8B2214] px-2.5 py-1 text-xs font-bold text-white">
+                −{Math.round((1 - product.price / Number((product as any).precoCheio)) * 100)}%
+              </span>
+            )}
           </p>
 
           {product.description && (
