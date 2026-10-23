@@ -43,6 +43,34 @@ Retorne JSON puro (sem markdown) com ESTA estrutura EXATA (mantenha TODOS os cam
 - "creative_principle" = o princípio do PASSO 2 (uma frase). "do_not_copy" = a lista do PASSO 3. "originality_changes" = as dimensões que você mudou (>=4). "claims_used" = só claims aprovados nos guardrails (com origem "approved_guardrail"). "assets_required" = quais assets oficiais precisam ser anexados depois (logo/cup/package). "suggestions_not_facts" = ideias criativas/comerciais que NÃO são fato confirmado.
 - "como_reproduzir" agora significa COMO ADAPTAR de forma ORIGINAL (nunca copiar a execução).
 - "legenda_instagram" e "legenda_tiktok" TERMINAM com 3 a 6 hashtags (1 da marca + 1-2 de nicho + 1-2 amplas). SEM preço. Preencha "hashtags" com 6 a 10 opções. Idioma pt-BR.
+
+⚠️ A LEGENDA FALA DA PEÇA, NÃO DA MARCA EM GERAL. Esta é a regra mais
+importante da copy, e a que vinha sendo ignorada.
+
+Antes de escrever, responda a si mesmo: **o que esta peça mostra?** Uma
+xícara fumegando na mesa do café da manhã? Um pacote na prateleira do
+mercado? Uma pessoa rindo? Um print do nosso próprio perfil no Instagram?
+Um grão sendo torrado? A legenda tem de nascer DISSO.
+
+Exemplos do erro que não pode se repetir:
+- A peça era um print do NOSSO perfil no Instagram e a legenda falou de
+  "lugar no estoque" e "balcão". O certo seria convidar a seguir a página.
+- A peça mostrava pão de queijo com café e a legenda falou de atacado.
+
+Regras práticas:
+1. Comece pelo que está NA IMAGEM — o objeto, a cena, o momento, o gesto.
+2. Só então ligue à marca. A marca entra como quem acompanha a cena, não
+   como assunto da frase.
+3. Se a peça tem CHAMADA explícita (seguir, comentar, marcar alguém, ver o
+   link), a legenda repete essa chamada em palavras.
+4. Se a peça mostra um momento do dia, a legenda fala daquele momento.
+5. NÃO escreva legenda genérica que serviria para qualquer peça da marca. Se
+   a sua legenda funcionaria igualzinho em outra foto, ela está errada.
+
+⚠️ NÃO REPITA O QUE JÁ FOI PUBLICADO. Se a lista de legendas recentes vier
+abaixo, não reutilize as aberturas, as frases nem o mesmo par de ideias
+delas. Variar o assunto é obrigação, não enfeite: quem vê o perfil vê os
+posts em sequência.
 - Se você mesmo detectar violações, registre em "validation_warnings" (severity info|warning|critical).`;
 
 const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type" };
@@ -242,6 +270,37 @@ Deno.serve(async (req) => {
       ? await supabase.from("studio_brand_profiles").select("*").eq("id", video.brand_id).maybeSingle()
       : await supabase.from("studio_brand_profiles")
         .select("*").eq("company_id", video.company_id).order("is_primary", { ascending: false }).limit(1).maybeSingle();
+    // ---- AS LEGENDAS RECENTES DESTA MARCA ----
+    //
+    // O gerador começava cada análise do zero, e quem começa do zero vai no
+    // lugar mais óbvio. Medido em 21/10, nas 22 publicações agendadas:
+    // "tradição" em 16 e "força" em 14. O gerador de IMAGEM já recebe as
+    // headlines anteriores e é proibido de repeti-las; a legenda não recebia
+    // nada. Aqui ele passa a ver o que já foi dito.
+    let recentes = "";
+    if (brand?.id) {
+      const { data: ultimas } = await supabase
+        .from("studio_analyses")
+        .select("legendas, created_at, video_id")
+        .order("created_at", { ascending: false })
+        .limit(40);
+      const textos = (ultimas || [])
+        .map((x: any) => String(x?.legendas?.instagram || "").trim())
+        .filter(Boolean)
+        // Só o corpo: hashtag repetida é tratada pela rotação, não aqui.
+        .map((t: string) => t.replace(/#[^\s#]+/g, "").replace(/\s{2,}/g, " ").trim())
+        .filter((t: string) => t.length > 20)
+        .slice(0, 12);
+      if (textos.length) {
+        recentes = `
+=== LEGENDAS JÁ PUBLICADAS POR ESTA MARCA (NÃO REPITA) ===
+Não reutilize estas aberturas, estas frases nem o mesmo par de ideias. Quem
+vê o perfil vê os posts em sequência: repetição aparece.
+${textos.map((t: string, i: number) => `${i + 1}. ${t}`).join("\n")}
+`;
+      }
+    }
+
     const brandBlock = brand ? `
 
 === BRIEFING DA NOSSA MARCA ===
@@ -256,6 +315,7 @@ ${brand.notes ? "Obs.: " + brand.notes : ""}
 
 === BRAND GUARDRAILS (regra dura — obedeça a este JSON) ===
 ${JSON.stringify(brand.guardrails || {}, null, 2)}
+${recentes}
 Regra de ouro: o concorrente é só referência de ESTRATÉGIA. Extraia o PRINCÍPIO e DESCARTE a execução. Use SOMENTE produtos/claims/assets aprovados nos guardrails; nunca invente preço/promo/cupom/edição/brinde/assinatura; nunca reproduza a marca/embalagem/frase do concorrente; nunca use produto "future" na copy final.` : "";
     await supabase.from("studio_videos").update({ status: "processing", error_text: null }).eq("id", videoId);
     // idempotente: limpa resultado anterior deste vídeo antes de reprocessar (evita duplicatas)
