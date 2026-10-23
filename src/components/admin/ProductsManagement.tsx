@@ -22,6 +22,8 @@ interface Product {
   hidden_from_store?: boolean;
   category: string;
   product_line?: string | null;
+  /** Marca do pacote (Tropeiro Paulista, Café Saporino). As vitrines agrupam por ela. */
+  brand?: string | null;
   featured: boolean;
   roast_type: string | null;
   flavor_notes: string | null;
@@ -80,6 +82,7 @@ export function ProductsManagement() {
   const [formData, setFormData] = useState<Partial<Product>>({
     name: '',
     product_line: '',
+    brand: '',
     description: '',
     price: 0,
     promotional_price: null,
@@ -204,6 +207,7 @@ export function ProductsManagement() {
     setFormData({
       name: '',
       product_line: '',
+    brand: '',
       description: '',
       price: 0,
       promotional_price: null,
@@ -244,7 +248,7 @@ export function ProductsManagement() {
     setClonando(true); setDoOutro(null); setBuscaClone(''); setEscolhidos(new Set());
     const { data } = await supabase
       .from('products')
-      .select('id,name,description,image_url,weight_grams,category,product_line,roast_type,flavor_notes,full_details,price,company_id,companies(name,fantasia)')
+      .select('id,name,description,image_url,weight_grams,category,product_line,brand,roast_type,flavor_notes,full_details,price,company_id,companies(name,fantasia)')
       .neq('company_id', activeCompanyId)
       .is('kit_of_product_id', null)
       .order('name');
@@ -263,6 +267,7 @@ export function ProductsManagement() {
     const linhas = alvo.map(p => ({
       name: p.name,
       product_line: p.product_line ?? null,
+      brand: p.brand ?? null,
       description: p.description ?? null,
       price: p.price ?? 0,
       image_url: p.image_url ?? null,
@@ -306,6 +311,7 @@ export function ProductsManagement() {
         hidden_from_store: formData.hidden_from_store ?? false,
         category: formData.category || 'café',
         product_line: (formData.product_line || '').trim() || null,
+        brand: (formData.brand || '').trim() || null,
         featured: formData.featured,
         roast_type: formData.roast_type || null,
         flavor_notes: formData.flavor_notes || null,
@@ -891,6 +897,35 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             <span className="font-mono">K02</span> kit ·{' '}
             <span className="font-mono">F01</span> fardo.
             {' '}Os kits herdam a família daqui.
+          </p>
+        </div>
+
+        {/* MARCA ≠ LINHA ≠ EMPRESA. Três coisas que o cadastro tratava como
+            duas, e por isso a vitrine da COFICO saía com "CAFÉ SAPORINO"
+            abrigando o Tropeiro, e "COFICO BRASIL" abrigando um café.
+
+              empresa  CAFE SAPORINO LTDA     quem fatura e paga imposto
+              marca    Tropeiro Paulista      o que está escrito no pacote
+              linha    Tropeiro Paulista Tradicional   a variante
+
+            É pela MARCA que as vitrines agrupam — é como quem compra pensa. */}
+        <div className="md:col-span-4">
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Marca</label>
+          <input
+            type="text"
+            list="product-brands"
+            value={formData.brand || ''}
+            onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+            placeholder="ex.: Tropeiro Paulista"
+            className="w-full h-[34px] px-3 text-sm border border-gray-300 rounded"
+          />
+          <datalist id="product-brands">
+            <option value="Café Saporino" />
+            <option value="Tropeiro Paulista" />
+            <option value="Café Serrão" />
+          </datalist>
+          <p className="text-xs text-gray-500 mt-1">
+            O nome do pacote. É por ele que o site agrupa os cafés.
           </p>
         </div>
 

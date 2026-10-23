@@ -22,15 +22,21 @@ const FICHAS: Record<string, string> = {
 
 type CatalogoProduto = { nome: string; cat: string; desc?: string; peso: string; img: string; fallback: string; pdf?: string };
 const CATALOGO: { marca: string; produtos: CatalogoProduto[] }[] = [
+  // Um grupo por MARCA — o que está escrito no pacote. O Tropeiro Paulista
+  // morava dentro do grupo "Café Saporino" e não é um café Saporino: é marca
+  // própria, com Tradicional e Extra Forte. Café Serrão será o terceiro grupo
+  // (Tradicional, Extra Forte e Premium) quando o logo e os cadastros chegarem.
   {
     marca: 'Café Saporino',
     produtos: [
       { nome: 'Saporino Clássico Tradicional', cat: 'Café Moído', desc: 'Café tradicional de torra média, com sabor equilibrado, aroma marcante e bebida suave, ideal para o consumo diário.', peso: '500g', img: '/cofico/saporino-classico.png', fallback: '/saporino-logo.png' },
+    ],
+  },
+  {
+    marca: 'Tropeiro Paulista',
+    produtos: [
       { nome: 'Tropeiro Paulista Tradicional', cat: 'Café Moído', desc: 'Café Tropeiro Paulista de torra média escura, encorpado e intenso, inspirado no sabor do café da roça.', peso: '500g', img: '/cofico/tropeiro-tradicional.png', fallback: '/saporino-logo.png' },
       { nome: 'Tropeiro Paulista Extra Forte', cat: 'Café Moído', desc: 'Torra escura, encorpado e intenso — para quem aprecia café forte.', peso: '500g', img: '/cofico/tropeiro-extra-forte.png', fallback: '/saporino-logo.png' },
-      // Café Serrão saiu desta lista: não é produto do Saporino, é MARCA PRÓPRIA,
-      // e vai virar grupo próprio (Tradicional e Extra Forte) como o Tropeiro
-      // Paulista, assim que o logo e a arte chegarem.
     ],
   },
   {
@@ -101,9 +107,17 @@ export default function CoficoProdutosPage() {
     pdf: FICHAS[p.name],
   });
 
+  // AGRUPA PELA MARCA DO PACOTE, não pela empresa que fatura.
+  //
+  // Antes agrupava por `marca_empresa`, e dava dois títulos errados ao mesmo
+  // tempo: "CAFÉ SAPORINO" abrigando o Tropeiro Paulista (que é marca própria,
+  // não um café Saporino) e "COFICO BRASIL" abrigando um Tropeiro (a COFICO
+  // distribui, não é marca de café). Agora cada grupo diz o que está escrito no
+  // pacote — que é como quem compra pensa.
+  const marcaDo = (p: CoficoProduto) => p.marca ?? p.marca_empresa ?? 'Outras marcas';
   const doPainelPorMarca = new Map<string, CoficoProduto[]>();
   for (const p of doBanco ?? []) {
-    const k = chave(semSufixoLegal(p.marca_empresa ?? 'Outras marcas'));
+    const k = chave(semSufixoLegal(marcaDo(p)));
     const lista = doPainelPorMarca.get(k);
     if (lista) lista.push(p); else doPainelPorMarca.set(k, [p]);
   }
@@ -117,7 +131,7 @@ export default function CoficoProdutosPage() {
   for (const [k, produtos] of doPainelPorMarca) {
     if (catalogo.some(g => chave(semSufixoLegal(g.marca)) === k)) continue;
     catalogo.push({
-      marca: semSufixoLegal(produtos[0].marca_empresa ?? 'Outras marcas'),
+      marca: semSufixoLegal(marcaDo(produtos[0])),
       produtos: produtos.map(doBancoComoCard),
     });
   }

@@ -37,6 +37,10 @@ export interface CoficoProduto {
   /** Ordem definida nas setas de Admin › Produtos. 0 = não arrumado. */
   display_order: number | null;
   stock: number;
+  /** Marca do pacote — Tropeiro Paulista, Café Saporino, Café Serrão. É por ela
+   *  que a vitrine agrupa: é o que o cliente lê na prateleira. */
+  marca: string | null;
+  /** Empresa que fatura. Serve à nota, não à vitrine. */
   marca_empresa: string | null;
   disponivel: boolean;
 }
