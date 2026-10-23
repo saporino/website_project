@@ -61,10 +61,10 @@ jobs:
 
       # ---- A MESMA SUITE EM OUTRO FUSO ----
       #
-      # O runner roda em UTC; a operacao e em Sao Paulo. Na primeira execucao
-      # deste CI um teste falhou por isso: ele afirmava que 
-      # devolveria o dia seguinte, o que so e verdade em UTC-3. Passava na
-      # maquina e falhava aqui.
+      # O runner roda em UTC; a operação é em São Paulo. Na primeira execução
+      # deste CI um teste falhou por isso: ele afirmava que `toISOString()`
+      # devolveria o dia seguinte, o que só é verdade em UTC-3. Passava na
+      # máquina e falhava aqui.
       #
       # Quatro segundos a mais fecham a classe inteira -- nos dois sentidos,
       # porque teste que so passa em UTC tambem e defeito.
