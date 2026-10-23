@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { UploadCloud, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { extractAudioWav } from '../../lib/extractAudio';
+import { impressaoDigital } from '../../lib/impressaoDigital';
 
 const ACCEPT = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'image/jpeg', 'image/png', 'image/webp'];
 const IMG_EXT = /\.(jpe?g|png|webp)$/i;
@@ -34,6 +35,32 @@ export default function VideoDropzone({ companyId, brandId, userId, onUploaded }
       setUploading(true);
       setProgressName(file.name);
       try {
+        // JÁ CARREGUEI ESTA ARTE?
+        //
+        // Comparar pelo nome não serve: a mesma peça baixada de novo vira
+        // "foto (1).png", e duas peças diferentes podem se chamar "post.png".
+        // O que identifica o conteúdo é o conteúdo — SHA-256 dos bytes, aqui no
+        // navegador, antes de gastar banda subindo algo repetido.
+        //
+        // É AVISO, não trava: pode haver motivo para subir de novo. O sistema
+        // conta o que achou e ele decide.
+        const hash = await impressaoDigital(file);
+        if (hash && brandId) {
+          const { data: iguais } = await supabase.from('studio_videos')
+            .select('filename, created_at')
+            .eq('brand_id', brandId).eq('content_hash', hash)
+            .order('created_at', { ascending: false }).limit(1);
+          const jaTem = iguais?.[0];
+          if (jaTem) {
+            const quando = new Date(jaTem.created_at).toLocaleDateString('pt-BR');
+            const seguir = window.confirm(
+              `Esta arte já está carregada.\n\n` +
+              `Você a subiu em ${quando} como "${jaTem.filename}".\n\n` +
+              `Enviar mesmo assim?`);
+            if (!seguir) continue;
+          }
+        }
+
         const ts = Date.now();
         const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const path = `${companyId}/${ts}_${safe}`;
@@ -52,6 +79,7 @@ export default function VideoDropzone({ companyId, brandId, userId, onUploaded }
         const { data: row, error: dbErr } = await supabase.from('studio_videos').insert({
           company_id: companyId, brand_id: brandId, created_by: userId ?? null, media_type: isImage ? 'image' : 'video',
           filename: file.name, storage_path: path, audio_path: audioPath, source_url: sourceUrl.trim() || null, status: 'pending',
+          content_hash: hash,
         }).select('id').single();
         if (dbErr) throw dbErr;
         // dispara a análise (transcrição + Claude) em background; o status atualiza via realtime

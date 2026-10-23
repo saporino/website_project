@@ -118,9 +118,15 @@ try {
       // o defeito "deve estar no site todo"; a única resposta honesta é medir tudo
       // o que a ficha desenha. Qualquer caixa cujo conteúdo é mais largo do que ela
       // está escondendo algo de quem usa.
+      // O limiar é 4px, não 1px, e a razão importa: arredondamento de
+      // subpixel (um `translate` em rem, um ícone centralizado num trilho de
+      // largura fixa) produz 1–2px de diferença em elementos onde nada fica
+      // ilegível — o contador de posição do card é um deles. Reclamar desses
+      // treinaria a ignorar a bancada, que é o pior defeito que ela pode ter.
+      // Texto cortado de verdade passa MUITO de 4px.
       const form = document.querySelector('form') ?? document.body;
       r.vazamentos = [...form.querySelectorAll('*')]
-        .filter(el => el.scrollWidth - el.clientWidth > 1 && getComputedStyle(el).overflowX === 'visible')
+        .filter(el => el.scrollWidth - el.clientWidth > 4 && getComputedStyle(el).overflowX === 'visible')
         .slice(0, 12)
         .map(el => `${el.tagName.toLowerCase()}.${(el.className || '').toString().split(' ')[0]} (+${el.scrollWidth - el.clientWidth}px): ${el.textContent.trim().slice(0, 40)}`);
       return r;

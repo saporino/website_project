@@ -62,6 +62,9 @@ export function ProductsManagement() {
   // continua exigindo dono: `empresaDoForm` é quem vai no `company_id`, e fica
   // vazia de propósito até alguém escolher. Nenhum produto nasce sem empresa.
   const [empresaDoForm, setEmpresaDoForm] = useState<string | null>(null);
+  // Atalho de leitura no modo de controle: ver só os produtos de uma empresa
+  // sem sair dele. null = todas.
+  const [filtroEmpresa, setFiltroEmpresa] = useState<string | null>(null);
   const empresaAlvo = vendoTodas ? empresaDoForm : activeCompanyId;
   const nomeDaEmpresa = (id: string | null) =>
     companies.find(c => c.id === id)?.fantasia || companies.find(c => c.id === id)?.name || '—';
@@ -457,6 +460,36 @@ export function ProductsManagement() {
         </div>
       </div>
 
+      {/* MODO DE CONTROLE: quantos são de cada empresa, e um atalho para ver só
+          os de uma delas.
+          Sem isto o modo responde mal à pergunta que ele faz: abrindo "Todas as
+          empresas" ele viu duas linhas da Saporino no topo e perguntou se estava
+          certo. Estava — o único produto da COFICO era o NONO da lista, enterrado
+          na ordem de exibição. Um modo que existe para enxergar as duas empresas
+          precisa dizer, de cara, quantas coisas cada uma tem. */}
+      {vendoTodas && products.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3">
+          <span className="text-sm text-gray-500">{products.length} produtos:</span>
+          <button type="button" onClick={() => setFiltroEmpresa(null)}
+            className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+              filtroEmpresa === null ? 'bg-[#8B2214] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+            Todas
+          </button>
+          {companies.map(c => {
+            const n = products.filter((p: Product) => p.company_id === c.id).length;
+            if (!n) return null;
+            return (
+              <button key={c.id} type="button"
+                onClick={() => setFiltroEmpresa(filtroEmpresa === c.id ? null : c.id)}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                  filtroEmpresa === c.id ? 'bg-[#8B2214] text-white' : 'bg-[#f5f0ef] text-[#8B2214] hover:bg-[#ece2e0]'}`}>
+                <Building2 className="h-3 w-3" /> {c.fantasia || c.name} ({n})
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Escolher o produto de outra marca para copiar para a empresa aberta */}
       {clonando && (
         <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4" onClick={() => setClonando(false)}>
@@ -587,7 +620,9 @@ export function ProductsManagement() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {products.filter(p => !p.hidden_from_store || p.id === editingId).map((product, idx) => (
+        {products
+          .filter(p => !filtroEmpresa || p.company_id === filtroEmpresa)
+          .filter(p => !p.hidden_from_store || p.id === editingId).map((product, idx) => (
           <div
             key={product.id}
             className={`bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow ${editingId === product.id ? 'border-2 border-[#a4240e]' : 'border border-gray-200'

@@ -1,6 +1,6 @@
 import AgendadorPanel from '../studio/AgendadorPanel';
 import { useState, useEffect, useCallback } from 'react';
-import { Clapperboard, Download, Loader2, Search, Check, Heart, PlayCircle, MessageCircle, ArrowDownWideNarrow, ChevronRight, ChevronDown, Trash2, X, Megaphone, RefreshCw } from 'lucide-react';
+import { Clapperboard, Download, Loader2, Search, Check, Heart, PlayCircle, MessageCircle, ArrowDownWideNarrow, ChevronRight, ChevronDown, Trash2, X, Megaphone, RefreshCw, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '../../lib/supabase';
 import { useCompany } from '../../contexts/CompanyContext';
@@ -80,6 +80,8 @@ export default function StudioPage() {
   // que não gerenciamos — o conteúdo dela sai pela conta da COFICO, então ela NÃO entra no seletor.
   const [videos, setVideos] = useState<StudioVideo[]>([]);
   const [loading, setLoading] = useState(true);
+  // Quantas artes não conseguiram URL assinada. null = nenhuma. Ver `load()`.
+  const [falhaMiniaturas, setFalhaMiniaturas] = useState<number | null>(null);
   const [filtro, setFiltro] = useState<Filtro>('todos');
   const [modalVideo, setModalVideo] = useState<StudioVideo | null>(null);
   const [modalTab, setModalTab] = useState<'resumo' | 'publicar'>('resumo');
@@ -378,11 +380,44 @@ export default function StudioPage() {
       .eq('brand_id', activeBrandId)
       .order('created_at', { ascending: false });
     let list = (data as StudioVideo[]) || [];
-    // miniaturas: bucket studio-videos é privado → signed URLs (1h) pra mostrar a arte no card
+    // MINIATURAS. O bucket `studio-videos` é privado, então cada arte precisa de
+    // uma URL assinada (1 h) para aparecer no card.
+    //
+    // ⚠️ `createSignedUrls` NÃO levanta erro quando uma assinatura falha: devolve
+    // a entrada sem `signedUrl`. O código ignorava isso, e o resultado era a
+    // tela muda — 45 quadrados vazios, nenhuma explicação, e ele sem conseguir
+    // ver o que já tinha agendado para não repetir tema.
+    //
+    // Agora duas coisas mudam. Primeira: assina EM LOTES. Um pedido com 45
+    // caminhos é avaliado pela RLS caminho a caminho, e basta ele falhar inteiro
+    // para TODAS as artes sumirem de uma vez — que é exatamente o sintoma. Em
+    // blocos, uma falha derruba o seu bloco, não a galeria.
+    //
+    // Segunda: o que não assinou fica registrado, e o card diz que não
+    // conseguiu carregar em vez de fingir que não há arte.
     const paths = list.map(v => v.storage_path).filter(Boolean);
     if (paths.length) {
-      const { data: signed } = await supabase.storage.from('studio-videos').createSignedUrls(paths, 3600);
-      const map = new Map((signed || []).map((s: any) => [s.path, s.signedUrl]));
+      const TAMANHO_DO_LOTE = 20;
+      const map = new Map<string, string>();
+      const problemas: string[] = [];
+      for (let i = 0; i < paths.length; i += TAMANHO_DO_LOTE) {
+        const lote = paths.slice(i, i + TAMANHO_DO_LOTE);
+        const { data: signed, error } = await supabase.storage
+          .from('studio-videos').createSignedUrls(lote, 3600);
+        if (error) { problemas.push(error.message); continue; }
+        for (const s of signed ?? []) {
+          // `path` vem tipado como `string | null`: numa entrada que falhou o
+          // Supabase pode não devolver o caminho. Sem esta guarda o erro ficaria
+          // sem endereço, e seria impossível saber QUAL arte não carregou.
+          if (s.path && s.signedUrl) map.set(s.path, s.signedUrl);
+          else if (s.error) problemas.push(`${s.path ?? '(sem caminho)'}: ${s.error}`);
+        }
+      }
+      if (problemas.length) {
+        console.warn('[Studio] miniaturas que não carregaram:', problemas.slice(0, 5),
+          problemas.length > 5 ? `(+${problemas.length - 5})` : '');
+      }
+      setFalhaMiniaturas(problemas.length ? problemas.length : null);
       list = list.map(v => ({ ...v, thumbUrl: map.get(v.storage_path) || null }));
     }
     // Agenda de cada peça: o Vlademir programa a postagem e depois não lembra para
@@ -764,6 +799,20 @@ export default function StudioPage() {
               <button key={k} onClick={() => setFiltro(k)} className={`px-4 py-2 whitespace-nowrap flex-shrink-0 ${filtro === k ? 'bg-[#8B2214] text-white' : 'text-gray-600 hover:bg-gray-50'}`}>{l}</button>
             ))}
           </div>
+
+          {/* A galeria não fica mais muda quando a arte não carrega. Antes eram
+              só quadrados vazios, e não havia como distinguir "peça sem arte" de
+              "não consegui buscar a arte". */}
+          {falhaMiniaturas !== null && (
+            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+              <p>
+                <strong>{falhaMiniaturas} {falhaMiniaturas === 1 ? 'arte não carregou' : 'artes não carregaram'}.</strong>{' '}
+                As peças estão guardadas — só a prévia falhou. Recarregue a página; se continuar,
+                o motivo exato está no console do navegador.
+              </p>
+            </div>
+          )}
 
           {loading ? (
             <div className="flex justify-center py-12"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#8B2214]" /></div>
