@@ -881,7 +881,11 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Peso (gramas) *</label>
-            <div className="flex gap-2">
+            {/* Seis pesos numa coluna que vale um terço da ficha: em linha única
+                eles não cabiam e vazavam para fora da borda do cartão — `flex-1`
+                zera a base mas não autoriza encolher abaixo do conteúdo ("1,5kg").
+                Duas fileiras de três cabem dentro da coluna em qualquer largura. */}
+            <div className="grid grid-cols-3 gap-1.5">
               {/* Os kits nascem com 1000, 1500, 2000 e 5000 g. Sem estes botões,
                   abrir um fardo para edição não mostrava opção nenhuma marcada. */}
               {[250, 500, 1000, 1500, 2000, 5000].map(w => (
@@ -890,7 +894,7 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
                   key={w}
                   disabled={hasLots}
                   onClick={() => !hasLots && setFormData({...formData, weight_grams: w})}
-                  className={`flex-1 py-2 rounded-lg border text-sm font-semibold text-center transition-all ${
+                  className={`min-w-0 px-1 py-2 rounded-lg border text-sm font-semibold text-center transition-all ${
                     formData.weight_grams === w
                       ? 'bg-[#8B2214] text-white border-[#8B2214]'
                       : 'bg-white text-gray-700 border-gray-300 hover:border-[#8B2214]'
@@ -949,8 +953,12 @@ function ProductForm({ formData, setFormData, onSave, onCancel, imageMode, setIm
             {([
               ['saporino', 'Loja Saporino', 'cafesaporino.com.br'],
               ['repco', 'Representantes', 'portal RepCo'],
-              ['cofico', 'COFICO', 'Casa Cofico'],
-              ['marketplaces', 'Marketplaces', 'ML, Shopee, TikTok'],
+              // COFICO e CASA COFICO são dois canais diferentes, e o rótulo
+              // trocava os dois: "COFICO · Casa Cofico" sugeria que marcar a
+              // COFICO punha o café nos marketplaces. COFICO = o site dela.
+              // CASA COFICO = o nome comercial das lojas nos marketplaces.
+              ['cofico', 'COFICO', 'coficobrasil.com.br'],
+              ['marketplaces', 'CASA COFICO', 'ML, Shopee, Amazon, TikTok'],
             ] as const).map(([canal, titulo, onde]) => {
               const marcado = (formData.sales_channels ?? []).includes(canal);
               return (

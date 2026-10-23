@@ -73,16 +73,22 @@ export default function CoficoProdutosPage() {
   useEffect(() => { fetchCoficoVitrine().then(setDoBanco).catch(() => setDoBanco([])); }, []);
   useEffect(() => { fetchCoficoMarcas().then(ms => { if (ms) setMarcasLigadas(ms.map(m => m.marca)); }).catch(() => {}); }, []);
 
-  // Catálogo = portfólio da página + o que o painel administra, mesclados.
+  // O PAINEL MANDA NA MARCA INTEIRA — não produto a produto.
   //
-  // O painel MANDA no que ele conhece: se o produto existe lá, valem a foto, o nome,
-  // a descrição e o peso de lá. Os itens que ainda só existem como arte nesta página
-  // continuam aparecendo — tirá-los seria apagar portfólio do site só porque ainda
-  // não foram cadastrados. Para controlá-los pelo painel, basta cadastrá-los na
-  // empresa dona da marca com o canal "cofico" marcado.
+  // Antes esta página mesclava item a item, casando pelo NOME. "Saporino Clássico
+  // Tradicional" (daqui) e "Café Saporino Tradicional" (do painel) são o mesmo café,
+  // mas não são a mesma string: a vitrine mostrava os dois. E o defeito maior nem
+  // era a repetição — um produto DESLIGADO no painel continuava aparecendo, porque
+  // a lista fixa não sabe de `is_active`. Desligar não desligava.
+  //
+  // Agora a lista fixa é o que o comentário sempre disse que ela era: rede de
+  // segurança. Se o painel conhece a marca, a vitrine daquela marca é a do painel,
+  // inteira. Se não conhece — marca ainda não cadastrada, ou a consulta falhou —
+  // o portfólio antigo aparece, para a página não ficar vazia.
   const chave = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
-  const porNome = new Map((doBanco ?? []).map(p => [chave(p.name), p]));
-  const usados = new Set<string>();
+  // A vitrine agrupa por MARCA, não por razão social: "Café Saporino Ltda" e
+  // "Café Saporino" são o mesmo grupo para quem está olhando o site.
+  const semSufixoLegal = (s: string) => s.replace(/\s+(ltda|s\.?a\.?|me|eireli)\.?$/i, '').trim();
 
   const doBancoComoCard = (p: CoficoProduto): CatalogoProduto => ({
     nome: p.name,
@@ -94,26 +100,25 @@ export default function CoficoProdutosPage() {
     pdf: FICHAS[p.name],
   });
 
-  const catalogo: { marca: string; produtos: CatalogoProduto[] }[] = CATALOGO.map(({ marca, produtos }) => ({
-    marca,
-    produtos: produtos.map((estatico) => {
-      const doBancoItem = porNome.get(chave(estatico.nome));
-      if (!doBancoItem) return estatico;
-      usados.add(chave(estatico.nome));
-      return { ...doBancoComoCard(doBancoItem), pdf: doBancoItem && FICHAS[doBancoItem.name] ? FICHAS[doBancoItem.name] : estatico.pdf };
-    }),
-  }));
+  const doPainelPorMarca = new Map<string, CoficoProduto[]>();
+  for (const p of doBanco ?? []) {
+    const k = chave(semSufixoLegal(p.marca_empresa ?? 'Outras marcas'));
+    const lista = doPainelPorMarca.get(k);
+    if (lista) lista.push(p); else doPainelPorMarca.set(k, [p]);
+  }
 
-  // Produtos que o painel tem e a página não previa: entram agrupados pela marca.
-  // A vitrine agrupa por MARCA, não por razão social: "Café Saporino Ltda" e
-  // "Café Saporino" são o mesmo grupo para quem está olhando o site.
-  const semSufixoLegal = (s: string) => s.replace(/\s+(ltda|s\.?a\.?|me|eireli)\.?$/i, '').trim();
-  const novos = (doBanco ?? []).filter(p => !usados.has(chave(p.name)));
-  for (const p of novos) {
-    const marca = semSufixoLegal(p.marca_empresa ?? 'Outras marcas');
-    const grupo = catalogo.find(g => chave(g.marca) === chave(marca));
-    if (grupo) grupo.produtos.push(doBancoComoCard(p));
-    else catalogo.push({ marca, produtos: [doBancoComoCard(p)] });
+  const catalogo: { marca: string; produtos: CatalogoProduto[] }[] = CATALOGO.map(({ marca, produtos }) => {
+    const doPainel = doPainelPorMarca.get(chave(semSufixoLegal(marca)));
+    return { marca, produtos: doPainel?.length ? doPainel.map(doBancoComoCard) : produtos };
+  });
+
+  // Marcas que o painel tem e a página não previa entram como grupo próprio.
+  for (const [k, produtos] of doPainelPorMarca) {
+    if (catalogo.some(g => chave(semSufixoLegal(g.marca)) === k)) continue;
+    catalogo.push({
+      marca: semSufixoLegal(produtos[0].marca_empresa ?? 'Outras marcas'),
+      produtos: produtos.map(doBancoComoCard),
+    });
   }
 
   // Marca desligada no painel sai da vitrine inteira — inclusive do portfólio fixo.
