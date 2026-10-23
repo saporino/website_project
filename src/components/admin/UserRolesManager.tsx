@@ -16,6 +16,10 @@ export default function UserRolesManager() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  /** Quem tem perfil mas não trabalha aqui — cliente da loja, em geral.
+   *  Fora da lista por padrão, alcançável pela busca quando for contratar. */
+  const [foraDoConsole, setForaDoConsole] = useState<Row[]>([]);
+  const [procurando, setProcurando] = useState('');
 
   async function load() {
     setLoading(true);
@@ -29,11 +33,35 @@ export default function UserRolesManager() {
     const nameById = new Map<string, string>();
     (profiles || []).forEach((p: any) => { if (p.full_name) nameById.set(p.id, p.full_name); });
     (reps || []).forEach((r: any) => { if (r.user_id && r.full_name) nameById.set(r.user_id, r.full_name); });
-    // usuários = todos os que têm profile ou são reps ou já têm papel
+    // ⚠️ CLIENTE DO SITE NÃO É GENTE DO REPCO.
+    //
+    // Antes a lista incluía TODO MUNDO que tem perfil — e todo cliente que se
+    // cadastra na loja da Saporino para comprar café ganha um perfil. O painel
+    // de papéis é de quem trabalha aqui: administração, diretoria comercial,
+    // representante, promotor, contabilidade. Pôr o comprador de café ao lado
+    // deles, com botão de "conceder Administrador", é convite a erro — e
+    // mostra o nome de clientes numa tela que não é sobre eles.
+    //
+    // É INTERNO quem: é admin, é representante, ou já tem papel concedido.
+    // Perfil sozinho não basta: perfil é o que o cadastro da loja cria.
+    //
+    // Quem não é interno continua alcançável pela busca, abaixo — senão
+    // promover alguém recém-contratado se tornaria impossível.
+    const ehRep = new Set((reps || []).map((r: any) => r.user_id).filter(Boolean));
+    const temPapel = new Set((urs || []).map((u: any) => u.user_id));
     const ids = new Set<string>();
-    (profiles || []).forEach((p: any) => ids.add(p.id));
+    (profiles || []).forEach((p: any) => {
+      if (p.is_admin || ehRep.has(p.id) || temPapel.has(p.id)) ids.add(p.id);
+    });
     (reps || []).forEach((r: any) => { if (r.user_id) ids.add(r.user_id); });
     (urs || []).forEach((u: any) => ids.add(u.user_id));
+
+    // Os de fora ficam guardados para a busca, não para a lista.
+    const deFora: Row[] = (profiles || [])
+      .filter((p: any) => !ids.has(p.id))
+      .map((p: any) => ({ user_id: p.id, name: p.full_name || p.id.slice(0, 8) + '…', roles: [] }))
+      .sort((a: Row, b: Row) => a.name.localeCompare(b.name));
+    setForaDoConsole(deFora);
     const byUser = new Map<string, UserRole[]>();
     (urs as UserRole[] | null)?.forEach(u => { const a = byUser.get(u.user_id) || []; a.push(u); byUser.set(u.user_id, a); });
     const list: Row[] = Array.from(ids).map(id => ({
@@ -72,7 +100,7 @@ export default function UserRolesManager() {
           <div className="w-9 h-9 rounded-lg bg-[#f5f0ef] text-[#8B2214] flex items-center justify-center"><ShieldCheck className="w-5 h-5" /></div>
           <div className="text-left">
             <h3 className="font-bold text-gray-900">Papéis (RBAC)</h3>
-            <p className="text-xs text-gray-500">Conceda ou revogue papéis dos usuários. Não altera os acessos atuais — é a fundação para o módulo Promotor.</p>
+            <p className="text-xs text-gray-500">Quem trabalha aqui: administração, diretoria, representantes, promotores. Cliente da loja não aparece — use a busca para promover alguém novo.</p>
           </div>
         </div>
         {open ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
@@ -83,6 +111,45 @@ export default function UserRolesManager() {
             <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-[#8B2214]" /></div>
           ) : (
             <div className="divide-y divide-gray-100">
+              {/* ---- PROMOVER ALGUÉM QUE AINDA NÃO TRABALHA AQUI ----
+                  A lista mostra só quem é da casa. Sem esta busca, dar o
+                  primeiro papel a um recém-contratado seria impossível — e o
+                  filtro teria trocado um problema por outro. */}
+              {foraDoConsole.length > 0 && (
+                <div className="pb-3">
+                  <input
+                    value={procurando}
+                    onChange={e => setProcurando(e.target.value)}
+                    placeholder={`Procurar entre ${foraDoConsole.length} usuário(s) de fora do console…`}
+                    className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#8B2214]/30"
+                  />
+                  {procurando.trim().length >= 2 && (
+                    <div className="mt-2 space-y-1">
+                      {foraDoConsole
+                        .filter(u => u.name.toLowerCase().includes(procurando.trim().toLowerCase()))
+                        .slice(0, 6)
+                        .map(u => (
+                          <div key={u.user_id} className="flex items-center justify-between gap-2 text-sm bg-gray-50 rounded-lg px-3 py-2">
+                            <span className="text-gray-700">{u.name}</span>
+                            <div className="flex flex-wrap gap-1">
+                              {roles.map(r => (
+                                <button key={r.code} onClick={() => grant(u.user_id, r.code)}
+                                  disabled={busy === u.user_id + r.code}
+                                  className="text-[11px] border border-gray-300 rounded-full px-2 py-0.5 hover:border-[#8B2214] hover:text-[#8B2214] disabled:opacity-50">
+                                  + {r.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      {foraDoConsole.filter(u => u.name.toLowerCase().includes(procurando.trim().toLowerCase())).length === 0 && (
+                        <p className="text-xs text-gray-400 px-1">ninguém com esse nome</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {rows.map(row => {
                 const active = new Set(row.roles.map(r => r.role_code));
                 const grantable = roles.filter(r => !active.has(r.code));
