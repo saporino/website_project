@@ -241,7 +241,10 @@ export function classificar(p: Produto): Classificacao {
   if (bate(ACESSORIO, t))   return { grupo: 'acessorio', ...dims, motivo: 'acessório' };
   if (bate(OUTRA_BEBIDA, t))return { grupo: 'outra_bebida', ...dims, motivo: 'outra bebida' };
 
-  const unidades = p.unidades ?? 1;
+  // A quantidade do título conta aqui também: "Kit 10 Pacotes 500g" é kit,
+  // não pacote avulso, e classificá-lo como avulso o punha na mesma
+  // prateleira do nosso 500 g — comparando um fardo com uma unidade.
+  const unidades = Math.max(p.unidades ?? 1, quantidadeNoTitulo(p.titulo) ?? 1);
   const kg = p.kgUnidade ?? null;
 
   // Sem peso NÃO é motivo para sumir: entra na lista, sem R$/kg.
@@ -265,10 +268,63 @@ export function classificar(p: Produto): Classificacao {
  * significa que o comprador é obrigado a levar N — o que ele paga, e o que
  * leva, é N vezes.
  */
+/**
+ * Quantas unidades o título anuncia.
+ *
+ * ⚠️ ISTO CONSERTA O R$ 737,76/kg.
+ *
+ * "Kit 10 Pacotes Café Tradicional Camparoma 500g" custa R$ 368,88. O
+ * atributo `UNIT_WEIGHT` diz **500 g** — o peso de UMA unidade — e a
+ * quantidade existe só no texto. Sem ler o texto, a conta deu R$ 737,76/kg
+ * num café que custa R$ 73,78/kg. Dez vezes errado, e para cima: o tipo de
+ * erro que faria a gente achar que pode cobrar o dobro.
+ *
+ * O mesmo acontecia em "Kit 4 Latas", "Com 10 Unidades De 8g", "Leve 3".
+ *
+ * Só conta quando o número está colado à palavra de embalagem. "500g" não
+ * vira quantidade, e "Café 10" também não — número solto no título é
+ * frequentemente intensidade, torra ou ano.
+ */
+const QUANTIDADE = [
+  // "kit 10", "kit com 4"
+  /\bkit\s*(?:com\s*)?([0-9]{1,2})\b/i,
+  // "10 pacotes", "4 latas", "6 unidades", "3 caixas", "2 sachês"
+  /\b([0-9]{1,2})\s*(?:x\s*)?(?:pacotes?|unidades?|latas?|caixas?|potes?|frascos?|sach[êe]s?|c[áa]psulas?|d[úu]zias?)\b/i,
+  // "com 10 unidades"
+  /\bcom\s+([0-9]{1,2})\s*(?:unidades?|pacotes?|latas?)\b/i,
+  // "leve 3", "pack 6"
+  /\b(?:leve|pack)\s*([0-9]{1,2})\b/i,
+  // "4x500g" — o multiplicador vem antes do peso
+  /\b([0-9]{1,2})\s*[x×]\s*[0-9]+\s*(?:g|kg)\b/i,
+];
+
+export function quantidadeNoTitulo(titulo?: string | null): number | null {
+  const t = String(titulo ?? '');
+  for (const re of QUANTIDADE) {
+    const m = re.exec(t);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      // Acima de 60 é quase sempre gramatura lida errado, não quantidade.
+      if (n >= 2 && n <= 60) return n;
+    }
+  }
+  return null;
+}
+
+/**
+ * O peso que o comprador leva para casa.
+ *
+ * Três fontes, e a maior manda: o atributo de unidades por embalagem, a
+ * quantidade anunciada no título, e a compra mínima obrigatória. Pegar a
+ * maior é o conservador aqui — subestimar o peso INFLA o R$/kg, que é o erro
+ * que nos faria cobrar mais caro do que o mercado aguenta.
+ */
 export function pesoTotalKg(p: Produto, o?: Oferta): number | null {
   const kg = p.kgUnidade ?? null;
   if (!kg || kg <= 0) return null;
-  const unidades = Math.max(1, p.unidades ?? 1);
+  const porAtributo = Math.max(1, p.unidades ?? 1);
+  const porTitulo = quantidadeNoTitulo(p.titulo) ?? 1;
+  const unidades = Math.max(porAtributo, porTitulo);
   const minimo = Math.max(1, o?.minCompra ?? 1);
   const total = kg * unidades * minimo;
   return total > 0 && total <= 60 ? total : null;
@@ -350,6 +406,20 @@ export interface Comparavel {
    *  dezenas de revendedores isto mede a dispersão da ficha: 87% no Pilão. */
   dispersaoPct: number | null;
 
+  /**
+   * Preço muito fora do grupo — **marcado para conferência, nunca removido**.
+   *
+   * Ele foi explícito: não excluir por ser caro. Mas R$ 499,90 num pacote de
+   * 500 g de café tradicional é quase certamente caixa fechada anunciada sem
+   * dizer a quantidade — e entra na mediana como se fosse uma unidade.
+   *
+   * Marcar resolve os dois lados: o número continua na lista e na conta, e a
+   * tela pode mostrar "confira este" em vez de alguém descobrir pelo
+   * resultado estranho. Café especial caro fica marcado também, e está certo:
+   * marcar não é acusar, é pedir um olhar.
+   */
+  foraDaCurva: boolean;
+
   /** Quanta evidência de mercado existe neste produto.
    *  Uma ficha com UMA oferta é o preço que um vendedor pede, sem ninguém
    *  concorrendo — foi o caso de Italle (R$ 53,99) e Torino (R$ 76) no 500 g.
@@ -395,6 +465,8 @@ export function avaliar(p: Produto, ofertas: Oferta[], buyBox?: Oferta | null): 
     // Quantas ofertas disputam a mesma ficha. É o único sinal de concorrência
     // que a API dá — não há volume de vendas para usar no lugar.
     evidencia: ofertas.length >= 5 ? 'alta' : ofertas.length >= 2 ? 'media' : 'baixa',
+    // Preenchido em `resumir`, que é quem conhece a mediana do grupo.
+    foraDaCurva: false,
     temPromocao: !!rep?.oferta.promocoes?.length
       || (rep?.oferta.precoAntes != null && rep.oferta.precoAntes > (preco ?? 0)),
   };
@@ -488,6 +560,18 @@ export function resumir(itens: Comparavel[], dataColeta: string): Resumo {
   for (const i of lista) {
     const m = (i.marca ?? '(sem marca)').trim();
     marcas[m] = (marcas[m] ?? 0) + 1;
+  }
+
+  // ⚠️ MARCA, NÃO REMOVE. Três vezes a mediana do próprio grupo é o limiar:
+  // acima disso quase sempre é caixa fechada anunciada como unidade, mas às
+  // vezes é café especial caro de verdade. Quem decide é ele, olhando.
+  for (const [g, v] of Object.entries(porGrupo)) {
+    if (!v.mediana) continue;
+    for (const i of lista) {
+      if (i.grupo === g && i.reaisPorKg != null && i.reaisPorKg > v.mediana * 3) {
+        i.foraDaCurva = true;
+      }
+    }
   }
 
   const todos = [...lista].sort((a, b) => {

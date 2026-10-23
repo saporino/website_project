@@ -229,6 +229,14 @@ export default function CasaCoficoPanel() {
                     </td>
                     <td className="py-2 pr-3">
                       <span className="text-[10px] uppercase tracking-wide text-gray-500">{i.grupo}</span>
+                      {/* Marcado, não removido: R$ 499,90 num pacote de 500 g é
+                          quase sempre caixa fechada anunciada como unidade —
+                          mas às vezes é café especial caro de verdade. */}
+                      {i.foraDaCurva && (
+                        <span className="ml-1 text-[10px] text-amber-700" title="Preço muito acima do grupo — confira se não é caixa fechada">
+                          conferir
+                        </span>
+                      )}
                     </td>
                     <td className="py-2 pr-3 text-right tabular-nums">{brl(i.precoRepresentativo)}</td>
                     <td className={`py-2 pr-3 text-right tabular-nums font-semibold ${

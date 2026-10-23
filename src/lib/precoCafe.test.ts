@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-  classificar, pesoTotalKg, ofertaRepresentativa, avaliar, resumir,
+  classificar, pesoTotalKg, ofertaRepresentativa, avaliar, resumir, quantidadeNoTitulo,
   type Produto, type Oferta,
 } from './precoCafe';
 
@@ -382,5 +382,48 @@ describe('a mediana de 500 g nao mistura formato nem kit', () => {
     expect(r.totais.coletados).toBe(6);   // mas os SEIS estao no relatorio
     expect(r.porGrupo['kit'].n).toBe(1);  // e o kit tem R$/kg proprio
     expect(r.porGrupo['kit'].mediana).toBe(40);
+  });
+});
+
+describe('quantidade no titulo — o caso do R$ 737,76/kg', () => {
+  // "Kit 10 Pacotes Camparoma 500g" a R$ 368,88. O atributo diz 500 g, que e
+  // o peso de UMA unidade; a quantidade existe so no texto. Sem ler o texto,
+  // a conta deu 737,76/kg num cafe que custa 73,78/kg.
+  it('kit de 10 pacotes pesa 5 kg, nao 500 g', () => {
+    const p = prod({ titulo: 'Kit 10 Pacotes Café Tradicional Camparoma 100% Arábica 500g' });
+    expect(quantidadeNoTitulo(p.titulo)).toBe(10);
+    expect(pesoTotalKg(p)).toBe(5);
+    expect(avaliar(p, [of(368.88)]).reaisPorKg).toBeCloseTo(73.78, 2);
+  });
+
+  it('e vira KIT, nao pacote avulso', () => {
+    expect(classificar(prod({ titulo: 'Kit 10 Pacotes Café 500g' })).grupo).toBe('fardo');
+    expect(classificar(prod({ titulo: 'Kit 3 Pacotes Café 500g' })).grupo).toBe('kit');
+  });
+
+  it('as outras formas de anunciar quantidade', () => {
+    expect(quantidadeNoTitulo('Kit 4 Latas Café Solúvel Iguaçu 200g')).toBe(4);
+    expect(quantidadeNoTitulo('Cápsula Tres Com 10 Unidades De 8g')).toBe(10);
+    expect(quantidadeNoTitulo('Café Melitta Kit com 6 unidades 500g')).toBe(6);
+    expect(quantidadeNoTitulo('Café Tropeiro 4x500g')).toBe(4);
+    expect(quantidadeNoTitulo('Leve 3 Pague 2 Café 500g')).toBe(3);
+  });
+
+  it('numero solto NAO vira quantidade', () => {
+    // Intensidade, torra e gramatura sao numeros que nao contam embalagem.
+    expect(quantidadeNoTitulo('Café Torrado e Moído 500g')).toBeNull();
+    expect(quantidadeNoTitulo('Café União Intensidade 8 Pouch 500g')).toBeNull();
+    expect(quantidadeNoTitulo('Café Especial 85 pontos 250g')).toBeNull();
+  });
+
+  it('quantidade absurda e ignorada', () => {
+    expect(quantidadeNoTitulo('Café 500 pacotes')).toBeNull();
+  });
+
+  it('entre atributo e titulo, vale o MAIOR', () => {
+    // Subestimar o peso INFLA o R$/kg, e e esse o erro que nos faria achar
+    // que da para cobrar o dobro.
+    const p = prod({ titulo: 'Kit 4 Pacotes Café 500g', unidades: 1 });
+    expect(pesoTotalKg(p)).toBe(2);
   });
 });
