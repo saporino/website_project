@@ -59,6 +59,20 @@ jobs:
       - name: testes
         run: npm run test
 
+      # ---- A MESMA SUITE EM OUTRO FUSO ----
+      #
+      # O runner roda em UTC; a operacao e em Sao Paulo. Na primeira execucao
+      # deste CI um teste falhou por isso: ele afirmava que 
+      # devolveria o dia seguinte, o que so e verdade em UTC-3. Passava na
+      # maquina e falhava aqui.
+      #
+      # Quatro segundos a mais fecham a classe inteira -- nos dois sentidos,
+      # porque teste que so passa em UTC tambem e defeito.
+      - name: testes (fuso de Sao Paulo)
+        run: npm run test
+        env:
+          TZ: America/Sao_Paulo
+
       # O build roda DEPOIS dos testes de propósito: ele é o passo mais lento,
       # e falha de teste aparece antes de esperar por ele.
       - name: build
@@ -79,7 +93,8 @@ jobs:
             echo "| passo | resultado |"
             echo "|---|---|"
             echo "| typecheck | ✅ |"
-            echo "| testes | ✅ |"
+            echo "| testes (UTC) | ✅ |"
+            echo "| testes (São Paulo) | ✅ |"
             echo "| build | ✅ |"
             echo "| lint | ${{ steps.lint.outcome == 'success' && '✅' || '⚠️ com problemas (não bloqueia)' }} |"
             echo ""

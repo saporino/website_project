@@ -291,12 +291,19 @@ describe('a data da agenda — nunca gerar para ontem', () => {
     expect(proximosDias(3, vinte)).toEqual(['2026-10-20', '2026-10-21', '2026-10-22']);
   });
 
-  // A conta errada: `toISOString()` no Brasil devolve o dia seguinte depois
-  // das 21h, porque converte para UTC. Este teste trava a conta certa.
+  // A conta errada: `toISOString()` converte para UTC, e no Brasil isso
+  // devolve o DIA SEGUINTE depois das 21h. Este teste trava a conta certa.
+  //
+  // ⚠️ A segunda linha usa fuso EXPLICITO, e nao o da maquina. A versao
+  // anterior fazia `new Date(2026, 9, 20, 23, 59).toISOString()` e afirmava
+  // que daria 21 -- o que so e verdade rodando em UTC-3. Passava aqui e
+  // falhava no CI, que roda em UTC. Foi a primeira coisa que o porteiro
+  // pegou, e era um teste meu que so valia no Brasil.
   it('as 23h o dia continua sendo hoje, nao amanha', () => {
     const tarde = new Date(2026, 9, 20, 23, 59);
     expect(proximosDias(1, tarde)[0]).toBe('2026-10-20');
-    expect(new Date(2026, 9, 20, 23, 59).toISOString().slice(0, 10)).toBe('2026-10-21');
+    expect(new Date('2026-10-20T23:59:00-03:00').toISOString().slice(0, 10))
+      .toBe('2026-10-21');
   });
 
   it('a madrugada tambem: 00h05 e hoje', () => {
