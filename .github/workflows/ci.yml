@@ -1,0 +1,87 @@
+# Porteiro automático do projeto.
+#
+# POR QUE EXISTE. O raio-X de 20/10/2026 encontrou 653 arquivos de teste que
+# NADA executava: `push` em `main` publicava direto na Vercel, e um teste
+# quebrado não impedia nem avisava. A qualidade dependia de alguém lembrar de
+# rodar os comandos à mão.
+#
+# O QUE BLOQUEIA E O QUE SÓ AVISA, e por quê:
+#
+#   typecheck · build · testes   -> BLOQUEIAM. Falharam, o código está errado.
+#   lint                         -> AVISA. Hoje são 534 erros, 492 deles
+#                                   `no-explicit-any`, que é estilo e não
+#                                   correção.
+#
+# Porteiro que nasce vermelho é porteiro que todo mundo aprende a ignorar. O
+# lint entra visível para a dívida diminuir, não para travar o dia de
+# trabalho. Quando os 534 virarem zero, basta tirar o `continue-on-error`.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Permite disparar à mão pelo site do GitHub, útil para conferir sem commitar.
+  workflow_dispatch:
+
+# Um push novo cancela a checagem anterior do mesmo ramo: ninguém precisa do
+# resultado de um commit que já foi substituído.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: typecheck, build e testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # A mesma linha de Node da máquina onde o projeto é desenvolvido.
+          # Divergir aqui faria o CI aprovar o que quebra lá, e vice-versa.
+          node-version: '24'
+          cache: npm
+
+      # `npm ci` e não `npm install`: instala exatamente o que está no
+      # package-lock. Instalação que resolve versões sozinha transforma o CI
+      # num teste de sorte.
+      - name: instalar
+        run: npm ci
+
+      - name: typecheck
+        run: npm run typecheck
+
+      - name: testes
+        run: npm run test
+
+      # O build roda DEPOIS dos testes de propósito: ele é o passo mais lento,
+      # e falha de teste aparece antes de esperar por ele.
+      - name: build
+        run: npm run build
+
+      # ---- avisa, não bloqueia ----
+      - name: lint (informativo)
+        id: lint
+        continue-on-error: true
+        run: npm run lint
+
+      - name: resumo
+        if: always()
+        run: |
+          {
+            echo "### Verificação"
+            echo ""
+            echo "| passo | resultado |"
+            echo "|---|---|"
+            echo "| typecheck | ✅ |"
+            echo "| testes | ✅ |"
+            echo "| build | ✅ |"
+            echo "| lint | ${{ steps.lint.outcome == 'success' && '✅' || '⚠️ com problemas (não bloqueia)' }} |"
+            echo ""
+            echo "O lint não bloqueia enquanto a dívida de \`no-explicit-any\` existir."
+          } >> "$GITHUB_STEP_SUMMARY"
