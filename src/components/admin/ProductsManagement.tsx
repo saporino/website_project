@@ -65,6 +65,9 @@ export function ProductsManagement() {
   // Atalho de leitura no modo de controle: ver só os produtos de uma empresa
   // sem sair dele. null = todas.
   const [filtroEmpresa, setFiltroEmpresa] = useState<string | null>(null);
+  // Quantos produtos de OUTRAS marcas esta empresa vende. Ver o aviso logo
+  // abaixo do título: é o que explica o painel mostrar 1 e o site mostrar 7.
+  const [vendidosDeOutras, setVendidosDeOutras] = useState(0);
   const empresaAlvo = vendoTodas ? empresaDoForm : activeCompanyId;
   const nomeDaEmpresa = (id: string | null) =>
     companies.find(c => c.id === id)?.fantasia || companies.find(c => c.id === id)?.name || '—';
@@ -145,6 +148,21 @@ export function ProductsManagement() {
         bMap[b.product_id].push(b.batch_number);
       });
       setActiveBatches(bMap);
+
+      // O canal desta empresa, para contar o que ela vende de terceiros. Só as
+      // empresas com canal próprio têm essa situação — a Saporino vende pela
+      // própria loja, a COFICO distribui marca dos outros.
+      const canalDaEmpresa = /cofico/i.test(
+        companies.find(c => c.id === activeCompanyId)?.fantasia
+        ?? companies.find(c => c.id === activeCompanyId)?.name ?? '') ? 'cofico' : null;
+      if (canalDaEmpresa && !vendoTodas) {
+        const { count } = await supabase.from('products')
+          .select('*', { count: 'exact', head: true })
+          .contains('sales_channels', [canalDaEmpresa])
+          .neq('company_id', activeCompanyId)
+          .eq('is_active', true);
+        setVendidosDeOutras(count ?? 0);
+      } else setVendidosDeOutras(0);
     } catch (error) {
       console.error('Error loading products:', error);
 
@@ -459,6 +477,29 @@ export function ProductsManagement() {
           </button>
         </div>
       </div>
+
+      {/* "SE AQUI SÓ TEM UM, POR QUE O SITE MOSTRA SETE?"
+          Pergunta dele, e a tela não respondia em lugar nenhum.
+
+          São duas listas diferentes, e as duas estão certas:
+            esta aqui  = produtos cuja MARCA é desta empresa (`company_id`)
+            o site     = produtos que esta empresa VENDE (`sales_channels`)
+
+          A COFICO é distribuidora: quase tudo que ela vende é de outra marca.
+          Dizer "Gerenciamento de Produtos" e mostrar só um, enquanto o site
+          mostra sete, parece defeito — e não é. Falta a frase. */}
+      {!vendoTodas && vendidosDeOutras > 0 && (
+        <div className="mb-4 flex items-start gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
+          <Building2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-[#8B2214]" />
+          <p>
+            Esta lista traz os produtos cuja <strong>marca é da {nomeDaEmpresa(activeCompanyId)}</strong>.
+            Ela também vende <strong>{vendidosDeOutras}</strong>{' '}
+            {vendidosDeOutras === 1 ? 'produto de outra marca' : 'produtos de outras marcas'} —
+            esses aparecem no site dela, mas são editados na empresa dona da marca.
+            Use <em>Todas as empresas</em>, no seletor do topo, para ver tudo junto.
+          </p>
+        </div>
+      )}
 
       {/* MODO DE CONTROLE: quantos são de cada empresa, e um atalho para ver só
           os de uma delas.

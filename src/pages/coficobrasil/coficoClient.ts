@@ -34,15 +34,34 @@ export interface CoficoProduto {
   category: string | null;
   product_line: string | null;
   weight_grams: number | null;
+  /** Ordem definida nas setas de Admin › Produtos. 0 = não arrumado. */
+  display_order: number | null;
   stock: number;
   marca_empresa: string | null;
   disponivel: boolean;
 }
 
 export async function fetchCoficoVitrine(): Promise<CoficoProduto[]> {
+  // A VITRINE SEGUE A ORDEM DO PAINEL.
+  //
+  // Faltava o `.order()`: o Postgres devolvia na ordem que bem entendesse, e a
+  // página saía com "Kit 4 × 500 g" antes do café avulso — kit grande primeiro,
+  // café depois, sem lógica nenhuma para quem olha. A ordem correta já existia
+  // em `display_order`, arrumada nas setas de Admin › Produtos; ninguém a lia.
+  //
+  // `display_order` 0 significa "não arrumado" e vai para o fim, como no resto
+  // do sistema. No empate manda o PESO, crescente: o café avulso de 500 g antes
+  // do kit de 2, que vem antes do de 3, do de 4 e do fardo. É a ordem que a
+  // pessoa espera ver, e a que ele descreveu.
   const { data, error } = await coficoDb.from('vw_cofico_vitrine').select('*');
   if (error || !data) return [];
-  return data as CoficoProduto[];
+  const lista = data as CoficoProduto[];
+  return lista.sort((a, b) => {
+    const oa = a.display_order || Number.MAX_SAFE_INTEGER;
+    const ob = b.display_order || Number.MAX_SAFE_INTEGER;
+    if (oa !== ob) return oa - ob;
+    return (a.weight_grams ?? 0) - (b.weight_grams ?? 0);
+  });
 }
 
 /**
