@@ -1,0 +1,1344 @@
+{
+ "_sobre": "Catalogo de CNAEs da cadeia do cafe, mapeado sobre as 1.332 subclasses OFICIAIS da CONCLA/IBGE (servicodados.ibge.gov.br/api/v2/cnae/subclasses). Nenhum codigo foi escrito a mao.",
+ "_gerado_em": "2026-10-23",
+ "_metodo": "filtro por palavra-chave sobre a descricao OFICIAL, com fronteira de palavra e lista de exclusao. Uma varredura direta pela palavra CAFE garante que nenhuma atividade nomeada pela CONCLA com cafe escape por sinonimo (foi assim que 1082100 'produtos a base de cafe' -- o CNAE do soluvel -- quase ficou de fora).",
+ "_forca": {
+  "direto": "a descricao oficial cita o produto ou a atividade explicitamente",
+  "indireto": "a atividade quase sempre envolve o produto, sem cita-lo na descricao",
+  "amplo": "pode envolver, mas o CNAE cobre muita coisa alem disso"
+ },
+ "_aviso": "CNAE e atividade DECLARADA, nunca o produto efetivamente vendido. Nao presumir que uma empresa compra cafe porque o CNAE e compativel, nem que nao compra porque o CNAE e amplo.",
+ "_descoberta_chave": {
+  "cnaes_que_citam_a_palavra_cafe": [
+   "0134200",
+   "1081301",
+   "1081302",
+   "1082100",
+   "4621400",
+   "4637101"
+  ],
+  "quantos": 6,
+  "de_um_total_de": 1332,
+  "licao": "procurar 'cafe' no CNAE encontra 6 atividades. A cadeia comercial inteira -- quem compra, revende, embala, transporta e serve -- esta nos outros 100."
+ },
+ "_cobertura": {
+  "total_no_catalogo": 112,
+  "ja_na_base_prospects_b2b": 29,
+  "ausentes_da_base": 83,
+  "na_base_fora_do_catalogo": []
+ },
+ "cnaes": {
+  "0134200": {
+   "descricao": "CULTIVO DE CAFÉ",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Atividade que cita CAFE na CONCLA",
+     "forca": "direto"
+    },
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Cultivo de cafe",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "1052000": {
+   "descricao": "FABRICAÇÃO DE LATICÍNIOS",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Varejo de laticinios e frios",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "1081301": {
+   "descricao": "BENEFICIAMENTO DE CAFÉ",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Atividade que cita CAFE na CONCLA",
+     "forca": "direto"
+    },
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Beneficiamento de cafe",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "1081302": {
+   "descricao": "TORREFAÇÃO E MOAGEM DE CAFÉ",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Atividade que cita CAFE na CONCLA",
+     "forca": "direto"
+    },
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Torrefacao e moagem de cafe",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "1082100": {
+   "descricao": "FABRICAÇÃO DE PRODUTOS À BASE DE CAFÉ",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Atividade que cita CAFE na CONCLA",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "1091101": {
+   "descricao": "FABRICAÇÃO DE PRODUTOS DE PANIFICAÇÃO INDUSTRIAL",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Padaria e confeitaria",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "1091102": {
+   "descricao": "FABRICAÇÃO DE PRODUTOS DE PADARIA E CONFEITARIA COM PREDOMINÂNCIA  DE PRODUÇÃO PRÓPRIA",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Padaria e confeitaria",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "1731100": {
+   "descricao": "FABRICAÇÃO DE EMBALAGENS DE PAPEL",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Embalagem de papel e papelao",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "1732000": {
+   "descricao": "FABRICAÇÃO DE EMBALAGENS DE CARTOLINA E PAPEL CARTÃO",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Embalagem de papel e papelao",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "1733800": {
+   "descricao": "FABRICAÇÃO DE CHAPAS E DE EMBALAGENS DE PAPELÃO ONDULADO",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Embalagem de papel e papelao",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "1812100": {
+   "descricao": "IMPRESSÃO DE MATERIAL DE SEGURANÇA",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Rotulo, etiqueta e impressao",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "1813001": {
+   "descricao": "IMPRESSÃO DE MATERIAL PARA USO PUBLICITÁRIO",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Rotulo, etiqueta e impressao",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "1813099": {
+   "descricao": "IMPRESSÃO DE MATERIAL PARA OUTROS USOS",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Rotulo, etiqueta e impressao",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "2099101": {
+   "descricao": "FABRICAÇÃO DE CHAPAS, FILMES, PAPÉIS E OUTROS MATERIAIS E PRODUTOS QUÍMICOS PARA FOTOGRAFIA",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Filme, chapa e laminado plastico",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "2221800": {
+   "descricao": "FABRICAÇÃO DE LAMINADOS PLANOS E TUBULARES DE MATERIAL PLÁSTICO",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Filme, chapa e laminado plastico",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "2222600": {
+   "descricao": "FABRICAÇÃO DE EMBALAGENS DE MATERIAL PLÁSTICO",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Embalagem de plastico",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "2229301": {
+   "descricao": "FABRICAÇÃO DE ARTEFATOS DE MATERIAL PLÁSTICO PARA USO PESSOAL E DOMÉSTICO",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Utensilio e artefato de plastico",
+     "forca": "indireto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "2229302": {
+   "descricao": "FABRICAÇÃO DE ARTEFATOS DE MATERIAL PLÁSTICO PARA USOS INDUSTRIAIS",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Utensilio e artefato de plastico",
+     "forca": "indireto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "2229303": {
+   "descricao": "FABRICAÇÃO DE ARTEFATOS DE MATERIAL PLÁSTICO PARA USO NA CONSTRUÇÃO, EXCETO TUBOS E ACESSÓRIOS",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Utensilio e artefato de plastico",
+     "forca": "indireto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "2229399": {
+   "descricao": "FABRICAÇÃO DE ARTEFATOS DE MATERIAL PLÁSTICO PARA OUTROS USOS NÃO ESPECIFICADOS ANTERIORMENTE",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Utensilio e artefato de plastico",
+     "forca": "indireto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "2541100": {
+   "descricao": "FABRICAÇÃO DE ARTIGOS DE CUTELARIA",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Utensilio de metal / inox",
+     "forca": "indireto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "2759799": {
+   "descricao": "FABRICAÇÃO DE OUTROS APARELHOS ELETRODOMÉSTICOS NÃO ESPECIFICADOS ANTERIORMENTE, PEÇAS E ACESSÓRIOS",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Eletrodomestico (cafeteira)",
+     "forca": "indireto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "2823200": {
+   "descricao": "FABRICAÇÃO DE MÁQUINAS E APARELHOS DE REFRIGERAÇÃO E VENTILAÇÃO PARA USO INDUSTRIAL E COMERCIAL, PEÇAS E ACESSÓRIOS",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Equipamento para refrigeracao e ventilacao",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "2862300": {
+   "descricao": "FABRICAÇÃO DE MÁQUINAS E EQUIPAMENTOS PARA AS INDÚSTRIAS DE ALIMENTOS, BEBIDAS E FUMO, PEÇAS E ACESSÓRIOS",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Maquina para alimentos e bebidas",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "2865800": {
+   "descricao": "FABRICAÇÃO DE MÁQUINAS E EQUIPAMENTOS PARA AS INDÚSTRIAS DE CELULOSE, PAPEL E PAPELÃO E ARTEFATOS, PEÇAS E ACESSÓRIOS",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Artefato de papel (filtro, coador)",
+     "forca": "indireto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "3313999": {
+   "descricao": "MANUTENÇÃO E REPARAÇÃO DE MÁQUINAS, APARELHOS E MATERIAIS ELÉTRICOS NÃO ESPECIFICADOS ANTERIORMENTE",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Manutencao de maquinas e equipamentos",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "3314701": {
+   "descricao": "MANUTENÇÃO E REPARAÇÃO DE MÁQUINAS MOTRIZES NÃO ELÉTRICAS",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Manutencao de maquinas e equipamentos",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "3314706": {
+   "descricao": "MANUTENÇÃO E REPARAÇÃO DE MÁQUINAS, APARELHOS E EQUIPAMENTOS PARA INSTALAÇÕES TÉRMICAS",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Manutencao de maquinas e equipamentos",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "3314707": {
+   "descricao": "MANUTENÇÃO E REPARAÇÃO DE MÁQUINAS E APARELHOS DE REFRIGERAÇÃO E VENTILAÇÃO PARA USO INDUSTRIAL E COMERCIAL",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Equipamento para refrigeracao e ventilacao",
+     "forca": "amplo"
+    },
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Manutencao de maquinas e equipamentos",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "3314708": {
+   "descricao": "MANUTENÇÃO E REPARAÇÃO DE MÁQUINAS, EQUIPAMENTOS E APARELHOS PARA TRANSPORTE E ELEVAÇÃO DE CARGAS",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Manutencao de maquinas e equipamentos",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "3314709": {
+   "descricao": "MANUTENÇÃO E REPARAÇÃO DE MÁQUINAS DE ESCREVER, CALCULAR E DE OUTROS EQUIPAMENTOS NÃO ELETRÔNICOS PARA ESCRITÓRIO",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Manutencao de maquinas e equipamentos",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "3314710": {
+   "descricao": "MANUTENÇÃO E REPARAÇÃO DE MÁQUINAS E EQUIPAMENTOS PARA USO GERAL NÃO ESPECIFICADOS ANTERIORMENTE",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Manutencao de maquinas e equipamentos",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "3314711": {
+   "descricao": "MANUTENÇÃO E REPARAÇÃO DE MÁQUINAS E EQUIPAMENTOS PARA AGRICULTURA E PECUÁRIA",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Manutencao de maquinas e equipamentos",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "3314713": {
+   "descricao": "MANUTENÇÃO E REPARAÇÃO DE MÁQUINAS FERRAMENTA",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Manutencao de maquinas e equipamentos",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "3314714": {
+   "descricao": "MANUTENÇÃO E REPARAÇÃO DE MÁQUINAS E EQUIPAMENTOS PARA A PROSPECÇÃO E EXTRAÇÃO DE PETRÓLEO",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Manutencao de maquinas e equipamentos",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "3314715": {
+   "descricao": "MANUTENÇÃO E REPARAÇÃO DE MÁQUINAS E EQUIPAMENTOS PARA USO NA EXTRAÇÃO MINERAL, EXCETO NA EXTRAÇÃO DE PETRÓLEO",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Manutencao de maquinas e equipamentos",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "3314717": {
+   "descricao": "MANUTENÇÃO E REPARAÇÃO DE MÁQUINAS E EQUIPAMENTOS DE TERRAPLENAGEM, PAVIMENTAÇÃO E CONSTRUÇÃO, EXCETO TRATORES",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Manutencao de maquinas e equipamentos",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "3314718": {
+   "descricao": "MANUTENÇÃO E REPARAÇÃO DE MÁQUINAS PARA A INDÚSTRIA METALÚRGICA, EXCETO MÁQUINAS FERRAMENTA",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Manutencao de maquinas e equipamentos",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "3314719": {
+   "descricao": "MANUTENÇÃO E REPARAÇÃO DE MÁQUINAS E EQUIPAMENTOS PARA AS INDÚSTRIAS DE ALIMENTOS, BEBIDAS E FUMO",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Maquina para alimentos e bebidas",
+     "forca": "direto"
+    },
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Manutencao de maquinas e equipamentos",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "3314720": {
+   "descricao": "MANUTENÇÃO E REPARAÇÃO DE MÁQUINAS E EQUIPAMENTOS PARA A INDÚSTRIA TÊXTIL, DO VESTUÁRIO, DO COURO E CALÇADOS",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Manutencao de maquinas e equipamentos",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "3314721": {
+   "descricao": "MANUTENÇÃO E REPARAÇÃO DE MÁQUINAS E APARELHOS PARA A INDÚSTRIA DE CELULOSE, PAPEL E PAPELÃO E ARTEFATOS",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Artefato de papel (filtro, coador)",
+     "forca": "indireto"
+    },
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Manutencao de maquinas e equipamentos",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "3314722": {
+   "descricao": "MANUTENÇÃO E REPARAÇÃO DE MÁQUINAS E APARELHOS PARA A INDÚSTRIA DO PLÁSTICO",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Manutencao de maquinas e equipamentos",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "3314799": {
+   "descricao": "MANUTENÇÃO E REPARAÇÃO DE OUTRAS MÁQUINAS E EQUIPAMENTOS PARA USOS INDUSTRIAIS NÃO ESPECIFICADOS ANTERIORMENTE",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Manutencao de maquinas e equipamentos",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4322302": {
+   "descricao": "INSTALAÇÃO E MANUTENÇÃO DE SISTEMAS CENTRAIS DE AR CONDICIONADO, DE VENTILAÇÃO E REFRIGERAÇÃO",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Equipamento para refrigeracao e ventilacao",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4512901": {
+   "descricao": "REPRESENTANTES COMERCIAIS E AGENTES DO COMÉRCIO DE VEÍCULOS AUTOMOTORES",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Representante comercial / agente",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4530706": {
+   "descricao": "REPRESENTANTES COMERCIAIS E AGENTES DO COMÉRCIO DE PEÇAS E ACESSÓRIOS NOVOS E USADOS PARA VEÍCULOS AUTOMOTORES",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Representante comercial / agente",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4542101": {
+   "descricao": "REPRESENTANTES COMERCIAIS E AGENTES DO COMÉRCIO DE MOTOCICLETAS E MOTONETAS, PEÇAS E ACESSÓRIOS",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Representante comercial / agente",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4611700": {
+   "descricao": "REPRESENTANTES COMERCIAIS E AGENTES DO COMÉRCIO DE MATÉRIAS PRIMAS AGRÍCOLAS E ANIMAIS VIVOS",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Representante comercial / agente",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4612500": {
+   "descricao": "REPRESENTANTES COMERCIAIS E AGENTES DO COMÉRCIO DE COMBUSTÍVEIS, MINERAIS, PRODUTOS SIDERÚRGICOS E QUÍMICOS",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Representante comercial / agente",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4613300": {
+   "descricao": "REPRESENTANTES COMERCIAIS E AGENTES DO COMÉRCIO DE MADEIRA, MATERIAL DE CONSTRUÇÃO E FERRAGENS",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Representante comercial / agente",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4614100": {
+   "descricao": "REPRESENTANTES COMERCIAIS E AGENTES DO COMÉRCIO DE MÁQUINAS, EQUIPAMENTOS, EMBARCAÇÕES E AERONAVES",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Representante comercial / agente",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4615000": {
+   "descricao": "REPRESENTANTES COMERCIAIS E AGENTES DO COMÉRCIO DE ELETRODOMÉSTICOS, MÓVEIS E ARTIGOS DE USO DOMÉSTICO",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Representante comercial / agente",
+     "forca": "amplo"
+    },
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Eletrodomestico (cafeteira)",
+     "forca": "indireto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4616800": {
+   "descricao": "REPRESENTANTES COMERCIAIS E AGENTES DO COMÉRCIO DE TÊXTEIS, VESTUÁRIO, CALÇADOS E ARTIGOS DE VIAGEM",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Representante comercial / agente",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4617600": {
+   "descricao": "REPRESENTANTES COMERCIAIS E AGENTES DO COMÉRCIO DE PRODUTOS ALIMENTÍCIOS, BEBIDAS E FUMO",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Representante comercial / agente",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4618401": {
+   "descricao": "REPRESENTANTES COMERCIAIS E AGENTES DO COMÉRCIO DE MEDICAMENTOS, COSMÉTICOS E PRODUTOS DE PERFUMARIA",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Representante comercial / agente",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4618402": {
+   "descricao": "REPRESENTANTES COMERCIAIS E AGENTES DO COMÉRCIO DE INSTRUMENTOS E MATERIAIS ODONTO MÉDICO HOSPITALARES",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Representante comercial / agente",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4618403": {
+   "descricao": "REPRESENTANTES COMERCIAIS E AGENTES DO COMÉRCIO DE JORNAIS, REVISTAS E OUTRAS PUBLICAÇÕES",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Representante comercial / agente",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4618499": {
+   "descricao": "OUTROS REPRESENTANTES COMERCIAIS E AGENTES DO COMÉRCIO ESPECIALIZADO EM PRODUTOS NÃO ESPECIFICADOS ANTERIORMENTE",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Representante comercial / agente",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4619200": {
+   "descricao": "REPRESENTANTES COMERCIAIS E AGENTES DO COMÉRCIO DE MERCADORIAS EM GERAL NÃO ESPECIALIZADO",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Representante comercial / agente",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4621400": {
+   "descricao": "COMÉRCIO ATACADISTA DE CAFÉ EM GRÃO",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Atividade que cita CAFE na CONCLA",
+     "forca": "direto"
+    },
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de cafe",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "4631100": {
+   "descricao": "COMÉRCIO ATACADISTA DE LEITE E LATICÍNIOS",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Varejo de laticinios e frios",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4637101": {
+   "descricao": "COMÉRCIO ATACADISTA DE CAFÉ TORRADO, MOÍDO E SOLÚVEL",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Atividade que cita CAFE na CONCLA",
+     "forca": "direto"
+    },
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de cafe",
+     "forca": "direto"
+    },
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Cafe soluvel e derivados",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "4637199": {
+   "descricao": "COMÉRCIO ATACADISTA ESPECIALIZADO EM OUTROS PRODUTOS ALIMENTÍCIOS NÃO ESPECIFICADOS ANTERIORMENTE",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de alimentos",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4639701": {
+   "descricao": "COMÉRCIO ATACADISTA DE PRODUTOS ALIMENTÍCIOS EM GERAL",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de alimentos",
+     "forca": "direto"
+    },
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de mercadorias em geral",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "4639702": {
+   "descricao": "COMÉRCIO ATACADISTA DE PRODUTOS ALIMENTÍCIOS EM GERAL, COM ATIVIDADE DE FRACIONAMENTO E ACONDICIONAMENTO ASSOCIADA",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de alimentos",
+     "forca": "direto"
+    },
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de mercadorias em geral",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "4649407": {
+   "descricao": "COMÉRCIO ATACADISTA DE FILMES, CDS, DVDS, FITAS E DISCOS",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Filme, chapa e laminado plastico",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4661300": {
+   "descricao": "COMÉRCIO ATACADISTA DE MÁQUINAS, APARELHOS E EQUIPAMENTOS PARA USO AGROPECUÁRIO; PARTES E PEÇAS",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de maquinas e equipamentos",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4662100": {
+   "descricao": "COMÉRCIO ATACADISTA DE MÁQUINAS, EQUIPAMENTOS PARA TERRAPLENAGEM, MINERAÇÃO E CONSTRUÇÃO; PARTES E PEÇAS",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de maquinas e equipamentos",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4663000": {
+   "descricao": "COMÉRCIO ATACADISTA DE MÁQUINAS E EQUIPAMENTOS PARA USO INDUSTRIAL; PARTES E PEÇAS",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de maquinas e equipamentos",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4664800": {
+   "descricao": "COMÉRCIO ATACADISTA DE MÁQUINAS, APARELHOS E EQUIPAMENTOS PARA USO ODONTO MÉDICO HOSPITALAR; PARTES E PEÇAS",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de maquinas e equipamentos",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4665600": {
+   "descricao": "COMÉRCIO ATACADISTA DE MÁQUINAS E EQUIPAMENTOS PARA USO COMERCIAL; PARTES E PEÇAS",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de maquinas e equipamentos",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4669999": {
+   "descricao": "COMÉRCIO ATACADISTA DE OUTRAS MÁQUINAS E EQUIPAMENTOS NÃO ESPECIFICADOS ANTERIORMENTE; PARTES E PEÇAS",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de maquinas e equipamentos",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4679699": {
+   "descricao": "COMÉRCIO ATACADISTA DE MATERIAIS DE CONSTRUÇÃO EM GERAL",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de mercadorias em geral",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4686902": {
+   "descricao": "COMÉRCIO ATACADISTA DE EMBALAGENS",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de embalagens",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4691500": {
+   "descricao": "COMÉRCIO ATACADISTA DE MERCADORIAS EM GERAL, COM PREDOMINÂNCIA DE PRODUTOS ALIMENTÍCIOS",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de alimentos",
+     "forca": "direto"
+    },
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de mercadorias em geral",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "4692300": {
+   "descricao": "COMÉRCIO ATACADISTA DE MERCADORIAS EM GERAL, COM PREDOMINÂNCIA DE INSUMOS AGROPECUÁRIOS",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de mercadorias em geral",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4693100": {
+   "descricao": "COMÉRCIO ATACADISTA DE MERCADORIAS EM GERAL, SEM PREDOMINÂNCIA DE ALIMENTOS OU DE INSUMOS AGROPECUÁRIOS",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de mercadorias em geral",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4711301": {
+   "descricao": "COMÉRCIO VAREJISTA DE MERCADORIAS EM GERAL, COM PREDOMINÂNCIA DE PRODUTOS ALIMENTÍCIOS   HIPERMERCADOS",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Hiper e supermercado",
+     "forca": "direto"
+    },
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Varejo de alimentos em geral",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "4711302": {
+   "descricao": "COMÉRCIO VAREJISTA DE MERCADORIAS EM GERAL, COM PREDOMINÂNCIA DE PRODUTOS ALIMENTÍCIOS - SUPERMERCADOS",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Hiper e supermercado",
+     "forca": "direto"
+    },
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Varejo de alimentos em geral",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "4712100": {
+   "descricao": "COMÉRCIO VAREJISTA DE MERCADORIAS EM GERAL, COM PREDOMINÂNCIA DE PRODUTOS ALIMENTÍCIOS - MINIMERCADOS, MERCEARIAS E ARMAZÉNS",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Mini, mercearia e armazem",
+     "forca": "direto"
+    },
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Varejo de alimentos em geral",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "4721102": {
+   "descricao": "PADARIA E CONFEITARIA COM PREDOMINÂNCIA DE REVENDA",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Padaria e confeitaria",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "4721103": {
+   "descricao": "COMÉRCIO VAREJISTA DE LATICÍNIOS E FRIOS",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Varejo de laticinios e frios",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "4721104": {
+   "descricao": "COMÉRCIO VAREJISTA DE DOCES, BALAS, BOMBONS E SEMELHANTES",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Doces, balas e chocolates",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4724500": {
+   "descricao": "COMÉRCIO VAREJISTA DE HORTIFRUTIGRANJEIROS",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Hortifruti, sacolao e quitanda",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "4729601": {
+   "descricao": "TABACARIA",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Posto e tabacaria (ponto de cafe)",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "4729602": {
+   "descricao": "COMÉRCIO VAREJISTA DE MERCADORIAS EM LOJAS DE CONVENIÊNCIA",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Loja de conveniencia",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4729699": {
+   "descricao": "COMÉRCIO VAREJISTA DE PRODUTOS ALIMENTÍCIOS EM GERAL OU ESPECIALIZADO EM PRODUTOS ALIMENTÍCIOS NÃO ESPECIFICADOS ANTERIORMENTE",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Varejo de alimentos em geral",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "4731800": {
+   "descricao": "COMÉRCIO VAREJISTA DE COMBUSTÍVEIS PARA VEÍCULOS AUTOMOTORES",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Posto e tabacaria (ponto de cafe)",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "4753900": {
+   "descricao": "COMÉRCIO VAREJISTA ESPECIALIZADO DE ELETRODOMÉSTICOS E EQUIPAMENTOS DE ÁUDIO E VÍDEO",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Eletrodomestico (cafeteira)",
+     "forca": "indireto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4930201": {
+   "descricao": "TRANSPORTE RODOVIÁRIO DE CARGA, EXCETO PRODUTOS PERIGOSOS E MUDANÇAS, MUNICIPAL",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Transporte rodoviario de carga",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4930202": {
+   "descricao": "TRANSPORTE RODOVIÁRIO DE CARGA, EXCETO PRODUTOS PERIGOSOS E MUDANÇAS, INTERMUNICIPAL, INTERESTADUAL E INTERNACIONAL",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Transporte rodoviario de carga",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "5211701": {
+   "descricao": "ARMAZÉNS GERAIS - EMISSÃO DE WARRANT",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Armazem geral e deposito",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "5211799": {
+   "descricao": "DEPÓSITOS DE MERCADORIAS PARA TERCEIROS, EXCETO ARMAZÉNS GERAIS E GUARDA MÓVEIS",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Armazem geral e deposito",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "5212500": {
+   "descricao": "CARGA E DESCARGA",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Carga, descarga e movimentacao",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "5510801": {
+   "descricao": "HOTÉIS",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Hotel e meios de hospedagem",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "5510802": {
+   "descricao": "APART HOTÉIS",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Hotel e meios de hospedagem",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "5590603": {
+   "descricao": "PENSÕES(ALOJAMENTO)",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Hotel e meios de hospedagem",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "5590699": {
+   "descricao": "OUTROS ALOJAMENTOS NÃO ESPECIFICADOS ANTERIORMENTE",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Hotel e meios de hospedagem",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "5611201": {
+   "descricao": "RESTAURANTES E SIMILARES",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Restaurante",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "5611203": {
+   "descricao": "LANCHONETES, CASAS DE CHÁ, DE SUCOS E SIMILARES",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Bar, lanchonete e casa de cha",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "5611204": {
+   "descricao": "BARES E OUTROS ESTABELECIMENTOS ESPECIALIZADOS EM SERVIR BEBIDAS, SEM ENTRETENIMENTO",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Bar, lanchonete e casa de cha",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "5611205": {
+   "descricao": "BARES E OUTROS ESTABELECIMENTOS ESPECIALIZADOS EM SERVIR BEBIDAS, COM ENTRETENIMENTO ",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Bar, lanchonete e casa de cha",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "5620101": {
+   "descricao": "FORNECIMENTO DE ALIMENTOS PREPARADOS PREPONDERANTEMENTE PARA EMPRESAS",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Alimentacao coletiva e cantina",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "5620102": {
+   "descricao": "SERVIÇOS DE ALIMENTAÇÃO PARA EVENTOS E RECEPÇÕES - BUFÊ",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Buffet, eventos e catering",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "5620103": {
+   "descricao": "CANTINAS - SERVIÇOS DE ALIMENTAÇÃO PRIVATIVOS",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Alimentacao coletiva e cantina",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "5620104": {
+   "descricao": "FORNECIMENTO DE ALIMENTOS PREPARADOS PREPONDERANTEMENTE PARA CONSUMO DOMICILIAR",
+   "grupos": [
+    {
+     "categoria": "A. Compradores",
+     "segmento": "Alimentacao coletiva e cantina",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": true
+  },
+  "5911102": {
+   "descricao": "PRODUÇÃO DE FILMES PARA PUBLICIDADE",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Filme, chapa e laminado plastico",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "7731400": {
+   "descricao": "ALUGUEL DE MÁQUINAS E EQUIPAMENTOS AGRÍCOLAS SEM OPERADOR",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Aluguel / locacao de maquinas",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "7732201": {
+   "descricao": "ALUGUEL DE MÁQUINAS E EQUIPAMENTOS PARA CONSTRUÇÃO SEM OPERADOR, EXCETO ANDAIMES",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Aluguel / locacao de maquinas",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "7733100": {
+   "descricao": "ALUGUEL DE MÁQUINAS E EQUIPAMENTOS PARA ESCRITÓRIOS",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Aluguel / locacao de maquinas",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "7739001": {
+   "descricao": "ALUGUEL DE MÁQUINAS E EQUIPAMENTOS PARA EXTRAÇÃO DE MINÉRIOS E PETRÓLEO, SEM OPERADOR",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Aluguel / locacao de maquinas",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "7739099": {
+   "descricao": "ALUGUEL DE OUTRAS MÁQUINAS E EQUIPAMENTOS COMERCIAIS E INDUSTRIAIS NÃO ESPECIFICADOS ANTERIORMENTE, SEM OPERADOR",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Aluguel / locacao de maquinas",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  }
+ }
+}
