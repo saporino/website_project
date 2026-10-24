@@ -93,6 +93,29 @@ G = [
  ('D. Parceiros','Manutencao de maquinas e equipamentos','direto',[['MANUTENCAO','REPARACAO','MAQUINAS'],['REPARACAO','MANUTENCAO','MAQUINAS']],[]),
  ('D. Parceiros','Aluguel / locacao de maquinas','direto',[['ALUGUEL','MAQUINAS']],[]),
  ('D. Parceiros','Comercio exterior (import/export)','amplo',[['IMPORTACAO'],['EXPORTACAO']],[]),
+
+ # ── LACUNAS ACHADAS AO VALIDAR O CATALOGO CONTRA A LISTA DELE ───────────────
+ # Nenhuma foi encontrada pelos filtros originais. Vieram de procurar, um a um,
+ # os itens que ele listou e conferir se existe CNAE oficial para cada um.
+ #
+ # O que NAO entrou, e por que:
+ #  · cooperativa de produtores -- as unicas "cooperativas" nomeadas na CONCLA
+ #    sao de CREDITO. Cooperativa de cafe classifica-se pela ATIVIDADE que
+ #    exerce (cultivo 0134200, beneficiamento 1081301), que e exatamente a
+ #    regra que ele escreveu.
+ #  · broker/trading/corretor de cafe -- nao existe. Os "corretores" da CONCLA
+ #    sao de imoveis e seguros. Broker de cafe cai em representante comercial
+ #    de materias-primas agricolas (4611700), ja no catalogo.
+ #  · silo, secagem, viveiro, capsula, garrafa termica, xicara -- sem codigo
+ #    proprio. Caem em armazem geral, artefatos de plastico/metal e utilidades
+ #    domesticas, todos ja cobertos.
+ #  · "artigos de cama, mesa e banho" NAO entrou: e textil, nao louca. Seria
+ #    falso positivo.
+ ('D. Parceiros','Analise, classificacao e laudo','indireto',[['TESTES','ANALISES']],[]),
+ ('D. Parceiros','Despacho aduaneiro','direto',[['DESPACHOS']],[]),
+ ('C. Fabricantes','Embalagem de vidro','direto',[['EMBALAGENS','VIDRO']],[]),
+ ('C. Fabricantes','Artigo de metal para uso domestico','indireto',[['DOMESTICO','METAL']],[]),
+ ('B. Distribuidores','Atacado de bebidas','amplo',[['ATACADISTA','BEBIDAS']],[]),
 ]
 
 catalogo = {}

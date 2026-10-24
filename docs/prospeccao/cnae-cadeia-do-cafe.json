@@ -1,6 +1,6 @@
 {
  "_sobre": "Catalogo de CNAEs da cadeia do cafe, mapeado sobre as 1.332 subclasses OFICIAIS da CONCLA/IBGE (servicodados.ibge.gov.br/api/v2/cnae/subclasses). Nenhum codigo foi escrito a mao.",
- "_gerado_em": "2026-10-23",
+ "_gerado_em": "2026-10-23 (validado)",
  "_metodo": "filtro por palavra-chave sobre a descricao OFICIAL, com fronteira de palavra e lista de exclusao. Uma varredura direta pela palavra CAFE garante que nenhuma atividade nomeada pela CONCLA com cafe escape por sinonimo (foi assim que 1082100 'produtos a base de cafe' -- o CNAE do soluvel -- quase ficou de fora).",
  "_forca": {
   "direto": "a descricao oficial cita o produto ou a atividade explicitamente",
@@ -19,12 +19,12 @@
   ],
   "quantos": 6,
   "de_um_total_de": 1332,
-  "licao": "procurar 'cafe' no CNAE encontra 6 atividades. A cadeia comercial inteira -- quem compra, revende, embala, transporta e serve -- esta nos outros 100."
+  "licao": "procurar 'cafe' no CNAE encontra 6 atividades. A cadeia comercial inteira esta nos outros 112."
  },
  "_cobertura": {
-  "total_no_catalogo": 112,
+  "total_no_catalogo": 118,
   "ja_na_base_prospects_b2b": 29,
-  "ausentes_da_base": 83,
+  "ausentes_da_base": 89,
   "na_base_fora_do_catalogo": []
  },
  "cnaes": {
@@ -263,12 +263,34 @@
    ],
    "na_base_hoje": false
   },
+  "2312500": {
+   "descricao": "FABRICAÇÃO DE EMBALAGENS DE VIDRO",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Embalagem de vidro",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
   "2541100": {
    "descricao": "FABRICAÇÃO DE ARTIGOS DE CUTELARIA",
    "grupos": [
     {
      "categoria": "C. Fabricantes",
      "segmento": "Utensilio de metal / inox",
+     "forca": "indireto"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "2593400": {
+   "descricao": "FABRICAÇÃO DE ARTIGOS DE METAL PARA USO DOMÉSTICO E PESSOAL",
+   "grupos": [
+    {
+     "categoria": "C. Fabricantes",
+     "segmento": "Artigo de metal para uso domestico",
      "forca": "indireto"
     }
    ],
@@ -739,6 +761,28 @@
    ],
    "na_base_hoje": false
   },
+  "4635403": {
+   "descricao": "COMÉRCIO ATACADISTA DE BEBIDAS COM ATIVIDADE DE FRACIONAMENTO E ACONDICIONAMENTO ASSOCIADA",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de bebidas",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
+  "4635499": {
+   "descricao": "COMÉRCIO ATACADISTA DE BEBIDAS NÃO ESPECIFICADAS ANTERIORMENTE",
+   "grupos": [
+    {
+     "categoria": "B. Distribuidores",
+     "segmento": "Atacado de bebidas",
+     "forca": "amplo"
+    }
+   ],
+   "na_base_hoje": false
+  },
   "4637101": {
    "descricao": "COMÉRCIO ATACADISTA DE CAFÉ TORRADO, MOÍDO E SOLÚVEL",
    "grupos": [
@@ -1142,6 +1186,17 @@
    ],
    "na_base_hoje": false
   },
+  "5250801": {
+   "descricao": "COMISSARIA DE DESPACHOS",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Despacho aduaneiro",
+     "forca": "direto"
+    }
+   ],
+   "na_base_hoje": false
+  },
   "5510801": {
    "descricao": "HOTÉIS",
    "grupos": [
@@ -1285,6 +1340,17 @@
    ],
    "na_base_hoje": false
   },
+  "7120100": {
+   "descricao": "TESTES E ANÁLISES TÉCNICAS",
+   "grupos": [
+    {
+     "categoria": "D. Parceiros",
+     "segmento": "Analise, classificacao e laudo",
+     "forca": "indireto"
+    }
+   ],
+   "na_base_hoje": false
+  },
   "7731400": {
    "descricao": "ALUGUEL DE MÁQUINAS E EQUIPAMENTOS AGRÍCOLAS SEM OPERADOR",
    "grupos": [
@@ -1339,6 +1405,27 @@
     }
    ],
    "na_base_hoje": false
+  }
+ },
+ "_validacao": {
+  "feita_em": "2026-10-23",
+  "metodo": "cada item da lista do Vlademir foi procurado, um a um, nas 1.332 subclasses oficiais",
+  "lacunas_encontradas_e_corrigidas": [
+   "7120100 testes e analises tecnicas",
+   "5250801 comissaria de despachos",
+   "2312500 embalagens de vidro",
+   "2593400 artigos de metal para uso domestico",
+   "4635403/4635499 atacado de bebidas"
+  ],
+  "nao_existem_na_concla": {
+   "cooperativa de produtores": "as unicas cooperativas nomeadas sao de CREDITO. Cooperativa de cafe classifica-se pela ATIVIDADE (0134200 cultivo, 1081301 beneficiamento).",
+   "broker / trading / corretor de cafe": "nao existe. Os corretores da CONCLA sao de imoveis e seguros. Broker de cafe cai em representante comercial de materias-primas agricolas (4611700).",
+   "silo, secagem, viveiro": "sem codigo proprio. Caem em armazem geral (5211701/5211799).",
+   "capsula, garrafa termica, xicara, caneca, bule": "sem codigo proprio. Caem em artefatos de plastico (2229301-99), artigos de metal (2593400) e utilidades domesticas.",
+   "despachante aduaneiro": "a palavra nao existe, mas a atividade sim: 5250801 COMISSARIA DE DESPACHOS."
+  },
+  "descartado_de_proposito": {
+   "4641902 / 4755503 artigos de cama, mesa e banho": "e textil, nao louca. Seria falso positivo."
   }
  }
 }
